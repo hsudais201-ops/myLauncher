@@ -60,10 +60,33 @@ def patch_upstream(upstream: Path) -> None:
         raise ValueError("Gradle rootProject.name was not customized")
     settings.write_text(settings_text, encoding="utf-8")
 
+    launcher_preferences = upstream / "app_pojavlauncher" / "src" / "main" / "java" / "net" / "kdt" / "pojavlaunch" / "prefs" / "LauncherPreferences.java"
+    if not launcher_preferences.is_file():
+        raise FileNotFoundError(f"Expected upstream file is missing: {launcher_preferences}")
+    preferences_text = launcher_preferences.read_text(encoding="utf-8")
+    preferences_text = replace_idempotently(
+        preferences_text,
+        "int targetSide = isDevicePowerful ? 1080 : 720;",
+        "int targetSide = isDevicePowerful ? 1080 : (Tools.getTotalDeviceMemory(context) <= 2048 ? 480 : 720);",
+        str(launcher_preferences),
+    )
+    preferences_text = replace_idempotently(
+        preferences_text,
+        "if (deviceRam < 2048) return 656;",
+        "if (deviceRam <= 2048) return 656;",
+        str(launcher_preferences),
+    )
+    if "int targetSide = isDevicePowerful ? 1080 : 720;" in preferences_text:
+        raise ValueError("Low-memory resolution target was not applied")
+    if "if (deviceRam < 2048) return 656;" in preferences_text:
+        raise ValueError("The 2 GB RAM allocation boundary was not corrected")
+    launcher_preferences.write_text(preferences_text, encoding="utf-8")
+
     print("myLauncher patch OK")
     print("  app label: myLauncher")
     print("  application ID: com.mf.mylauncher (debug adds .debug)")
     print("  storage/share authorities: customized")
+    print("  low-memory defaults: 656 MB at <=2 GB; ~480 px short-edge render target")
 
 
 def main(argv: list[str]) -> int:
