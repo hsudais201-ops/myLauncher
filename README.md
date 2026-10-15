@@ -8,7 +8,8 @@ A personal Minecraft: Java Edition launcher build for Android, customized for lo
 
 - Android 9 (API 28) and newer. Upstream Amethyst declares a lower minimum Android SDK, so this build does not raise it.
 - Intended for testing on devices with 2 GB RAM or less; performance is not guaranteed and varies with CPU, GPU, renderer, version, and free memory.
-- Suggested starting settings: Minecraft 1.8.9 or 1.12.2; set launcher memory around 512–768 MB; render distance 4–6 chunks; resolution scale about 50–60%; Fast graphics; no shaders. These are recommendations to set inside the launcher, not settings automatically forced by this project.
+- Built-in low-memory defaults: the launcher starts with a 656 MB memory allocation when Android reports at most 2,048 MB total RAM (smaller devices keep Amethyst’s lower tiers). For devices in that RAM tier, the default resolution scaler targets a 480-pixel short screen edge when the edge is larger than 480 pixels; scaling is rounded to the nearest supported 5% step. Saved preferences still take priority, so users can change the values afterward.
+- Suggested Minecraft settings: use 1.8.9 or 1.12.2, render distance 4–6 chunks, Fast graphics, and no shaders. Set these in Minecraft; this project does not force in-game settings.
 
 ## Build the APK
 
@@ -22,7 +23,7 @@ The workflow checks out the Amethyst source and its submodules, applies the bran
 ## Files
 
 - `.github/workflows/build.yml` — repeatable Android build workflow.
-- `.github/scripts/customize_amethyst.py` — deterministic patch for the app label and package/authority IDs.
+- `.github/scripts/customize_amethyst.py` — deterministic patch for the app label, package/authority IDs, and low-memory defaults.
 - `.github/scripts/test_customizer.py` — local regression tests for the patch logic.
 
 ## Local build
