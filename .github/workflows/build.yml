@@ -1,0 +1,86 @@
+name: Build myLauncher APK
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mylauncher-build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-debug-apk:
+    name: Test and build Android APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - name: Check out myLauncher customizations
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: gradle
+          cache-dependency-path: upstream/gradle/wrapper/gradle-wrapper.properties
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Accept Android SDK licenses
+        run: yes | sdkmanager --licenses
+
+      - name: Install required Android SDK and NDK
+        run: sdkmanager --install 'platforms;android-37' 'ndk;27.3.13750724'
+
+      - name: Test customization script
+        run: python3 -m unittest discover -s .github/scripts -p 'test_*.py' -v
+
+      - name: Fetch Amethyst engine and submodules
+        run: git clone --depth 1 --branch v3_openjdk --recurse-submodules https://github.com/AngelAuraMC/Amethyst-Android.git upstream
+
+      - name: Apply and inspect myLauncher customization
+        run: python3 .github/scripts/customize_amethyst.py upstream
+
+      - name: Record upstream revision
+        run: |
+          echo "Upstream: https://github.com/AngelAuraMC/Amethyst-Android" > upstream/MYLAUNCHER_BUILD_INFO.txt
+          echo "Branch: v3_openjdk" >> upstream/MYLAUNCHER_BUILD_INFO.txt
+          echo "Commit: $(git -C upstream rev-parse HEAD)" >> upstream/MYLAUNCHER_BUILD_INFO.txt
+          echo "Custom app ID: com.mf.mylauncher (debug: com.mf.mylauncher.debug)" >> upstream/MYLAUNCHER_BUILD_INFO.txt
+
+      - name: Build GLFW support and debug APK
+        working-directory: upstream
+        run: ./gradlew :jre_lwjgl3glfw:build :app_pojavlauncher:assembleDebug --stacktrace
+
+      - name: Confirm APK and inspect package metadata
+        run: |
+          APK=$(find upstream/app_pojavlauncher/build/outputs/apk/debug -maxdepth 1 -type f -name '*.apk' -print -quit)
+          test -n "$APK"
+          test -s "$APK"
+          echo "APK_PATH=$APK" >> "$GITHUB_ENV"
+          ls -lh "$APK"
+          grep -q 'applicationId "com.mf.mylauncher"' upstream/app_pojavlauncher/build.gradle
+          grep -q 'app_name.*myLauncher' upstream/app_pojavlauncher/src/main/res/values/strings.xml
+
+      - name: Upload debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: myLauncher-debug-apk
+          path: ${{ env.APK_PATH }}
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload upstream build notes
+        uses: actions/upload-artifact@v4
+        with:
+          name: myLauncher-build-info
+          path: upstream/MYLAUNCHER_BUILD_INFO.txt
+          if-no-files-found: error
+          retention-days: 14
