@@ -69,6 +69,13 @@ jobs:
           ls -lh "$APK"
           grep -q 'applicationId "com.mf.mylauncher"' upstream/app_pojavlauncher/build.gradle
           grep -q 'app_name.*myLauncher' upstream/app_pojavlauncher/src/main/res/values/strings.xml
+          AAPT=$(find "${ANDROID_HOME}/build-tools" -type f -name aapt -print -quit)
+          test -n "$AAPT"
+          "$AAPT" dump badging "$APK" > /tmp/mylauncher-badging.txt
+          grep -q "package: name='com.mf.mylauncher.debug'" /tmp/mylauncher-badging.txt
+          grep -q "application-label:'myLauncher (Debug)'" /tmp/mylauncher-badging.txt
+          echo "Verified APK metadata:"
+          grep -E "^(package: name=|application-label:)" /tmp/mylauncher-badging.txt
 
       - name: Upload debug APK
         uses: actions/upload-artifact@v4
