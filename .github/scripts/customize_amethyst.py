@@ -29,6 +29,11 @@ def patch_upstream(upstream: Path) -> None:
         build_text, "org.angelauramc.amethyst", "com.mf.mylauncher", str(gradle)
     )
     build_text = replace_idempotently(build_text, "Amethyst", "myLauncher", str(gradle))
+    min_sdk = re.search(r"\\bminSdkVersion\\s+(\\d+)\\b", build_text)
+    if not min_sdk:
+        raise ValueError("Could not verify minSdkVersion; refusing an unverified Android 9 build")
+    if int(min_sdk.group(1)) > 28:
+        raise ValueError(f"Upstream minSdkVersion {min_sdk.group(1)} is above Android 9/API 28")
     if 'applicationId "com.mf.mylauncher"' not in build_text:
         raise ValueError("The patched Gradle file has no expected myLauncher applicationId")
     if "org.angelauramc.amethyst" in build_text:
