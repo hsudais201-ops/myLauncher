@@ -1,2 +1,43 @@
 # myLauncher
-Minecraft Java Android Launcher by MF
+
+A personal Minecraft: Java Edition launcher build for Android, customized for low-memory devices.
+
+**Runtime engine:** [Amethyst-Android](https://github.com/AngelAuraMC/Amethyst-Android). This repository stores the myLauncher build customization and automation. It does not reimplement a Java virtual machine, OpenGL/LWJGL, account sign-in, game downloads, and mod loaders from scratch; those core runtime features come from the upstream open-source engine.
+
+## Device target
+
+- Android 9 (API 28) and newer. Upstream Amethyst declares a lower minimum Android SDK, so this build does not raise it.
+- Intended for testing on devices with 2 GB RAM or less; performance is not guaranteed and varies with CPU, GPU, renderer, version, and free memory.
+- Suggested starting settings: Minecraft 1.8.9 or 1.12.2; set launcher memory around 512–768 MB; render distance 4–6 chunks; resolution scale about 50–60%; Fast graphics; no shaders. These are recommendations to set inside the launcher, not settings automatically forced by this project.
+
+## Build the APK
+
+1. Open the Actions tab in this GitHub repository.
+2. Run **Build myLauncher APK** using **Run workflow**, or push a change to `main`.
+3. Open the completed workflow run and download its **myLauncher-debug-apk** artifact.
+4. Transfer the APK to Android, install it, and allow installation from your download source if Android asks.
+
+The workflow checks out the Amethyst source and its submodules, applies the branding/package customization, then builds the debug APK. If the upstream structure changes, the customization step should fail rather than silently producing a build with the wrong branding.
+
+## Files
+
+- `.github/workflows/build.yml` — repeatable Android build workflow.
+- `.github/scripts/customize_amethyst.py` — deterministic patch for the app label and package/authority IDs.
+- `.github/scripts/test_customizer.py` — local regression tests for the patch logic.
+
+## Local build
+
+From this repository's root on Linux, clone the upstream source and then run the customization script:
+
+    git clone --recursive --branch v3_openjdk https://github.com/AngelAuraMC/Amethyst-Android.git upstream
+    python3 .github/scripts/customize_amethyst.py upstream
+    cd upstream
+    ./gradlew :jre_lwjgl3glfw:build :app_pojavlauncher:assembleDebug
+
+## Verification and limitations
+
+The local tests validate the patching logic. GitHub Actions additionally compiles the app when a workflow run succeeds. A successful build is not proof of a real-device gameplay test: Microsoft sign-in, asset downloads, rendering, heat, memory pressure, and FPS still need checking on the target device.
+
+## Upstream and licensing
+
+This project builds and customizes [AngelAuraMC/Amethyst-Android](https://github.com/AngelAuraMC/Amethyst-Android), which is based on PojavLauncher. Retain and follow the upstream license and notices when building or redistributing the APK. This repository provides the customization script so changes can be reviewed and reproduced.
