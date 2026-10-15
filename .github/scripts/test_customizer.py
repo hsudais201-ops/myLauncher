@@ -19,7 +19,7 @@ class CustomizeAmethystTests(unittest.TestCase):
         (app / "src/main/res/values").mkdir(parents=True)
         (app / "build.gradle").write_text(
             '''android {
-  defaultConfig { applicationId "org.angelauramc.amethyst" }
+  defaultConfig { applicationId "org.angelauramc.amethyst"; minSdkVersion 21 }
   buildTypes {
     debug {
       applicationIdSuffix '.debug'
@@ -77,6 +77,18 @@ class CustomizeAmethystTests(unittest.TestCase):
             customizer.patch_upstream(root)
             second = (root / "app_pojavlauncher/build.gradle").read_text(encoding="utf-8")
             self.assertEqual(first, second)
+
+    def test_rejects_minimum_sdk_above_android_9(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            self.fixture(root)
+            gradle = root / "app_pojavlauncher/build.gradle"
+            gradle.write_text(
+                gradle.read_text(encoding="utf-8").replace("minSdkVersion 21", "minSdkVersion 29"),
+                encoding="utf-8",
+            )
+            with self.assertRaisesRegex(ValueError, "above Android 9/API 28"):
+                customizer.patch_upstream(root)
 
     def test_missing_upstream_file_fails_clearly(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
