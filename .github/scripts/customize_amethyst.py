@@ -36,6 +36,7 @@ def patch_upstream(upstream: Path) -> None:
     gradle.write_text(build_text, encoding="utf-8")
 
     strings_text = strings.read_text(encoding="utf-8")
+    strings_text = strings_text.replace("org.angelauramc.amethyst", "com.mf.mylauncher")
     strings_text = replace_idempotently(strings_text, "Amethyst", "myLauncher", str(strings))
     for key in ("app_name", "app_short_name"):
         if not re.search(
