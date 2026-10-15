@@ -18,7 +18,7 @@ A personal Minecraft: Java Edition launcher build for Android, customized for lo
 3. Open the completed workflow run and download its **myLauncher-debug-apk** artifact.
 4. Transfer the APK to Android, install it, and allow installation from your download source if Android asks.
 
-The workflow checks out the Amethyst source and its submodules, applies the branding/package customization, then builds the debug APK. If the upstream structure changes, the customization step should fail rather than silently producing a build with the wrong branding.
+The workflow checks out the Amethyst source and submodules at pinned commit `330c6eae3164df64bdc4828e946a9e62cc5169e4`, applies the branding/package and low-memory customizations, then builds the debug APK. It verifies the upstream commit and fails if the branch moves unexpectedly. Update the pin deliberately when adopting a newer upstream version.
 
 ## Files
 
@@ -31,6 +31,9 @@ The workflow checks out the Amethyst source and its submodules, applies the bran
 From this repository's root on Linux, clone the upstream source and then run the customization script:
 
     git clone --recursive --branch v3_openjdk https://github.com/AngelAuraMC/Amethyst-Android.git upstream
+    git -C upstream fetch --depth 1 origin 330c6eae3164df64bdc4828e946a9e62cc5169e4
+    git -C upstream checkout --detach 330c6eae3164df64bdc4828e946a9e62cc5169e4
+    git -C upstream submodule update --init --recursive
     python3 .github/scripts/customize_amethyst.py upstream
     cd upstream
     ./gradlew :jre_lwjgl3glfw:build :app_pojavlauncher:assembleDebug
