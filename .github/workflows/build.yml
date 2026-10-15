@@ -43,8 +43,14 @@ jobs:
       - name: Test customization script
         run: python3 -m unittest discover -s .github/scripts -p 'test_*.py' -v
 
-      - name: Fetch Amethyst engine and submodules
-        run: git clone --depth 1 --branch v3_openjdk --recurse-submodules https://github.com/AngelAuraMC/Amethyst-Android.git upstream
+      - name: Fetch pinned Amethyst engine and submodules
+        run: |
+          git clone --depth 1 --branch v3_openjdk --recurse-submodules https://github.com/AngelAuraMC/Amethyst-Android.git upstream
+          EXPECTED_UPSTREAM_COMMIT=330c6eae3164df64bdc4828e946a9e62cc5169e4
+          ACTUAL_UPSTREAM_COMMIT=$(git -C upstream rev-parse HEAD)
+          echo "Expected upstream: $EXPECTED_UPSTREAM_COMMIT"
+          echo "Actual upstream:   $ACTUAL_UPSTREAM_COMMIT"
+          test "$ACTUAL_UPSTREAM_COMMIT" = "$EXPECTED_UPSTREAM_COMMIT"
 
       - name: Apply and inspect myLauncher customization
         run: python3 .github/scripts/customize_amethyst.py upstream
@@ -53,7 +59,8 @@ jobs:
         run: |
           echo "Upstream: https://github.com/AngelAuraMC/Amethyst-Android" > upstream/MYLAUNCHER_BUILD_INFO.txt
           echo "Branch: v3_openjdk" >> upstream/MYLAUNCHER_BUILD_INFO.txt
-          echo "Commit: $(git -C upstream rev-parse HEAD)" >> upstream/MYLAUNCHER_BUILD_INFO.txt
+          echo "Pinned commit: 330c6eae3164df64bdc4828e946a9e62cc5169e4" >> upstream/MYLAUNCHER_BUILD_INFO.txt
+          echo "Built commit: $(git -C upstream rev-parse HEAD)" >> upstream/MYLAUNCHER_BUILD_INFO.txt
           echo "Custom app ID: com.mf.mylauncher (debug: com.mf.mylauncher.debug)" >> upstream/MYLAUNCHER_BUILD_INFO.txt
 
       - name: Build GLFW support and debug APK
