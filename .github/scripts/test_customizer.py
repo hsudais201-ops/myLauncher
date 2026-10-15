@@ -52,6 +52,28 @@ class CustomizeAmethystTests(unittest.TestCase):
         )
         (root / "settings.gradle").write_text("rootProject.name='Amethyst'\n", encoding="utf-8")
 
+        prefs = root / "app_pojavlauncher/src/main/java/net/kdt/pojavlaunch/prefs/LauncherPreferences.java"
+        prefs.parent.mkdir(parents=True)
+        prefs.write_text(
+            """class LauncherPreferences {
+    private static int findBestRAMAllocation(Context ctx) {
+        int deviceRam = Tools.getTotalDeviceMemory(ctx);
+        if (deviceRam < 1024) return 296;
+        if (deviceRam < 1536) return 448;
+        if (deviceRam < 2048) return 656;
+        if (is32BitsDevice()) return 696;
+        if (deviceRam < 3064) return 936;
+        return 2048;
+    }
+    private static int findBestResolution(Context context, boolean isDevicePowerful) {
+        int targetSide = isDevicePowerful ? 1080 : 720;
+        return targetSide;
+    }
+}
+""",
+            encoding="utf-8",
+        )
+
     def test_patches_branding_and_ids(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
@@ -60,6 +82,7 @@ class CustomizeAmethystTests(unittest.TestCase):
             build = (root / "app_pojavlauncher/build.gradle").read_text(encoding="utf-8")
             strings = (root / "app_pojavlauncher/src/main/res/values/strings.xml").read_text(encoding="utf-8")
             settings = (root / "settings.gradle").read_text(encoding="utf-8")
+            prefs = (root / "app_pojavlauncher/src/main/java/net/kdt/pojavlaunch/prefs/LauncherPreferences.java").read_text(encoding="utf-8")
             self.assertIn('applicationId "com.mf.mylauncher"', build)
             self.assertIn("com.mf.mylauncher.scoped.gamefolder", build)
             self.assertIn('"myLauncher (Debug)"', build)
@@ -67,6 +90,8 @@ class CustomizeAmethystTests(unittest.TestCase):
             self.assertNotIn("Amethyst", strings)
             self.assertIn("myLauncher crashed", strings)
             self.assertIn("rootProject.name='myLauncher'", settings)
+            self.assertIn("if (deviceRam <= 2048) return 656;", prefs)
+            self.assertIn("Tools.getTotalDeviceMemory(context) <= 2048 ? 480 : 720", prefs)
 
     def test_is_idempotent(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
@@ -74,9 +99,13 @@ class CustomizeAmethystTests(unittest.TestCase):
             self.fixture(root)
             customizer.patch_upstream(root)
             first = (root / "app_pojavlauncher/build.gradle").read_text(encoding="utf-8")
+            prefs_path = root / "app_pojavlauncher/src/main/java/net/kdt/pojavlaunch/prefs/LauncherPreferences.java"
+            prefs_first = prefs_path.read_text(encoding="utf-8")
             customizer.patch_upstream(root)
             second = (root / "app_pojavlauncher/build.gradle").read_text(encoding="utf-8")
+            prefs_second = prefs_path.read_text(encoding="utf-8")
             self.assertEqual(first, second)
+            self.assertEqual(prefs_first, prefs_second)
 
     def test_rejects_minimum_sdk_above_android_9(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
