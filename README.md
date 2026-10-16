@@ -24,7 +24,7 @@ A personal Minecraft: Java Edition launcher build for Android, customized for lo
 
 1. Open the Actions tab in this GitHub repository.
 2. Run **Build myLauncher APK** using **Run workflow**, or push a change to `main`.
-3. Open the completed workflow run and download its **myLauncher-debug-apk** artifact.
+3. Open the completed workflow run and download its **myLauncher-debug-apk** artifact. Push/PR builds are triggered by changes to `.github/workflows/build.yml` or `.github/scripts/**`; use **Run workflow** for a manual build.
 4. Transfer the APK to Android, install it, and allow installation from your download source if Android asks.
 
 The workflow fetches the exact Amethyst commit `330c6eae3164df64bdc4828e946a9e62cc5169e4` and its submodules, rewrites SSH-style public GitHub submodule URLs to HTTPS for hosted runners, validates submodule checkout status, validates the customization regression suite before installing the Android toolchain, applies the customizations, and builds the debug APK. The source pin is independent of branch movement. Update the pin deliberately when adopting a newer upstream version.
@@ -32,7 +32,8 @@ The workflow fetches the exact Amethyst commit `330c6eae3164df64bdc4828e946a9e62
 ## Files
 
 - `.gitignore` — excludes local upstream checkouts, Python caches, and build outputs.
-- `.github/workflows/build.yml` — repeatable Android build workflow.
+- `.github/workflows/build.yml` — repeatable Android build workflow, path-filtered to launcher customization/build changes.
+- `.github/workflows/runner-diagnostic.yml` — minimal hosted-runner diagnostic workflow.
 - `.github/scripts/customize_amethyst.py` — deterministic patch for app branding, package/authority IDs, low-memory defaults, offline account access, launcher header, account shortcut, and vector app icon.
 - `.github/scripts/test_customizer.py` — regression tests for branding, offline-account submission and labeling, local game-directory access, both launcher layouts, XML well-formedness, missing-anchor failures, repeat-run idempotency, and CI submodule/APK safeguards.
 
@@ -59,7 +60,7 @@ Then fetch the pinned upstream source and build:
 
 ## Verification and limitations
 
-The regression tests validate the patching logic when executed. Recent GitHub Actions runs have failed before a runner was assigned (the job has no runner ID and no steps), so those runs have **not** tested the build script or compiled the APK. Check repository Actions availability and the account's Actions usage/billing settings if that persists. GitHub Actions additionally compiles the app when a workflow run succeeds. A successful build is not proof of a real-device gameplay test: Microsoft sign-in, asset downloads, rendering, heat, memory pressure, and FPS still need checking on the target device.
+As of 2026-10-16, the latest APK build, [run 38873369124](https://github.com/hsudais201-ops/myLauncher/actions/runs/38873369124), failed before any workflow step executed. Its job has no runner ID, no step results, and no downloadable job logs. The separate minimal [runner diagnostic, run 38872830228](https://github.com/hsudais201-ops/myLauncher/actions/runs/38872830228), failed the same way on `ubuntu-slim`; the main build has also failed with standard Ubuntu labels. These failures do **not yet test** the Python regression suite, Gradle build, or Android app source, and no verified APK has been produced. Before changing source code to troubleshoot them, check GitHub account billing/payment status (including a failed payment-method authorization hold and Actions spending limit) and repository **Settings → Actions → General**. Similar reports exist in the [GitHub Community](https://github.com/orgs/community/discussions/208822). If those settings are clean, [contact GitHub Support](https://support.github.com/) and share the two run links plus the job detail showing no assigned runner/steps. Only GitHub can inspect the hosted-runner provisioning telemetry unavailable in job logs. When a workflow run executes successfully, it validates the customization, builds the app, verifies APK signature/package metadata, and uploads the debug APK. A successful build is not proof of a real-device gameplay test: Microsoft sign-in, asset downloads, rendering, heat, memory pressure, and FPS still need checking on the target device.
 
 ## Manual device smoke test
 
