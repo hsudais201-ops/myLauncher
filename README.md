@@ -29,6 +29,7 @@ The workflow fetches the exact Amethyst commit `330c6eae3164df64bdc4828e946a9e62
 
 ## Files
 
+- `.gitignore` — excludes local upstream checkouts, Python caches, and build outputs.
 - `.github/workflows/build.yml` — repeatable Android build workflow.
 - `.github/scripts/customize_amethyst.py` — deterministic patch for app branding, package/authority IDs, low-memory defaults, offline account access, launcher header, account shortcut, and vector app icon.
 - `.github/scripts/test_customizer.py` — regression tests for branding, account access, both launcher layouts, XML well-formedness, missing-anchor failures, and repeat-run idempotency.
