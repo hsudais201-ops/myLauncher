@@ -74,7 +74,10 @@ class CustomizeAmethystTests(unittest.TestCase):
     private boolean isOnline;
     void start() {
         if(isLocalProfile || !isOnline) {
-            verifyInstalledVersion();
+            File providedJsonFile = new File(Tools.DIR_HOME_VERSION + "/" + realVersion + "/" + realVersion + ".json");
+            Tools.read(providedJsonFile.getAbsolutePath());
+            String tryagain = !isOnline ? "Please ensure you have an internet connection" : "Please try again on your Microsoft Account";
+            Tools.showErrorRemote(versionMessage + " is not currently installed. "+ tryagain, e);
         } else {
             downloadGame(activity, version, realVersion);
         }
@@ -264,6 +267,20 @@ class SelectAuthFragment {
             self.assertIn("if(!isOnline) {", downloader)
             self.assertNotIn("if(isLocalProfile || !isOnline)", downloader)
             self.assertIn("downloadGame(activity, version, realVersion);", downloader)
+
+    def test_missing_version_json_guard_and_clear_offline_error(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            self.fixture(root)
+            customizer.patch_upstream(root)
+            downloader = (root / "app_pojavlauncher/src/main/java/net/kdt/pojavlaunch/tasks/MinecraftDownloader.java").read_text(encoding="utf-8")
+            self.assertIn("!providedJsonFile.isFile()", downloader)
+            self.assertIn("!providedJsonFile.canRead()", downloader)
+            self.assertIn("providedJsonFile.length() == 0", downloader)
+            self.assertIn("Connect to the internet and select Play again to download it.", downloader)
+            self.assertIn("version metadata is missing/corrupt.", downloader)
+            self.assertIn('String tryagain = "Connect to the internet and try again."; ', downloader)
+            self.assertNotIn("Please try again on your Microsoft Account", downloader)
 
     def test_patches_branding_and_ids(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
