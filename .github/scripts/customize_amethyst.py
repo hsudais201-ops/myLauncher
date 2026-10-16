@@ -127,15 +127,45 @@ def patch_upstream(upstream: Path) -> None:
     # Detect a missing, unreadable, or zero-byte version manifest before Tools.read()
     # attempts to open it. This prevents raw ENOENT traces from becoming the primary
     # explanation when the selected version has not been installed offline.
-    json_guard = """if (!providedJsonFile.isFile() || !providedJsonFile.canRead() || providedJsonFile.length() == 0) {
-    throw new FileNotFoundException(
-        "Minecraft version " + realVersion + " is missing or its metadata is unreadable/empty. " +
-        "Connect to the internet and select Play again to download it."
-    );
-}"""
-    if json_guard not in downloader_text:
+    json_guard_marker = "if (!providedJsonFile.isFile() || !providedJsonFile.canRead() || providedJsonFile.length() == 0)"
+    if json_guard_marker not in downloader_text:
         json_line = re.compile(
-            r'(?m)^([ \\t]*)File providedJsonFile = new File\\(Tools\\.DIR_HOME_VERSION \\+ "/" \\+ realVersion \\+ "/" \\+ realVersion \\+ "\\.json"\\);[ \\t]*
+            r'(?m)^([ \t]*)File providedJsonFile = new File\(Tools\.DIR_HOME_VERSION \+ "/" \+ realVersion \+ "/" \+ realVersion \+ "\.json"\);[ \t]*$'
+        )
+        def add_metadata_guard(match: re.Match[str]) -> str:
+            indent = match.group(1)
+            guard_lines = (
+                "if (!providedJsonFile.isFile() || !providedJsonFile.canRead() || providedJsonFile.length() == 0) {",
+                "    throw new FileNotFoundException(",
+                '        "Minecraft version " + realVersion + " is missing or its metadata is unreadable/empty. " +',
+                '        "Connect to the internet and select Play again to download it."',
+                "    );",
+                "}",
+            )
+            return match.group(0) + "\n" + "\n".join(indent + line for line in guard_lines)
+        downloader_text, guard_count = json_line.subn(add_metadata_guard, downloader_text, count=1)
+        if guard_count != 1 or json_guard_marker not in downloader_text:
+            raise ValueError("Could not add missing/unreadable/empty Minecraft version JSON guard")
+
+    downloader_text = replace_idempotently(
+        downloader_text,
+        'String tryagain = !isOnline ? "Please ensure you have an internet connection" : "Please try again on your Microsoft Account";',
+        'String tryagain = "Connect to the internet and try again."; ',
+        str(downloader_java),
+    )
+    downloader_text = downloader_text.replace(
+        'String tryagain = "Connect to the internet and try again."; ',
+        'String tryagain = "Connect to the internet and try again.";',
+    )
+    downloader_text = replace_idempotently(
+        downloader_text,
+        'Tools.showErrorRemote(versionMessage + " is not currently installed. "+ tryagain, e);',
+        'Tools.showErrorRemote(versionMessage + " is not installed or its version metadata is missing/corrupt. " + tryagain, e);',
+        str(downloader_java),
+    )
+    if "Please try again on your Microsoft Account" in downloader_text:
+        raise ValueError("Offline version errors must not suggest a Microsoft sign-in retry")
+    downloader_java.write_text(downloader_text, encoding="utf-8")
 
     # The upstream local/offline account flow exists, but this guard blocks it when
     # there is no online account. Keep offline account creation available.
