@@ -356,10 +356,11 @@ def patch_upstream(upstream: Path) -> None:
         manifest_text.count('android:icon="@drawable/mylauncher_icon"') != 1
         or manifest_text.count('android:roundIcon="@drawable/mylauncher_icon"') != 1
         or 'android:label="@string/app_name"' not in manifest_text
+        or "org.angelauramc.amethyst" in manifest_text
         or '@mipmap/ic_launcher' in manifest_text
         or '@mipmap/ic_launcher_round' in manifest_text
     ):
-        raise ValueError("Could not completely apply the myLauncher app icon to the Android manifest")
+        raise ValueError("Manifest branding, package references, or app icon are incomplete")
     manifest.write_text(manifest_text, encoding="utf-8")
     icon = upstream / "app_pojavlauncher" / "src" / "main" / "res" / "drawable" / "mylauncher_icon.xml"
     icon.parent.mkdir(parents=True, exist_ok=True)
