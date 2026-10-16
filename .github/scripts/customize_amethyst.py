@@ -68,7 +68,12 @@ def patch_upstream(upstream: Path) -> None:
     if not local_login.is_file():
         raise FileNotFoundError(f"Expected offline account screen is missing: {local_login}")
     login_text = local_login.read_text(encoding="utf-8")
-    login_text = login_text.replace("import static net.kdt.pojavlaunch.Tools.hasOnlineProfile;\n\n", "")
+    login_text = re.sub(
+        r"^import static net\.kdt\.pojavlaunch\.Tools\.hasOnlineProfile;\n",
+        "",
+        login_text,
+        flags=re.MULTILINE,
+    )
     login_guard = """        // This is overkill but meh
         if (!hasOnlineProfile()){
             Tools.swapFragment(requireActivity(), MainMenuFragment.class, MainMenuFragment.TAG, null);
@@ -78,8 +83,8 @@ def patch_upstream(upstream: Path) -> None:
         login_text = login_text.replace(login_guard, "        // Offline accounts are supported; do not require an online profile to add one.\n")
     elif "if (!hasOnlineProfile())" in login_text:
         raise ValueError("Unrecognized offline-login guard; refusing an unsafe source edit")
-    if "if (!hasOnlineProfile())" in login_text:
-        raise ValueError("Offline account screen still blocks users without an online profile")
+    if "if (!hasOnlineProfile())" in login_text or "import static net.kdt.pojavlaunch.Tools.hasOnlineProfile;" in login_text:
+        raise ValueError("Offline account screen still contains its online-profile gate/import")
     local_login.write_text(login_text, encoding="utf-8")
 
     login_layout = upstream / "app_pojavlauncher" / "src" / "main" / "res" / "layout" / "fragment_local_login.xml"
@@ -87,14 +92,17 @@ def patch_upstream(upstream: Path) -> None:
         raise FileNotFoundError(f"Expected offline login layout is missing: {login_layout}")
     login_layout_text = login_layout.read_text(encoding="utf-8")
     login_layout_text = login_layout_text.replace('android:inputType="textEmailAddress"', 'android:inputType="textPersonName"')
-    if 'android:inputType="textPersonName"' not in login_layout_text:
-        raise ValueError("Offline account username field was not configured for usernames")
+    if (
+        login_layout_text.count('android:inputType="textPersonName"') != 1
+        or 'android:inputType="textEmailAddress"' in login_layout_text
+    ):
+        raise ValueError("Offline account username field was not configured exclusively as a username")
     login_layout.write_text(login_layout_text, encoding="utf-8")
 
     # Add a responsive branded header without introducing heavyweight UI dependencies.
     header = """            <TextView
                 android:id="@+id/mylauncher_hero_title"
-                android:layout_width="match_parent"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_marginStart="20dp"
                 android:layout_marginTop="18dp"
@@ -146,6 +154,16 @@ def patch_upstream(upstream: Path) -> None:
                 'app:layout_constraintTop_toBottomOf="@id/mylauncher_hero_subtitle"'
             )
             layout_text = layout_text[:match.start(1)] + block + layout_text[match.end(1):]
+            patched_button = re.search(
+                r'<com\.kdt\.mcgui\.LauncherMenuButton\s+android:id="@\+id/'
+                + re.escape(button_id)
+                + r'".*?/>',
+                layout_text,
+                flags=re.DOTALL,
+            )
+            if not patched_button or 'app:layout_constraintTop_toBottomOf="@id/mylauncher_hero_subtitle"' not in patched_button.group(0):
+                raise ValueError(f"Could not position {button_id} beneath the myLauncher header in {layout_path}")
+
         layout_text = re.sub(
             r'(android:id="@\+id/social_divider".*?app:layout_constraintTop_toTopOf=)"parent"',
             r'\1"@id/news_button"',
@@ -153,6 +171,14 @@ def patch_upstream(upstream: Path) -> None:
             count=1,
             flags=re.DOTALL
         )
+        divider_match = re.search(
+            r'<View\s+android:id="@\+id/social_divider".*?/>',
+            layout_text,
+            flags=re.DOTALL,
+        )
+        if not divider_match or 'app:layout_constraintTop_toTopOf="@id/news_button"' not in divider_match.group(0):
+            raise ValueError(f"Could not align social divider with news_button in {layout_path}")
+
         if "mylauncher_account_button" not in layout_text:
             account_button = """            <com.kdt.mcgui.LauncherMenuButton
                 android:id="@+id/mylauncher_account_button"
@@ -169,6 +195,22 @@ def patch_upstream(upstream: Path) -> None:
                 raise ValueError(f"Could not find open_files_button in {layout_path}")
             block = open_files_match.group(1) + "\n" + account_button
             layout_text = layout_text[:open_files_match.start(1)] + block + layout_text[open_files_match.end(1):]
+
+        account_match = re.search(
+            r'<com\.kdt\.mcgui\.LauncherMenuButton\s+android:id="@\+id/mylauncher_account_button".*?/>',
+            layout_text,
+            flags=re.DOTALL,
+        )
+        if (
+            not account_match
+            or account_match.group(0).count('android:id="@+id/mylauncher_account_button"') != 1
+            or 'android:text="@string/main_add_account"' not in account_match.group(0)
+            or 'app:layout_constraintTop_toBottomOf="@id/open_files_button"' not in account_match.group(0)
+            or layout_text.index('android:id="@+id/open_files_button"') > account_match.start()
+        ):
+            raise ValueError(f"myLauncher account shortcut is incomplete in {layout_path}")
+        if layout_text.count('android:id="@+id/mylauncher_hero_title"') != 1:
+            raise ValueError(f"myLauncher title is missing or duplicated in {layout_path}")
         layout_path.write_text(layout_text, encoding="utf-8")
 
     main_menu = upstream / "app_pojavlauncher" / "src" / "main" / "java" / "net" / "kdt" / "pojavlaunch" / "fragments" / "MainMenuFragment.java"
@@ -187,6 +229,14 @@ def patch_upstream(upstream: Path) -> None:
         if listener_anchor not in main_menu_text:
             raise ValueError("Could not find the main menu listener insertion point")
         main_menu_text = main_menu_text.replace(listener_anchor, listener_anchor + "\n        " + account_listener, 1)
+    if (
+        main_menu_text.count(account_binding) != 1
+        or main_menu_text.count(account_listener) != 1
+        or "import android.widget.Button;" not in main_menu_text
+        or "import net.kdt.pojavlaunch.extra.ExtraConstants;" not in main_menu_text
+        or "import net.kdt.pojavlaunch.extra.ExtraCore;" not in main_menu_text
+    ):
+        raise ValueError("The account shortcut binding, handler, or required Java imports are incomplete")
     main_menu.write_text(main_menu_text, encoding="utf-8")
 
     # Replace the upstream launcher artwork with a small vector mark that scales cleanly.
@@ -196,8 +246,13 @@ def patch_upstream(upstream: Path) -> None:
     manifest_text = manifest.read_text(encoding="utf-8")
     manifest_text = manifest_text.replace('android:icon="@mipmap/ic_launcher"', 'android:icon="@drawable/mylauncher_icon"')
     manifest_text = manifest_text.replace('android:roundIcon="@mipmap/ic_launcher_round"', 'android:roundIcon="@drawable/mylauncher_icon"')
-    if 'android:icon="@drawable/mylauncher_icon"' not in manifest_text or 'android:roundIcon="@drawable/mylauncher_icon"' not in manifest_text:
-        raise ValueError("Could not apply myLauncher app icon to the Android manifest")
+    if (
+        manifest_text.count('android:icon="@drawable/mylauncher_icon"') != 1
+        or manifest_text.count('android:roundIcon="@drawable/mylauncher_icon"') != 1
+        or '@mipmap/ic_launcher' in manifest_text
+        or '@mipmap/ic_launcher_round' in manifest_text
+    ):
+        raise ValueError("Could not completely apply the myLauncher app icon to the Android manifest")
     manifest.write_text(manifest_text, encoding="utf-8")
     icon = upstream / "app_pojavlauncher" / "src" / "main" / "res" / "drawable" / "mylauncher_icon.xml"
     icon.parent.mkdir(parents=True, exist_ok=True)
@@ -224,9 +279,18 @@ def patch_upstream(upstream: Path) -> None:
         auth_text = auth_text.replace(old_local_auth, new_local_auth)
     elif new_local_auth not in auth_text:
         raise ValueError("Could not find the local-account selection handler")
-    auth_text = auth_text.replace("import static net.kdt.pojavlaunch.Tools.hasNoOnlineProfileDialog;\n\n", "")
-    if "hasNoOnlineProfileDialog(requireActivity()" in auth_text:
-        raise ValueError("Offline account selection is still gated by an online profile")
+    auth_text = re.sub(
+        r"^import static net\.kdt\.pojavlaunch\.Tools\.hasNoOnlineProfileDialog;\n",
+        "",
+        auth_text,
+        flags=re.MULTILINE,
+    )
+    if (
+        "hasNoOnlineProfileDialog(requireActivity()" in auth_text
+        or "import static net.kdt.pojavlaunch.Tools.hasNoOnlineProfileDialog;" in auth_text
+        or auth_text.count(new_local_auth) != 1
+    ):
+        raise ValueError("Offline account selection is still gated or its handler is incomplete")
     auth_selector.write_text(auth_text, encoding="utf-8")
 
     launcher_preferences = upstream / "app_pojavlauncher" / "src" / "main" / "java" / "net" / "kdt" / "pojavlaunch" / "prefs" / "LauncherPreferences.java"
@@ -255,7 +319,7 @@ def patch_upstream(upstream: Path) -> None:
     print("  app label: myLauncher")
     print("  application ID: com.mf.mylauncher (debug adds .debug)")
     print("  storage/share authorities: customized")
-    print("  low-memory defaults: 656 MB at <=2 GB; ~480 px short-edge render target")
+    print("  low-memory defaults: conservative upstream RAM tiers and ~480 px short-edge target for <=2 GB")
 
 
 def main(argv: list[str]) -> int:
