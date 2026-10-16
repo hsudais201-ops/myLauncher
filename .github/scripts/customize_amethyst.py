@@ -137,8 +137,25 @@ def patch_upstream(upstream: Path) -> None:
 
     # Fail closed if upstream changes the local username rules. Local profile names
     # must remain valid and unique rather than silently admitting unusable profiles.
+    required_validation_imports = (
+        "import java.io.File;",
+        "import java.util.regex.Matcher;",
+        "import java.util.regex.Pattern;",
+    )
+    missing_imports = [value for value in required_validation_imports if value not in login_text]
+    if missing_imports:
+        raise ValueError(f"Offline username validation imports are missing: {missing_imports}")
+    if 'mUsernameValidationPattern = Pattern.compile("^[a-zA-Z0-9_]*$");' not in login_text:
+        raise ValueError("Offline username validation pattern must allow only letters, digits, and underscores")
+
+    validation_method = re.search(
+        r"private\s+boolean\s+checkEditText\s*\(\s*\)\s*\{(?P<body>.*?)^\s*\}",
+        login_text,
+        flags=re.DOTALL | re.MULTILINE,
+    )
+    if not validation_method:
+        raise ValueError("Offline account checkEditText() username validator is missing")
     username_validation_anchors = (
-        'mUsernameValidationPattern = Pattern.compile("^[a-zA-Z0-9_]*$");',
         "Matcher matcher = mUsernameValidationPattern.matcher(text);",
         "text.isEmpty()",
         "text.length() < 3",
@@ -146,7 +163,10 @@ def patch_upstream(upstream: Path) -> None:
         "!matcher.find()",
         'new File(Tools.DIR_ACCOUNT_NEW + "/" + text + ".json").exists()',
     )
-    missing_validation = [anchor for anchor in username_validation_anchors if anchor not in login_text]
+    validation_body = validation_method.group("body")
+    missing_validation = [
+        anchor for anchor in username_validation_anchors if anchor not in validation_body
+    ]
     if missing_validation:
         raise ValueError(
             "Offline username validation is incomplete; expected username syntax, "
