@@ -214,14 +214,17 @@ def patch_upstream(upstream: Path) -> None:
             layout_text,
             flags=re.DOTALL,
         )
+        open_files_index = layout_text.find('android:id="@+id/open_files_button"')
         if (
             not account_match
             or account_match.group(0).count('android:id="@+id/mylauncher_account_button"') != 1
             or 'style="@style/LauncherMenuButton.Universal"' not in account_match.group(0)
             or 'android:layout_width="match_parent"' not in account_match.group(0)
+            or 'android:drawableStart="@android:drawable/ic_menu_myplaces"' not in account_match.group(0)
             or 'android:text="@string/main_add_account"' not in account_match.group(0)
             or 'app:layout_constraintTop_toBottomOf="@id/open_files_button"' not in account_match.group(0)
-            or layout_text.index('android:id="@+id/open_files_button"') > account_match.start()
+            or open_files_index < 0
+            or open_files_index > account_match.start()
         ):
             raise ValueError(f"myLauncher account shortcut is incomplete in {layout_path}")
         title_match = re.search(
@@ -238,10 +241,16 @@ def patch_upstream(upstream: Path) -> None:
             layout_text.count('android:id="@+id/mylauncher_hero_title"') != 1
             or layout_text.count('android:id="@+id/mylauncher_hero_subtitle"') != 1
             or layout_text.count('android:id="@+id/mylauncher_account_button"') != 1
+            or layout_text.count('android:id="@+id/news_button"') != 1
+            or layout_text.count('android:id="@+id/discord_button"') != 1
+            or layout_text.count('android:id="@+id/social_divider"') != 1
             or not title_match
             or not subtitle_match
             or 'android:layout_width="0dp"' not in title_match.group(0)
+            or 'android:text="myLauncher"' not in title_match.group(0)
             or 'android:layout_width="0dp"' not in subtitle_match.group(0)
+            or 'android:text="Minecraft Java Edition · built for lightweight devices"' not in subtitle_match.group(0)
+            or 'app:layout_constraintTop_toBottomOf="@id/mylauncher_hero_title"' not in subtitle_match.group(0)
         ):
             raise ValueError(f"myLauncher header or account button is missing, duplicated, or incomplete in {layout_path}")
         layout_path.write_text(layout_text, encoding="utf-8")
