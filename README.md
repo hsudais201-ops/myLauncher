@@ -47,6 +47,9 @@ Then fetch the pinned upstream source and build:
     git -C upstream remote add origin https://github.com/AngelAuraMC/Amethyst-Android.git
     git -C upstream fetch --depth 1 origin 330c6eae3164df64bdc4828e946a9e62cc5169e4
     git -C upstream checkout --detach FETCH_HEAD
+    git config --global url."https://github.com/".insteadOf git@github.com:
+    git config --global --add url."https://github.com/".insteadOf ssh://git@github.com/
+    git -C upstream submodule sync --recursive
     git -C upstream submodule update --init --recursive
     sdkmanager --install 'platforms;android-37' 'ndk;27.3.13750724'
     python3 .github/scripts/customize_amethyst.py upstream
