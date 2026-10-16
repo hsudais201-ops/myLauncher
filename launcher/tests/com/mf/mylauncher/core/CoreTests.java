@@ -139,6 +139,37 @@ public final class CoreTests {
         eq("1.21.4", details.getAssetIndex().getId(), "asset-index ID mapped");
         eq(424L, details.getAssetIndex().getTotalSizeBytes(), "asset-index total size mapped");
         eq(9000000L, details.getClientDownload().getSizeBytes(), "client artifact size mapped");
+        yes(!details.getLoggingConfiguration().isPresent(), "logging metadata remains optional for older versions");
+
+        @SuppressWarnings("unchecked")
+        Map<String, Object> withLogging = (Map<String, Object>) JsonParser.parse(json);
+        Map<String, Object> loggingFile = new LinkedHashMap<>();
+        loggingFile.put("id", "client-1.12.xml");
+        loggingFile.put("url", "https://piston-data.mojang.com/v1/objects/" + sha1 + "/client-1.12.xml");
+        loggingFile.put("sha1", sha1);
+        loggingFile.put("size", 512);
+        Map<String, Object> loggingClient = new LinkedHashMap<>();
+        loggingClient.put("argument", "-Dlog4j.configurationFile=${path}");
+        loggingClient.put("file", loggingFile);
+        loggingClient.put("type", "log4j2-xml");
+        Map<String, Object> loggingRoot = new LinkedHashMap<>();
+        loggingRoot.put("client", loggingClient);
+        withLogging.put("logging", loggingRoot);
+        VersionDetails loggedDetails = VersionDetailsMapper.fromDecodedJson(withLogging, "1.21.4");
+        eq("client-1.12.xml", loggedDetails.getLoggingConfiguration().get().getId(), "logging configuration ID parsed");
+        eq(512L, loggedDetails.getLoggingConfiguration().get().getSizeBytes(), "logging configuration size parsed");
+        eq(sha1, loggedDetails.getLoggingConfiguration().get().getSha1(), "logging configuration SHA-1 parsed");
+        Map<String, Object> unsafeLoggingFile = new LinkedHashMap<>(loggingFile);
+        unsafeLoggingFile.put("id", "../escape.xml");
+        Map<String, Object> unsafeLoggingClient = new LinkedHashMap<>(loggingClient);
+        unsafeLoggingClient.put("file", unsafeLoggingFile);
+        Map<String, Object> unsafeLoggingRoot = new LinkedHashMap<>();
+        unsafeLoggingRoot.put("client", unsafeLoggingClient);
+        Map<String, Object> unsafeLoggingDocument = new LinkedHashMap<>(withLogging);
+        unsafeLoggingDocument.put("logging", unsafeLoggingRoot);
+        bad(() -> VersionDetailsMapper.fromDecodedJson(unsafeLoggingDocument, "1.21.4"),
+                "unsafe logging configuration path rejected");
+
         yes(!details.getClientDownload().hasPath(), "client JAR destination is launcher-selected");
         eq(2, details.getLibraries().size(), "library list mapped");
         LibraryMetadata core = details.getLibraries().get(0);
@@ -620,6 +651,24 @@ public final class CoreTests {
         VersionDetails withConflict = new VersionDetails("1.21.4", "net.minecraft.client.main.Main", "1.21.4",
                 indexMetadata, client, 21, java.util.Arrays.asList(included, conflicting));
         bad(() -> InstallationPlanner.create(withConflict, assets, platform), "conflicting output path metadata rejected");
+
+        LoggingConfigurationMetadata logConfig = new LoggingConfigurationMetadata("client.xml",
+                URI.create("https://piston-data.mojang.com/v1/objects/" + hash2 + "/client.xml"),
+                hash2, 50);
+        VersionDetails withLogging = new VersionDetails("1.21.4", "net.minecraft.client.main.Main", "1.21.4",
+                indexMetadata, client, 21, java.util.Arrays.asList(included, duplicate, excluded, nativeOnly),
+                VersionArgumentSet.empty(), null, logConfig);
+        InstallationPlan loggingPlan = InstallationPlanner.create(withLogging, assets, platform);
+        eq(1, loggingPlan.count(DownloadTask.Kind.LOGGING), "optional logging config included once");
+        eq(863L, loggingPlan.getTotalBytes(), "logging configuration bytes added to total");
+        DownloadTask loggingTask = loggingPlan.getTasks().stream()
+                .filter(task -> task.getKind() == DownloadTask.Kind.LOGGING).findFirst().get();
+        eq("log_configs/client.xml", loggingTask.getRelativePath(), "logging configuration uses Minecraft assets/log_configs layout");
+        eq(DownloadTask.Destination.ASSET_DIRECTORY, loggingTask.getDestination(), "logging configuration downloads to assets directory");
+        bad(() -> new DownloadTask(DownloadTask.Kind.LOGGING, DownloadTask.Destination.GAME_DIRECTORY,
+                URI.create("https://piston-data.mojang.com/v1/objects/" + hash2 + "/client.xml"),
+                "log_configs/client.xml", 50, hash2), "logging config cannot target game root");
+
     }
 
     private static void installationService() throws Exception {

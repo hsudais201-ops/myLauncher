@@ -22,6 +22,11 @@ public final class InstallationPlanner {
                 version.getClientDownload().getUrl(), clientPath,
                 version.getClientDownload().getSizeBytes(), version.getClientDownload().getSha1()));
 
+        version.getLoggingConfiguration().ifPresent(logging -> add(uniqueTasks,
+                new DownloadTask(DownloadTask.Kind.LOGGING, DownloadTask.Destination.ASSET_DIRECTORY,
+                        logging.getUrl(), "log_configs/" + logging.getId(),
+                        logging.getSizeBytes(), logging.getSha1())));
+
         for (LibraryMetadata library : version.getLibraries()) {
             if (!library.isAllowedOn(platform.getOsName(), platform.getArchitecture(),
                     platform.getOsVersion(), platform.getFeatures())) continue;

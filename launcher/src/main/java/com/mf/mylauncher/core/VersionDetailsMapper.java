@@ -60,8 +60,23 @@ public final class VersionDetailsMapper {
             arguments = VersionArgumentSet.fromDecodedJson(requiredMap(rawArguments, "arguments"));
         }
         String legacyArguments = optionalString(root.get("minecraftArguments"), "minecraftArguments");
+        LoggingConfigurationMetadata logging = parseLoggingConfiguration(root.get("logging"));
         return new VersionDetails(id, mainClass, assetsId, assetIndex, client, javaMajor, libraries,
-                arguments, legacyArguments);
+                arguments, legacyArguments, logging);
+    }
+
+    private static LoggingConfigurationMetadata parseLoggingConfiguration(Object rawLogging) {
+        if (rawLogging == null) return null;
+        Map<?, ?> logging = requiredMap(rawLogging, "logging");
+        Object rawClient = logging.get("client");
+        if (rawClient == null) return null;
+        Map<?, ?> client = requiredMap(rawClient, "logging.client");
+        Map<?, ?> file = requiredMap(client.get("file"), "logging.client.file");
+        return new LoggingConfigurationMetadata(
+                requiredString(file.get("id"), "logging.client.file.id"),
+                parseUri(requiredString(file.get("url"), "logging.client.file.url"), "logging.client.file.url"),
+                requiredString(file.get("sha1"), "logging.client.file.sha1"),
+                requiredLong(file.get("size"), "logging.client.file.size"));
     }
 
     private static AssetIndexMetadata parseAssetIndex(Map<?, ?> value) {

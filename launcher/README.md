@@ -4,15 +4,13 @@ Product-owned Java code lives here, separate from CI configuration and generated
 
 ## Implemented and tested
 
-- Master manifest and per-version metadata download/JSON validation.
-- Client/library/asset integrity metadata and deterministic installation planning.
+- Master manifest and per-version metadata download/JSON validation, including optional client Log4j configuration metadata.
+- Client/library/asset/logging integrity metadata and deterministic installation planning.
 - Safe HTTPS download/cache with progress/cancellation, exact size + SHA-1 verification and reusable verified files.
-- Asset-index validation, content-addressed object paths and index-file verification.
-- Optional legacy virtual/resources layouts materialized from verified asset objects with SHA-1 checks, safe relative paths, no symlink traversal, corrupt-copy repair and cache reuse.
-- Modern rule-based game/JVM arguments, legacy minecraftArguments parsing and a command builder that returns argv, not a shell string.
-- Safe ZIP extraction with directory excludes, duplicate-file rejection, path traversal/symlink protection, entry and uncompressed-size limits, and staging before destination replacement.
-- Java process supervisor with argv-only invocation, bounded output lines, stdout/stderr draining, cancellation, timeout and child termination.
-- Java runtime probe that checks a candidate executable's reported major version against Minecraft metadata.
+- Asset-index validation, content-addressed object paths and index-file verification; optional legacy virtual/resources layouts are materialized from verified objects with hash checks, safe paths and cache repair.
+- Modern rule-based game/JVM arguments, legacy minecraftArguments parsing and an argv builder.
+- Safe ZIP extraction with excludes, path traversal/symlink protection, entry/uncompressed-size limits and staging before destination replacement.
+- Java process supervisor with argv-only invocation, output draining, cancellation and timeout; Java runtime probe checks the required Java major version.
 - Android shell: version refresh, local profile validation, settings, base-file installation progress and cancellation.
 
 ## Android build
@@ -26,4 +24,4 @@ CI assembles and verifies the debug APK. The screen can prepare supported base f
 
 ## Next steps
 
-Android runtime installation and compatible native selection remain necessary. Wire the probe and process supervisor into a runtime manager, add licensed account authentication, then validate gameplay on real devices. These are foundations, not a claim that Minecraft already runs on Android.
+Android runtime installation, compatible native selection, authenticated Microsoft account flow, launch supervision and real-device gameplay tests remain. These are tested foundations, not a claim that Minecraft is already playable.

@@ -21,6 +21,7 @@ public final class VersionDetails {
     private final List<LibraryMetadata> libraries;
     private final VersionArgumentSet arguments;
     private final String legacyMinecraftArguments;
+    private final LoggingConfigurationMetadata loggingConfiguration;
 
     public VersionDetails(String id, String mainClass, String assetsId, AssetIndexMetadata assetIndex,
                           DownloadArtifact clientDownload, int javaMajorVersion,
@@ -33,6 +34,14 @@ public final class VersionDetails {
                           DownloadArtifact clientDownload, int javaMajorVersion,
                           List<LibraryMetadata> libraries, VersionArgumentSet arguments,
                           String legacyMinecraftArguments) {
+        this(id, mainClass, assetsId, assetIndex, clientDownload, javaMajorVersion,
+                libraries, arguments, legacyMinecraftArguments, null);
+    }
+
+    public VersionDetails(String id, String mainClass, String assetsId, AssetIndexMetadata assetIndex,
+                          DownloadArtifact clientDownload, int javaMajorVersion,
+                          List<LibraryMetadata> libraries, VersionArgumentSet arguments,
+                          String legacyMinecraftArguments, LoggingConfigurationMetadata loggingConfiguration) {
         if (id == null || !SAFE_ID.matcher(id).matches() || id.contains("..")) {
             throw new IllegalArgumentException("Version-details ID is invalid");
         }
@@ -66,6 +75,7 @@ public final class VersionDetails {
         this.libraries = Collections.unmodifiableList(copy);
         this.arguments = arguments;
         this.legacyMinecraftArguments = legacyMinecraftArguments;
+        this.loggingConfiguration = loggingConfiguration;
     }
 
     public String getId() { return id; }
@@ -77,4 +87,7 @@ public final class VersionDetails {
     public List<LibraryMetadata> getLibraries() { return libraries; }
     public VersionArgumentSet getArguments() { return arguments; }
     public String getLegacyMinecraftArguments() { return legacyMinecraftArguments; }
+    public java.util.Optional<LoggingConfigurationMetadata> getLoggingConfiguration() {
+        return java.util.Optional.ofNullable(loggingConfiguration);
+    }
 }

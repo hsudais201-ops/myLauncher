@@ -5,7 +5,7 @@ import java.util.Objects;
 
 /** One integrity-verified download in a Minecraft installation plan. */
 public final class DownloadTask {
-    public enum Kind { CLIENT, LIBRARY, ASSET }
+    public enum Kind { CLIENT, LIBRARY, ASSET, LOGGING }
     public enum Destination { GAME_DIRECTORY, ASSET_DIRECTORY }
 
     private final Kind kind;
@@ -27,10 +27,10 @@ public final class DownloadTask {
         if (sha1 == null || !sha1.matches("[0-9a-fA-F]{40}")) {
             throw new IllegalArgumentException("Download task SHA-1 must contain exactly 40 hexadecimal characters");
         }
-        if (kind == Kind.ASSET && destination != Destination.ASSET_DIRECTORY) {
-            throw new IllegalArgumentException("Asset downloads must target the asset directory");
+        if ((kind == Kind.ASSET || kind == Kind.LOGGING) && destination != Destination.ASSET_DIRECTORY) {
+            throw new IllegalArgumentException("Asset and logging downloads must target the asset directory");
         }
-        if (kind != Kind.ASSET && destination != Destination.GAME_DIRECTORY) {
+        if (kind != Kind.ASSET && kind != Kind.LOGGING && destination != Destination.GAME_DIRECTORY) {
             throw new IllegalArgumentException("Client/library downloads must target the game directory");
         }
         this.source = source;

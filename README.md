@@ -4,9 +4,9 @@ myLauncher is a Minecraft: Java Edition launcher foundation being rebuilt for An
 
 ## Current status
 
-The tested core loads official version metadata, plans and checksum-verifies client/library/asset downloads, supports progress/cancellation, materializes legacy asset layouts when flagged by metadata, and builds modern or legacy Java argument lists. Native ZIP extraction has traversal protection, size/entry caps and staged publication. A process supervisor can invoke an executable without a shell, drain stdout/stderr, and enforce cancellation/timeouts; a runtime probe checks the installed Java major version against the selected Minecraft version. The Android screen can select versions and prepare supported base files.
+The tested core loads official version metadata, plans and checksum-verifies client/library/asset/logging downloads, supports progress/cancellation, materializes legacy asset layouts when flagged by metadata, and builds modern or legacy Java argument lists. Native ZIP extraction has traversal protection, size/entry caps and staged publication. A process supervisor can invoke an executable without a shell, drain stdout/stderr, and enforce cancellation/timeouts; a runtime probe checks the installed Java major version.
 
-This is not yet a playable launcher. Android-compatible Java runtime installation, platform-specific native selection/validation, wiring runtime probing and process supervision to a real game launch, authenticated Microsoft account flow, and real-device testing remain unfinished. The game-launch button remains disabled until those pieces exist.
+The Android screen can select versions and prepare supported base files. This is not yet a playable launcher: Android-compatible Java runtime installation, platform-specific native selection/validation, actual game launch, authenticated Microsoft account flow, and real-device testing remain unfinished. The game-launch button remains disabled until those pieces exist.
 
 The old Amethyst-based customization/build work is preserved on backup/pre-clear-2026-10-16 and remains untouched.
 
