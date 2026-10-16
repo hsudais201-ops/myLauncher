@@ -70,6 +70,8 @@ class LocalLoginFragment {
         if (!hasOnlineProfile()){
             Tools.swapFragment(requireActivity(), MainMenuFragment.class, MainMenuFragment.TAG, null);
         }
+        if(!checkEditText()) return;
+        ExtraCore.setValue(ExtraConstants.MOJANG_LOGIN_TODO, new String[]{ "name", "" });
     }
 }
 """,
@@ -113,6 +115,19 @@ class LocalLoginFragment {
 """,
                 encoding="utf-8",
             )
+
+        launcher_activity = app / "src/main/java/net/kdt/pojavlaunch/LauncherActivity.java"
+        launcher_activity.parent.mkdir(parents=True, exist_ok=True)
+        launcher_activity.write_text(
+            """class LauncherActivity {
+    void connectAccountSelector() {
+        Tools.swapFragment(this, SelectAuthFragment.class, SelectAuthFragment.TAG, null);
+        ExtraCore.addExtraListener(ExtraConstants.SELECT_AUTH_METHOD, mSelectAuthMethod);
+    }
+}
+""",
+            encoding="utf-8",
+        )
 
         main_menu = app / "src/main/java/net/kdt/pojavlaunch/fragments/MainMenuFragment.java"
         main_menu.parent.mkdir(parents=True, exist_ok=True)
@@ -195,6 +210,7 @@ class SelectAuthFragment {
             local_login = (root / "app_pojavlauncher/src/main/java/net/kdt/pojavlaunch/fragments/LocalLoginFragment.java").read_text(encoding="utf-8")
             login_layout = (root / "app_pojavlauncher/src/main/res/layout/fragment_local_login.xml").read_text(encoding="utf-8")
             self.assertNotIn("if (!hasOnlineProfile())", local_login)
+            self.assertIn("ExtraCore.setValue(ExtraConstants.MOJANG_LOGIN_TODO, new String[]{", local_login)
             self.assertIn('android:inputType="textPersonName"', login_layout)
             main_menu = (root / "app_pojavlauncher/src/main/java/net/kdt/pojavlaunch/fragments/MainMenuFragment.java").read_text(encoding="utf-8")
             self.assertIn("mMyLauncherAccountButton.setOnClickListener", main_menu)
