@@ -1,16 +1,16 @@
 # Launcher core
 
-This folder contains myLauncher-owned Java source, separate from CI configuration and any upstream game runtime.
+This folder contains myLauncher-owned Java source, separate from CI configuration and generated upstream runtime files.
 
 ## Implemented and tested
 
-- Master manifest download and strict JSON decoding into a validated version catalog.
-- Per-version details: client JAR integrity metadata, asset-index location, Java major version, Maven-coordinate libraries, download classifiers, native mappings, OS/feature rules and native extraction excludes.
-- Asset-index JSON decoding, deterministic object ordering, content-addressed object paths, official resource CDN URL generation, logical resource paths and total-size accounting.
-- Validated artifact SHA-1/size/HTTPS metadata and safe relative destination paths.
-- Local offline profile-name validation and conservative RAM-based heap defaults.
+- Master version manifest download and strict JSON decoding into a validated version catalog.
+- Per-version details: client JAR integrity metadata, asset-index metadata, required Java version, library artifacts/classifiers, native mappings, ordered OS/feature rules and extraction exclusions.
+- Asset-index JSON decoding, deterministic object ordering, content-addressed object paths, official resource CDN URL generation, logical resource paths, and total-size accounting.
+- Verified file downloader: exact HTTPS host allow-list, timeouts, disabled redirects, safe cache paths/no symlink components, temporary file writes, size and SHA-1 verification before atomic promotion, and verified-cache reuse.
+- Local profile-name validation and conservative memory defaults.
 
-The actual file download/cache layer is the next milestone. It must write into temporary files and only promote files after exact size and SHA-1 validation. Android UI, authentication, native runtime, and actual game launch are not yet implemented, so this is not a playable launcher yet.
+The downloader and parser are core building blocks; UI, settings, Microsoft auth, runtime/native integration, version installation orchestration, and the in-game launch flow are still required. There is not yet a playable Android APK.
 
 ## Test
 
@@ -18,4 +18,4 @@ Requires a JDK. Run:
 
     ./launcher/test.sh
 
-Tests compile all core classes with warnings as errors and run dependency-free regression checks. The current test suite uses fake network connections; it does not download game files or run Minecraft on an Android device.
+Regression tests use fake HTTP connections and temporary directories. They verify valid downloads, cache hits/corruption repair, HTTP and integrity errors, path traversal/symlink rejection and partial-file cleanup. They do not download production game files or run Minecraft on a device.

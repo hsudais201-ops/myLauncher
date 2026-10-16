@@ -5,6 +5,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -15,8 +17,8 @@ public final class CoreTests {
     private static int checks;
     private CoreTests() { }
 
-    public static void main(String[] args) {
-        versions(); catalogs(); manifests(); jsonDecoder(); versionDetails(); assetIndex(); downloader(); profiles(); memory();
+    public static void main(String[] args) throws Exception {
+        versions(); catalogs(); manifests(); jsonDecoder(); versionDetails(); assetIndex(); verifiedDownloads(); downloader(); profiles(); memory();
         System.out.println("PASS: " + checks + " launcher-core assertions");
     }
 
@@ -198,6 +200,121 @@ public final class CoreTests {
         unsupported(() -> index.getObjects().clear(), "asset map immutable");
         unsupported(() -> index.getOrderedObjects().clear(), "ordered assets list immutable");
         bad(() -> new AssetIndex(java.util.Collections.singletonMap("wrong", asset), false, false), "asset key must match its object metadata");
+    }
+
+    private static void verifiedDownloads() throws Exception {
+        String helloSha1 = "aaf4c61ddcc5e8a2dabede0f3b482cd9aea9434d";
+        URI source = URI.create("https://resources.download.minecraft.net/aa/sample");
+        Path temp = Files.createTempDirectory("mylauncher-download-tests-");
+        try {
+            Path root = temp.resolve("cache");
+            FakeFileConnection good = new FakeFileConnection(200, "hello".getBytes(StandardCharsets.UTF_8), 5);
+            VerifiedFileDownloader downloader = new VerifiedFileDownloader(uri -> {
+                eq(source, uri, "verified downloader uses approved source");
+                return good;
+            });
+            VerifiedFileDownloader.DownloadResult result = downloader.download(source, root, "objects/aa/sample", 5, helloSha1);
+            eq(5L, result.getSizeBytes(), "verified download size returned");
+            yes(!result.isFromCache() && Files.isRegularFile(result.getPath()), "verified new file published");
+            eq("hello", new String(Files.readAllBytes(result.getPath()), StandardCharsets.UTF_8), "verified bytes stored");
+            eq(10_000, good.connectTimeout, "file connect timeout configured");
+            eq(30_000, good.readTimeout, "file read timeout configured");
+            eq("GET", good.method, "file request uses GET");
+            eq("application/octet-stream", good.headers.get("Accept"), "binary Accept header configured");
+            yes(!good.followRedirects && good.disconnected, "file redirects disabled and connection closed");
+
+            VerifiedFileDownloader cacheOnly = new VerifiedFileDownloader(uri -> { throw new AssertionError("verified cached file must not be fetched again"); });
+            VerifiedFileDownloader.DownloadResult cached = cacheOnly.download(source, root, "objects/aa/sample", 5, helloSha1);
+            yes(cached.isFromCache(), "verified cache hit detected");
+
+            FakeFileConnection badHash = new FakeFileConnection(200, "jello".getBytes(StandardCharsets.UTF_8), 5);
+            io(() -> new VerifiedFileDownloader(uri -> badHash).download(source, root, "objects/aa/bad-hash", 5, helloSha1), "bad file hash rejected");
+            yes(badHash.disconnected && !Files.exists(root.resolve("objects/aa/bad-hash")), "bad hash not published");
+
+            FakeFileConnection badLength = new FakeFileConnection(200, "hello".getBytes(StandardCharsets.UTF_8), 6);
+            io(() -> new VerifiedFileDownloader(uri -> badLength).download(source, root, "objects/aa/bad-length", 5, helloSha1), "declared size mismatch rejected");
+            FakeFileConnection oversized = new FakeFileConnection(200, "hello!".getBytes(StandardCharsets.UTF_8), -1);
+            io(() -> new VerifiedFileDownloader(uri -> oversized).download(source, root, "objects/aa/oversized", 5, helloSha1), "stream larger than expected rejected");
+            FakeFileConnection truncated = new FakeFileConnection(200, "hell".getBytes(StandardCharsets.UTF_8), -1);
+            io(() -> new VerifiedFileDownloader(uri -> truncated).download(source, root, "objects/aa/truncated", 5, helloSha1), "stream smaller than expected rejected");
+            FakeFileConnection unavailable = new FakeFileConnection(503, new byte[0], -1);
+            io(() -> new VerifiedFileDownloader(uri -> unavailable).download(source, root, "objects/aa/unavailable", 5, helloSha1), "HTTP failure rejected");
+            yes(!Files.exists(root.resolve("objects/aa/oversized")) && !Files.exists(root.resolve("objects/aa/truncated")), "invalid streams are not published");
+            yes(unavailable.disconnected, "failed HTTP connection closed");
+
+            Path corruptedCache = root.resolve("objects/aa/sample");
+            Files.write(corruptedCache, "jello".getBytes(StandardCharsets.UTF_8));
+            FakeFileConnection repair = new FakeFileConnection(200, "hello".getBytes(StandardCharsets.UTF_8), 5);
+            VerifiedFileDownloader.DownloadResult repaired = new VerifiedFileDownloader(uri -> repair).download(source, root, "objects/aa/sample", 5, helloSha1);
+            yes(!repaired.isFromCache(), "corrupt cache entry replaced from network");
+            eq("hello", new String(Files.readAllBytes(corruptedCache), StandardCharsets.UTF_8), "corrupt cached bytes repaired");
+
+            String emptyHash = "da39a3ee5e6b4b0d3255bfef95601890afd80709";
+            FakeFileConnection empty = new FakeFileConnection(200, new byte[0], 0);
+            VerifiedFileDownloader.DownloadResult emptyResult = new VerifiedFileDownloader(uri -> empty).download(
+                    source, root, "objects/empty", 0, emptyHash);
+            yes(Files.exists(emptyResult.getPath()) && Files.size(emptyResult.getPath()) == 0, "zero-byte asset downloaded and verified");
+
+            io(() -> new VerifiedFileDownloader(uri -> { throw new AssertionError("unapproved host must be blocked before opener"); })
+                    .download(URI.create("https://evil.example/hello"), root, "objects/evil", 5, helloSha1), "unapproved host rejected before networking");
+            io(() -> new VerifiedFileDownloader(uri -> { throw new AssertionError("HTTP URL must be blocked before opener"); })
+                    .download(URI.create("http://resources.download.minecraft.net/hello"), root, "objects/http", 5, helloSha1), "plain HTTP rejected");
+            yes(!VerifiedFileDownloader.isApprovedDownloadUri(URI.create("https://resources.download.minecraft.net.evil.example/hello")), "lookalike CDN hostname rejected");
+            yes(!VerifiedFileDownloader.isApprovedDownloadUri(URI.create("https://resources.download.minecraft.net:444/hello")), "non-default TLS port rejected");
+            yes(!VerifiedFileDownloader.isApprovedDownloadUri(URI.create("https://user@resources.download.minecraft.net/hello")), "URL user info rejected");
+            bad(() -> {
+                try { downloader.download(source, root, "../escape", 5, helloSha1); }
+                catch (IOException exception) { throw new AssertionError("path traversal should be rejected before network", exception); }
+            }, "parent traversal destination rejected");
+            bad(() -> {
+                try { downloader.download(source, root, "assets//broken", 5, helloSha1); }
+                catch (IOException exception) { throw new AssertionError("empty path component should be rejected before network", exception); }
+            }, "empty path component rejected");
+
+            Path outside = temp.resolve("outside"); Files.createDirectories(outside);
+            Path outsideFile = outside.resolve("sentinel"); Files.write(outsideFile, new byte[] {1});
+            Path linkRoot = temp.resolve("linked-cache"); Files.createDirectories(linkRoot);
+            try {
+                Files.createSymbolicLink(linkRoot.resolve("jump"), outside);
+                io(() -> new VerifiedFileDownloader(uri -> { throw new AssertionError("symlink cache path must be rejected before networking"); })
+                        .download(source, linkRoot, "jump/sentinel", 1, "bf8b4530d8d246dd74ac53a13471bba17941dff7"), "symbolic-link parent rejected");
+                eq(1L, Files.size(outsideFile), "outside file not modified through symlink");
+            } catch (UnsupportedOperationException | SecurityException exception) {
+                // Some filesystems do not permit symlink creation; traversal checks above still run.
+            }
+            try (java.util.stream.Stream<Path> files = Files.walk(root)) {
+                eq(0L, files.filter(path -> path.getFileName().toString().endsWith(".part")).count(), "temporary partial files cleaned up");
+            }
+        } finally {
+            try (java.util.stream.Stream<Path> paths = Files.walk(temp)) {
+                paths.sorted(java.util.Comparator.reverseOrder()).forEach(path -> {
+                    try { Files.deleteIfExists(path); } catch (IOException exception) { throw new java.io.UncheckedIOException(exception); }
+                });
+            }
+        }
+    }
+
+    private static final class FakeFileConnection implements VerifiedFileDownloader.FileConnection {
+        final int status;
+        final byte[] body;
+        final long length;
+        int connectTimeout, readTimeout;
+        boolean followRedirects = true, disconnected;
+        String method;
+        final Map<String, String> headers = new LinkedHashMap<>();
+        FakeFileConnection(int status, byte[] body, long length) { this.status = status; this.body = body; this.length = length; }
+        public void setConnectTimeout(int value) { connectTimeout = value; }
+        public void setReadTimeout(int value) { readTimeout = value; }
+        public void setInstanceFollowRedirects(boolean value) { followRedirects = value; }
+        public void setRequestMethod(String value) { method = value; }
+        public void setRequestProperty(String key, String value) { headers.put(key, value); }
+        public int getResponseCode() { return status; }
+        public long getContentLengthLong() { return length; }
+        public InputStream getInputStream() throws IOException {
+            if (status != 200) throw new IOException("HTTP " + status);
+            return new ByteArrayInputStream(body);
+        }
+        public void disconnect() { disconnected = true; }
     }
 
     private static void downloader() {

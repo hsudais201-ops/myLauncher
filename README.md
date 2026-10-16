@@ -4,9 +4,9 @@ myLauncher is being rebuilt as a Minecraft: Java Edition launcher for Android. P
 
 ## Development status
 
-The tested Java core now handles the master Minecraft version manifest, per-version metadata (client JAR, asset index, libraries, runtime requirement and platform rules), and asset-index parsing/content-addressed resource paths. This is not yet a playable Android launcher: safe downloads/cache, Android UI, Microsoft account flow, native runtime integration and game launch still need implementation and device testing.
+The tested Java core now handles master version manifest downloads/JSON decoding, per-version client/library/native metadata, asset-index parsing, and content-addressed resource paths. Verified file downloading is now being added. This is not yet a playable Android launcher: Android UI, account authentication, native runtime integration, launch arguments, and device gameplay tests remain unfinished.
 
-The old Amethyst-based customization/build work is preserved on backup/pre-clear-2026-10-16. That backup remains untouched while the new structure is developed.
+The old Amethyst-based customization/build work is preserved on backup/pre-clear-2026-10-16 and remains untouched while the new code structure is developed.
 
 ## Run core tests
 
@@ -14,13 +14,13 @@ Requires a JDK. Run:
 
     ./launcher/test.sh
 
-The script compiles Java core source with -Xlint:all -Werror and executes the dependency-free regression suite without Gradle or an Android SDK.
+This compiles Java source with -Xlint:all -Werror and executes dependency-free regression tests without Gradle or the Android SDK.
 
 ## Next milestones
 
 1. Verified downloads to safe cache locations with SHA-1 and size checks.
-2. Android UI, persistent settings and progress/cancellation.
+2. Android UI, persistent settings, and progress/cancellation.
 3. Native runtime setup and accurate Minecraft launch-argument construction.
-4. Licensed account authentication, Android build/APK validation and real-device gameplay tests.
+4. Licensed account authentication, APK/package verification, and real-device gameplay tests.
 
 Passing core tests does not prove an APK builds or Minecraft starts successfully.
