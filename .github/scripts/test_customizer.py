@@ -164,6 +164,7 @@ class MainMenuFragment {
 
 class SelectAuthFragment {
     void onViewCreated() {
+        mMicrosoftButton.setOnClickListener(v -> Tools.swapFragment(requireActivity(), MicrosoftLoginFragment.class, MicrosoftLoginFragment.TAG, null));
         mLocalButton.setOnClickListener(v -> hasNoOnlineProfileDialog(requireActivity(), () -> Tools.swapFragment(requireActivity(), LocalLoginFragment.class, LocalLoginFragment.TAG, null)));
     }
 }
@@ -263,6 +264,7 @@ class SelectAuthFragment {
             auth_selector = (root / "app_pojavlauncher/src/main/java/net/kdt/pojavlaunch/fragments/SelectAuthFragment.java").read_text(encoding="utf-8")
             self.assertNotIn("hasNoOnlineProfileDialog", auth_selector)
             self.assertIn("mLocalButton.setOnClickListener(v -> Tools.swapFragment", auth_selector)
+            self.assertIn("mMicrosoftButton.setOnClickListener(v -> Tools.swapFragment", auth_selector)
             for relative in ("src/main/res/layout/fragment_launcher.xml", "src/main/res/layout-land/fragment_launcher.xml"):
                 launcher_layout = (root / "app_pojavlauncher" / relative).read_text(encoding="utf-8")
                 self.assertEqual(launcher_layout.count('android:id="@+id/mylauncher_hero_title"'), 1)
