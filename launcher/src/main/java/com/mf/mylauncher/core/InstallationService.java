@@ -98,6 +98,11 @@ public final class InstallationService {
         }
 
         checkCancelled(cancellation);
+        publish(listener, new InstallationProgress(InstallationProgress.Stage.MATERIALIZING_ASSETS,
+                details.getAssetIndex().getId(), completedTasks, plan.getTaskCount(), completedBytes, plan.getTotalBytes()));
+        AssetLayoutMaterializer.materialize(indexDocument.getIndex(), details.getAssetIndex().getId(),
+                assetsRoot, gameRoot, cancellation);
+        checkCancelled(cancellation);
         publish(listener, new InstallationProgress(InstallationProgress.Stage.COMPLETED,
                 null, completedTasks, plan.getTaskCount(), completedBytes, plan.getTotalBytes()));
         return new InstallationResult(details.getId(), gameRoot, storedIndex.getPath(), plan,

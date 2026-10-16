@@ -331,6 +331,8 @@ public final class MainActivity extends Activity {
                 versionStatus.setText("Downloading and verifying asset index " + snapshot.getCurrentTask() + "…");
             } else if (stage == InstallationProgress.Stage.PLANNING) {
                 versionStatus.setText("Calculating client, library and asset downloads…");
+            } else if (stage == InstallationProgress.Stage.MATERIALIZING_ASSETS) {
+                versionStatus.setText("Preparing legacy asset folders…");
             }
         }
     }

@@ -23,7 +23,7 @@ public final class CoreTests {
     private CoreTests() { }
 
     public static void main(String[] args) throws Exception {
-        versions(); catalogs(); manifests(); jsonDecoder(); versionDetails(); launchArguments(); safeArchiveExtraction(); javaProcessRunner(); javaRuntimeProbe(); assetIndex(); assetIndexDownload(); installationPlan(); installationService(); verifiedDownloads(); downloader(); profiles(); memory();
+        versions(); catalogs(); manifests(); jsonDecoder(); versionDetails(); launchArguments(); safeArchiveExtraction(); javaProcessRunner(); javaRuntimeProbe(); assetIndex(); assetIndexDownload(); assetLayoutMaterializer(); installationPlan(); installationService(); verifiedDownloads(); downloader(); profiles(); memory();
         System.out.println("PASS: " + checks + " launcher-core assertions");
     }
 
@@ -455,6 +455,96 @@ public final class CoreTests {
         StringBuilder result = new StringBuilder();
         for (byte value : digest) result.append(String.format(java.util.Locale.ROOT, "%02x", value & 0xff));
         return result.toString();
+    }
+
+    private static void assetLayoutMaterializer() throws Exception {
+        Path temporary = Files.createTempDirectory("mylauncher-assets-layout-");
+        try {
+            byte[] payload = "legacy asset content".getBytes(StandardCharsets.UTF_8);
+            String hash = sha1Hex(payload);
+            AssetObjectMetadata asset = new AssetObjectMetadata("minecraft/sounds/cave.ogg", hash, payload.length);
+            Map<String, AssetObjectMetadata> objectMap = new LinkedHashMap<>();
+            objectMap.put(asset.getName(), asset);
+            AssetIndex index = new AssetIndex(objectMap, true, true);
+            Path assetsRoot = temporary.resolve("game/assets");
+            Path gameRoot = temporary.resolve("game");
+            Path objectFile = assetsRoot.resolve(asset.getObjectRelativePath());
+            Files.createDirectories(objectFile.getParent());
+            Files.write(objectFile, payload);
+
+            AssetLayoutMaterializer.Result first = AssetLayoutMaterializer.materialize(
+                    index, "1.12.2", assetsRoot, gameRoot, CancellationToken.NONE);
+            Path virtual = assetsRoot.resolve("virtual/1.12.2/minecraft/sounds/cave.ogg");
+            Path resource = gameRoot.resolve("resources/minecraft/sounds/cave.ogg");
+            eq(2, first.getFilesWritten(), "virtual and legacy resource copies created");
+            eq(0, first.getFilesReused(), "first materialization has no cache hits");
+            eq((long) payload.length * 2L, first.getBytesWritten(), "materialized bytes counted");
+            eq(new String(payload, StandardCharsets.UTF_8),
+                    new String(Files.readAllBytes(virtual), StandardCharsets.UTF_8), "virtual asset bytes retained");
+            eq(new String(payload, StandardCharsets.UTF_8),
+                    new String(Files.readAllBytes(resource), StandardCharsets.UTF_8), "resources asset bytes retained");
+
+            AssetLayoutMaterializer.Result second = AssetLayoutMaterializer.materialize(
+                    index, "1.12.2", assetsRoot, gameRoot, CancellationToken.NONE);
+            eq(0, second.getFilesWritten(), "repeat materialization creates no new copies");
+            eq(2, second.getFilesReused(), "valid materialized copies reused");
+
+            Files.write(resource, "corrupt".getBytes(StandardCharsets.UTF_8));
+            AssetLayoutMaterializer.Result repaired = AssetLayoutMaterializer.materialize(
+                    index, "1.12.2", assetsRoot, gameRoot, CancellationToken.NONE);
+            eq(1, repaired.getFilesWritten(), "corrupt legacy resource copy repaired");
+            eq(1, repaired.getFilesReused(), "correct virtual asset reused during repair");
+            eq(new String(payload, StandardCharsets.UTF_8),
+                    new String(Files.readAllBytes(resource), StandardCharsets.UTF_8), "corrupt resource copy repaired from verified object");
+
+            AssetIndex modern = new AssetIndex(objectMap, false, false);
+            AssetLayoutMaterializer.Result noLayout = AssetLayoutMaterializer.materialize(
+                    modern, "1.21.4", assetsRoot, gameRoot, CancellationToken.NONE);
+            eq(0, noLayout.getFilesWritten(), "modern index does not create legacy aliases");
+
+            bad(() -> {
+                try { AssetLayoutMaterializer.materialize(index, "../escape", assetsRoot, gameRoot, CancellationToken.NONE); }
+                catch (IOException exception) { throw new AssertionError("unsafe asset-index ID should be rejected before IO", exception); }
+            }, "unsafe asset-index ID rejected");
+            yes(!Files.exists(temporary.resolve("escape")), "unsafe index ID creates no path outside the expected asset layout");
+
+            byte[] nestedPayload = "linked asset".getBytes(StandardCharsets.UTF_8);
+            String nestedHash = sha1Hex(nestedPayload);
+            AssetObjectMetadata nestedAsset = new AssetObjectMetadata("jump/sentinel", nestedHash, nestedPayload.length);
+            Path nestedObject = assetsRoot.resolve(nestedAsset.getObjectRelativePath());
+            Files.createDirectories(nestedObject.getParent());
+            Files.write(nestedObject, nestedPayload);
+            AssetIndex nestedIndex = new AssetIndex(java.util.Collections.singletonMap(nestedAsset.getName(), nestedAsset),
+                    false, true);
+            Path outside = temporary.resolve("outside");
+            Files.createDirectories(outside);
+            Path outsideFile = outside.resolve("sentinel");
+            Files.write(outsideFile, "safe".getBytes(StandardCharsets.UTF_8));
+            Path linkParent = gameRoot.resolve("resources/jump");
+            try {
+                Files.createSymbolicLink(linkParent, outside);
+                io(() -> AssetLayoutMaterializer.materialize(nestedIndex, "1.12.2",
+                        assetsRoot, gameRoot, CancellationToken.NONE), "symlinked resource directory rejected");
+                eq("safe", new String(Files.readAllBytes(outsideFile), StandardCharsets.UTF_8),
+                        "materializer does not write through symlink");
+            } catch (UnsupportedOperationException | SecurityException exception) {
+                // Some platforms disable symlink creation for ordinary users.
+            }
+
+            final boolean[] cancelled = {true};
+            try {
+                AssetLayoutMaterializer.materialize(index, "1.12.2", assetsRoot, gameRoot, () -> cancelled[0]);
+                throw new AssertionError("already-cancelled asset materialization should stop");
+            } catch (InterruptedIOException expected) {
+                checks++;
+            }
+        } finally {
+            try (java.util.stream.Stream<Path> paths = Files.walk(temporary)) {
+                paths.sorted(java.util.Comparator.reverseOrder()).forEach(path -> {
+                    try { Files.deleteIfExists(path); } catch (IOException exception) { throw new java.io.UncheckedIOException(exception); }
+                });
+            }
+        }
     }
 
     private static void installationPlan() {
