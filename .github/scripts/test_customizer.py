@@ -123,6 +123,12 @@ class SelectAuthFragment {
             encoding="utf-8",
         )
 
+        manifest = app / "src/main/AndroidManifest.xml"
+        manifest.write_text(
+            '<manifest><application android:icon="@mipmap/ic_launcher" android:roundIcon="@mipmap/ic_launcher_round" /></manifest>\n',
+            encoding="utf-8",
+        )
+
         prefs = root / "app_pojavlauncher/src/main/java/net/kdt/pojavlaunch/prefs/LauncherPreferences.java"
         prefs.parent.mkdir(parents=True)
         prefs.write_text(
@@ -170,6 +176,11 @@ class SelectAuthFragment {
             main_menu = (root / "app_pojavlauncher/src/main/java/net/kdt/pojavlaunch/fragments/MainMenuFragment.java").read_text(encoding="utf-8")
             self.assertIn("mMyLauncherAccountButton.setOnClickListener", main_menu)
             self.assertIn("ExtraConstants.SELECT_AUTH_METHOD", main_menu)
+            manifest = (root / "app_pojavlauncher/src/main/AndroidManifest.xml").read_text(encoding="utf-8")
+            icon = (root / "app_pojavlauncher/src/main/res/drawable/mylauncher_icon.xml").read_text(encoding="utf-8")
+            self.assertIn('android:icon="@drawable/mylauncher_icon"', manifest)
+            self.assertIn('android:roundIcon="@drawable/mylauncher_icon"', manifest)
+            self.assertIn('android:fillColor="#7C5CFF"', icon)
             auth_selector = (root / "app_pojavlauncher/src/main/java/net/kdt/pojavlaunch/fragments/SelectAuthFragment.java").read_text(encoding="utf-8")
             self.assertNotIn("hasNoOnlineProfileDialog", auth_selector)
             self.assertIn("mLocalButton.setOnClickListener(v -> Tools.swapFragment", auth_selector)
