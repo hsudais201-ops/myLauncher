@@ -10,7 +10,7 @@ Product-owned Java code lives here, separate from CI configuration and generated
 - Asset-index validation, content-addressed object paths, index verification, and safe materialization of virtual/resources layouts.
 - Modern rule-based game/JVM arguments, legacy minecraftArguments parsing, verified on-disk classpath resolution in metadata order, and a builder that returns an argv list rather than a shell string.
 - Explicit-target native classifier planning, preservation of extraction exclusions, platform rule filtering, and rejection of missing/conflicting native archives.
-- Safe ZIP extraction with excludes, path traversal/symlink protection, entry/uncompressed-size limits, and staging before destination replacement.
+- Safe single- and multi-archive ZIP extraction with per-archive excludes, duplicate-file rejection, path traversal/symlink protection, entry/uncompressed-size limits, and staged destination replacement.
 - Java process supervisor and runtime major-version probe.
 - Android shell: version refresh, local profile validation, settings, base-file installation progress and cancellation.
 
@@ -25,4 +25,4 @@ CI assembles and verifies the debug APK. The screen can prepare supported base f
 
 ## Next steps
 
-Android-specific runtime and native-library compatibility remains the main blocker before process launch. Then integrate the verified classpath resolver and launch-command builder with a compatible runtime and licensed account flow, and validate on real Android devices.
+Android-specific runtime and native-library compatibility remains the main blocker before process launch. Then integrate the verified classpath resolver and launch-command builder with a compatible runtime and licensed account flow, and validate on real devices.

@@ -32,11 +32,30 @@ public final class SafeArchiveExtractor {
      * match one exact relative entry path.
      */
     public static ExtractionResult extract(Path archive, Path destination, List<String> excludes) throws IOException {
-        if (archive == null || !Files.isRegularFile(archive, LinkOption.NOFOLLOW_LINKS)) {
-            throw new IOException("Native archive must be an existing regular file");
+        return extractAll(Collections.singletonList(new ArchiveSpec(archive, excludes)), destination);
+    }
+
+    /**
+     * Extracts multiple archives into one staging directory, applying each archive's own exclusions.
+     * Duplicate unexcluded file names across archives are rejected rather than silently overwritten.
+     */
+    public static ExtractionResult extractAll(List<ArchiveSpec> archives, Path destination) throws IOException {
+        if (archives == null || archives.isEmpty()) {
+            throw new IllegalArgumentException("At least one native archive is required");
         }
         if (destination == null) throw new IllegalArgumentException("Extraction destination is required");
-        List<String> safeExcludes = validateExcludes(excludes);
+        List<ArchiveSpec> validatedArchives = new ArrayList<>();
+        for (ArchiveSpec spec : archives) {
+            if (spec == null) throw new IllegalArgumentException("Archive specifications must not contain null entries");
+            Path archive = spec.archive;
+            if (archive == null || Files.isSymbolicLink(archive)
+                    || !Files.isRegularFile(archive, LinkOption.NOFOLLOW_LINKS)) {
+                throw new IOException("Native archive must be an existing regular non-symlink file");
+            }
+            validatedArchives.add(new ArchiveSpec(archive,
+                    validateExcludes(spec.excludes)));
+        }
+
         Path target = destination.toAbsolutePath().normalize();
         Path parent = target.getParent();
         if (parent == null || target.equals(target.getRoot())) {
@@ -51,40 +70,65 @@ public final class SafeArchiveExtractor {
 
         Path staging = Files.createTempDirectory(parent, ".mylauncher-extract-" + UUID.randomUUID() + "-");
         boolean published = false;
+        Path backup = null;
         try {
-            MutableStats stats = extractInto(archive, staging, safeExcludes);
+            MutableStats stats = new MutableStats();
+            Set<String> seenFiles = new HashSet<>();
+            for (ArchiveSpec spec : validatedArchives) {
+                extractInto(spec.archive, staging, spec.excludes, stats, seenFiles);
+            }
+
             rejectSymlink(target);
-            if (Files.exists(target, LinkOption.NOFOLLOW_LINKS)) deleteTree(target);
-            moveDirectory(staging, target);
-            published = true;
+            if (Files.exists(target, LinkOption.NOFOLLOW_LINKS)) {
+                backup = parent.resolve(".mylauncher-extract-backup-" + UUID.randomUUID());
+                moveDirectory(target, backup);
+            }
+            try {
+                moveDirectory(staging, target);
+                published = true;
+            } catch (IOException exception) {
+                if (backup != null && Files.exists(backup, LinkOption.NOFOLLOW_LINKS)
+                        && !Files.exists(target, LinkOption.NOFOLLOW_LINKS)) {
+                    moveDirectory(backup, target);
+                    backup = null;
+                }
+                throw exception;
+            }
+            if (backup != null) {
+                deleteTree(backup);
+                backup = null;
+            }
             return new ExtractionResult(target, stats.fileCount, stats.directoryCount,
                     stats.bytesWritten, stats.bytesRead, stats.entryCount);
         } finally {
             if (!published && Files.exists(staging, LinkOption.NOFOLLOW_LINKS)) deleteTree(staging);
+            if (backup != null && Files.exists(backup, LinkOption.NOFOLLOW_LINKS)
+                    && !Files.exists(target, LinkOption.NOFOLLOW_LINKS)) {
+                moveDirectory(backup, target);
+            }
         }
     }
 
-    private static MutableStats extractInto(Path archive, Path staging, List<String> excludes) throws IOException {
-        MutableStats stats = new MutableStats();
-        Set<String> seenFiles = new HashSet<>();
+    private static void extractInto(Path archive, Path staging, List<String> excludes,
+                                    MutableStats stats, Set<String> seenFiles) throws IOException {
         byte[] buffer = new byte[BUFFER_SIZE];
         try (InputStream fileInput = Files.newInputStream(archive);
              ZipInputStream zip = new ZipInputStream(fileInput)) {
             ZipEntry entry;
             while ((entry = zip.getNextEntry()) != null) {
                 stats.entryCount++;
-                if (stats.entryCount > MAX_ENTRIES) throw new IOException("Native archive contains too many ZIP entries");
+                if (stats.entryCount > MAX_ENTRIES) throw new IOException("Native archive collection contains too many ZIP entries");
 
                 String rawName = entry.getName();
                 boolean directory = entry.isDirectory() || (rawName != null && rawName.endsWith("/"));
                 String relative = validateEntryName(rawName, directory);
-                if (!directory && !seenFiles.add(relative)) {
-                    throw new IOException("Native archive contains a duplicate file entry: " + relative);
+                boolean excluded = isExcluded(relative, excludes);
+                if (!directory && !excluded && !seenFiles.add(relative)) {
+                    throw new IOException("Native archive collection contains a duplicate file entry: " + relative);
                 }
                 if (entry.getSize() > MAX_ENTRY_BYTES) {
                     throw new IOException("Native archive entry exceeds the uncompressed size limit: " + relative);
                 }
-                boolean excluded = isExcluded(relative, excludes);
                 Path output = null;
                 if (!excluded) {
                     output = staging.resolve(relative.replace('/', java.io.File.separatorChar)).normalize();
@@ -112,7 +156,7 @@ public final class SafeArchiveExtractor {
                             throw new IOException("Native archive entry exceeds the uncompressed size limit: " + relative);
                         }
                         if (stats.bytesRead > MAX_TOTAL_UNCOMPRESSED_BYTES) {
-                            throw new IOException("Native archive exceeds the total uncompressed size limit");
+                            throw new IOException("Native archive collection exceeds the total uncompressed size limit");
                         }
                         if (fileOutput != null) {
                             fileOutput.write(buffer, 0, count);
@@ -126,7 +170,6 @@ public final class SafeArchiveExtractor {
                 }
             }
         }
-        return stats;
     }
 
     private static String validateEntryName(String value, boolean directory) throws IOException {
@@ -214,6 +257,21 @@ public final class SafeArchiveExtractor {
             Path[] all = paths.sorted(java.util.Comparator.reverseOrder()).toArray(Path[]::new);
             for (Path path : all) Files.deleteIfExists(path);
         }
+    }
+
+    public static final class ArchiveSpec {
+        private final Path archive;
+        private final List<String> excludes;
+
+        public ArchiveSpec(Path archive, List<String> excludes) {
+            this.archive = archive;
+            this.excludes = excludes == null
+                    ? Collections.emptyList()
+                    : Collections.unmodifiableList(new ArrayList<>(excludes));
+        }
+
+        public Path getArchive() { return archive; }
+        public List<String> getExcludes() { return excludes; }
     }
 
     private static final class MutableStats {

@@ -320,6 +320,49 @@ public final class CoreTests {
             yes(!Files.exists(destination.resolve("META-INF/MANIFEST.MF")), "excluded META-INF contents omitted");
             eq(destination.toAbsolutePath().normalize(), extracted.getDestination(), "destination normalized");
 
+            Path archiveOne = temporary.resolve("native-one.zip");
+            Path archiveTwo = temporary.resolve("native-two.zip");
+            Files.write(archiveOne, makeZip(new String[][] {
+                    {"META-INF/", ""}, {"META-INF/MANIFEST.MF", "one"},
+                    {"lib/", ""}, {"lib/a.so", "a"}
+            }));
+            Files.write(archiveTwo, makeZip(new String[][] {
+                    {"META-INF/", ""}, {"META-INF/MANIFEST.MF", "two"},
+                    {"lib/", ""}, {"lib/b.so", "b"}
+            }));
+            Path combinedDestination = temporary.resolve("natives/combined");
+            SafeArchiveExtractor.ExtractionResult combined = SafeArchiveExtractor.extractAll(
+                    Arrays.asList(
+                            new SafeArchiveExtractor.ArchiveSpec(archiveOne,
+                                    java.util.Collections.singletonList("META-INF/")),
+                            new SafeArchiveExtractor.ArchiveSpec(archiveTwo,
+                                    java.util.Collections.singletonList("META-INF/"))),
+                    combinedDestination);
+            eq(2, combined.getFileCount(), "multi-archive extraction counts both native files");
+            eq(2L, combined.getBytesWritten(), "multi-archive extraction counts bytes written");
+            eq(6L, combined.getBytesRead(), "multi-archive extraction bounds excluded and included data together");
+            eq("a", new String(Files.readAllBytes(combinedDestination.resolve("lib/a.so")), StandardCharsets.UTF_8),
+                    "first archive content retained in combined native directory");
+            eq("b", new String(Files.readAllBytes(combinedDestination.resolve("lib/b.so")), StandardCharsets.UTF_8),
+                    "second archive content retained in combined native directory");
+            yes(!Files.exists(combinedDestination.resolve("META-INF/MANIFEST.MF")),
+                    "per-archive excludes prevent duplicate manifest files");
+
+            Files.write(combinedDestination.resolve("keep.txt"), "previous".getBytes(StandardCharsets.UTF_8));
+            Path duplicateArchive = temporary.resolve("native-duplicate.zip");
+            Files.write(duplicateArchive, makeZip(new String[][] {{"lib/a.so", "different"}}));
+            io(() -> SafeArchiveExtractor.extractAll(Arrays.asList(
+                    new SafeArchiveExtractor.ArchiveSpec(archiveOne, java.util.Collections.emptyList()),
+                    new SafeArchiveExtractor.ArchiveSpec(duplicateArchive, java.util.Collections.emptyList())),
+                    combinedDestination), "duplicate native file across archives rejected");
+            yes(Files.exists(combinedDestination.resolve("keep.txt")),
+                    "failed multi-archive extraction preserves previous native directory");
+            bad(() -> {
+                try { SafeArchiveExtractor.extractAll(java.util.Collections.emptyList(), temporary.resolve("empty-archive-set")); }
+                catch (IOException exception) { throw new AssertionError("empty archive list should be rejected before IO", exception); }
+            }, "empty native archive collection rejected");
+
+
             Files.write(destination.resolve("stale.bin"), new byte[] {1, 2, 3});
             byte[] unsafeBytes = makeZip(new String[][] {{"../escape.txt", "bad"}});
             Path unsafeArchive = temporary.resolve("unsafe.zip");
