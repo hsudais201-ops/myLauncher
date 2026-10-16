@@ -35,7 +35,7 @@ The workflow fetches the exact Amethyst commit `330c6eae3164df64bdc4828e946a9e62
 - `.github/workflows/build.yml` — repeatable Android build workflow, path-filtered to launcher customization/build changes.
 - `.github/workflows/runner-diagnostic.yml` — minimal hosted-runner diagnostic workflow.
 - `.github/scripts/customize_amethyst.py` — deterministic patch for app branding, package/authority IDs, low-memory defaults, offline account access, launcher header, account shortcut, and vector app icon.
-- `.github/scripts/test_customizer.py` — regression tests for branding, offline-account submission and labeling, local game-directory access, both launcher layouts, XML well-formedness, missing-anchor failures, repeat-run idempotency, and CI submodule/APK safeguards.
+- `.github/scripts/test_customizer.py` — regression tests for branding, offline-account username syntax/length/duplicate-profile guards, account submission and labeling, local game-directory access, both launcher layouts, XML well-formedness, missing-anchor failures, repeat-run idempotency, and CI submodule/APK safeguards.
 
 ## Local build
 
