@@ -279,7 +279,7 @@ class SelectAuthFragment {
             self.assertIn("providedJsonFile.length() == 0", downloader)
             self.assertIn("Connect to the internet and select Play again to download it.", downloader)
             self.assertIn("version metadata is missing/corrupt.", downloader)
-            self.assertIn('String tryagain = "Connect to the internet and try again."; ', downloader)
+            self.assertIn('String tryagain = "Connect to the internet and try again.";', downloader)
             self.assertNotIn("Please try again on your Microsoft Account", downloader)
 
     def test_patches_branding_and_ids(self) -> None:
