@@ -324,5 +324,32 @@ class SelectAuthFragment {
                 customizer.patch_upstream(Path(temp))
 
 
+class BuildWorkflowTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        workflow_path = Path(__file__).parents[1] / "workflows" / "build.yml"
+        cls.workflow = workflow_path.read_text(encoding="utf-8")
+
+    def test_ssh_submodule_urls_are_rewritten_before_checkout(self) -> None:
+        ssh_rewrite = 'git config --global url."https://github.com/".insteadOf git@github.com:'
+        nested_ssh_rewrite = 'git config --global --add url."https://github.com/".insteadOf ssh://git@github.com/'
+        sync = "git -C upstream submodule sync --recursive"
+        update = "git -C upstream submodule update --init --recursive"
+        self.assertIn(ssh_rewrite, self.workflow)
+        self.assertIn(nested_ssh_rewrite, self.workflow)
+        self.assertLess(self.workflow.index(ssh_rewrite), self.workflow.index(update))
+        self.assertLess(self.workflow.index(nested_ssh_rewrite), self.workflow.index(update))
+        self.assertLess(self.workflow.index(sync), self.workflow.index(update))
+        self.assertIn("grep -Eq '^[+-U]'", self.workflow)
+
+    def test_workflow_checks_source_pin_and_android_9_apk(self) -> None:
+        self.assertIn("EXPECTED_UPSTREAM_COMMIT=330c6eae3164df64bdc4828e946a9e62cc5169e4", self.workflow)
+        self.assertIn("python3 -m py_compile .github/scripts/customize_amethyst.py .github/scripts/test_customizer.py", self.workflow)
+        self.assertIn("python3 -m unittest discover -s .github/scripts -p 'test_*.py' -v", self.workflow)
+        self.assertIn("git -C upstream diff --check", self.workflow)
+        self.assertIn('test "$MIN_SDK" -le 28', self.workflow)
+        self.assertIn("myLauncher-debug-apk", self.workflow)
+
+
 if __name__ == "__main__":
     unittest.main()
