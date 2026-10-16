@@ -110,6 +110,19 @@ class LocalLoginFragment {
             encoding="utf-8",
         )
 
+        auth_selector = app / "src/main/java/net/kdt/pojavlaunch/fragments/SelectAuthFragment.java"
+        auth_selector.write_text(
+            """import static net.kdt.pojavlaunch.Tools.hasNoOnlineProfileDialog;
+
+class SelectAuthFragment {
+    void onViewCreated() {
+        mLocalButton.setOnClickListener(v -> hasNoOnlineProfileDialog(requireActivity(), () -> Tools.swapFragment(requireActivity(), LocalLoginFragment.class, LocalLoginFragment.TAG, null)));
+    }
+}
+""",
+            encoding="utf-8",
+        )
+
         prefs = root / "app_pojavlauncher/src/main/java/net/kdt/pojavlaunch/prefs/LauncherPreferences.java"
         prefs.parent.mkdir(parents=True)
         prefs.write_text(
@@ -157,6 +170,9 @@ class LocalLoginFragment {
             main_menu = (root / "app_pojavlauncher/src/main/java/net/kdt/pojavlaunch/fragments/MainMenuFragment.java").read_text(encoding="utf-8")
             self.assertIn("mMyLauncherAccountButton.setOnClickListener", main_menu)
             self.assertIn("ExtraConstants.SELECT_AUTH_METHOD", main_menu)
+            auth_selector = (root / "app_pojavlauncher/src/main/java/net/kdt/pojavlaunch/fragments/SelectAuthFragment.java").read_text(encoding="utf-8")
+            self.assertNotIn("hasNoOnlineProfileDialog", auth_selector)
+            self.assertIn("mLocalButton.setOnClickListener(v -> Tools.swapFragment", auth_selector)
             for relative in ("src/main/res/layout/fragment_launcher.xml", "src/main/res/layout-land/fragment_launcher.xml"):
                 launcher_layout = (root / "app_pojavlauncher" / relative).read_text(encoding="utf-8")
                 self.assertIn("mylauncher_hero_title", launcher_layout)
