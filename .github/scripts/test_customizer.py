@@ -492,6 +492,13 @@ class BuildWorkflowTests(unittest.TestCase):
         self.assertLess(self.workflow.index(sync), self.workflow.index(update))
         self.assertIn("grep -Eq '^[+-U]'", self.workflow)
 
+    def test_workflow_installs_and_launches_apk_in_headless_emulator(self) -> None:
+        self.assertIn("uses: reactivecircus/android-emulator-runner@v2", self.workflow)
+        self.assertIn("api-level: 35", self.workflow)
+        self.assertIn('adb install -r "$APK_PATH"', self.workflow)
+        self.assertIn("com.mf.mylauncher.debug/net.kdt.pojavlaunch.LauncherActivity", self.workflow)
+        self.assertIn("APK did not reach LauncherActivity", self.workflow)
+
     def test_workflow_checks_source_pin_and_android_9_apk(self) -> None:
         self.assertIn("  push:\n    branches:\n      - main", self.workflow)
         self.assertIn("  pull_request:", self.workflow)
