@@ -189,6 +189,23 @@ def patch_upstream(upstream: Path) -> None:
         main_menu_text = main_menu_text.replace(listener_anchor, listener_anchor + "\n        " + account_listener, 1)
     main_menu.write_text(main_menu_text, encoding="utf-8")
 
+    # The upstream auth selector also blocks local profiles until an online account exists.
+    # Replace that gate so users can actually choose the offline account path.
+    auth_selector = upstream / "app_pojavlauncher" / "src" / "main" / "java" / "net" / "kdt" / "pojavlaunch" / "fragments" / "SelectAuthFragment.java"
+    if not auth_selector.is_file():
+        raise FileNotFoundError(f"Expected authentication selector is missing: {auth_selector}")
+    auth_text = auth_selector.read_text(encoding="utf-8")
+    old_local_auth = "mLocalButton.setOnClickListener(v -> hasNoOnlineProfileDialog(requireActivity(), () -> Tools.swapFragment(requireActivity(), LocalLoginFragment.class, LocalLoginFragment.TAG, null)));"
+    new_local_auth = "mLocalButton.setOnClickListener(v -> Tools.swapFragment(requireActivity(), LocalLoginFragment.class, LocalLoginFragment.TAG, null));"
+    if old_local_auth in auth_text:
+        auth_text = auth_text.replace(old_local_auth, new_local_auth)
+    elif new_local_auth not in auth_text:
+        raise ValueError("Could not find the local-account selection handler")
+    auth_text = auth_text.replace("import static net.kdt.pojavlaunch.Tools.hasNoOnlineProfileDialog;\n\n", "")
+    if "hasNoOnlineProfileDialog(requireActivity()" in auth_text:
+        raise ValueError("Offline account selection is still gated by an online profile")
+    auth_selector.write_text(auth_text, encoding="utf-8")
+
     launcher_preferences = upstream / "app_pojavlauncher" / "src" / "main" / "java" / "net" / "kdt" / "pojavlaunch" / "prefs" / "LauncherPreferences.java"
     if not launcher_preferences.is_file():
         raise FileNotFoundError(f"Expected upstream file is missing: {launcher_preferences}")
