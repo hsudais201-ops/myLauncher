@@ -60,17 +60,17 @@ Then fetch the pinned upstream source and build:
 
 ## Verification and limitations
 
-As of 2026-10-16, GitHub Actions runner provisioning is the immediate build blocker. The [APK build run 38873369124](https://github.com/hsudais201-ops/myLauncher/actions/runs/38873369124) was retried again as job `116903306144`, which failed before any step ran; downloading its log returned `BlobNotFound`. The [runner diagnostic run 38872830228](https://github.com/hsudais201-ops/myLauncher/actions/runs/38872830228) was also retried as job `116903317397` and failed with zero steps and unavailable logs.
+As of 2026-10-16, GitHub Actions runner provisioning is the immediate build blocker. The latest APK build, [run 38880101851](https://github.com/hsudais201-ops/myLauncher/actions/runs/38880101851), failed as job `116904492686` before any step ran; there are no artifacts and downloading its logs returned `BlobNotFound`. The earlier [build run 38873369124](https://github.com/hsudais201-ops/myLauncher/actions/runs/38873369124) and [runner diagnostic run 38872830228](https://github.com/hsudais201-ops/myLauncher/actions/runs/38872830228) were also retried and failed before steps executed.
 
-To test whether this was just a runner-label mismatch, the diagnostic was expanded to a four-way matrix. All four jobs failed before recording steps:
+The diagnostic now tests four runner labels side by side. All four jobs failed before recording steps:
 - `ubuntu-24.04`: job `116904025736`
 - `ubuntu-slim`: job `116904026064`
 - `ubuntu-22.04`: job `116904026081`
 - `ubuntu-latest`: job `116904026115`
 
-Because the failure occurred on all tested labels, changing the runner label again is unlikely to be sufficient. Check repository **Settings → Actions → General**, account billing/usage and spending limits, and any verification or usage restrictions. If these are clear, [contact GitHub Support](https://support.github.com/) with the run links and job IDs above; only GitHub can inspect runner-provisioning telemetry unavailable in the job logs.
+Because the failure occurred across all tested labels, changing the runner label again is unlikely to be sufficient. Check repository **Settings → Actions → General**, account billing/usage and spending limits, and any verification or usage restrictions. If these are clear, [contact GitHub Support](https://support.github.com/) with the run links and job IDs above; only GitHub can inspect runner-provisioning telemetry unavailable in the job logs.
 
-A source-level inspection of the exact pinned Amethyst commit confirmed 22 expected file/patch anchors, and an in-memory patch simulation passed 10 checks for branding, Android 9 minSdk, both launcher layouts, local-account flow, account shortcut, low-memory defaults, and manifest icon references. These checks are **not** a run of the repository's Python regression suite, an Android compilation, APK-signature verification, or a device test. No verified APK has been produced. A successful build still needs to be followed by real-device checks for Microsoft sign-in, asset downloads, rendering, heat, memory pressure, and FPS.
+Source review confirmed 22 expected file/patch anchors in the exact pinned Amethyst commit, and an in-memory patch simulation passed 10 checks for branding, Android 9 minSdk, both launcher layouts, local-account flow, account shortcut, low-memory defaults, and manifest icon references. The customizer was subsequently extended to update the shared `Tools.APP_NAME` constant as well, with a new regression assertion. This new assertion has **not** been executed by the repository's Python test suite because hosted jobs still fail before their first step. None of these source-level checks is an Android compilation, APK-signature verification, or device test. No verified APK has been produced. After runner access is restored, run the Python regression suite, build and verify the APK, then test Microsoft sign-in, asset downloads, rendering, heat, memory pressure, and FPS on the target device.
 
 ## Manual device smoke test
 
