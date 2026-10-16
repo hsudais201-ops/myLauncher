@@ -80,8 +80,11 @@ class LocalLoginFragment {
         login_layout = app / "src/main/res/layout/fragment_local_login.xml"
         login_layout.parent.mkdir(parents=True, exist_ok=True)
         login_layout.write_text(
-            '<EditText xmlns:android="http://schemas.android.com/apk/res/android" '
-            'android:inputType="textEmailAddress" />\n',
+            '<androidx.constraintlayout.widget.ConstraintLayout '
+            'xmlns:android="http://schemas.android.com/apk/res/android">'
+            '<EditText android:inputType="textEmailAddress" />'
+            '<com.kdt.mcgui.MineButton android:text="@string/login_online_login_label" />'
+            '</androidx.constraintlayout.widget.ConstraintLayout>\n',
             encoding="utf-8",
         )
 
@@ -227,6 +230,8 @@ class SelectAuthFragment {
             self.assertNotIn("import static net.kdt.pojavlaunch.Tools.hasOnlineProfile;", local_login)
             self.assertIn("ExtraCore.setValue(ExtraConstants.MOJANG_LOGIN_TODO, new String[]{", local_login)
             self.assertIn('android:inputType="textPersonName"', login_layout)
+            self.assertIn('android:text="@string/main_add_account"', login_layout)
+            self.assertNotIn('android:text="@string/login_online_login_label"', login_layout)
             main_menu = (root / "app_pojavlauncher/src/main/java/net/kdt/pojavlaunch/fragments/MainMenuFragment.java").read_text(encoding="utf-8")
             self.assertIn("Button mMyLauncherAccountButton = view.findViewById(R.id.mylauncher_account_button);", main_menu)
             self.assertIn("mMyLauncherAccountButton.setOnClickListener", main_menu)
