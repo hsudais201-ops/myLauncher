@@ -18,7 +18,7 @@ public final class CoreTests {
     private CoreTests() { }
 
     public static void main(String[] args) throws Exception {
-        versions(); catalogs(); manifests(); jsonDecoder(); versionDetails(); assetIndex(); assetIndexDownload(); verifiedDownloads(); downloader(); profiles(); memory();
+        versions(); catalogs(); manifests(); jsonDecoder(); versionDetails(); assetIndex(); assetIndexDownload(); installationPlan(); verifiedDownloads(); downloader(); profiles(); memory();
         System.out.println("PASS: " + checks + " launcher-core assertions");
     }
 
@@ -238,6 +238,81 @@ public final class CoreTests {
         StringBuilder result = new StringBuilder();
         for (byte value : digest) result.append(String.format(java.util.Locale.ROOT, "%02x", value & 0xff));
         return result.toString();
+    }
+
+    private static void installationPlan() {
+        String hash1 = "0123456789abcdef0123456789abcdef01234567";
+        String hash2 = "fedcba9876543210fedcba9876543210fedcba98";
+        URI clientUrl = URI.create("https://piston-data.mojang.com/v1/objects/" + hash1 + "/client.jar");
+        DownloadArtifact client = new DownloadArtifact(clientUrl, hash1, 700, null);
+        AssetIndexMetadata indexMetadata = new AssetIndexMetadata("1.21.4",
+                URI.create("https://piston-meta.mojang.com/v1/packages/" + hash2 + "/1.21.4.json"), hash2, 80, 1000);
+        DownloadArtifact libraryArtifact = new DownloadArtifact(
+                URI.create("https://libraries.minecraft.net/org/example/core/1.0/core.jar"),
+                hash1, 100, "org/example/core/1.0/core.jar");
+        LibraryRule linuxRule = new LibraryRule(true, "linux", "aarch64", "6\\..*", null);
+        LibraryMetadata included = new LibraryMetadata("org.example:core:1.0", libraryArtifact,
+                java.util.Collections.emptyMap(), java.util.Collections.emptyMap(),
+                java.util.Collections.singletonList(linuxRule), java.util.Collections.emptyList());
+        LibraryMetadata duplicate = new LibraryMetadata("org.example:core:1.0-copy", libraryArtifact,
+                java.util.Collections.emptyMap(), java.util.Collections.emptyMap(),
+                java.util.Collections.singletonList(linuxRule), java.util.Collections.emptyList());
+        DownloadArtifact windowsArtifact = new DownloadArtifact(
+                URI.create("https://libraries.minecraft.net/org/example/windows/1.0/windows.jar"),
+                hash2, 200, "org/example/windows/1.0/windows.jar");
+        LibraryMetadata excluded = new LibraryMetadata("org.example:windows:1.0", windowsArtifact,
+                java.util.Collections.emptyMap(), java.util.Collections.emptyMap(),
+                java.util.Collections.singletonList(new LibraryRule(true, "windows", null, null, null)),
+                java.util.Collections.emptyList());
+        DownloadArtifact nativeArtifact = new DownloadArtifact(
+                URI.create("https://libraries.minecraft.net/org/example/native/1.0/native.jar"),
+                hash2, 300, "org/example/native/1.0/native.jar");
+        LibraryMetadata nativeOnly = new LibraryMetadata("org.example:native:1.0", null,
+                java.util.Collections.singletonMap("natives-linux-arm64", nativeArtifact),
+                java.util.Collections.singletonMap("linux", "natives-linux-arch"),
+                java.util.Collections.emptyList(), java.util.Collections.emptyList());
+        VersionDetails details = new VersionDetails("1.21.4", "net.minecraft.client.main.Main", "1.21.4",
+                indexMetadata, client, 21, java.util.Arrays.asList(included, duplicate, excluded, nativeOnly));
+        AssetObjectMetadata assetA = new AssetObjectMetadata("textures/block/a.png", hash1, 4);
+        AssetObjectMetadata assetB = new AssetObjectMetadata("textures/block/b.png", hash1, 4);
+        AssetObjectMetadata assetC = new AssetObjectMetadata("textures/block/c.png", hash2, 9);
+        java.util.Map<String, AssetObjectMetadata> objects = new java.util.LinkedHashMap<>();
+        objects.put(assetA.getName(), assetA); objects.put(assetB.getName(), assetB); objects.put(assetC.getName(), assetC);
+        AssetIndex assets = new AssetIndex(objects, false, false);
+        LibraryPlatform platform = new LibraryPlatform("linux", "aarch64", "6.1.0",
+                java.util.Collections.emptyMap());
+        InstallationPlan plan = InstallationPlanner.create(details, assets, platform);
+        eq("1.21.4", plan.getVersionId(), "plan version ID retained");
+        eq("1.21.4", plan.getAssetIndexId(), "plan asset index ID retained");
+        eq(4, plan.getTaskCount(), "plan deduplicates identical library and asset content tasks");
+        eq(1, plan.count(DownloadTask.Kind.CLIENT), "one client JAR task");
+        eq(1, plan.count(DownloadTask.Kind.LIBRARY), "allowed regular library included once");
+        eq(2, plan.count(DownloadTask.Kind.ASSET), "asset objects deduplicated by content hash");
+        eq(813L, plan.getTotalBytes(), "plan total bytes computed from unique downloads");
+        eq("libraries/org/example/core/1.0/core.jar", plan.getTasks().get(0).getRelativePath(), "game downloads sorted by path");
+        yes(plan.getTasks().stream().noneMatch(task -> task.getRelativePath().contains("windows")), "non-matching OS library rule excluded");
+        yes(plan.getTasks().stream().noneMatch(task -> task.getRelativePath().contains("native")), "native-only library skipped until Android runtime selection exists");
+        eq(DownloadTask.Destination.ASSET_DIRECTORY, plan.getTasks().get(2).getDestination(), "assets directed to dedicated asset root");
+        eq("objects/01/0123456789abcdef0123456789abcdef01234567", plan.getTasks().get(2).getRelativePath(), "asset destination uses hash object path");
+        unsupported(() -> plan.getTasks().clear(), "installation task list immutable");
+        bad(() -> new LibraryPlatform("linux", "aarch64", null,
+                java.util.Collections.singletonMap("feature", null)), "null feature value rejected");
+        bad(() -> new DownloadTask(DownloadTask.Kind.ASSET, DownloadTask.Destination.GAME_DIRECTORY,
+                URI.create("https://resources.download.minecraft.net/01/" + hash1), "objects/01/" + hash1, 4, hash1),
+                "asset task cannot use game directory root");
+        bad(() -> new DownloadTask(DownloadTask.Kind.CLIENT, DownloadTask.Destination.GAME_DIRECTORY,
+                URI.create("https://evil.example/client.jar"), "versions/1.21.4/1.21.4.jar", 4, hash1),
+                "unapproved task URL rejected");
+
+        DownloadArtifact collision = new DownloadArtifact(
+                URI.create("https://libraries.minecraft.net/org/example/core/1.0/core.jar"), hash2,
+                100, "org/example/core/1.0/core.jar");
+        LibraryMetadata conflicting = new LibraryMetadata("org.example:conflict:1.0", collision,
+                java.util.Collections.emptyMap(), java.util.Collections.emptyMap(),
+                java.util.Collections.singletonList(linuxRule), java.util.Collections.emptyList());
+        VersionDetails withConflict = new VersionDetails("1.21.4", "net.minecraft.client.main.Main", "1.21.4",
+                indexMetadata, client, 21, java.util.Arrays.asList(included, conflicting));
+        bad(() -> InstallationPlanner.create(withConflict, assets, platform), "conflicting output path metadata rejected");
     }
 
     private static void verifiedDownloads() throws Exception {
