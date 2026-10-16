@@ -367,6 +367,8 @@ class BuildWorkflowTests(unittest.TestCase):
         self.assertIn("python3 -m unittest discover -s .github/scripts -p 'test_*.py' -v", self.workflow)
         self.assertIn("git -C upstream diff --check", self.workflow)
         self.assertIn('test "$MIN_SDK" -le 28', self.workflow)
+        self.assertIn('name apksigner', self.workflow)
+        self.assertIn('"$APKSIGNER" verify --verbose "$APK"', self.workflow)
         self.assertIn("myLauncher-debug-apk", self.workflow)
 
 
