@@ -6,7 +6,7 @@ myLauncher is being rebuilt as a Minecraft: Java Edition launcher for Android. P
 
 The project has a tested Java core for official version metadata, asset-index verification and safe SHA-1-verified cached downloads, plus an Android shell that loads the official version list and saves basic settings. The installation planner now builds deterministic client/library/asset download tasks, filters library rules and removes duplicate payloads. A progress-aware installation service now stores the verified asset index, runs downloads and supports cooperative cancellation.
 
-This is not yet a playable Android launcher. The current interface can load version metadata and persist settings, but installation execution, metadata/cache materialization, Android-compatible Java/runtime/native integration, Microsoft account authentication, launch-argument generation and real-device gameplay tests remain unfinished.
+This is not yet a playable Android launcher. The Android screen can prepare a selected version by downloading/verifying its client JAR, ordinary library artifacts and assets, with visible progress and cancellation. It still does not install Android-compatible Java/native runtimes, perform Microsoft account authentication, build the final launch command or start the game.
 
 The old Amethyst-based customization/build work is preserved on backup/pre-clear-2026-10-16 and remains untouched while the new code structure is developed.
 

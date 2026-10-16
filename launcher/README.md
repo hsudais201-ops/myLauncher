@@ -23,4 +23,4 @@ CI assembles the debug APK and checks its package name. The current screen suppo
 
 ## Next steps
 
-Connect InstallationService to an Android install progress/cancellation interface, persist install state, then add Android-compatible runtime/native-library support, launch arguments, Microsoft authentication and real-device testing. Native-only library classifiers are intentionally excluded from the current plan until Android-specific runtime handling exists.
+The Android screen invokes InstallationService with byte/task progress and cooperative cancellation. Remaining work: persist install state, handle Android-native/runtime libraries, construct launch arguments, integrate Microsoft authentication, and test gameplay on-device. Native-only library classifiers are intentionally excluded from the current plan until Android-specific runtime handling exists.

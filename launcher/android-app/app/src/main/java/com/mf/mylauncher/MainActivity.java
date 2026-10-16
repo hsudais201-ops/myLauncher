@@ -8,6 +8,7 @@ import android.graphics.Color;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
 import android.os.Bundle;
+import android.os.Build;
 import android.text.Editable;
 import android.text.TextWatcher;
 import android.view.Gravity;
@@ -24,6 +25,10 @@ import android.widget.SeekBar;
 import android.widget.Spinner;
 import android.widget.TextView;
 
+import com.mf.mylauncher.core.InstallationProgress;
+import com.mf.mylauncher.core.InstallationResult;
+import com.mf.mylauncher.core.InstallationService;
+import com.mf.mylauncher.core.LibraryPlatform;
 import com.mf.mylauncher.core.MemoryDefaults;
 import com.mf.mylauncher.core.MinecraftVersion;
 import com.mf.mylauncher.core.OfflineProfileValidator;
@@ -32,8 +37,13 @@ import com.mf.mylauncher.core.VersionManifestDownloader;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Collections;
+import java.util.Locale;
+import java.io.File;
+import java.io.InterruptedIOException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /** Lightweight Android shell for the independently tested launcher core. */
 public final class MainActivity extends Activity {
@@ -56,7 +66,10 @@ public final class MainActivity extends Activity {
     private TextView heapLabel;
     private ProgressBar progressBar;
     private Button refreshButton;
+    private Button installButton;
     private SeekBar heapSlider;
+    private final AtomicBoolean installationCancelled = new AtomicBoolean(false);
+    private boolean installing;
     private List<MinecraftVersion> versions = new ArrayList<>();
     private boolean loadingVersions;
 
@@ -111,8 +124,13 @@ public final class MainActivity extends Activity {
         content.addView(versionSpinner, margins(matchWrap(), 0, dp(8), 0, dp(10)));
 
         refreshButton = button("Refresh version list", false);
-        content.addView(refreshButton, margins(matchWrap(), 0, 0, 0, dp(22)));
+        content.addView(refreshButton, margins(matchWrap(), 0, 0, 0, dp(8)));
         refreshButton.setOnClickListener(view -> loadVersions());
+
+        installButton = button("Prepare selected version", true);
+        installButton.setEnabled(false);
+        content.addView(installButton, margins(matchWrap(), 0, 0, 0, dp(22)));
+        installButton.setOnClickListener(view -> handleInstallationClick());
 
         section(content, "LOCAL PROFILE");
         profileInput = new EditText(this);
@@ -171,7 +189,7 @@ public final class MainActivity extends Activity {
         launchButton.setEnabled(false);
         launchButton.setAlpha(0.58f);
         content.addView(launchButton, margins(matchWrap(), 0, 0, 0, dp(12)));
-        content.addView(text("The app can load version metadata and save settings. Game file installation, Microsoft authentication, Java runtime setup and actual launch are still being built.",
+        content.addView(text("This downloads and verifies the client JAR, ordinary libraries and assets. Android Java runtime integration, native-library extraction, Microsoft sign-in and actual game launch are still being built.",
                 12, MUTED, false), matchWrap());
 
         setContentView(scrollView);
@@ -181,6 +199,8 @@ public final class MainActivity extends Activity {
         if (loadingVersions || isFinishing() || isDestroyed()) return;
         loadingVersions = true;
         refreshButton.setEnabled(false);
+        progressBar.setIndeterminate(true);
+        progressBar.setProgress(0);
         progressBar.setVisibility(View.VISIBLE);
         versionStatus.setText("Contacting the official Minecraft version manifest…");
         ioExecutor.execute(() -> {
@@ -226,8 +246,105 @@ public final class MainActivity extends Activity {
 
     private void finishVersionLoad() {
         loadingVersions = false;
-        refreshButton.setEnabled(true);
+        refreshButton.setEnabled(!installing);
+        if (installButton != null) installButton.setEnabled(!installing && !versions.isEmpty());
         progressBar.setVisibility(View.GONE);
+    }
+
+    private void handleInstallationClick() {
+        if (installing) {
+            installationCancelled.set(true);
+            installButton.setEnabled(false);
+            versionStatus.setText("Cancellation requested. Cleaning up the current partial download…");
+            return;
+        }
+        int selectedPosition = versionSpinner.getSelectedItemPosition();
+        if (selectedPosition < 0 || selectedPosition >= versions.size()) {
+            versionStatus.setText("Load the official version list before preparing a version.");
+            return;
+        }
+
+        MinecraftVersion selectedVersion = versions.get(selectedPosition);
+        installing = true;
+        installationCancelled.set(false);
+        versionSpinner.setEnabled(false);
+        refreshButton.setEnabled(false);
+        installButton.setText("Cancel preparation");
+        installButton.setEnabled(true);
+        progressBar.setIndeterminate(true);
+        progressBar.setProgress(0);
+        progressBar.setVisibility(View.VISIBLE);
+        versionStatus.setText("Preparing " + selectedVersion.getId() + "…");
+
+        ioExecutor.execute(() -> {
+            try {
+                InstallationResult result = new InstallationService().install(
+                        selectedVersion,
+                        new File(getFilesDir(), "minecraft").toPath(),
+                        androidLibraryPlatform(),
+                        installationCancelled::get,
+                        snapshot -> runOnUiThread(() -> updateInstallationProgress(snapshot)));
+                runOnUiThread(() -> finishInstallation(
+                        "Base files prepared for " + result.getVersionId()
+                                + ". Runtime, Android native libraries, sign-in and game launch are not connected yet."));
+            } catch (InterruptedIOException exception) {
+                runOnUiThread(() -> finishInstallation(
+                        "Preparation cancelled. Completed verified files are kept; partial downloads were removed."));
+            } catch (Exception exception) {
+                String reason = exception.getMessage();
+                runOnUiThread(() -> finishInstallation(
+                        "Couldn't prepare this version. Verified files are kept; try again after checking the error."
+                                + (reason == null ? "" : "\n" + reason)));
+            }
+        });
+    }
+
+    private LibraryPlatform androidLibraryPlatform() {
+        String arch = Build.SUPPORTED_ABIS.length == 0 ? "unknown" : Build.SUPPORTED_ABIS[0];
+        if ("arm64-v8a".equals(arch)) arch = "aarch64";
+        else if ("armeabi-v7a".equals(arch)) arch = "arm";
+        else if ("x86_64".equals(arch)) arch = "x86_64";
+        else if ("x86".equals(arch)) arch = "x86";
+        return new LibraryPlatform("linux", arch, Build.VERSION.RELEASE, Collections.emptyMap());
+    }
+
+    private void updateInstallationProgress(InstallationProgress snapshot) {
+        if (isFinishing() || isDestroyed() || !installing) return;
+        InstallationProgress.Stage stage = snapshot.getStage();
+        if (stage == InstallationProgress.Stage.DOWNLOADING) {
+            progressBar.setIndeterminate(false);
+            progressBar.setMax(100);
+            progressBar.setProgress(snapshot.getPercent());
+            String task = snapshot.getCurrentTask();
+            String current = task == null ? "Preparing downloads" : task;
+            double completedMiB = snapshot.getCompletedBytes() / (1024.0 * 1024.0);
+            double totalMiB = snapshot.getTotalBytes() / (1024.0 * 1024.0);
+            versionStatus.setText(String.format(Locale.ROOT,
+                    "%s\n%d/%d files · %.1f/%.1f MiB · %d%%",
+                    current, snapshot.getCompletedTasks(), snapshot.getTotalTasks(),
+                    completedMiB, totalMiB, snapshot.getPercent()));
+        } else {
+            progressBar.setIndeterminate(stage != InstallationProgress.Stage.COMPLETED);
+            if (stage == InstallationProgress.Stage.FETCHING_VERSION_METADATA) {
+                versionStatus.setText("Reading metadata for " + snapshot.getCurrentTask() + "…");
+            } else if (stage == InstallationProgress.Stage.FETCHING_ASSET_INDEX) {
+                versionStatus.setText("Downloading and verifying asset index " + snapshot.getCurrentTask() + "…");
+            } else if (stage == InstallationProgress.Stage.PLANNING) {
+                versionStatus.setText("Calculating client, library and asset downloads…");
+            }
+        }
+    }
+
+    private void finishInstallation(String message) {
+        if (isFinishing() || isDestroyed()) return;
+        installing = false;
+        installationCancelled.set(false);
+        versionSpinner.setEnabled(true);
+        refreshButton.setEnabled(true);
+        installButton.setText("Prepare selected version");
+        installButton.setEnabled(!versions.isEmpty());
+        progressBar.setVisibility(View.GONE);
+        versionStatus.setText(message);
     }
 
     private void updateProfileStatus() {
@@ -304,6 +421,7 @@ public final class MainActivity extends Activity {
 
     @Override
     protected void onDestroy() {
+        installationCancelled.set(true);
         ioExecutor.shutdownNow();
         super.onDestroy();
     }

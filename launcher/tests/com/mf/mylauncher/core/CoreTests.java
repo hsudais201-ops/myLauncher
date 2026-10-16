@@ -476,6 +476,14 @@ public final class CoreTests {
             io(() -> new VerifiedFileDownloader(uri -> oversized).download(source, root, "objects/aa/oversized", 5, helloSha1), "stream larger than expected rejected");
             FakeFileConnection truncated = new FakeFileConnection(200, "hell".getBytes(StandardCharsets.UTF_8), -1);
             io(() -> new VerifiedFileDownloader(uri -> truncated).download(source, root, "objects/aa/truncated", 5, helloSha1), "stream smaller than expected rejected");
+            final boolean[] cancelCurrentTransfer = {false};
+            FakeFileConnection cancelledConnection = new FakeFileConnection(200, "hello".getBytes(StandardCharsets.UTF_8), 5);
+            io(() -> new VerifiedFileDownloader(uri -> cancelledConnection).download(
+                    source, root, "objects/aa/cancelled", 5, helloSha1,
+                    () -> cancelCurrentTransfer[0], bytes -> cancelCurrentTransfer[0] = true),
+                    "cancellation during an active file transfer stops the download");
+            yes(cancelledConnection.disconnected && !Files.exists(root.resolve("objects/aa/cancelled")),
+                    "cancelled transfer closes connection and never publishes the partial file");
             FakeFileConnection unavailable = new FakeFileConnection(503, new byte[0], -1);
             io(() -> new VerifiedFileDownloader(uri -> unavailable).download(source, root, "objects/aa/unavailable", 5, helloSha1), "HTTP failure rejected");
             yes(!Files.exists(root.resolve("objects/aa/oversized")) && !Files.exists(root.resolve("objects/aa/truncated")), "invalid streams are not published");
