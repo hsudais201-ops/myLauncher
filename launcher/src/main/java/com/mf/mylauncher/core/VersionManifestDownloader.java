@@ -33,7 +33,7 @@ public final class VersionManifestDownloader {
 
     /** Downloads Mojang's manifest and returns a validated domain model. */
     public VersionManifest downloadManifest() throws IOException {
-        String json = download();
+        String json = downloadJson(MANIFEST_URI);
         try {
             return VersionManifestJsonDecoder.decode(json);
         } catch (IllegalArgumentException exception) {
@@ -43,7 +43,22 @@ public final class VersionManifestDownloader {
 
     /** Downloads and returns strict UTF-8 JSON text for callers that need raw metadata. */
     public String download() throws IOException {
-        ManifestConnection connection = opener.open(MANIFEST_URI);
+        return downloadJson(MANIFEST_URI);
+    }
+
+    /** Fetches a version-details JSON URL only when it uses Mojang's metadata hosts/path. */
+    String downloadMetadata(URI uri) throws IOException {
+        if (!isApprovedMetadataUri(uri)) {
+            throw new IOException("Refusing to fetch version metadata from an unapproved URL");
+        }
+        return downloadJson(uri);
+    }
+
+    private String downloadJson(URI uri) throws IOException {
+        if (!MANIFEST_URI.equals(uri) && !isApprovedMetadataUri(uri)) {
+            throw new IOException("Refusing to fetch JSON from an unapproved URL");
+        }
+        ManifestConnection connection = opener.open(uri);
         if (connection == null) throw new IOException("Manifest connection could not be opened");
         try {
             connection.setConnectTimeout(CONNECT_TIMEOUT_MILLIS);
@@ -101,6 +116,21 @@ public final class VersionManifestDownloader {
         return output.toByteArray();
     }
 
+    static boolean isApprovedMetadataUri(URI uri) {
+        if (uri == null || !uri.isAbsolute() || !"https".equalsIgnoreCase(uri.getScheme())
+                || uri.getHost() == null || uri.getUserInfo() != null
+                || (uri.getPort() != -1 && uri.getPort() != 443)
+                || uri.getQuery() != null || uri.getFragment() != null) {
+            return false;
+        }
+        String host = uri.getHost().toLowerCase(java.util.Locale.ROOT);
+        String path = uri.getPath();
+        return ("piston-meta.mojang.com".equals(host) || "launchermeta.mojang.com".equals(host))
+                && path != null && path.startsWith("/v1/packages/") && path.endsWith(".json")
+                && path.length() > "/v1/packages/".length() && !path.contains("/../")
+                && !path.contains("\\");
+    }
+
     interface ConnectionOpener {
         ManifestConnection open(URI uri) throws IOException;
     }
@@ -121,8 +151,8 @@ public final class VersionManifestDownloader {
         private final HttpsURLConnection delegate;
 
         JdkManifestConnection(URI uri) throws IOException {
-            if (uri == null || !MANIFEST_URI.equals(uri) || !"https".equalsIgnoreCase(uri.getScheme())) {
-                throw new IOException("Refusing to connect to an unapproved manifest URL");
+            if (!MANIFEST_URI.equals(uri) && !isApprovedMetadataUri(uri)) {
+                throw new IOException("Refusing to connect to an unapproved Mojang metadata URL");
             }
             URL url = uri.toURL();
             this.delegate = (HttpsURLConnection) url.openConnection();

@@ -16,7 +16,7 @@ public final class CoreTests {
     private CoreTests() { }
 
     public static void main(String[] args) {
-        versions(); catalogs(); manifests(); jsonDecoder(); downloader(); profiles(); memory();
+        versions(); catalogs(); manifests(); jsonDecoder(); versionDetails(); downloader(); profiles(); memory();
         System.out.println("PASS: " + checks + " launcher-core assertions");
     }
 
@@ -95,6 +95,8 @@ public final class CoreTests {
         bad(() -> JsonParser.parse("{\"bad\":\"\\x\"}"), "invalid string escape rejected");
         bad(() -> JsonParser.parse("{\"bad\":1,}"), "trailing comma rejected");
         bad(() -> JsonParser.parse("true false"), "trailing document data rejected");
+        bad(() -> JsonParser.parse("\"\\uＦＦＦＦ\""), "non-ASCII Unicode escape digits rejected");
+        bad(() -> JsonParser.parse("\"\\uD800\""), "unpaired Unicode surrogate rejected");
         bad(() -> JsonParser.parse("[" + repeat("[", 66) + "0" + repeat("]", 66) + "]"), "extreme JSON nesting rejected");
         bad(() -> JsonParser.parse("\"" + repeat("x", 8 * 1024 * 1024) + "\""), "oversized JSON text rejected");
     }
@@ -103,6 +105,72 @@ public final class CoreTests {
         StringBuilder result = new StringBuilder(value.length() * count);
         for (int i = 0; i < count; i++) result.append(value);
         return result.toString();
+    }
+
+    private static void versionDetails() {
+        String sha1 = "0123456789abcdef0123456789abcdef01234567";
+        String sha2 = "fedcba9876543210fedcba9876543210fedcba98";
+        String json = "{\"id\":\"1.21.4\",\"mainClass\":\"net.minecraft.client.main.Main\","
+                + "\"assets\":\"1.21.4\",\"assetIndex\":{\"id\":\"1.21.4\","
+                + "\"url\":\"https://piston-meta.mojang.com/v1/packages/" + sha1 + "/1.21.4.json\","
+                + "\"sha1\":\"" + sha1 + "\",\"size\":88,\"totalSize\":424},"
+                + "\"downloads\":{\"client\":{\"url\":\"https://piston-data.mojang.com/v1/objects/" + sha2 + "/client.jar\","
+                + "\"sha1\":\"" + sha2 + "\",\"size\":9000000}},\"javaVersion\":{\"majorVersion\":21},"
+                + "\"libraries\":[{\"name\":\"org.example:core:1.0\",\"downloads\":{\"artifact\":{"
+                + "\"path\":\"org/example/core/1.0/core-1.0.jar\",\"url\":\"https://libraries.minecraft.net/core.jar\","
+                + "\"sha1\":\"" + sha1 + "\",\"size\":123}},\"rules\":["
+                + "{\"action\":\"allow\",\"os\":{\"name\":\"linux\",\"arch\":\"aarch64\",\"version\":\"6\\\\..*\"}},"
+                + "{\"action\":\"disallow\",\"features\":{\"is_demo_user\":true}}]},"
+                + "{\"name\":\"org.lwjgl:lwjgl:3.3.3\",\"downloads\":{\"classifiers\":{"
+                + "\"natives-linux-arm64\":{\"path\":\"org/lwjgl/lwjgl/3.3.3/lwjgl-natives.jar\","
+                + "\"url\":\"https://libraries.minecraft.net/lwjgl-natives.jar\",\"sha1\":\"" + sha2 + "\",\"size\":456}}},"
+                + "\"natives\":{\"linux\":\"natives-linux-${arch}\"},\"extract\":{\"exclude\":[\"META-INF/\"]}}]}";
+        VersionDetails details = VersionDetailsJsonDecoder.decode(json, "1.21.4");
+        eq("1.21.4", details.getId(), "per-version ID mapped");
+        eq("net.minecraft.client.main.Main", details.getMainClass(), "main class mapped");
+        eq(21, details.getJavaMajorVersion(), "required Java major version mapped");
+        eq("1.21.4", details.getAssetIndex().getId(), "asset-index ID mapped");
+        eq(424L, details.getAssetIndex().getTotalSizeBytes(), "asset-index total size mapped");
+        eq(9000000L, details.getClientDownload().getSizeBytes(), "client artifact size mapped");
+        yes(!details.getClientDownload().hasPath(), "client JAR destination is launcher-selected");
+        eq(2, details.getLibraries().size(), "library list mapped");
+        LibraryMetadata core = details.getLibraries().get(0);
+        eq("org/example/core/1.0/core-1.0.jar", core.getArtifact().get().getPath(), "library path mapped");
+        yes(core.isAllowedOn("linux", "aarch64", "6.1.0", java.util.Collections.singletonMap("is_demo_user", false)), "matching allow rule accepted");
+        yes(!core.isAllowedOn("linux", "aarch64", "6.1.0", java.util.Collections.singletonMap("is_demo_user", true)), "later matching disallow rule overrides allow");
+        yes(!core.isAllowedOn("windows", "aarch64", "6.1.0", java.util.Collections.emptyMap()), "non-matching rule set denies library");
+        LibraryMetadata lwjgl = details.getLibraries().get(1);
+        eq("0123456789abcdef0123456789abcdef01234567", core.getArtifact().get().getSha1(), "artifact hash normalized");
+        eq("natives-linux-arm64", lwjgl.findNativeArtifact("linux", "arm64").map(a -> "natives-linux-arm64").orElse("missing"), "native classifier resolved");
+        eq(1, lwjgl.getExtractionExcludes().size(), "native extraction exclusions mapped");
+        eq(8, VersionDetailsJsonDecoder.decode(json.replace("\"javaVersion\":{\"majorVersion\":21},", "")).getJavaMajorVersion(), "legacy metadata defaults Java major to 8");
+        bad(() -> VersionDetailsJsonDecoder.decode(json, "1.20.6"), "requested version mismatch rejected");
+        String badHash = json.replace(sha1, "invalid");
+        bad(() -> VersionDetailsJsonDecoder.decode(badHash), "malformed artifact hashes rejected");
+        bad(() -> VersionDetailsJsonDecoder.decode(json.replace("org/example/core/1.0/core-1.0.jar", "../escape.jar")), "artifact path traversal rejected");
+        bad(() -> VersionDetailsJsonDecoder.decode(json.replace("6\\\\..*", "[broken")), "invalid rule regex rejected");
+        bad(() -> VersionDetailsJsonDecoder.decode(json.replace("\"majorVersion\":21", "\"majorVersion\":4294967317")), "overflowed Java major version rejected");
+        unsupported(() -> details.getLibraries().clear(), "version libraries immutable");
+        yes(LibraryRule.isAllowed(java.util.Collections.emptyList(), "linux", "arm64", "6.1", null), "libraries with no rules are allowed");
+
+        URI metadataUrl = URI.create("https://piston-meta.mojang.com/v1/packages/" + sha1 + "/1.21.4.json");
+        MinecraftVersion manifestEntry = new MinecraftVersion("1.21.4", "release", metadataUrl, time1);
+        Fake response = new Fake(200, json.getBytes(StandardCharsets.UTF_8), -1);
+        VersionDetailsDownloader detailsDownloader = new VersionDetailsDownloader(new VersionManifestDownloader(uri -> {
+            eq(metadataUrl, uri, "version-details downloader uses manifest URL");
+            return response;
+        }));
+        try {
+            eq("1.21.4", detailsDownloader.download(manifestEntry).getId(), "per-version HTTP metadata decoded end-to-end");
+        } catch (IOException exception) { throw new AssertionError(exception); }
+        yes(response.disconnected && !response.followRedirects, "version metadata request is bounded and connection is closed");
+        yes(VersionManifestDownloader.isApprovedMetadataUri(metadataUrl), "official piston metadata URL allowed");
+        yes(VersionManifestDownloader.isApprovedMetadataUri(URI.create("https://launchermeta.mojang.com/v1/packages/abc/1.12.2.json")), "legacy official metadata host allowed");
+        yes(!VersionManifestDownloader.isApprovedMetadataUri(URI.create("http://piston-meta.mojang.com/v1/packages/abc/1.21.4.json")), "HTTP metadata URL blocked");
+        yes(!VersionManifestDownloader.isApprovedMetadataUri(URI.create("https://piston-meta.mojang.com.evil.test/v1/packages/abc/1.21.4.json")), "lookalike host blocked");
+        yes(!VersionManifestDownloader.isApprovedMetadataUri(URI.create("https://piston-meta.mojang.com:444/v1/packages/abc/1.21.4.json")), "unexpected TLS port blocked");
+        MinecraftVersion untrusted = new MinecraftVersion("1.21.4", "release", URI.create("https://evil.test/v1/packages/abc/1.21.4.json"), time1);
+        io(() -> new VersionDetailsDownloader(new VersionManifestDownloader(uri -> { throw new AssertionError("unapproved URL reached connection opener"); })).download(untrusted), "unapproved metadata host blocked before network access");
     }
 
     private static void downloader() {

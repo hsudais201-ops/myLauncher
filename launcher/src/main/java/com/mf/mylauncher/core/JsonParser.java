@@ -87,7 +87,11 @@ final class JsonParser {
         StringBuilder result = new StringBuilder();
         while (!atEnd()) {
             char ch = input.charAt(position++);
-            if (ch == '"') return result.toString();
+            if (ch == '"') {
+                String decoded = result.toString();
+                validateSurrogatePairs(decoded);
+                return decoded;
+            }
             if (ch < 0x20) throw error("Unescaped control character in string");
             if (ch == '\\') {
                 if (atEnd()) throw error("Unfinished escape sequence");
@@ -115,11 +119,32 @@ final class JsonParser {
         if (input.length() - position < 4) throw error("Incomplete Unicode escape");
         int code = 0;
         for (int i = 0; i < 4; i++) {
-            int digit = Character.digit(input.charAt(position++), 16);
+            int digit = hexValue(input.charAt(position++));
             if (digit < 0) throw error("Invalid Unicode escape");
             code = (code << 4) | digit;
         }
         return (char) code;
+    }
+
+    private static int hexValue(char ch) {
+        if (ch >= '0' && ch <= '9') return ch - '0';
+        if (ch >= 'a' && ch <= 'f') return ch - 'a' + 10;
+        if (ch >= 'A' && ch <= 'F') return ch - 'A' + 10;
+        return -1;
+    }
+
+    private void validateSurrogatePairs(String value) {
+        for (int i = 0; i < value.length(); i++) {
+            char ch = value.charAt(i);
+            if (Character.isHighSurrogate(ch)) {
+                if (i + 1 >= value.length() || !Character.isLowSurrogate(value.charAt(i + 1))) {
+                    throw error("Unpaired high surrogate in JSON string");
+                }
+                i++;
+            } else if (Character.isLowSurrogate(ch)) {
+                throw error("Unpaired low surrogate in JSON string");
+            }
+        }
     }
 
     private BigDecimal parseNumber() {

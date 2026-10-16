@@ -1,24 +1,23 @@
 # Launcher core
 
-This folder contains myLauncher-owned code, kept separate from Android build automation and from the upstream game runtime.
+This folder contains myLauncher-owned Java code, kept separate from build automation and generated upstream runtime files.
 
 ## Current milestone
 
-- `MinecraftVersion` validates manifest version metadata, including path-safe IDs, timestamps, and HTTPS metadata URLs.
-- `VersionCatalog` indexes versions, sorts newest-first, and provides release/snapshot lookup helpers.
-- `OfflineProfileValidator` validates a local display/profile name. This is **not** Microsoft authentication and does not provide a licensed Minecraft account.
-- `MemoryDefaults` selects conservative heap defaults and caps the suggestion to the runtime's reported maximum.
+- MinecraftVersion and VersionCatalog validate and index master-manifest version metadata.
+- VersionManifestJsonDecoder parses Mojang's downloaded manifest JSON without a third-party dependency.
+- VersionDetailsJsonDecoder and VersionDetailsMapper parse per-version client JAR, asset-index, Java major version, library artifacts/classifiers, native mappings, ordered OS/feature rules, and native extraction exclusions.
+- DownloadArtifact validates HTTPS URLs, SHA-1 hashes, sizes, and safe relative destination paths. LibraryRule implements ordered last-matching-rule behavior.
+- VersionManifestDownloader has connect/read timeouts, no automatic redirects, strict UTF-8, and an 8 MiB cap. VersionDetailsDownloader fetches per-version JSON only from exact Mojang metadata hosts and approved JSON paths.
+- OfflineProfileValidator validates a local display/profile name. It is not Microsoft authentication and does not provide a licensed Minecraft account.
+- MemoryDefaults chooses conservative heap defaults and caps the suggestion to the runtime's reported maximum.
 
-The Android UI, official manifest JSON adapter, library/assets downloads, account-token flow, native runtime integration, and actual game launch pipeline are later milestones. A catalog model alone does not download or run Minecraft.
+The Android UI, asset-index parsing/object resolution, verified file downloads/cache, account-token flow, native runtime integration, and actual game launch pipeline remain future work. This code is a core foundation, not yet a playable Android launcher.
 
 ## Test
 
-Requires only a JDK (Java 8+ APIs are used by the core source and the repository CI runs JDK 21):
+Requires a JDK. Run:
 
-```sh
 ./launcher/test.sh
-```
 
-Tests compile all core classes with `-Xlint:all -Werror` into a temporary directory and run the dependency-free regression suite. The script removes its temporary output when it exits.
-- `VersionManifest` and `VersionManifestMapper` validate the manifest's latest release/snapshot pointers and convert a decoded JSON object graph into the catalog. The Android adapter will use the upstream Gson dependency to decode the HTTP response before passing the map to the mapper; the core itself has no third-party dependency.
-- `VersionManifestDownloader` fetches Mojang's fixed HTTPS manifest endpoint with explicit connect/read timeouts, no automatic redirects, strict UTF-8 decoding, and an 8 MiB response cap. It returns JSON text; decode it with the Android/upstream JSON library, then pass the decoded map to `VersionManifestMapper`.
+Tests compile all core classes with -Xlint:all -Werror into a temporary directory and run the dependency-free regression suite. Tests use fake network connections; they do not contact Mojang or prove that a real device can launch the game.
