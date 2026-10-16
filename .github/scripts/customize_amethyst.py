@@ -55,13 +55,13 @@ def patch_upstream(upstream: Path) -> None:
         raise ValueError("Gradle app_short_name branding was not applied")
     if "org.angelauramc.amethyst" in strings_text:
         raise ValueError("An upstream application authority remains in strings.xml")
-    if not re.search(r'<string\s+name="main_add_account"\b', strings_text):
+    if not re.search(r'<string\s+name="main_add_account"', strings_text):
         raise ValueError("Required main_add_account string is missing from strings.xml")
     strings.write_text(strings_text, encoding="utf-8")
 
     colors_text = colors.read_text(encoding="utf-8")
     for color_name in ("primary_text", "secondary_text"):
-        if not re.search(r'<color\s+name="' + color_name + r'"\b', colors_text):
+        if not re.search(r'<color\s+name="' + color_name + r'"', colors_text):
             raise ValueError(f"Required header color {color_name!r} is missing from colors.xml")
 
     settings_text = settings.read_text(encoding="utf-8")
