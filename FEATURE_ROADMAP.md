@@ -1,0 +1,519 @@
+# myLauncher feature scope and delivery tracker
+
+## Important status rule
+
+This document tracks the complete requested feature scope. A feature appearing in this list does **not** by itself mean the feature is implemented or has passed a runtime test. The project builds the pinned [Amethyst-Android engine](https://github.com/AngelAuraMC/Amethyst-Android) and applies myLauncher patches; existing engine features should be audited and exposed before reimplementing them. Every unverified item below needs a source check and/or an acceptance test before it is described as shipped.
+
+## Current source audit
+
+| Area | Current evidence | Status |
+|---|---|---|
+| Account flow | Upstream has Microsoft login, account selector, local-login screen, account/profile classes; myLauncher removes the online-profile gate for local-account creation and the offline-profile download gate. | Source patched; account UI still needs emulator/device acceptance testing. |
+| Minecraft versions/downloads | Upstream has version-list, old-version utilities, async downloader, version metadata classes, SHA-1/download utilities, mirrors and asset handling. | Inherited foundation; missing-JSON/offline-download regression covered by Python tests; full download/repair workflow not yet runtime-tested. |
+| Mod loaders/modpacks | Source includes Forge, NeoForge, Fabric-like, OptiFine, Modrinth and CurseForge components. | Partial source-confirmed foundation; support for each requested loader/action must be checked individually. |
+| Java / launch / rendering | Source includes Java 8/17/21 runtime components, launch activity, GLFW/OpenGL environment, renderer preferences and native/input components. | Base engine inherited; per-version compatibility and device rendering need acceptance tests. |
+| Touch and controllers | Source includes a custom-controls system, touch/mouse/keyboard helpers and gamepad mapping classes. | Base engine inherited; all requested editor/layout/profile options still need audit. |
+| Performance | myLauncher patch changes low-memory heap defaults (296/448/512 MB tiers for devices up to 2 GB RAM) and targets about a 480 px short screen edge for that tier. | Customization source-reviewed and APK-build verified; device performance is not guaranteed. |
+| Launcher UI | Custom home header, Add account shortcut, vector icon and portrait/landscape layout changes are patched by the build customizer. | Build verified; UX/accessibility acceptance tests remain. |
+| Logs / settings | Upstream has Logger/LoggerView and settings fragments/preferences. | Base functionality inherited; requested diagnostic explanations, automatic repair and reset/import/export details need audit. |
+| Packaging / CI | GitHub Actions runs Python regression tests, fetches a pinned engine commit, applies patches, builds a debug APK, verifies package metadata/signature, writes a SHA-256 sidecar and uploads artifacts. | CI build is verified. A headless-emulator install/launch smoke test has been added to the workflow; its result must be checked in the resulting run. |
+| Profiles/world backups/cloud sync/updates/plugin APIs | No full myLauncher-specific implementation has been source-confirmed for the requested breadth. | Requires design and staged implementation; do not advertise as shipped. |
+
+## Delivery phases
+
+1. **Stability and installability** — offline account download, missing/corrupt JSON handling, download integrity/error recovery, APK install/launch smoke tests, and regression coverage.
+2. **Expose and verify inherited engine features** — accounts, versions, loaders, runtimes, renderer/input, controls, settings, logs and modpack flow; avoid duplicating upstream code.
+3. **Profiles and content workflows** — isolated instances, profile import/export/backup, world/resource-pack/file management and safe deletion.
+4. **Missing launcher-native experiences** — multiplayer/server manager, download queue controls, readable diagnostics, update channels, backup/sync and advanced plugin APIs.
+5. **Release readiness** — Android lint, emulator/device matrix, accessibility, compatibility, dependency/licensing review, release build verification and rollback tests.
+
+---
+
+## 1. Account Management
+
+- Microsoft account login
+- Xbox authentication
+- Minecraft ownership verification
+- Multiple accounts
+- Account switching
+- Secure token storage
+- Automatic token refresh
+- Account logout
+- Offline account login
+- Offline username selection
+- Player UUID management
+- Guest/demo mode
+- Account profile and avatar
+- Account session validation
+- Authentication error handling
+
+## 2. Minecraft Version Management
+
+- Release version downloads
+- Snapshot version downloads
+- Historical version support
+- Version selection
+- Version installation
+- Version deletion
+- Version repair
+- Version metadata validation
+- Automatic dependency downloads
+- Minecraft asset downloads
+- Library downloads
+- Download verification
+- Download retry
+- Download pause and resume
+- Download progress tracking
+- Download cancellation
+- Download history
+- Version manifest management
+- Automatic version detection
+- Installation integrity checks
+
+## 3. Mod Loaders
+
+- Vanilla Minecraft
+- Forge support
+- NeoForge support
+- Fabric support
+- Quilt support
+- OptiFine support
+- Legacy Forge support
+- LiteLoader support
+- Cleanroom support
+- Loader version selection
+- Loader installation
+- Loader updating
+- Loader removal
+- Loader compatibility checks
+- Loader dependency management
+
+## 4. Mod Management
+
+- Mod installation
+- Mod removal
+- Mod enabling and disabling
+- Mod updating
+- Mod version information
+- Mod search
+- Mod categorization
+- Mod dependency detection
+- Mod conflict detection
+- Duplicate mod detection
+- Mod compatibility checking
+- Mod file import
+- Mod file export
+- Mod descriptions and author information
+- Modpack management
+- Modrinth integration
+- CurseForge integration
+- Modpack ZIP import
+- Modpack export
+- Modpack updates
+
+## 5. Game Profiles and Instances
+
+- Create game profiles
+- Delete game profiles
+- Rename game profiles
+- Duplicate game profiles
+- Clone existing instances
+- Separate game directories
+- Separate mods per profile
+- Separate configurations per profile
+- Profile icons
+- Profile descriptions
+- Profile folders
+- Profile tags
+- Profile favorites
+- Profile search
+- Profile sorting
+- Profile import
+- Profile export
+- Profile backup
+- Profile restoration
+- Last-played tracking
+
+## 6. Java Runtime Management
+
+- Java runtime installation
+- Java 8 support
+- Java 17 support
+- Java 21 support
+- Newer Java version support
+- Custom Java runtime import
+- Automatic Java selection
+- Manual Java selection
+- Java version detection
+- Java architecture detection
+- Java compatibility checks
+- Java runtime validation
+- JVM argument configuration
+- Java startup error detection
+- Java runtime repair
+
+## 7. Memory and Performance
+
+- Minimum heap memory settings
+- Maximum heap memory settings
+- Automatic memory recommendations
+- Available RAM monitoring
+- Low-memory warnings
+- Garbage collector configuration
+- CPU architecture detection
+- Performance presets
+- Battery-saving mode
+- Frame-rate limiting
+- Resolution scaling
+- Storage usage monitoring
+- Temporary file cleanup
+- Performance diagnostics
+- Memory crash detection
+
+## 8. Graphics and Rendering
+
+- OpenGL ES support
+- Graphics renderer selection
+- VirGL support
+- Zink support
+- Renderer plugin support
+- Renderer configuration
+- Graphics compatibility checks
+- Custom game resolution
+- Fullscreen mode
+- Immersive mode
+- VSync configuration
+- Shader support
+- Graphics presets
+- Renderer error diagnostics
+- Graphics debug overlay
+- Renderer switching
+- Resolution presets
+- Frame-rate settings
+- Graphics driver diagnostics
+- Rendering compatibility warnings
+
+## 9. Touchscreen Controls
+
+- Virtual movement joystick
+- Directional movement buttons
+- Jump button
+- Crouch button
+- Sprint button
+- Attack button
+- Interact button
+- Inventory button
+- Chat button
+- Sneak toggle
+- Mouse emulation
+- Virtual keyboard
+- Touch camera controls
+- Swipe-to-look controls
+- Adjustable button positions
+- Adjustable button sizes
+- Button transparency
+- Custom control layouts
+- Multiple control profiles
+- Control layout import
+- Control layout export
+- Control layout reset
+- Left-handed layouts
+- Survival control presets
+- PvP control presets
+- Creative control presets
+- Live control editor
+- Hideable on-screen controls
+
+## 10. Keyboard, Mouse and Controllers
+
+- Physical keyboard support
+- Physical mouse support
+- Bluetooth keyboard support
+- Bluetooth mouse support
+- USB keyboard support
+- USB mouse support
+- Gamepad support
+- Controller button mapping
+- Controller sensitivity settings
+- Controller dead-zone settings
+- Keyboard shortcut customization
+- Mouse sensitivity
+- Camera sensitivity
+- Automatic touchscreen control hiding
+- Controller profile management
+
+## 11. Worlds and Saves
+
+- World list
+- World thumbnails
+- World information
+- World import
+- World export
+- World backup
+- World restoration
+- World deletion
+- World renaming
+- World duplication
+- World version information
+- World storage management
+- Saves folder access
+- World compatibility warnings
+
+## 12. Resource Packs and Game Files
+
+- Resource pack management
+- Shader pack management
+- Data pack management
+- Screenshot management
+- Configuration file management
+- ZIP file import
+- Resource pack activation
+- Resource pack removal
+- Resource pack compatibility checks
+- File browser
+- Minecraft directory access
+- Storage usage information
+- Safe file deletion
+
+## 13. User Interface
+
+- Modern home screen
+- Dark theme
+- Light theme
+- Custom accent colors
+- Custom background images
+- Custom launcher logo
+- Custom application icon
+- Profile cards
+- Recently played section
+- Favorite profiles section
+- Quick-launch button
+- Search bar
+- Download manager screen
+- Account switcher interface
+- Settings search
+- Customizable home screen
+- Language selection
+- Localization
+- Accessibility settings
+- Adjustable text size
+- Portrait layout
+- Landscape layout
+- Tablet layout
+- Chromebook support
+- Custom fonts
+- Reset interface settings
+
+## 14. Download Manager
+
+- Download queue
+- Parallel downloads
+- Download concurrency settings
+- Download speed display
+- Download progress percentage
+- Remaining download size
+- Download time estimation
+- Pause downloads
+- Resume downloads
+- Cancel downloads
+- Automatic download retry
+- Network timeout handling
+- Download mirrors
+- Proxy configuration
+- Wi-Fi-only downloads
+- Background downloads
+- Download notifications
+- Download verification
+- Download cache
+- Duplicate download prevention
+- Network connectivity checks
+- Download error reporting
+
+## 15. Game Launching
+
+- Launch Minecraft
+- Quick launch last-used profile
+- Launch selected version
+- Launch validation checks
+- Java selection for launching
+- Classpath generation
+- Library dependency resolution
+- Native library extraction
+- JVM argument generation
+- Minecraft argument generation
+- Game directory configuration
+- Authentication argument handling
+- Launch progress display
+- Game process monitoring
+- Game stop control
+- Duplicate launch prevention
+- Successful startup detection
+- Crash detection
+- Automatic return to launcher
+- Launch history
+- Launch configuration saving
+- Launch error reporting
+
+## 16. Multiplayer
+
+- Server list
+- Add servers
+- Edit servers
+- Delete servers
+- Server favorites
+- Server icons
+- Server address copying
+- Quick server connection
+- Recent servers
+- Server ping display
+- Server status checking
+- Server version detection
+- Server list import
+- Server list export
+- Profile-specific server lists
+- Multiplayer compatibility warnings
+
+## 17. Logs and Crash Diagnostics
+
+- Live log viewer
+- Log search
+- Log filtering
+- Log copying
+- Log export
+- Crash report generation
+- Missing JSON detection
+- Missing library detection
+- Missing asset detection
+- Invalid metadata detection
+- Java incompatibility detection
+- Mod conflict diagnostics
+- Out-of-memory detection
+- Renderer failure detection
+- Storage permission error detection
+- Network error diagnostics
+- Plain-language error explanations
+- Automatic repair suggestions
+- Installation integrity checks
+- Safe mode
+- Diagnostic report sharing
+- Regression error tracking
+
+## 18. Settings and Customization
+
+- Launcher language settings
+- Default Minecraft version
+- Default account
+- Default game directory
+- Global Java settings
+- Per-profile Java settings
+- Global memory settings
+- Per-profile memory settings
+- Custom JVM arguments
+- Custom game arguments
+- Environment configuration
+- Automatic update checks
+- Update notifications
+- Settings import
+- Settings export
+- Individual settings reset
+- Restore default settings
+- Developer mode
+- Debug logging
+- Storage location settings
+- Privacy settings
+- About page
+
+## 19. Security and Privacy
+
+- Secure account token storage
+- Password protection
+- Official authentication flows
+- Authentication token redaction
+- Download integrity verification
+- Untrusted mod warnings
+- Destructive action confirmation
+- Secure logout
+- Private file protection
+- Backup protection
+- Dependency updates
+- Permission explanations
+- Privacy-friendly diagnostics
+- Open-source license acknowledgments
+
+## 20. Updates and Maintenance
+
+- Launcher update checker
+- Update notifications
+- Release notes
+- Stable release channel
+- Development release channel
+- Update integrity verification
+- Configuration migration
+- Settings preservation
+- Automatic backup before migration
+- Update failure reporting
+- Safe rollback support
+- Dependency compatibility checks
+
+## 21. Backup and Cloud Features
+
+- Profile backups
+- World backups
+- Settings backups
+- Backup restoration
+- Cloud backup integration
+- Cross-device synchronization
+- Profile sharing
+- Modpack manifest sharing
+- Control layout sharing
+- Diagnostic report sharing
+- Backup scheduling
+- Backup storage management
+- Backup integrity verification
+
+## 22. Advanced Features
+
+- Renderer plugin API
+- Custom control plugins
+- Mod compatibility reports
+- Dependency conflict visualization
+- Modpack update previews
+- Profile comparison
+- Launch configuration comparison
+- Advanced diagnostics
+- Performance benchmarks
+- External tool integration
+- Experimental compatibility settings
+- Custom themes
+- Custom profile templates
+- Automated repair system
+- Compatibility database
+- Advanced graphics diagnostics
+
+## 23. Developer Tools and Testing
+
+- Gradle build verification
+- Unit tests
+- Offline account tests
+- Authentication tests
+- Version metadata tests
+- Missing JSON regression tests
+- Download retry tests
+- Java selection tests
+- Classpath generation tests
+- Game argument tests
+- Profile isolation tests
+- Android lint checks
+- APK packaging verification
+- Automated APK installation tests
+- Android emulator launch tests
+- Crash detection tests
+- Test log collection
+- GitHub Actions integration
+- Automated APK artifacts
+- Regression testing
+- Accessibility testing
+- Release build verification
+- Automated compatibility tests
+- Automated installation repair tests
+- Build failure diagnostics
