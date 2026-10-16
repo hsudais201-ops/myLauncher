@@ -302,6 +302,7 @@ def patch_upstream(upstream: Path) -> None:
     if (
         manifest_text.count('android:icon="@drawable/mylauncher_icon"') != 1
         or manifest_text.count('android:roundIcon="@drawable/mylauncher_icon"') != 1
+        or 'android:label="@string/app_name"' not in manifest_text
         or '@mipmap/ic_launcher' in manifest_text
         or '@mipmap/ic_launcher_round' in manifest_text
     ):
