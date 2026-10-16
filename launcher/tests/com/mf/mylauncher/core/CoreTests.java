@@ -23,7 +23,7 @@ public final class CoreTests {
     private CoreTests() { }
 
     public static void main(String[] args) throws Exception {
-        versions(); catalogs(); manifests(); jsonDecoder(); versionDetails(); launchArguments(); safeArchiveExtraction(); javaProcessRunner(); javaRuntimeProbe(); assetIndex(); assetIndexDownload(); assetLayoutMaterializer(); installationPlan(); classpathResolver(); nativeLibraryPlanner(); installationService(); verifiedDownloads(); downloader(); profiles(); memory();
+        versions(); catalogs(); manifests(); jsonDecoder(); versionDetails(); launchArguments(); safeArchiveExtraction(); javaProcessRunner(); javaRuntimeProbe(); assetIndex(); assetIndexDownload(); assetLayoutMaterializer(); installationPlan(); classpathResolver(); nativeLibraryPlanner(); installationService(); nativeInstallationService(); verifiedDownloads(); downloader(); profiles(); memory();
         System.out.println("PASS: " + checks + " launcher-core assertions");
     }
 
@@ -890,6 +890,34 @@ public final class CoreTests {
                 Arrays.asList(nativeOne, conflicting), VersionArgumentSet.empty(), null);
         bad(() -> NativeLibraryPlanner.create(conflictingDetails, linux, "linux", "arm64"),
                 "conflicting native outputs rejected");
+        AssetIndex noAssets = new AssetIndex(java.util.Collections.emptyMap(), false, false);
+        InstallationPlan withNativeTask = InstallationPlanner.create(details, noAssets, linux, plan);
+        eq(2, withNativeTask.getTaskCount(), "native plan adds one archive to the client plan");
+        eq(1, withNativeTask.count(DownloadTask.Kind.NATIVE), "one native download task planned");
+        eq(799L, withNativeTask.getTotalBytes(), "native bytes included in install total");
+        yes(withNativeTask.getTasks().stream().anyMatch(task ->
+                task.getKind() == DownloadTask.Kind.NATIVE
+                        && task.getRelativePath().equals(archive.getRelativeLibraryPath())),
+                "native archive path connected to install task");
+        VersionDetails otherVersion = new VersionDetails("1.20.6", "net.minecraft.client.main.Main",
+                "1.21.4", indexMetadata, client, 21,
+                Arrays.asList(nativeOne), VersionArgumentSet.empty(), null);
+        bad(() -> InstallationPlanner.create(otherVersion, noAssets, linux, plan),
+                "native plan from another version rejected");
+        AssetIndex noAssets = new AssetIndex(java.util.Collections.emptyMap(), false, false);
+        InstallationPlan withNativeTask = InstallationPlanner.create(details, noAssets, linux, plan);
+        eq(2, withNativeTask.getTaskCount(), "native plan adds one archive to the client plan");
+        eq(1, withNativeTask.count(DownloadTask.Kind.NATIVE), "one native download task planned");
+        eq(799L, withNativeTask.getTotalBytes(), "native bytes included in install total");
+        yes(withNativeTask.getTasks().stream().anyMatch(task ->
+                task.getKind() == DownloadTask.Kind.NATIVE
+                        && task.getRelativePath().equals(archive.getRelativeLibraryPath())),
+                "native archive path connected to install task");
+        VersionDetails otherVersion = new VersionDetails("1.20.6", "net.minecraft.client.main.Main",
+                "1.21.4", indexMetadata, client, 21,
+                Arrays.asList(nativeOne), VersionArgumentSet.empty(), null);
+        bad(() -> InstallationPlanner.create(otherVersion, noAssets, linux, plan),
+                "native plan from another version rejected");
     }
 
     private static void installationService() throws Exception {
@@ -1013,6 +1041,98 @@ public final class CoreTests {
             try (java.util.stream.Stream<Path> paths = Files.walk(temporary)) {
                 paths.sorted(java.util.Comparator.reverseOrder()).forEach(path -> {
                     try { Files.deleteIfExists(path); } catch (IOException exception) { throw new java.io.UncheckedIOException(exception); }
+                });
+            }
+        }
+    }
+
+    private static void nativeInstallationService() throws Exception {
+        byte[] clientBytes = "client".getBytes(StandardCharsets.UTF_8);
+        byte[] libraryBytes = "library".getBytes(StandardCharsets.UTF_8);
+        byte[] nativeBytes = makeZip(new String[][] {
+                {"META-INF/", ""}, {"META-INF/MANIFEST.MF", "metadata"},
+                {"lib/", ""}, {"lib/libtest.so", "native"}
+        });
+        String clientHash = sha1Hex(clientBytes);
+        String libraryHash = sha1Hex(libraryBytes);
+        String nativeHash = sha1Hex(nativeBytes);
+        byte[] assetIndexBytes = "{\"objects\":{}}".getBytes(StandardCharsets.UTF_8);
+        String assetIndexHash = sha1Hex(assetIndexBytes);
+        URI assetIndexUrl = URI.create("https://piston-meta.mojang.com/v1/packages/"
+                + assetIndexHash + "/1.21.4.json");
+        String versionHash = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+        URI versionUrl = URI.create("https://piston-meta.mojang.com/v1/packages/"
+                + versionHash + "/1.21.4.json");
+        URI clientUrl = URI.create("https://piston-data.mojang.com/v1/objects/" + clientHash + "/client.jar");
+        URI libraryUrl = URI.create("https://libraries.minecraft.net/org/demo/lib.jar");
+        URI nativeUrl = URI.create("https://libraries.minecraft.net/org/demo/native.jar");
+
+        String versionJson = "{\"id\":\"1.21.4\",\"mainClass\":\"net.minecraft.client.main.Main\","
+                + "\"assets\":\"1.21.4\",\"assetIndex\":{\"id\":\"1.21.4\",\"url\":\"" + assetIndexUrl
+                + "\",\"sha1\":\"" + assetIndexHash + "\",\"size\":" + assetIndexBytes.length + "},"
+                + "\"downloads\":{\"client\":{\"url\":\"" + clientUrl + "\",\"sha1\":\"" + clientHash
+                + "\",\"size\":" + clientBytes.length + "}},"
+                + "\"libraries\":["
+                + "{\"name\":\"org.demo:lib:1.0\",\"downloads\":{\"artifact\":{\"path\":"
+                + "\"org/demo/lib/1.0/lib-1.0.jar\",\"url\":\"" + libraryUrl + "\",\"sha1\":\""
+                + libraryHash + "\",\"size\":" + libraryBytes.length + "}}},"
+                + "{\"name\":\"org.demo:native:1.0\",\"downloads\":{\"classifiers\":{\"natives-linux-arm64\":{"
+                + "\"path\":\"org/demo/native/1.0/native-1.0-natives.jar\",\"url\":\"" + nativeUrl
+                + "\",\"sha1\":\"" + nativeHash + "\",\"size\":" + nativeBytes.length + "}}},"
+                + "\"natives\":{\"linux\":\"natives-linux-@@ARCH@@\"},"
+                + "\"rules\":[{\"action\":\"allow\",\"os\":{\"name\":\"linux\",\"arch\":\"aarch64\"}}],"
+                + "\"extract\":{\"exclude\":[\"META-INF/\"]}}]}";
+        versionJson = versionJson.replace("natives-linux-@@ARCH@@", "natives-linux-" + "$" + "{arch}");
+        byte[] versionBytes = versionJson.getBytes(StandardCharsets.UTF_8);
+        MinecraftVersion selected = new MinecraftVersion("1.21.4", "release", versionUrl, time1);
+        VersionManifestDownloader metadataNetwork = new VersionManifestDownloader(uri -> {
+            if (uri.equals(versionUrl)) return new Fake(200, versionBytes, versionBytes.length);
+            if (uri.equals(assetIndexUrl)) return new Fake(200, assetIndexBytes, assetIndexBytes.length);
+            throw new IOException("Unexpected native-install metadata URL: " + uri);
+        });
+        Map<String, byte[]> payloads = new LinkedHashMap<>();
+        payloads.put(clientUrl.toString(), clientBytes);
+        payloads.put(libraryUrl.toString(), libraryBytes);
+        payloads.put(nativeUrl.toString(), nativeBytes);
+        VerifiedFileDownloader fileNetwork = new VerifiedFileDownloader(uri -> {
+            byte[] payload = payloads.get(uri.toString());
+            if (payload == null) throw new IOException("Unexpected native-install file URL: " + uri);
+            return new FakeFileConnection(200, payload, payload.length);
+        });
+        InstallationService installer = new InstallationService(new VersionDetailsDownloader(metadataNetwork),
+                new AssetIndexDownloader(metadataNetwork), fileNetwork);
+        VersionDetails details = VersionDetailsJsonDecoder.decode(versionJson, "1.21.4");
+        LibraryPlatform platform = new LibraryPlatform("linux", "aarch64", "6.1.0",
+                java.util.Collections.emptyMap());
+        NativeLibraryPlan nativePlan = NativeLibraryPlanner.create(details, platform, "linux", "arm64");
+
+        Path temporary = Files.createTempDirectory("mylauncher-native-installer-");
+        try {
+            Path game = temporary.resolve("game");
+            List<InstallationProgress> snapshots = new java.util.ArrayList<>();
+            InstallationResult result = installer.install(selected, game, platform, nativePlan,
+                    CancellationToken.NONE, snapshots::add);
+            eq(3, result.getPlan().getTaskCount(), "installer plan includes client, library and native archive");
+            eq(1, result.getPlan().count(DownloadTask.Kind.NATIVE), "installer download task is classified native");
+            eq(3, result.getDownloadedTaskCount(), "all native-install files downloaded and verified");
+            eq(0, result.getCachedTaskCount(), "first native install starts with an empty cache");
+            yes(snapshots.stream().anyMatch(snapshot ->
+                    snapshot.getStage() == InstallationProgress.Stage.EXTRACTING_NATIVES),
+                    "installer reports the native extraction stage");
+            Path extracted = game.resolve("natives/1.21.4/lib/libtest.so");
+            yes(Files.isRegularFile(extracted), "native archive extracted to version-specific directory");
+            eq("native", new String(Files.readAllBytes(extracted), StandardCharsets.UTF_8),
+                    "native bytes extracted correctly");
+            yes(!Files.exists(game.resolve("natives/1.21.4/META-INF/MANIFEST.MF")),
+                    "native extraction exclusions applied during install");
+            yes(VerifiedFileDownloader.isVerifiedFile(
+                    game.resolve("libraries/org/demo/native/1.0/native-1.0-natives.jar"),
+                    nativeBytes.length, nativeHash), "native archive remains checksum verified in library cache");
+        } finally {
+            try (java.util.stream.Stream<Path> paths = Files.walk(temporary)) {
+                paths.sorted(java.util.Comparator.reverseOrder()).forEach(path -> {
+                    try { Files.deleteIfExists(path); }
+                    catch (IOException exception) { throw new java.io.UncheckedIOException(exception); }
                 });
             }
         }

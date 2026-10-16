@@ -12,6 +12,12 @@ public final class InstallationPlanner {
     private InstallationPlanner() { }
 
     public static InstallationPlan create(VersionDetails version, AssetIndex assetIndex, LibraryPlatform platform) {
+        return create(version, assetIndex, platform, null);
+    }
+
+    /** Includes native archive downloads only when a native target has been explicitly selected. */
+    public static InstallationPlan create(VersionDetails version, AssetIndex assetIndex, LibraryPlatform platform,
+                                          NativeLibraryPlan nativePlan) {
         if (version == null) throw new IllegalArgumentException("Version details are required");
         if (assetIndex == null) throw new IllegalArgumentException("Asset index is required");
         if (platform == null) throw new IllegalArgumentException("Library platform is required");
@@ -26,6 +32,23 @@ public final class InstallationPlanner {
                 new DownloadTask(DownloadTask.Kind.LOGGING, DownloadTask.Destination.ASSET_DIRECTORY,
                         logging.getUrl(), "log_configs/" + logging.getId(),
                         logging.getSizeBytes(), logging.getSha1())));
+
+        if (nativePlan != null) {
+            if (!version.getId().equals(nativePlan.getVersionId())) {
+                throw new IllegalArgumentException("Native library plan version does not match version metadata");
+            }
+            NativeLibraryPlan verifiedSelection = NativeLibraryPlanner.create(version, platform,
+                    nativePlan.getNativeOsName(), nativePlan.getArchitectureToken());
+            if (!verifiedSelection.hasSameSelectionAs(nativePlan)) {
+                throw new IllegalArgumentException("Native library plan does not match current version metadata/platform rules");
+            }
+            for (NativeLibraryArchive archive : nativePlan.getArchives()) {
+                DownloadArtifact artifact = archive.getArtifact();
+                add(uniqueTasks, new DownloadTask(DownloadTask.Kind.NATIVE,
+                        DownloadTask.Destination.GAME_DIRECTORY, artifact.getUrl(),
+                        archive.getRelativeLibraryPath(), artifact.getSizeBytes(), artifact.getSha1()));
+            }
+        }
 
         for (LibraryMetadata library : version.getLibraries()) {
             if (!library.isAllowedOn(platform.getOsName(), platform.getArchitecture(),

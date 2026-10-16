@@ -7,6 +7,7 @@ public final class InstallationProgress {
         FETCHING_ASSET_INDEX,
         PLANNING,
         DOWNLOADING,
+        EXTRACTING_NATIVES,
         MATERIALIZING_ASSETS,
         COMPLETED
     }

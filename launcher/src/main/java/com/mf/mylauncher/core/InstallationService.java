@@ -35,6 +35,13 @@ public final class InstallationService {
     public InstallationResult install(MinecraftVersion selectedVersion, Path gameDirectory,
                                       LibraryPlatform platform, CancellationToken cancellation,
                                       ProgressListener listener) throws IOException {
+        return install(selectedVersion, gameDirectory, platform, null, cancellation, listener);
+    }
+
+    /** Installs base files and extracts native archives only when a compatible target plan is supplied. */
+    public InstallationResult install(MinecraftVersion selectedVersion, Path gameDirectory,
+                                      LibraryPlatform platform, NativeLibraryPlan nativePlan,
+                                      CancellationToken cancellation, ProgressListener listener) throws IOException {
         if (selectedVersion == null) throw new IllegalArgumentException("Minecraft version is required");
         if (gameDirectory == null) throw new IllegalArgumentException("Game directory is required");
         if (platform == null) throw new IllegalArgumentException("Target library platform is required");
@@ -58,7 +65,7 @@ public final class InstallationService {
                 selectedVersion.getId(), 0, 0, 0, 0));
         InstallationPlan plan;
         try {
-            plan = InstallationPlanner.create(details, indexDocument.getIndex(), platform);
+            plan = InstallationPlanner.create(details, indexDocument.getIndex(), platform, nativePlan);
         } catch (IllegalArgumentException exception) {
             throw new IOException("Minecraft installation metadata could not be planned safely", exception);
         }
@@ -97,6 +104,25 @@ public final class InstallationService {
                     task.getRelativePath(), completedTasks, plan.getTaskCount(), completedBytes, plan.getTotalBytes()));
         }
 
+        checkCancelled(cancellation);
+        if (nativePlan != null && nativePlan.getArchiveCount() > 0) {
+            publish(listener, new InstallationProgress(InstallationProgress.Stage.EXTRACTING_NATIVES,
+                    nativePlan.getNativeOsName() + "/" + nativePlan.getArchitectureToken(),
+                    completedTasks, plan.getTaskCount(), completedBytes, plan.getTotalBytes()));
+            java.util.List<SafeArchiveExtractor.ArchiveSpec> archives = new java.util.ArrayList<>();
+            for (NativeLibraryArchive nativeArchive : nativePlan.getArchives()) {
+                checkCancelled(cancellation);
+                Path archivePath = gameRoot.resolve(nativeArchive.getRelativeLibraryPath()).normalize();
+                if (!archivePath.startsWith(gameRoot) || archivePath.equals(gameRoot)
+                        || !VerifiedFileDownloader.isVerifiedFile(archivePath,
+                        nativeArchive.getArtifact().getSizeBytes(), nativeArchive.getArtifact().getSha1())) {
+                    throw new IOException("Downloaded native archive failed integrity verification: "
+                            + nativeArchive.getRelativeLibraryPath());
+                }
+                archives.add(new SafeArchiveExtractor.ArchiveSpec(archivePath, nativeArchive.getExtractionExcludes()));
+            }
+            SafeArchiveExtractor.extractAll(archives, gameRoot.resolve("natives").resolve(details.getId()));
+        }
         checkCancelled(cancellation);
         publish(listener, new InstallationProgress(InstallationProgress.Stage.MATERIALIZING_ASSETS,
                 details.getAssetIndex().getId(), completedTasks, plan.getTaskCount(), completedBytes, plan.getTotalBytes()));

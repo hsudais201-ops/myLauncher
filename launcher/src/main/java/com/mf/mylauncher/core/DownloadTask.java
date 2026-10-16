@@ -5,7 +5,7 @@ import java.util.Objects;
 
 /** One integrity-verified download in a Minecraft installation plan. */
 public final class DownloadTask {
-    public enum Kind { CLIENT, LIBRARY, ASSET, LOGGING }
+    public enum Kind { CLIENT, LIBRARY, ASSET, LOGGING, NATIVE }
     public enum Destination { GAME_DIRECTORY, ASSET_DIRECTORY }
 
     private final Kind kind;

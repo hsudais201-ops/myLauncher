@@ -4,9 +4,9 @@ myLauncher is a Minecraft: Java Edition launcher foundation being rebuilt for An
 
 ## Current status
 
-The tested core loads official version metadata, plans and checksum-verifies client/library/asset downloads, supports progress/cancellation, and builds modern or legacy Java argument lists. Native ZIP extraction now supports multiple archives into a single staged directory with per-archive exclusions, duplicate-file rejection, size/entry caps, path traversal protection and preservation of the previous directory on failure. A verified classpath resolver checks required client/library/logging files before producing an ordered classpath. Native classifier selection is a separate explicit-target plan.
+The tested core loads official version metadata, plans and checksum-verifies client/library/asset downloads, supports progress/cancellation, and builds modern or legacy Java argument lists. Native archive extraction supports multiple archives in a single staged directory with per-archive exclusions, duplicate-file rejection, and preservation of the previous directory on failure. A verified classpath resolver checks client/library/logging files before building an ordered classpath.
 
-This is not yet a playable launcher. Android-compatible Java runtime integration, Android-specific native selection/validation/extraction, full launch orchestration, authenticated Microsoft account flow and real-device tests remain unfinished. The game-launch button remains disabled until those pieces exist.
+The installation service can also download and extract native archives when given an explicit target plan. The Android screen deliberately does not request stock Linux native archives: a compatible Android native/runtime provider, full launch orchestration, authenticated Microsoft account flow and real-device testing are still required. The game-launch button remains disabled until those pieces exist.
 
 The old Amethyst-based customization/build work is preserved on backup/pre-clear-2026-10-16 and remains untouched.
 

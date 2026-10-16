@@ -40,6 +40,19 @@ public final class NativeLibraryPlan {
     public String getNativeOsName() { return nativeOsName; }
     public String getArchitectureToken() { return architectureToken; }
     public List<NativeLibraryArchive> getArchives() { return archives; }
+    boolean hasSameSelectionAs(NativeLibraryPlan other) {
+        if (other == null || !versionId.equals(other.versionId)
+                || !nativeOsName.equals(other.nativeOsName)
+                || !architectureToken.equals(other.architectureToken)
+                || archives.size() != other.archives.size()) return false;
+        for (int i = 0; i < archives.size(); i++) {
+            NativeLibraryArchive left = archives.get(i);
+            NativeLibraryArchive right = other.archives.get(i);
+            if (!left.getLibraryName().equals(right.getLibraryName()) || !left.hasSameArchive(right)) return false;
+        }
+        return true;
+    }
+
     public int getArchiveCount() { return archives.size(); }
     public long getTotalBytes() { return totalBytes; }
 }

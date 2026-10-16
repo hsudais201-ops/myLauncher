@@ -288,6 +288,16 @@ public final class VerifiedFileDownloader {
         if (Files.isSymbolicLink(path)) throw new IOException("Symbolic links are not allowed in download cache paths");
     }
 
+    /** Rechecks a cached file against metadata without opening a network connection. */
+    public static boolean isVerifiedFile(Path path, long expectedSize, String expectedSha1) throws IOException {
+        validateExpectedMetadata(expectedSize, expectedSha1);
+        if (path == null || Files.isSymbolicLink(path)
+                || !Files.isRegularFile(path, LinkOption.NOFOLLOW_LINKS)) {
+            return false;
+        }
+        return isVerified(path, expectedSize, expectedSha1);
+    }
+
     private static boolean isVerified(Path path, long expectedSize, String expectedSha1) throws IOException {
         if (Files.size(path) != expectedSize) return false;
         MessageDigest digest = sha1Digest();
