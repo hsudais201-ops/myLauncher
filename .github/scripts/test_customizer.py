@@ -71,7 +71,17 @@ class CustomizeAmethystTests(unittest.TestCase):
         local_login.write_text(
             """import static net.kdt.pojavlaunch.Tools.hasOnlineProfile;
 
+import java.io.File;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
 class LocalLoginFragment {
+    private Pattern mUsernameValidationPattern;
+
+    LocalLoginFragment() {
+        mUsernameValidationPattern = Pattern.compile("^[a-zA-Z0-9_]*$");
+    }
+
     void onViewCreated() {
         // This is overkill but meh
         if (!hasOnlineProfile()){
@@ -80,10 +90,22 @@ class LocalLoginFragment {
         if(!checkEditText()) return;
         ExtraCore.setValue(ExtraConstants.MOJANG_LOGIN_TODO, new String[]{ "name", "" });
     }
+
+    private boolean checkEditText() {
+        String text = "name";
+        Matcher matcher = mUsernameValidationPattern.matcher(text);
+        return !(text.isEmpty()
+                || text.length() < 3
+                || text.length() > 16
+                || !matcher.find()
+                || new File(Tools.DIR_ACCOUNT_NEW + "/" + text + ".json").exists()
+        );
+    }
 }
 """,
             encoding="utf-8",
         )
+
         login_layout = app / "src/main/res/layout/fragment_local_login.xml"
         login_layout.parent.mkdir(parents=True, exist_ok=True)
         login_layout.write_text(
@@ -241,6 +263,10 @@ class SelectAuthFragment {
             self.assertNotIn("if (!hasOnlineProfile())", local_login)
             self.assertNotIn("import static net.kdt.pojavlaunch.Tools.hasOnlineProfile;", local_login)
             self.assertIn("ExtraCore.setValue(ExtraConstants.MOJANG_LOGIN_TODO, new String[]{", local_login)
+            self.assertIn('Pattern.compile("^[a-zA-Z0-9_]*$")', local_login)
+            self.assertIn("text.length() < 3", local_login)
+            self.assertIn("text.length() > 16", local_login)
+            self.assertIn('new File(Tools.DIR_ACCOUNT_NEW + "/" + text + ".json").exists()', local_login)
             self.assertIn('android:inputType="textPersonName"', login_layout)
             self.assertIn('android:text="@string/main_add_account"', login_layout)
             self.assertNotIn('android:text="@string/login_online_login_label"', login_layout)
@@ -290,6 +316,19 @@ class SelectAuthFragment {
                 self.assertIn('app:layout_constraintTop_toTopOf="@id/news_button"', launcher_layout)
                 self.assertIn('app:layout_constraintTop_toBottomOf="@id/mylauncher_hero_subtitle"', launcher_layout)
 
+
+    def test_rejects_incomplete_offline_username_validation(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            self.fixture(root)
+            local_login = root / "app_pojavlauncher/src/main/java/net/kdt/pojavlaunch/fragments/LocalLoginFragment.java"
+            login_text = local_login.read_text(encoding="utf-8").replace(
+                "text.length() > 16",
+                "text.length() > 64",
+            )
+            local_login.write_text(login_text, encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "Offline username validation is incomplete"):
+                customizer.patch_upstream(root)
 
     def test_is_idempotent(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
