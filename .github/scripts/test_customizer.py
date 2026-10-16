@@ -343,8 +343,8 @@ class SelectAuthFragment {
                 "Offline username validation is incomplete",
             ),
             (
-                "text.isEmpty()\\n                || text.length() < 3",
-                "text.isEmpty()\\n                && text.length() < 3",
+                "text.isEmpty()\n                || text.length() < 3",
+                "text.isEmpty()\n                && text.length() < 3",
                 "Offline username validation is incomplete",
             ),
         )
