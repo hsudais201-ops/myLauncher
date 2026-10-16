@@ -55,13 +55,13 @@ def patch_upstream(upstream: Path) -> None:
         raise ValueError("Gradle app_short_name branding was not applied")
     if "org.angelauramc.amethyst" in strings_text:
         raise ValueError("An upstream application authority remains in strings.xml")
-    if not re.search(r'<string\\s+name="main_add_account"\\b', strings_text):
+    if not re.search(r'<string\s+name="main_add_account"\b', strings_text):
         raise ValueError("Required main_add_account string is missing from strings.xml")
     strings.write_text(strings_text, encoding="utf-8")
 
     colors_text = colors.read_text(encoding="utf-8")
     for color_name in ("primary_text", "secondary_text"):
-        if not re.search(r'<color\\s+name="' + color_name + r'"\\b', colors_text):
+        if not re.search(r'<color\s+name="' + color_name + r'"\b', colors_text):
             raise ValueError(f"Required header color {color_name!r} is missing from colors.xml")
 
     settings_text = settings.read_text(encoding="utf-8")
@@ -219,20 +219,24 @@ def patch_upstream(upstream: Path) -> None:
             or layout_text.index('android:id="@+id/open_files_button"') > account_match.start()
         ):
             raise ValueError(f"myLauncher account shortcut is incomplete in {layout_path}")
+        title_match = re.search(
+            r'<TextView\s+android:id="@\+id/mylauncher_hero_title".*?/>',
+            layout_text,
+            flags=re.DOTALL,
+        )
+        subtitle_match = re.search(
+            r'<TextView\s+android:id="@\+id/mylauncher_hero_subtitle".*?/>',
+            layout_text,
+            flags=re.DOTALL,
+        )
         if (
             layout_text.count('android:id="@+id/mylauncher_hero_title"') != 1
             or layout_text.count('android:id="@+id/mylauncher_hero_subtitle"') != 1
             or layout_text.count('android:id="@+id/mylauncher_account_button"') != 1
-            or 'android:layout_width="0dp"' not in re.search(
-                r'<TextView\\s+android:id="@\\+id/mylauncher_hero_title".*?/>',
-                layout_text,
-                flags=re.DOTALL,
-            ).group(0)
-            or 'android:layout_width="0dp"' not in re.search(
-                r'<TextView\\s+android:id="@\\+id/mylauncher_hero_subtitle".*?/>',
-                layout_text,
-                flags=re.DOTALL,
-            ).group(0)
+            or not title_match
+            or not subtitle_match
+            or 'android:layout_width="0dp"' not in title_match.group(0)
+            or 'android:layout_width="0dp"' not in subtitle_match.group(0)
         ):
             raise ValueError(f"myLauncher header or account button is missing, duplicated, or incomplete in {layout_path}")
         layout_path.write_text(layout_text, encoding="utf-8")
