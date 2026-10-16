@@ -153,7 +153,41 @@ def patch_upstream(upstream: Path) -> None:
             count=1,
             flags=re.DOTALL
         )
+        if "mylauncher_account_button" not in layout_text:
+            account_button = """            <com.kdt.mcgui.LauncherMenuButton
+                android:id="@+id/mylauncher_account_button"
+                style="@style/LauncherMenuButton.Universal"
+                android:layout_width="match_parent"
+                android:drawableStart="@android:drawable/ic_menu_myplaces"
+                android:text="@string/main_add_account"
+                app:layout_constraintTop_toBottomOf="@id/open_files_button" />
+
+"""
+            open_files_pattern = re.compile(r'(<com\.kdt\.mcgui\.LauncherMenuButton\s+android:id="@\+id/open_files_button".*?/>\s*)', re.DOTALL)
+            open_files_match = open_files_pattern.search(layout_text)
+            if not open_files_match:
+                raise ValueError(f"Could not find open_files_button in {layout_path}")
+            block = open_files_match.group(1) + "\n" + account_button
+            layout_text = layout_text[:open_files_match.start(1)] + block + layout_text[open_files_match.end(1):]
         layout_path.write_text(layout_text, encoding="utf-8")
+
+    main_menu = upstream / "app_pojavlauncher" / "src" / "main" / "java" / "net" / "kdt" / "pojavlaunch" / "fragments" / "MainMenuFragment.java"
+    if not main_menu.is_file():
+        raise FileNotFoundError(f"Expected main menu fragment is missing: {main_menu}")
+    main_menu_text = main_menu.read_text(encoding="utf-8")
+    account_binding = "Button mMyLauncherAccountButton = view.findViewById(R.id.mylauncher_account_button);"
+    if account_binding not in main_menu_text:
+        binding_anchor = "Button mOpenDirectoryButton = view.findViewById(R.id.open_files_button);"
+        if binding_anchor not in main_menu_text:
+            raise ValueError("Could not find the main menu button binding insertion point")
+        main_menu_text = main_menu_text.replace(binding_anchor, binding_anchor + "\n        " + account_binding, 1)
+    account_listener = "mMyLauncherAccountButton.setOnClickListener(v -> ExtraCore.setValue(ExtraConstants.SELECT_AUTH_METHOD, true));"
+    if account_listener not in main_menu_text:
+        listener_anchor = "mVersionSpinner = view.findViewById(R.id.mc_version_spinner);"
+        if listener_anchor not in main_menu_text:
+            raise ValueError("Could not find the main menu listener insertion point")
+        main_menu_text = main_menu_text.replace(listener_anchor, listener_anchor + "\n        " + account_listener, 1)
+    main_menu.write_text(main_menu_text, encoding="utf-8")
 
     launcher_preferences = upstream / "app_pojavlauncher" / "src" / "main" / "java" / "net" / "kdt" / "pojavlaunch" / "prefs" / "LauncherPreferences.java"
     if not launcher_preferences.is_file():
