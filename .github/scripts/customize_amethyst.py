@@ -149,12 +149,8 @@ def patch_upstream(upstream: Path) -> None:
     downloader_text = replace_idempotently(
         downloader_text,
         'String tryagain = !isOnline ? "Please ensure you have an internet connection" : "Please try again on your Microsoft Account";',
-        'String tryagain = "Connect to the internet and try again."; ',
-        str(downloader_java),
-    )
-    downloader_text = downloader_text.replace(
-        'String tryagain = "Connect to the internet and try again."; ',
         'String tryagain = "Connect to the internet and try again.";',
+        str(downloader_java),
     )
     downloader_text = replace_idempotently(
         downloader_text,
