@@ -14,6 +14,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /** Dependency-free regression tests so the launcher core can be tested with only a JDK. */
 public final class CoreTests {
@@ -21,7 +22,7 @@ public final class CoreTests {
     private CoreTests() { }
 
     public static void main(String[] args) throws Exception {
-        versions(); catalogs(); manifests(); jsonDecoder(); versionDetails(); launchArguments(); safeArchiveExtraction(); assetIndex(); assetIndexDownload(); installationPlan(); installationService(); verifiedDownloads(); downloader(); profiles(); memory();
+        versions(); catalogs(); manifests(); jsonDecoder(); versionDetails(); launchArguments(); safeArchiveExtraction(); javaProcessRunner(); assetIndex(); assetIndexDownload(); installationPlan(); installationService(); verifiedDownloads(); downloader(); profiles(); memory();
         System.out.println("PASS: " + checks + " launcher-core assertions");
     }
 
@@ -729,6 +730,89 @@ public final class CoreTests {
             return new ByteArrayInputStream(body);
         }
         public void disconnect() { disconnected = true; }
+    }
+
+    private static void javaProcessRunner() throws Exception {
+        Path temporary = Files.createTempDirectory("mylauncher-process-tests-");
+        try {
+            Path working = Files.createDirectories(temporary.resolve("work"));
+            Path java = java.nio.file.Paths.get(System.getProperty("java.home"), "bin", "java").toRealPath();
+            JavaProcessRunner runner = new JavaProcessRunner();
+            List<String> output = java.util.Collections.synchronizedList(new java.util.ArrayList<>());
+            JavaProcessRunner.Result result = runner.run(java, working, java.util.Collections.singletonList("-version"),
+                    CancellationToken.NONE, 15_000, (stream, line) -> output.add(stream + ":" + line));
+            yes(result.isSuccess(), "Java process exits successfully");
+            yes(result.getElapsedMillis() >= 0, "process duration reported");
+            yes(result.getStderrLineCount() > 0, "Java stderr is drained");
+            yes(!output.isEmpty() && output.get(0).contains("STDERR"), "process output listener receives stream identity");
+
+            List<String> sleeper = Arrays.asList("-cp", System.getProperty("java.class.path"),
+                    CoreTests.SleeperMain.class.getName(), "10000");
+            AtomicBoolean cancel = new AtomicBoolean(false);
+            Thread cancelThread = new Thread(() -> {
+                try { Thread.sleep(350); } catch (InterruptedException exception) { Thread.currentThread().interrupt(); }
+                cancel.set(true);
+            });
+            cancelThread.setDaemon(true);
+            cancelThread.start();
+            try {
+                runner.run(java, working, sleeper, cancel::get, 15_000, null);
+                throw new AssertionError("cancelled Java process should not report success");
+            } catch (InterruptedIOException expected) {
+                checks++;
+                yes(expected.getMessage().contains("cancelled"), "process cancellation is reported clearly");
+            } finally {
+                cancelThread.join(2_000);
+            }
+
+            try {
+                runner.run(java, working, sleeper, CancellationToken.NONE, 300, null);
+                throw new AssertionError("timed-out Java process should not report success");
+            } catch (IOException expected) {
+                checks++;
+                yes(expected.getMessage().contains("time limit"), "process timeout is reported clearly");
+            }
+
+            bad(() -> {
+                try { runner.run(java, working, Arrays.asList("-Dx=" + (char) 0),
+                        CancellationToken.NONE, 1_000, null); }
+                catch (IOException | InterruptedException exception) {
+                    throw new AssertionError("invalid argv should be rejected before process start", exception);
+                }
+            }, "NUL in process argv rejected");
+            bad(() -> {
+                try { runner.run(java, working, Arrays.asList("-version", null),
+                        CancellationToken.NONE, 1_000, null); }
+                catch (IOException | InterruptedException exception) {
+                    throw new AssertionError("null argv should be rejected before process start", exception);
+                }
+            }, "null process argv rejected");
+            bad(() -> {
+                try { runner.run(java, working, Arrays.asList("-version"),
+                        CancellationToken.NONE, 0, null); }
+                catch (IOException | InterruptedException exception) {
+                    throw new AssertionError("invalid timeout should fail before process start", exception);
+                }
+            }, "zero timeout rejected");
+            yes(!Files.isSymbolicLink(working), "runner fixture uses a regular working directory");
+        } finally {
+            try (java.util.stream.Stream<Path> paths = Files.walk(temporary)) {
+                paths.sorted(java.util.Comparator.reverseOrder()).forEach(path -> {
+                    try { Files.deleteIfExists(path); } catch (IOException exception) { throw new java.io.UncheckedIOException(exception); }
+                });
+            }
+        }
+    }
+
+    /** Child process used to verify active-process cancellation and timeout handling. */
+    public static final class SleeperMain {
+        private SleeperMain() { }
+        public static void main(String[] args) throws InterruptedException {
+            System.out.println("child started");
+            long duration = Long.parseLong(args[0]);
+            Thread.sleep(duration);
+            System.out.println("child finished");
+        }
     }
 
     private static void downloader() {
