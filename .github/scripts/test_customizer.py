@@ -89,10 +89,26 @@ class LocalLoginFragment {
     <com.kdt.mcgui.LauncherMenuButton
         android:id="@+id/discord_button"
         app:layout_constraintTop_toTopOf="parent" />
+    <com.kdt.mcgui.LauncherMenuButton
+        android:id="@+id/open_files_button"
+        app:layout_constraintTop_toBottomOf="@id/share_logs_button" />
 </ConstraintLayout>
 """,
                 encoding="utf-8",
             )
+
+        main_menu = app / "src/main/java/net/kdt/pojavlaunch/fragments/MainMenuFragment.java"
+        main_menu.parent.mkdir(parents=True, exist_ok=True)
+        main_menu.write_text(
+            """class MainMenuFragment {
+    void onViewCreated(View view) {
+        Button mOpenDirectoryButton = view.findViewById(R.id.open_files_button);
+        mVersionSpinner = view.findViewById(R.id.mc_version_spinner);
+    }
+}
+""",
+            encoding="utf-8",
+        )
 
         prefs = root / "app_pojavlauncher/src/main/java/net/kdt/pojavlaunch/prefs/LauncherPreferences.java"
         prefs.parent.mkdir(parents=True)
@@ -138,9 +154,13 @@ class LocalLoginFragment {
             login_layout = (root / "app_pojavlauncher/src/main/res/layout/fragment_local_login.xml").read_text(encoding="utf-8")
             self.assertNotIn("if (!hasOnlineProfile())", local_login)
             self.assertIn('android:inputType="textPersonName"', login_layout)
+            main_menu = (root / "app_pojavlauncher/src/main/java/net/kdt/pojavlaunch/fragments/MainMenuFragment.java").read_text(encoding="utf-8")
+            self.assertIn("mMyLauncherAccountButton.setOnClickListener", main_menu)
+            self.assertIn("ExtraConstants.SELECT_AUTH_METHOD", main_menu)
             for relative in ("src/main/res/layout/fragment_launcher.xml", "src/main/res/layout-land/fragment_launcher.xml"):
                 launcher_layout = (root / "app_pojavlauncher" / relative).read_text(encoding="utf-8")
                 self.assertIn("mylauncher_hero_title", launcher_layout)
+                self.assertIn("mylauncher_account_button", launcher_layout)
                 self.assertIn('app:layout_constraintTop_toBottomOf="@id/mylauncher_hero_subtitle"', launcher_layout)
 
 
