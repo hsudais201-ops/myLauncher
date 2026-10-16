@@ -93,6 +93,11 @@ def patch_upstream(upstream: Path) -> None:
         raise ValueError("Unrecognized offline-login guard; refusing an unsafe source edit")
     if "if (!hasOnlineProfile())" in login_text or "import static net.kdt.pojavlaunch.Tools.hasOnlineProfile;" in login_text:
         raise ValueError("Offline account screen still contains its online-profile gate/import")
+    if (
+        "ExtraCore.setValue(ExtraConstants.MOJANG_LOGIN_TODO, new String[]{" not in login_text
+        or "if(!checkEditText())" not in login_text
+    ):
+        raise ValueError("The upstream offline-login submission/username validation flow is incomplete")
     local_login.write_text(login_text, encoding="utf-8")
 
     login_layout = upstream / "app_pojavlauncher" / "src" / "main" / "res" / "layout" / "fragment_local_login.xml"
@@ -240,6 +245,17 @@ def patch_upstream(upstream: Path) -> None:
         ):
             raise ValueError(f"myLauncher header or account button is missing, duplicated, or incomplete in {layout_path}")
         layout_path.write_text(layout_text, encoding="utf-8")
+
+    # Ensure the account shortcut still has a consumer in the upstream activity.
+    launcher_activity = upstream / "app_pojavlauncher" / "src" / "main" / "java" / "net" / "kdt" / "pojavlaunch" / "LauncherActivity.java"
+    if not launcher_activity.is_file():
+        raise FileNotFoundError(f"Expected launcher activity is missing: {launcher_activity}")
+    activity_text = launcher_activity.read_text(encoding="utf-8")
+    if (
+        "ExtraCore.addExtraListener(ExtraConstants.SELECT_AUTH_METHOD, mSelectAuthMethod);" not in activity_text
+        or "Tools.swapFragment(this, SelectAuthFragment.class, SelectAuthFragment.TAG, null);" not in activity_text
+    ):
+        raise ValueError("The upstream SELECT_AUTH_METHOD event is not wired to the account selector")
 
     main_menu = upstream / "app_pojavlauncher" / "src" / "main" / "java" / "net" / "kdt" / "pojavlaunch" / "fragments" / "MainMenuFragment.java"
     if not main_menu.is_file():
