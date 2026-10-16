@@ -132,12 +132,12 @@ def patch_upstream(upstream: Path) -> None:
             raise FileNotFoundError(f"Expected launcher layout is missing: {layout_path}")
         layout_text = layout_path.read_text(encoding="utf-8")
         if "mylauncher_hero_title" not in layout_text:
-            anchor_match = re.search(r"^[ \\t]*<androidx\\.constraintlayout\\.widget\\.Guideline", layout_text, flags=re.MULTILINE)
+            anchor_match = re.search(r"^[ \t]*<androidx\.constraintlayout\.widget\.Guideline", layout_text, flags=re.MULTILINE)
             if not anchor_match:
                 raise ValueError(f"Could not find launcher layout insertion point in {layout_path}")
             layout_text = layout_text[:anchor_match.start()] + header + layout_text[anchor_match.start():]
         for button_id in ("news_button", "discord_button"):
-            pattern = re.compile(r'(<com\.kdt\.mcgui\.LauncherMenuButton\s+android:id="@\+id/' + button_id + r'".*?/\>\s*)', re.DOTALL)
+            pattern = re.compile(r'(<com\.kdt\.mcgui\.LauncherMenuButton\s+android:id="@\+id/' + button_id + r'".*?/\s*)', re.DOTALL)
             match = pattern.search(layout_text)
             if not match:
                 raise ValueError(f"Could not find {button_id} in {layout_path}")
