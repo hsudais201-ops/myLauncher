@@ -3,6 +3,7 @@ from __future__ import annotations
 import importlib.util
 import tempfile
 import unittest
+import xml.etree.ElementTree as ET
 from pathlib import Path
 
 
@@ -69,7 +70,12 @@ class LocalLoginFragment {
             encoding="utf-8",
         )
         login_layout = app / "src/main/res/layout/fragment_local_login.xml"
-        login_layout.write_text('<EditText android:inputType="textEmailAddress" />\n', encoding="utf-8")
+        login_layout.parent.mkdir(parents=True, exist_ok=True)
+        login_layout.write_text(
+            '<EditText xmlns:android="http://schemas.android.com/apk/res/android" '
+            'android:inputType="textEmailAddress" />\n',
+            encoding="utf-8",
+        )
 
         for relative in (
             "src/main/res/layout/fragment_launcher.xml",
@@ -78,21 +84,26 @@ class LocalLoginFragment {
             launcher_layout = app / relative
             launcher_layout.parent.mkdir(parents=True, exist_ok=True)
             launcher_layout.write_text(
-                """<ConstraintLayout>
+                """<androidx.constraintlayout.widget.ConstraintLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
     <androidx.constraintlayout.widget.Guideline android:id="@+id/center_guideline" />
     <com.kdt.mcgui.LauncherMenuButton
         android:id="@+id/news_button"
+        android:layout_width="0dp"
         app:layout_constraintTop_toTopOf="parent" />
     <View
         android:id="@+id/social_divider"
         app:layout_constraintTop_toTopOf="parent" />
     <com.kdt.mcgui.LauncherMenuButton
         android:id="@+id/discord_button"
+        android:layout_width="0dp"
         app:layout_constraintTop_toTopOf="parent" />
     <com.kdt.mcgui.LauncherMenuButton
         android:id="@+id/open_files_button"
+        android:layout_width="match_parent"
         app:layout_constraintTop_toBottomOf="@id/share_logs_button" />
-</ConstraintLayout>
+</androidx.constraintlayout.widget.ConstraintLayout>
 """,
                 encoding="utf-8",
             )
@@ -100,7 +111,11 @@ class LocalLoginFragment {
         main_menu = app / "src/main/java/net/kdt/pojavlaunch/fragments/MainMenuFragment.java"
         main_menu.parent.mkdir(parents=True, exist_ok=True)
         main_menu.write_text(
-            """class MainMenuFragment {
+            """import android.widget.Button;
+import net.kdt.pojavlaunch.extra.ExtraConstants;
+import net.kdt.pojavlaunch.extra.ExtraCore;
+
+class MainMenuFragment {
     void onViewCreated(View view) {
         Button mOpenDirectoryButton = view.findViewById(R.id.open_files_button);
         mVersionSpinner = view.findViewById(R.id.mc_version_spinner);
@@ -125,7 +140,9 @@ class SelectAuthFragment {
 
         manifest = app / "src/main/AndroidManifest.xml"
         manifest.write_text(
-            '<manifest><application android:icon="@mipmap/ic_launcher" android:roundIcon="@mipmap/ic_launcher_round" /></manifest>\n',
+            '<manifest xmlns:android="http://schemas.android.com/apk/res/android">'
+            '<application android:icon="@mipmap/ic_launcher" '
+            'android:roundIcon="@mipmap/ic_launcher_round" /></manifest>\n',
             encoding="utf-8",
         )
 
@@ -181,6 +198,17 @@ class SelectAuthFragment {
             self.assertIn('android:icon="@drawable/mylauncher_icon"', manifest)
             self.assertIn('android:roundIcon="@drawable/mylauncher_icon"', manifest)
             self.assertIn('android:fillColor="#7C5CFF"', icon)
+            # All transformed resources must remain well-formed XML.
+            for xml_path in (
+                root / "app_pojavlauncher/src/main/res/layout/fragment_launcher.xml",
+                root / "app_pojavlauncher/src/main/res/layout-land/fragment_launcher.xml",
+                root / "app_pojavlauncher/src/main/res/layout/fragment_local_login.xml",
+                root / "app_pojavlauncher/src/main/AndroidManifest.xml",
+                root / "app_pojavlauncher/src/main/res/drawable/mylauncher_icon.xml",
+                root / "app_pojavlauncher/src/main/res/values/strings.xml",
+            ):
+                with self.subTest(xml=str(xml_path.relative_to(root))):
+                    ET.parse(xml_path)
             auth_selector = (root / "app_pojavlauncher/src/main/java/net/kdt/pojavlaunch/fragments/SelectAuthFragment.java").read_text(encoding="utf-8")
             self.assertNotIn("hasNoOnlineProfileDialog", auth_selector)
             self.assertIn("mLocalButton.setOnClickListener(v -> Tools.swapFragment", auth_selector)
@@ -196,14 +224,19 @@ class SelectAuthFragment {
             root = Path(temp)
             self.fixture(root)
             customizer.patch_upstream(root)
-            first = (root / "app_pojavlauncher/build.gradle").read_text(encoding="utf-8")
-            prefs_path = root / "app_pojavlauncher/src/main/java/net/kdt/pojavlaunch/prefs/LauncherPreferences.java"
-            prefs_first = prefs_path.read_text(encoding="utf-8")
             customizer.patch_upstream(root)
-            second = (root / "app_pojavlauncher/build.gradle").read_text(encoding="utf-8")
-            prefs_second = prefs_path.read_text(encoding="utf-8")
-            self.assertEqual(first, second)
-            self.assertEqual(prefs_first, prefs_second)
+            first_snapshot = {
+                path.relative_to(root).as_posix(): path.read_bytes()
+                for path in root.rglob("*")
+                if path.is_file()
+            }
+            customizer.patch_upstream(root)
+            second_snapshot = {
+                path.relative_to(root).as_posix(): path.read_bytes()
+                for path in root.rglob("*")
+                if path.is_file()
+            }
+            self.assertEqual(first_snapshot, second_snapshot)
 
     def test_rejects_minimum_sdk_above_android_9(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
