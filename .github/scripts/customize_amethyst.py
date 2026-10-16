@@ -92,6 +92,20 @@ def patch_upstream(upstream: Path) -> None:
         raise ValueError("Gradle rootProject.name was not customized")
     settings.write_text(settings_text, encoding="utf-8")
 
+    tools_java = upstream / "app_pojavlauncher" / "src" / "main" / "java" / "net" / "kdt" / "pojavlaunch" / "Tools.java"
+    if not tools_java.is_file():
+        raise FileNotFoundError(f"Expected upstream tools class is missing: {tools_java}")
+    tools_text = tools_java.read_text(encoding="utf-8")
+    tools_text = replace_idempotently(
+        tools_text,
+        'public static String APP_NAME = "Amethyst";',
+        'public static String APP_NAME = "myLauncher";',
+        str(tools_java),
+    )
+    if 'public static String APP_NAME = "Amethyst";' in tools_text:
+        raise ValueError("The shared launcher app-name constant still uses upstream branding")
+    tools_java.write_text(tools_text, encoding="utf-8")
+
     # The upstream local/offline account flow exists, but this guard blocks it when
     # there is no online account. Keep offline account creation available.
     local_login = upstream / "app_pojavlauncher" / "src" / "main" / "java" / "net" / "kdt" / "pojavlaunch" / "fragments" / "LocalLoginFragment.java"
