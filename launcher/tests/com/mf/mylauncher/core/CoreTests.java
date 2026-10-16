@@ -16,7 +16,7 @@ public final class CoreTests {
     private CoreTests() { }
 
     public static void main(String[] args) {
-        versions(); catalogs(); manifests(); downloader(); profiles(); memory();
+        versions(); catalogs(); manifests(); jsonDecoder(); downloader(); profiles(); memory();
         System.out.println("PASS: " + checks + " launcher-core assertions");
     }
 
@@ -71,11 +71,55 @@ public final class CoreTests {
         bad(() -> VersionManifestMapper.fromDecodedJson(unsafe), "insecure metadata URL rejected");
     }
 
+    private static void jsonDecoder() {
+        String json = "{\"latest\":{\"release\":\"1.21.4\",\"snapshot\":\"25w01a\"},"
+                + "\"versions\":[{\"id\":\"1.21.4\",\"type\":\"release\","
+                + "\"url\":\"https://piston-meta.mojang.com/versions/1.21.4.json\","
+                + "\"releaseTime\":\"2024-12-03T10:00:00Z\",\"complianceLevel\":1},"
+                + "{\"id\":\"25w01a\",\"type\":\"snapshot\","
+                + "\"url\":\"https://piston-meta.mojang.com/versions/25w01a.json\","
+                + "\"releaseTime\":\"2025-01-01T10:00:00Z\"}]}";
+        VersionManifest manifest = VersionManifestJsonDecoder.decode(json);
+        eq("1.21.4", manifest.getLatestRelease().getId(), "JSON text decodes to release version");
+        eq("25w01a", manifest.getLatestSnapshot().getId(), "JSON text decodes to snapshot version");
+        eq(2, manifest.getCatalog().size(), "JSON versions array integrated end-to-end");
+        Map<?, ?> primitives = (Map<?, ?>) JsonParser.parse("{\"text\":\"line\\nquote:\\u0022\",\"number\":-1.25e2,\"yes\":true,\"nothing\":null}");
+        eq("line\nquote:\"", primitives.get("text"), "JSON escapes decoded");
+        eq(new java.math.BigDecimal("-1.25e2"), primitives.get("number"), "JSON exponent number parsed");
+        eq(Boolean.TRUE, primitives.get("yes"), "JSON boolean parsed");
+        yes(primitives.containsKey("nothing") && primitives.get("nothing") == null, "JSON null retained");
+        bad(() -> VersionManifestJsonDecoder.decode("[]"), "array root rejected");
+        bad(() -> VersionManifestJsonDecoder.decode("{\"latest\":null}"), "missing manifest values rejected");
+        bad(() -> JsonParser.parse("{\"duplicate\":1,\"duplicate\":2}"), "duplicate JSON keys rejected");
+        bad(() -> JsonParser.parse("{\"bad\":01}"), "leading zero rejected");
+        bad(() -> JsonParser.parse("{\"bad\":\"\\x\"}"), "invalid string escape rejected");
+        bad(() -> JsonParser.parse("{\"bad\":1,}"), "trailing comma rejected");
+        bad(() -> JsonParser.parse("true false"), "trailing document data rejected");
+        bad(() -> JsonParser.parse("[" + repeat("[", 66) + "0" + repeat("]", 66) + "]"), "extreme JSON nesting rejected");
+        bad(() -> JsonParser.parse("\"" + repeat("x", 8 * 1024 * 1024) + "\""), "oversized JSON text rejected");
+    }
+
+    private static String repeat(String value, int count) {
+        StringBuilder result = new StringBuilder(value.length() * count);
+        for (int i = 0; i < count; i++) result.append(value);
+        return result.toString();
+    }
+
     private static void downloader() {
-        String body = "{\"latest\":{\"release\":\"1.21.4\",\"snapshot\":\"25w01a\"},\"versions\":[]}";
+        String body = "{\"latest\":{\"release\":\"1.21.4\",\"snapshot\":\"25w01a\"},"
+                + "\"versions\":[{\"id\":\"1.21.4\",\"type\":\"release\","
+                + "\"url\":\"https://piston-meta.mojang.com/versions/1.21.4.json\","
+                + "\"releaseTime\":\"2024-12-03T10:00:00Z\"},{"
+                + "\"id\":\"25w01a\",\"type\":\"snapshot\","
+                + "\"url\":\"https://piston-meta.mojang.com/versions/25w01a.json\","
+                + "\"releaseTime\":\"2025-01-01T10:00:00Z\"}]}";
         Fake ok = new Fake(200, body.getBytes(StandardCharsets.UTF_8), -1);
         VersionManifestDownloader d = new VersionManifestDownloader(uri -> { eq(VersionManifestDownloader.MANIFEST_URI, uri, "fixed Mojang URL"); return ok; });
-        try { eq(body, d.download(), "UTF-8 manifest text"); } catch (IOException ex) { throw new AssertionError(ex); }
+        try {
+            VersionManifest downloaded = d.downloadManifest();
+            eq("1.21.4", downloaded.getLatestRelease().getId(), "HTTP download decodes directly to a validated manifest");
+            eq(2, downloaded.getCatalog().size(), "HTTP manifest version list is populated");
+        } catch (IOException ex) { throw new AssertionError(ex); }
         eq(10_000, ok.connectTimeout, "connect timeout"); eq(15_000, ok.readTimeout, "read timeout");
         eq("GET", ok.method, "GET used"); eq("application/json", ok.headers.get("Accept"), "JSON Accept header");
         yes(!ok.followRedirects && ok.disconnected, "redirects disabled and connection closed");

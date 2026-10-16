@@ -31,7 +31,17 @@ public final class VersionManifestDownloader {
         this.opener = Objects.requireNonNull(opener, "connection opener");
     }
 
-    /** Downloads and decodes the JSON text. Use VersionManifestMapper after JSON decoding. */
+    /** Downloads Mojang's manifest and returns a validated domain model. */
+    public VersionManifest downloadManifest() throws IOException {
+        String json = download();
+        try {
+            return VersionManifestJsonDecoder.decode(json);
+        } catch (IllegalArgumentException exception) {
+            throw new IOException("Mojang version manifest JSON was invalid", exception);
+        }
+    }
+
+    /** Downloads and returns strict UTF-8 JSON text for callers that need raw metadata. */
     public String download() throws IOException {
         ManifestConnection connection = opener.open(MANIFEST_URI);
         if (connection == null) throw new IOException("Manifest connection could not be opened");
