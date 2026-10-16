@@ -127,11 +127,19 @@ def patch_upstream(upstream: Path) -> None:
         raise FileNotFoundError(f"Expected offline login layout is missing: {login_layout}")
     login_layout_text = login_layout.read_text(encoding="utf-8")
     login_layout_text = login_layout_text.replace('android:inputType="textEmailAddress"', 'android:inputType="textPersonName"')
+    login_layout_text = replace_idempotently(
+        login_layout_text,
+        'android:text="@string/login_online_login_label"',
+        'android:text="@string/main_add_account"',
+        str(login_layout),
+    )
     if (
         login_layout_text.count('android:inputType="textPersonName"') != 1
         or 'android:inputType="textEmailAddress"' in login_layout_text
+        or 'android:text="@string/main_add_account"' not in login_layout_text
+        or 'android:text="@string/login_online_login_label"' in login_layout_text
     ):
-        raise ValueError("Offline account username field was not configured exclusively as a username")
+        raise ValueError("Offline account form must use a username field and an Add account action")
     login_layout.write_text(login_layout_text, encoding="utf-8")
 
     # Add a responsive branded header without introducing heavyweight UI dependencies.
