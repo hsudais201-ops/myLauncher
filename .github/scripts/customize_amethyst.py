@@ -357,6 +357,9 @@ def patch_upstream(upstream: Path) -> None:
             or 'app:layout_constraintTop_toBottomOf="@id/mylauncher_hero_title"' not in subtitle_match.group(0)
         ):
             raise ValueError(f"myLauncher header or account button is missing, duplicated, or incomplete in {layout_path}")
+        # Generated XML must pass git diff --check; captured upstream whitespace
+        # can otherwise be reinserted when moving launcher buttons.
+        layout_text = "\n".join(line.rstrip() for line in layout_text.splitlines()) + "\n"
         layout_path.write_text(layout_text, encoding="utf-8")
 
     # Ensure the account shortcut still has a consumer in the upstream activity.
