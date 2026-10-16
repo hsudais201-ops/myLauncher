@@ -5,12 +5,11 @@ Product-owned Java code lives here, separated from CI configuration and generate
 ## Implemented and tested
 
 - Master version manifest download and strict JSON decoding into a validated version catalog.
-- Per-version details: client JAR integrity metadata, asset-index metadata, required Java version, library artifacts/classifiers, native mappings, ordered OS/feature rules and extraction exclusions.
+- Per-version details: client JAR integrity metadata, asset-index metadata, required Java version, library artifacts/classifiers, native mappings, ordered OS/feature rules, and legacy/modern game/JVM argument templates.
+- Launch command builder resolves argument placeholders into a safe argv list (not a shell string), filters conditional args for the target platform, validates username/UUID/access-token inputs, and supports legacy minecraftArguments tokenization.
 - Asset-index download with declared byte size and SHA-1 verification before JSON parsing; deterministic asset maps and content-addressed resource paths.
-- Verified file downloader: exact HTTPS host allow-list, timeouts, disabled redirects, safe cache paths/no symlink components, temporary file writes, size and SHA-1 verification before atomic promotion, and verified-cache reuse.
-- Deterministic installation-plan generation for the client JAR, platform-rule-matched ordinary library artifacts, and content-addressed asset objects. Identical output payloads are deduplicated; conflicting paths are rejected and unique download sizes are totaled.
-- InstallationService orchestrates per-version metadata, SHA-1/size-verified asset-index download and persistence, then runs the plan using the verified-file cache. It emits immutable byte/task progress snapshots and checks cancellation between stages/tasks and during file transfer.
-- Local profile-name validation, conservative memory defaults, and native Android shell with official version-list refresh and persisted version/profile/memory settings.
+- Verified file downloader and installation service: exact HTTPS host allow-list, cancellation/progress, safe cache paths/no symlink components, size/SHA-1 verification before promotion, verified-cache reuse, and a deterministic download plan.
+- Native Android shell: official version refresh, local profile validation, version/memory preferences, install progress/cancellation, and explicit status that the game runtime/login are not connected.
 
 ## Android build
 
@@ -19,8 +18,8 @@ The Android app project is under android-app/. With JDK 17+, Gradle 8.9 and Andr
     cd launcher/android-app
     gradle :app:assembleDebug
 
-CI assembles the debug APK and checks its package name. The current screen supports version refresh/selection, local profile-name validation and a conservative heap hint; the Launch button remains disabled until a real installation/runtime/authentication pipeline exists.
+CI assembles the debug APK and checks its package name. The current screen can prepare supported base files but does not launch Minecraft.
 
 ## Next steps
 
-The Android screen invokes InstallationService with byte/task progress and cooperative cancellation. Remaining work: persist install state, handle Android-native/runtime libraries, construct launch arguments, integrate Microsoft authentication, and test gameplay on-device. Native-only library classifiers are intentionally excluded from the current plan until Android-specific runtime handling exists.
+Add Android-compatible Java runtime/native extraction and actual process supervision, then integrate Microsoft account authentication. The launch argument builder is only an argv foundation: a compatible runtime, complete native classpath/extraction, valid authenticated account, and device tests are still required.

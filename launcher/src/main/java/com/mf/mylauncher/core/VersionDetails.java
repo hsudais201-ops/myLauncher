@@ -19,10 +19,20 @@ public final class VersionDetails {
     private final DownloadArtifact clientDownload;
     private final int javaMajorVersion;
     private final List<LibraryMetadata> libraries;
+    private final VersionArgumentSet arguments;
+    private final String legacyMinecraftArguments;
 
     public VersionDetails(String id, String mainClass, String assetsId, AssetIndexMetadata assetIndex,
                           DownloadArtifact clientDownload, int javaMajorVersion,
                           List<LibraryMetadata> libraries) {
+        this(id, mainClass, assetsId, assetIndex, clientDownload, javaMajorVersion, libraries,
+                VersionArgumentSet.empty(), null);
+    }
+
+    public VersionDetails(String id, String mainClass, String assetsId, AssetIndexMetadata assetIndex,
+                          DownloadArtifact clientDownload, int javaMajorVersion,
+                          List<LibraryMetadata> libraries, VersionArgumentSet arguments,
+                          String legacyMinecraftArguments) {
         if (id == null || !SAFE_ID.matcher(id).matches() || id.contains("..")) {
             throw new IllegalArgumentException("Version-details ID is invalid");
         }
@@ -38,6 +48,10 @@ public final class VersionDetails {
             throw new IllegalArgumentException("Required Java major version is outside the supported range");
         }
         if (libraries == null) throw new IllegalArgumentException("Minecraft libraries list is required");
+        if (arguments == null) throw new IllegalArgumentException("Minecraft argument metadata is required");
+        if (legacyMinecraftArguments != null && legacyMinecraftArguments.length() > 65_536) {
+            throw new IllegalArgumentException("Legacy Minecraft arguments exceed the supported length limit");
+        }
         List<LibraryMetadata> copy = new ArrayList<>();
         for (LibraryMetadata library : libraries) {
             if (library == null) throw new IllegalArgumentException("Minecraft libraries must not contain null entries");
@@ -50,6 +64,8 @@ public final class VersionDetails {
         this.clientDownload = clientDownload;
         this.javaMajorVersion = javaMajorVersion;
         this.libraries = Collections.unmodifiableList(copy);
+        this.arguments = arguments;
+        this.legacyMinecraftArguments = legacyMinecraftArguments;
     }
 
     public String getId() { return id; }
@@ -59,4 +75,6 @@ public final class VersionDetails {
     public DownloadArtifact getClientDownload() { return clientDownload; }
     public int getJavaMajorVersion() { return javaMajorVersion; }
     public List<LibraryMetadata> getLibraries() { return libraries; }
+    public VersionArgumentSet getArguments() { return arguments; }
+    public String getLegacyMinecraftArguments() { return legacyMinecraftArguments; }
 }

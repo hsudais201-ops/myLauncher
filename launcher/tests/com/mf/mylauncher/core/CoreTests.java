@@ -18,7 +18,7 @@ public final class CoreTests {
     private CoreTests() { }
 
     public static void main(String[] args) throws Exception {
-        versions(); catalogs(); manifests(); jsonDecoder(); versionDetails(); assetIndex(); assetIndexDownload(); installationPlan(); installationService(); verifiedDownloads(); downloader(); profiles(); memory();
+        versions(); catalogs(); manifests(); jsonDecoder(); versionDetails(); launchArguments(); assetIndex(); assetIndexDownload(); installationPlan(); installationService(); verifiedDownloads(); downloader(); profiles(); memory();
         System.out.println("PASS: " + checks + " launcher-core assertions");
     }
 
@@ -173,6 +173,89 @@ public final class CoreTests {
         yes(!VersionManifestDownloader.isApprovedMetadataUri(URI.create("https://piston-meta.mojang.com:444/v1/packages/abc/1.21.4.json")), "unexpected TLS port blocked");
         MinecraftVersion untrusted = new MinecraftVersion("1.21.4", "release", URI.create("https://evil.test/v1/packages/abc/1.21.4.json"), time1);
         io(() -> new VersionDetailsDownloader(new VersionManifestDownloader(uri -> { throw new AssertionError("unapproved URL reached connection opener"); })).download(untrusted), "unapproved metadata host blocked before network access");
+    }
+
+    private static void launchArguments() {
+        String hash = "0123456789abcdef0123456789abcdef01234567";
+        String jvmUrl = "https://piston-data.mojang.com/v1/objects/" + hash + "/client.jar";
+        String argsJson = "{\"game\":[\"--username\",\"{auth_player_name}\",\"--accessToken\","
+                + "\"{auth_access_token}\",\"--version\",\"{version_name}\","
+                + "{\"rules\":[{\"action\":\"allow\",\"os\":{\"name\":\"linux\"}}],"
+                + "\"value\":[\"--width\",\"{resolution_width}\"]},{\"rules\":[{\"action\":\"allow\","
+                + "\"os\":{\"name\":\"windows\"}}],\"value\":\"--windows-only\"}],"
+                + "\"jvm\":[\"-Djava.library.path=${natives_directory}\",\"-cp\",\"{classpath}\","
+                + "{\"rules\":[{\"action\":\"allow\"}],\"value\":\"-Dlog4j.configurationFile=${path}\"}]}";
+        @SuppressWarnings("unchecked")
+        Map<String, ?> parsedArguments = (Map<String, ?>) JsonParser.parse(argsJson);
+        Map<String,Object> root = new LinkedHashMap<>();
+        root.put("id", "1.21.4");
+        root.put("mainClass", "net.minecraft.client.main.Main");
+        root.put("assets", "1.21.4");
+        Map<String,Object> assetIndex = new LinkedHashMap<>();
+        assetIndex.put("id", "1.21.4");
+        assetIndex.put("url", "https://piston-meta.mojang.com/v1/packages/" + hash + "/1.21.4.json");
+        assetIndex.put("sha1", hash); assetIndex.put("size", 80);
+        root.put("assetIndex", assetIndex);
+        Map<String,Object> client = new LinkedHashMap<>();
+        client.put("url", jvmUrl); client.put("sha1", hash); client.put("size", 100);
+        Map<String,Object> downloads = new LinkedHashMap<>(); downloads.put("client", client);
+        root.put("downloads", downloads);
+        root.put("libraries", java.util.Collections.emptyList());
+        root.put("arguments", parsedArguments);
+        VersionDetails details = VersionDetailsMapper.fromDecodedJson(root, "1.21.4");
+        LibraryPlatform linux = new LibraryPlatform("linux", "x86_64", "6.1.0",
+                java.util.Collections.emptyMap());
+        LaunchContext context = new LaunchContext.Builder("Steve_123",
+                "12345678-1234-1234-1234-1234567890ab", "test-access-token")
+                .gameDirectory(java.nio.file.Paths.get("/tmp/mylauncher/game"))
+                .assetsRoot(java.nio.file.Paths.get("/tmp/mylauncher/game/assets"))
+                .librariesDirectory(java.nio.file.Paths.get("/tmp/mylauncher/game/libraries"))
+                .nativesDirectory(java.nio.file.Paths.get("/tmp/mylauncher/game/natives/1.21.4"))
+                .classpath("/tmp/mylauncher/game/versions/1.21.4/1.21.4.jar:/tmp/mylauncher/game/libraries/example.jar")
+                .loggingConfigPath("/tmp/mylauncher/game/assets/log_configs/client.xml")
+                .resolution(1280, 720).heapMiB(256, 768).platform(linux).build();
+        List<String> command = LaunchCommandBuilder.build(details, context);
+        eq("-Xms256M", command.get(0), "minimum heap added");
+        eq("-Xmx768M", command.get(1), "maximum heap added");
+        yes(command.contains("-Djava.library.path=/tmp/mylauncher/game/natives/1.21.4"),
+                "native directory placeholder expanded");
+        yes(command.contains("-Dlog4j.configurationFile=/tmp/mylauncher/game/assets/log_configs/client.xml"),
+                "dollar-brace logging path placeholder expanded");
+        eq("/tmp/mylauncher/game/versions/1.21.4/1.21.4.jar:/tmp/mylauncher/game/libraries/example.jar",
+                command.get(command.indexOf("-cp") + 1), "classpath placeholder expanded as one argv value");
+        yes(command.contains("net.minecraft.client.main.Main"), "main class inserted");
+        yes(command.contains("Steve_123"), "game argument player name expanded");
+        yes(command.contains("1.21.4"), "version-name placeholder expanded");
+        yes(command.contains("--width") && command.contains("1280"), "platform-specific argument rule applied");
+        yes(!command.contains("--windows-only"), "non-matching platform argument omitted");
+        yes(command.contains("test-access-token"), "access token passed as a distinct game argument when referenced");
+        eq("123456781234123412341234567890ab", context.getUuid(), "UUID normalized to dashless lowercase form");
+        unsupported(() -> command.add("shell injection"), "launch command list is immutable");
+        bad(() -> new LaunchContext.Builder("bad name", "123456781234123412341234567890ab", "token")
+                .gameDirectory(java.nio.file.Paths.get("/tmp/game")).assetsRoot(java.nio.file.Paths.get("/tmp/assets"))
+                .librariesDirectory(java.nio.file.Paths.get("/tmp/libraries")).nativesDirectory(java.nio.file.Paths.get("/tmp/natives"))
+                .classpath("/tmp/client.jar").platform(linux).build(), "invalid profile rejected");
+        bad(() -> new LaunchContext.Builder("Steve_123", "bad uuid", "token")
+                .gameDirectory(java.nio.file.Paths.get("/tmp/game")).assetsRoot(java.nio.file.Paths.get("/tmp/assets"))
+                .librariesDirectory(java.nio.file.Paths.get("/tmp/libraries")).nativesDirectory(java.nio.file.Paths.get("/tmp/natives"))
+                .classpath("/tmp/client.jar").platform(linux).build(), "invalid profile UUID rejected");
+        bad(() -> new LaunchContext.Builder("Steve_123", "12345678123412341234123412345678", "")
+                .gameDirectory(java.nio.file.Paths.get("/tmp/game")).assetsRoot(java.nio.file.Paths.get("/tmp/assets"))
+                .librariesDirectory(java.nio.file.Paths.get("/tmp/libraries")).nativesDirectory(java.nio.file.Paths.get("/tmp/natives"))
+                .classpath("/tmp/client.jar").platform(linux).build(), "missing authentication token rejected");
+
+        Map<String,Object> legacy = new LinkedHashMap<>(root);
+        legacy.remove("arguments");
+        legacy.put("minecraftArguments", "--username \"{auth_player_name}\" --version {version_name} --demo");
+        VersionDetails legacyDetails = VersionDetailsMapper.fromDecodedJson(legacy, "1.21.4");
+        List<String> legacyCommand = LaunchCommandBuilder.build(legacyDetails, context);
+        yes(legacyCommand.contains("Steve_123") && legacyCommand.contains("--demo"),
+                "legacy minecraftArguments tokenization and expansion works");
+        bad(() -> LaunchCommandBuilder.tokenizeLegacyArguments("--username \"unterminated"),
+                "unclosed legacy argument quote rejected");
+        bad(() -> VersionArgumentSet.fromDecodedJson(java.util.Collections.singletonMap("game", "not-an-array")),
+                "malformed modern arguments shape rejected");
+        bad(() -> LaunchCommandBuilder.build(details, null), "null launch context rejected");
     }
 
     private static void assetIndex() {

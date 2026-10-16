@@ -1,36 +1,26 @@
 # myLauncher
 
-myLauncher is being rebuilt as a Minecraft: Java Edition launcher for Android. Product-owned code lives in the launcher/ directory, separate from build automation and generated upstream files.
+myLauncher is a Minecraft: Java Edition launcher foundation being rebuilt for Android. Product-owned code lives in launcher/, separate from build automation and generated upstream runtime files.
 
-## Development status
+## Current status
 
-The project has a tested Java core for official version metadata, asset-index verification and safe SHA-1-verified cached downloads, plus an Android shell that loads the official version list and saves basic settings. The installation planner now builds deterministic client/library/asset download tasks, filters library rules and removes duplicate payloads. A progress-aware installation service now stores the verified asset index, runs downloads and supports cooperative cancellation.
+The code now loads official Minecraft version metadata, validates per-version client/library/asset metadata, builds a deterministic install plan, downloads files only from approved HTTPS hosts, verifies SHA-1 and exact sizes, supports progress/cancellation, and exposes a native Android screen for selecting versions and preparing base files. Modern and legacy launch-argument metadata is now parsed and can be converted into a platform-filtered Java argv list.
 
-This is not yet a playable Android launcher. The Android screen can prepare a selected version by downloading/verifying its client JAR, ordinary library artifacts and assets, with visible progress and cancellation. It still does not install Android-compatible Java/native runtimes, perform Microsoft account authentication, build the final launch command or start the game.
+This is not yet a playable launcher. The compatible Java runtime/native extraction and process runner, authenticated Microsoft account flow, complete game launch integration, and real-device testing remain unfinished. The UI's game-launch button remains disabled until those pieces exist.
 
-The old Amethyst-based customization/build work is preserved on backup/pre-clear-2026-10-16 and remains untouched while the new code structure is developed.
+The old Amethyst-based customization/build work is preserved on backup/pre-clear-2026-10-16 and remains untouched.
 
-## Run the Java core tests
+## Test the core
 
 Requires a JDK:
 
     ./launcher/test.sh
 
-This compiles Java source with -Xlint:all -Werror and executes dependency-free regression tests without Gradle or the Android SDK.
-
 ## Build the Android shell
 
-Install Android SDK platform 35 and build-tools 35.0.0, JDK 17+, and Gradle 8.9. Then run:
+With JDK 17+, Gradle 8.9, and Android SDK platform/build-tools 35 installed:
 
     cd launcher/android-app
     gradle :app:assembleDebug
 
-The GitHub Actions workflow builds and verifies the debug APK on pull requests. The APK currently provides a launcher shell, not the Minecraft game engine/runtime.
-
-## Next milestones
-
-1. Connect the installation service to an Android progress/cancel UI and durable install state.
-2. Add Android-compatible runtime/native handling and accurate Minecraft launch arguments.
-3. Integrate licensed Microsoft authentication and validate game launch on real Android devices.
-
-Passing core tests or producing a debug APK does not prove Minecraft starts successfully.
+GitHub Actions runs both the warning-free core regression suite and Android debug APK assembly/package validation on changes. Passing tests or producing a debug APK does not prove Minecraft starts successfully.

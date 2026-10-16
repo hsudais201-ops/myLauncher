@@ -54,7 +54,14 @@ public final class VersionDetailsMapper {
             }
             index++;
         }
-        return new VersionDetails(id, mainClass, assetsId, assetIndex, client, javaMajor, libraries);
+        VersionArgumentSet arguments = VersionArgumentSet.empty();
+        Object rawArguments = root.get("arguments");
+        if (rawArguments != null) {
+            arguments = VersionArgumentSet.fromDecodedJson(requiredMap(rawArguments, "arguments"));
+        }
+        String legacyArguments = optionalString(root.get("minecraftArguments"), "minecraftArguments");
+        return new VersionDetails(id, mainClass, assetsId, assetIndex, client, javaMajor, libraries,
+                arguments, legacyArguments);
     }
 
     private static AssetIndexMetadata parseAssetIndex(Map<?, ?> value) {
