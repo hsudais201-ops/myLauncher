@@ -11,24 +11,37 @@ permissions:
   contents: read
 
 concurrency:
-  group: mylauncher-runner-diagnostic
+  group: mylauncher-runner-diagnostic-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
   runner-smoke-test:
-    name: Check runner provisioning
-    runs-on: ubuntu-slim
+    name: Runner check (${{ matrix.runner }})
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix:
+        runner:
+          - ubuntu-slim
+          - ubuntu-22.04
+          - ubuntu-24.04
+          - ubuntu-latest
+    runs-on: ${{ matrix.runner }}
     timeout-minutes: 3
     steps:
       - name: Confirm a hosted runner was assigned
+        shell: bash
         run: |
+          set -eu
           echo "RUNNER_DIAGNOSTIC=started"
+          echo "Requested runner label: ${{ matrix.runner }}"
           echo "Repository: $GITHUB_REPOSITORY"
           echo "Runner OS: $RUNNER_OS"
           echo "Runner architecture: $RUNNER_ARCH"
           echo "UTC time: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
           uname -a
       - name: Verify a basic shell step
+        shell: bash
         run: |
           set -eu
           test -n "$GITHUB_REPOSITORY"
