@@ -1,29 +1,26 @@
 # myLauncher
 
-myLauncher is being rebuilt as a Minecraft: Java Edition launcher for Android. Product-owned core code is kept in [`launcher/`](launcher/) instead of being mixed with CI scripts or generated upstream files.
+myLauncher is being rebuilt as a Minecraft: Java Edition launcher for Android. Product-owned code lives in the launcher/ directory, separate from build automation and generated upstream files.
 
 ## Development status
 
-The current milestone is a tested Java core foundation for Mojang manifest download/JSON decoding, per-version client metadata parsing, asset-index/client-download integrity metadata, ordered library rules, native classifiers, local profile-name validation, and conservative memory defaults. This **is not yet a playable Android launcher**: the Android shell, official manifest JSON adapter, game/library/asset download flow, Microsoft account flow, native graphics/runtime integration, and game launch pipeline still need to be implemented and validated.
+The tested Java core now handles the master Minecraft version manifest, per-version metadata (client JAR, asset index, libraries, runtime requirement and platform rules), and asset-index parsing/content-addressed resource paths. This is not yet a playable Android launcher: safe downloads/cache, Android UI, Microsoft account flow, native runtime integration and game launch still need implementation and device testing.
 
-The previous Amethyst-based build/customization work is preserved on the `backup/pre-clear-2026-10-16` branch. It is intentionally not overwritten while the new code structure is developed.
+The old Amethyst-based customization/build work is preserved on backup/pre-clear-2026-10-16. That backup remains untouched while the new structure is developed.
 
 ## Run core tests
 
 Requires a JDK. Run:
 
-```sh
-./launcher/test.sh
-```
+    ./launcher/test.sh
 
-The test script compiles the core source with warnings treated as errors and runs regression tests without requiring Gradle, Android SDK access, or third-party dependencies.
+The script compiles Java core source with -Xlint:all -Werror and executes the dependency-free regression suite without Gradle or an Android SDK.
 
-## Planned implementation order
+## Next milestones
 
-1. Core models, bounded manifest/per-version downloads, JSON parsing, and regression tests.
-2. Asset-index parsing, safe cache planning, and SHA-1/size-verified downloads.
-3. Android UI and persistent settings.
-4. Runtime/native setup and launch argument construction.
-5. Authentication integration, package/build verification, and real-device testing.
+1. Verified downloads to safe cache locations with SHA-1 and size checks.
+2. Android UI, persistent settings and progress/cancellation.
+3. Native runtime setup and accurate Minecraft launch-argument construction.
+4. Licensed account authentication, Android build/APK validation and real-device gameplay tests.
 
-A completed unit-test run is not proof of a valid APK or a successful in-game launch. Those checks will be added at the relevant milestones.
+Passing core tests does not prove an APK builds or Minecraft starts successfully.

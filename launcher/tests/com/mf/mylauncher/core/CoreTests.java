@@ -16,7 +16,7 @@ public final class CoreTests {
     private CoreTests() { }
 
     public static void main(String[] args) {
-        versions(); catalogs(); manifests(); jsonDecoder(); versionDetails(); downloader(); profiles(); memory();
+        versions(); catalogs(); manifests(); jsonDecoder(); versionDetails(); assetIndex(); downloader(); profiles(); memory();
         System.out.println("PASS: " + checks + " launcher-core assertions");
     }
 
@@ -171,6 +171,33 @@ public final class CoreTests {
         yes(!VersionManifestDownloader.isApprovedMetadataUri(URI.create("https://piston-meta.mojang.com:444/v1/packages/abc/1.21.4.json")), "unexpected TLS port blocked");
         MinecraftVersion untrusted = new MinecraftVersion("1.21.4", "release", URI.create("https://evil.test/v1/packages/abc/1.21.4.json"), time1);
         io(() -> new VersionDetailsDownloader(new VersionManifestDownloader(uri -> { throw new AssertionError("unapproved URL reached connection opener"); })).download(untrusted), "unapproved metadata host blocked before network access");
+    }
+
+    private static void assetIndex() {
+        String sha1 = "0123456789abcdef0123456789abcdef01234567";
+        String sha2 = "fedcba9876543210fedcba9876543210fedcba98";
+        String json = "{\"virtual\":true,\"map_to_resources\":true,\"objects\":{"
+                + "\"minecraft/sounds/ambient/cave.ogg\":{\"hash\":\"" + sha1 + "\",\"size\":123},"
+                + "\"minecraft/textures/block/stone.png\":{\"hash\":\"" + sha2 + "\",\"size\":0}}}";
+        AssetIndex index = AssetIndexJsonDecoder.decode(json);
+        eq(2L, index.getObjectCount(), "asset object count mapped");
+        eq(123L, index.getTotalBytes(), "total asset bytes calculated");
+        yes(index.isVirtual(), "virtual asset mode mapped");
+        yes(index.isMapToResources(), "map-to-resources flag mapped");
+        eq("minecraft/sounds/ambient/cave.ogg", index.getOrderedObjects().get(0).getName(), "asset objects ordered deterministically");
+        AssetObjectMetadata asset = index.getObjects().get("minecraft/sounds/ambient/cave.ogg");
+        eq("objects/01/0123456789abcdef0123456789abcdef01234567", asset.getObjectRelativePath(), "content-addressed object path resolved");
+        eq("https://resources.download.minecraft.net/01/0123456789abcdef0123456789abcdef01234567", asset.getDownloadUrl().toString(), "official asset CDN URL resolved");
+        eq("minecraft/sounds/ambient/cave.ogg", asset.getResourceRelativePath(), "logical resource path retained");
+        bad(() -> AssetIndexJsonDecoder.decode("[]"), "non-object asset index rejected");
+        bad(() -> AssetIndexJsonDecoder.decode("{}"), "missing asset objects rejected");
+        bad(() -> AssetIndexJsonDecoder.decode(json.replace(sha1, "not-a-sha1")), "invalid asset hash rejected");
+        bad(() -> AssetIndexJsonDecoder.decode(json.replace("minecraft/sounds/ambient/cave.ogg", "../escape.ogg")), "asset path traversal rejected");
+        bad(() -> AssetIndexJsonDecoder.decode(json.replace("\"size\":123", "\"size\":1.5")), "fractional asset size rejected");
+        bad(() -> AssetIndexJsonDecoder.decode(json.replace("\"virtual\":true", "\"virtual\":\"yes\"")), "non-boolean asset flags rejected");
+        unsupported(() -> index.getObjects().clear(), "asset map immutable");
+        unsupported(() -> index.getOrderedObjects().clear(), "ordered assets list immutable");
+        bad(() -> new AssetIndex(java.util.Collections.singletonMap("wrong", asset), false, false), "asset key must match its object metadata");
     }
 
     private static void downloader() {
