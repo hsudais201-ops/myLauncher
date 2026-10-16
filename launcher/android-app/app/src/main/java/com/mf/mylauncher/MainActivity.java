@@ -28,6 +28,7 @@ import android.widget.TextView;
 import com.mf.mylauncher.core.InstallationProgress;
 import com.mf.mylauncher.core.InstallationResult;
 import com.mf.mylauncher.core.InstallationService;
+import com.mf.mylauncher.core.JavaRuntimeLocator;
 import com.mf.mylauncher.core.LibraryPlatform;
 import com.mf.mylauncher.core.MemoryDefaults;
 import com.mf.mylauncher.core.MinecraftVersion;
@@ -39,6 +40,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Collections;
 import java.util.Locale;
+import java.nio.file.Path;
+import java.io.IOException;
 import java.io.File;
 import java.io.InterruptedIOException;
 import java.util.concurrent.ExecutorService;
@@ -63,6 +66,7 @@ public final class MainActivity extends Activity {
     private EditText profileInput;
     private TextView profileStatus;
     private TextView versionStatus;
+    private TextView runtimeStatus;
     private TextView heapLabel;
     private ProgressBar progressBar;
     private Button refreshButton;
@@ -185,6 +189,13 @@ public final class MainActivity extends Activity {
             @Override public void onStopTrackingTouch(SeekBar seekBar) { }
         });
 
+        section(content, "JAVA RUNTIME");
+        runtimeStatus = text(runtimeStatusMessage(), 12, MUTED, false);
+        content.addView(runtimeStatus, margins(matchWrap(), 0, 0, 0, dp(8)));
+        Button checkRuntimeButton = button("Check installed runtime", false);
+        content.addView(checkRuntimeButton, margins(matchWrap(), 0, 0, 0, dp(14)));
+        checkRuntimeButton.setOnClickListener(view -> runtimeStatus.setText(runtimeStatusMessage()));
+
         Button launchButton = button("Launch game · runtime not connected", true);
         launchButton.setEnabled(false);
         launchButton.setAlpha(0.58f);
@@ -193,6 +204,22 @@ public final class MainActivity extends Activity {
                 12, MUTED, false), matchWrap());
 
         setContentView(scrollView);
+    }
+
+    private String runtimeStatusMessage() {
+        Path privateRoot = getFilesDir().toPath();
+        Path expected = privateRoot.resolve("runtimes/default/bin/java");
+        try {
+            java.util.Optional<Path> executable = new JavaRuntimeLocator(privateRoot).locate("default");
+            if (!executable.isPresent()) {
+                return "No installed Java runtime found. Expected location: " + expected
+                        + ". A compatible Android runtime provider is still needed.";
+            }
+            return "Java executable found at " + executable.get()
+                    + ". Version and Android compatibility are not yet verified.";
+        } catch (IOException | IllegalArgumentException exception) {
+            return "Runtime check failed safely: " + exception.getMessage();
+        }
     }
 
     private void loadVersions() {
