@@ -18,7 +18,7 @@ public final class CoreTests {
     private CoreTests() { }
 
     public static void main(String[] args) throws Exception {
-        versions(); catalogs(); manifests(); jsonDecoder(); versionDetails(); assetIndex(); verifiedDownloads(); downloader(); profiles(); memory();
+        versions(); catalogs(); manifests(); jsonDecoder(); versionDetails(); assetIndex(); assetIndexDownload(); verifiedDownloads(); downloader(); profiles(); memory();
         System.out.println("PASS: " + checks + " launcher-core assertions");
     }
 
@@ -200,6 +200,44 @@ public final class CoreTests {
         unsupported(() -> index.getObjects().clear(), "asset map immutable");
         unsupported(() -> index.getOrderedObjects().clear(), "ordered assets list immutable");
         bad(() -> new AssetIndex(java.util.Collections.singletonMap("wrong", asset), false, false), "asset key must match its object metadata");
+    }
+
+    private static void assetIndexDownload() throws Exception {
+        String objectHash = "86f7e437faa5a7fce15d1ddcb9eaeaea377667b8";
+        String json = "{\"virtual\":true,\"objects\":{\"test/a.txt\":{\"hash\":\"" + objectHash + "\",\"size\":1}}}";
+        byte[] bytes = json.getBytes(StandardCharsets.UTF_8);
+        String indexHash = sha1Hex(bytes);
+        URI url = URI.create("https://piston-meta.mojang.com/v1/packages/" + indexHash + "/1.21.4.json");
+        AssetIndexMetadata metadata = new AssetIndexMetadata("1.21.4", url, indexHash, bytes.length, bytes.length);
+        Fake ok = new Fake(200, bytes, bytes.length);
+        AssetIndexDownloader downloader = new AssetIndexDownloader(new VersionManifestDownloader(uri -> {
+            eq(url, uri, "asset index requested from official metadata URL");
+            return ok;
+        }));
+        AssetIndex index = downloader.download(metadata);
+        eq(1L, index.getObjectCount(), "verified asset index parsed");
+        eq("test/a.txt", index.getOrderedObjects().get(0).getName(), "verified asset name retained");
+        yes(ok.disconnected && !ok.followRedirects, "asset-index connection closed with redirects disabled");
+        eq(10_000, ok.connectTimeout, "asset-index connect timeout configured");
+        eq(15_000, ok.readTimeout, "asset-index read timeout configured");
+
+        AssetIndexMetadata wrongHash = new AssetIndexMetadata("1.21.4", url,
+                "0000000000000000000000000000000000000000", bytes.length, bytes.length);
+        io(() -> new AssetIndexDownloader(new VersionManifestDownloader(uri -> new Fake(200, bytes, bytes.length))).download(wrongHash), "asset-index SHA-1 mismatch rejected");
+        AssetIndexMetadata wrongSize = new AssetIndexMetadata("1.21.4", url, indexHash, bytes.length + 1L, bytes.length + 1L);
+        io(() -> new AssetIndexDownloader(new VersionManifestDownloader(uri -> new Fake(200, bytes, bytes.length))).download(wrongSize), "asset-index size mismatch rejected");
+        byte[] invalid = "not json".getBytes(StandardCharsets.UTF_8);
+        AssetIndexMetadata invalidJson = new AssetIndexMetadata("1.21.4", url, sha1Hex(invalid), invalid.length, invalid.length);
+        io(() -> new AssetIndexDownloader(new VersionManifestDownloader(uri -> new Fake(200, invalid, invalid.length))).download(invalidJson), "invalid asset-index JSON rejected after hash check");
+        AssetIndexMetadata evilUrl = new AssetIndexMetadata("1.21.4", URI.create("https://evil.example/v1/packages/x/1.21.4.json"), indexHash, bytes.length, bytes.length);
+        io(() -> new AssetIndexDownloader(new VersionManifestDownloader(uri -> { throw new AssertionError("untrusted metadata host must not be contacted"); })).download(evilUrl), "unapproved asset-index host rejected before fetch");
+    }
+
+    private static String sha1Hex(byte[] bytes) throws Exception {
+        byte[] digest = java.security.MessageDigest.getInstance("SHA-1").digest(bytes);
+        StringBuilder result = new StringBuilder();
+        for (byte value : digest) result.append(String.format(java.util.Locale.ROOT, "%02x", value & 0xff));
+        return result.toString();
     }
 
     private static void verifiedDownloads() throws Exception {
