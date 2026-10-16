@@ -91,6 +91,8 @@ public final class SafeArchiveExtractor {
                 checkCancelled(cancellation);
                 extractInto(spec.archive, staging, spec.excludes, stats, seenFiles, cancellation);
             }
+            // Do not publish if cancellation arrived at the end of the last archive.
+            checkCancelled(cancellation);
 
             rejectSymlink(target);
             if (Files.exists(target, LinkOption.NOFOLLOW_LINKS)) {
