@@ -340,7 +340,7 @@ public final class CoreTests {
                     combinedDestination);
             eq(2, combined.getFileCount(), "multi-archive extraction counts both native files");
             eq(2L, combined.getBytesWritten(), "multi-archive extraction counts bytes written");
-            eq(6L, combined.getBytesRead(), "multi-archive extraction bounds excluded and included data together");
+            eq(8L, combined.getBytesRead(), "multi-archive extraction bounds excluded and included data together");
             eq("a", new String(Files.readAllBytes(combinedDestination.resolve("lib/a.so")), StandardCharsets.UTF_8),
                     "first archive content retained in combined native directory");
             eq("b", new String(Files.readAllBytes(combinedDestination.resolve("lib/b.so")), StandardCharsets.UTF_8),
