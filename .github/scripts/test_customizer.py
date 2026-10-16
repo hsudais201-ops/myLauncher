@@ -202,6 +202,10 @@ class SelectAuthFragment {
             self.assertIn('applicationId "com.mf.mylauncher"', build)
             self.assertIn("com.mf.mylauncher.scoped.gamefolder", build)
             self.assertIn('"myLauncher (Debug)"', build)
+            self.assertIn('"app_name", "myLauncher"', build)
+            self.assertIn("'application_package', 'com.mf.mylauncher.debug'", build)
+            self.assertIn("'application_package', 'com.mf.mylauncher'", build)
+            self.assertIn("'shareProviderAuthority', 'com.mf.mylauncher.scoped.controlfolder.debug'", build)
             self.assertNotIn("org.angelauramc.amethyst", build)
             self.assertNotIn("Amethyst", strings)
             self.assertIn("myLauncher crashed", strings)
@@ -299,6 +303,19 @@ class SelectAuthFragment {
                 encoding="utf-8",
             )
             with self.assertRaisesRegex(ValueError, "above Android 9/API 28"):
+                customizer.patch_upstream(root)
+
+    def test_rejects_malformed_generated_xml(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            self.fixture(root)
+            login_layout = root / "app_pojavlauncher/src/main/res/layout/fragment_local_login.xml"
+            login_layout.write_text(
+                '<EditText xmlns:android="http://schemas.android.com/apk/res/android" '
+                'android:inputType="textEmailAddress">\n',
+                encoding="utf-8",
+            )
+            with self.assertRaisesRegex(ValueError, "Generated Android XML is invalid"):
                 customizer.patch_upstream(root)
 
     def test_missing_upstream_file_fails_clearly(self) -> None:
