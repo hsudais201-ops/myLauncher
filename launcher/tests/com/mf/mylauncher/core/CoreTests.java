@@ -23,7 +23,7 @@ public final class CoreTests {
     private CoreTests() { }
 
     public static void main(String[] args) throws Exception {
-        versions(); catalogs(); manifests(); jsonDecoder(); versionDetails(); launchArguments(); safeArchiveExtraction(); javaProcessRunner(); javaRuntimeProbe(); assetIndex(); assetIndexDownload(); assetLayoutMaterializer(); installationPlan(); installationService(); verifiedDownloads(); downloader(); profiles(); memory();
+        versions(); catalogs(); manifests(); jsonDecoder(); versionDetails(); launchArguments(); safeArchiveExtraction(); javaProcessRunner(); javaRuntimeProbe(); assetIndex(); assetIndexDownload(); assetLayoutMaterializer(); installationPlan(); classpathResolver(); installationService(); verifiedDownloads(); downloader(); profiles(); memory();
         System.out.println("PASS: " + checks + " launcher-core assertions");
     }
 
@@ -669,6 +669,107 @@ public final class CoreTests {
                 URI.create("https://piston-data.mojang.com/v1/objects/" + hash2 + "/client.xml"),
                 "log_configs/client.xml", 50, hash2), "logging config cannot target game root");
 
+    }
+
+    private static void classpathResolver() throws Exception {
+        byte[] clientBytes = "client-jar-bytes".getBytes(StandardCharsets.UTF_8);
+        byte[] libraryBytes = "library-a".getBytes(StandardCharsets.UTF_8);
+        byte[] loggingBytes = "<Configuration/>".getBytes(StandardCharsets.UTF_8);
+        String clientHash = sha1Hex(clientBytes);
+        String libraryHash = sha1Hex(libraryBytes);
+        String loggingHash = sha1Hex(loggingBytes);
+        String placeholderHash = "0123456789abcdef0123456789abcdef01234567";
+
+        DownloadArtifact clientArtifact = new DownloadArtifact(
+                URI.create("https://piston-data.mojang.com/v1/objects/" + clientHash + "/client.jar"),
+                clientHash, clientBytes.length, null);
+        DownloadArtifact libraryArtifact = new DownloadArtifact(
+                URI.create("https://libraries.minecraft.net/org/example/core/1.0/core-1.0.jar"),
+                libraryHash, libraryBytes.length, "org/example/core/1.0/core-1.0.jar");
+        LibraryMetadata linuxLibrary = new LibraryMetadata("org.example:core:1.0", libraryArtifact,
+                java.util.Collections.emptyMap(), java.util.Collections.emptyMap(),
+                java.util.Collections.singletonList(new LibraryRule(true, "linux", "aarch64", null, null)),
+                java.util.Collections.emptyList());
+        LibraryMetadata duplicateLibrary = new LibraryMetadata("org.example:core-copy:1.0", libraryArtifact,
+                java.util.Collections.emptyMap(), java.util.Collections.emptyMap(),
+                java.util.Collections.emptyList(), java.util.Collections.emptyList());
+        DownloadArtifact windowsArtifact = new DownloadArtifact(
+                URI.create("https://libraries.minecraft.net/org/example/windows/1.0/windows-1.0.jar"),
+                placeholderHash, 12, "org/example/windows/1.0/windows-1.0.jar");
+        LibraryMetadata windowsLibrary = new LibraryMetadata("org.example:windows:1.0", windowsArtifact,
+                java.util.Collections.emptyMap(), java.util.Collections.emptyMap(),
+                java.util.Collections.singletonList(new LibraryRule(true, "windows", null, null, null)),
+                java.util.Collections.emptyList());
+        AssetIndexMetadata assetIndex = new AssetIndexMetadata("1.21.4",
+                URI.create("https://piston-meta.mojang.com/v1/packages/" + placeholderHash + "/index.json"),
+                placeholderHash, 20, 200);
+        LoggingConfigurationMetadata logging = new LoggingConfigurationMetadata("client-log4j.xml",
+                URI.create("https://piston-data.mojang.com/v1/objects/" + loggingHash + "/logging.xml"),
+                loggingHash, loggingBytes.length);
+        VersionDetails details = new VersionDetails("1.21.4", "net.minecraft.client.main.Main",
+                "1.21.4", assetIndex, clientArtifact, 21,
+                Arrays.asList(linuxLibrary, duplicateLibrary, windowsLibrary),
+                VersionArgumentSet.empty(), null, logging);
+
+        Path temporary = Files.createTempDirectory("mylauncher-classpath-tests-");
+        try {
+            Path game = temporary.resolve("game");
+            Path clientPath = game.resolve("versions/1.21.4/1.21.4.jar");
+            Path libraryPath = game.resolve("libraries/org/example/core/1.0/core-1.0.jar");
+            Path loggingPath = game.resolve("assets/log_configs/client-log4j.xml");
+            Files.createDirectories(clientPath.getParent());
+            Files.createDirectories(libraryPath.getParent());
+            Files.createDirectories(loggingPath.getParent());
+            Files.write(clientPath, clientBytes);
+            Files.write(libraryPath, libraryBytes);
+            Files.write(loggingPath, loggingBytes);
+
+            LibraryPlatform linux = new LibraryPlatform("linux", "aarch64", "6.1.0",
+                    java.util.Collections.emptyMap());
+            ClasspathResolver.Result result = ClasspathResolver.resolve(details, linux, game);
+            eq(2, result.getClasspathEntries().size(), "compatible libraries deduplicated in resolved classpath");
+            eq(libraryPath.toAbsolutePath().normalize(), result.getClasspathEntries().get(0),
+                    "library order follows version metadata");
+            eq(clientPath.toAbsolutePath().normalize(), result.getClasspathEntries().get(1),
+                    "client JAR appended to the classpath");
+            eq(result.getClasspathEntries().get(0) + java.io.File.pathSeparator
+                            + result.getClasspathEntries().get(1),
+                    result.getClasspath(), "classpath string uses host path separator");
+            eq(loggingPath.toAbsolutePath().normalize().toString(), result.getLoggingConfigurationPath(),
+                    "logging config path resolved from checked asset cache");
+            unsupported(() -> result.getClasspathEntries().clear(), "resolved classpath entries immutable");
+            io(() -> ClasspathResolver.resolve(details, linux, game.resolve("missing")),
+                    "missing game directory rejected");
+            io(() -> ClasspathResolver.resolve(details, linux, temporary.resolve("absent")),
+                    "absent required client file rejected");
+
+            Files.write(libraryPath, "librarX-a".getBytes(StandardCharsets.UTF_8));
+            io(() -> ClasspathResolver.resolve(details, linux, game), "library checksum mismatch rejected");
+            Files.write(libraryPath, libraryBytes);
+            Files.write(clientPath, "corrupt-client!!".getBytes(StandardCharsets.UTF_8));
+            io(() -> ClasspathResolver.resolve(details, linux, game), "client checksum mismatch rejected");
+            Files.write(clientPath, clientBytes);
+            Files.write(loggingPath, "different-config".getBytes(StandardCharsets.UTF_8));
+            io(() -> ClasspathResolver.resolve(details, linux, game), "logging configuration checksum mismatch rejected");
+            Files.write(loggingPath, loggingBytes);
+
+            Path linkRoot = temporary.resolve("linked-game");
+            Files.createDirectories(linkRoot);
+            try {
+                Files.createSymbolicLink(linkRoot.resolve("versions"), game.resolve("versions"));
+                io(() -> ClasspathResolver.resolve(details, linux, linkRoot),
+                        "classpath symlink component rejected");
+            } catch (UnsupportedOperationException | SecurityException exception) {
+                // Symlink creation is unavailable on some platforms.
+            }
+        } finally {
+            try (java.util.stream.Stream<Path> paths = Files.walk(temporary)) {
+                paths.sorted(java.util.Comparator.reverseOrder()).forEach(path -> {
+                    try { Files.deleteIfExists(path); }
+                    catch (IOException exception) { throw new java.io.UncheckedIOException(exception); }
+                });
+            }
+        }
     }
 
     private static void installationService() throws Exception {
