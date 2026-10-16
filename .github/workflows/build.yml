@@ -52,7 +52,19 @@ jobs:
           git -C upstream remote add origin https://github.com/AngelAuraMC/Amethyst-Android.git
           git -C upstream fetch --depth 1 origin "$EXPECTED_UPSTREAM_COMMIT"
           git -C upstream checkout --detach FETCH_HEAD
+
+          # The pinned upstream .gitmodules includes an SSH-style GitHub URL.
+          # Hosted runners have no personal SSH key, so use public HTTPS clones.
+          git config --global url."https://github.com/".insteadOf git@github.com:
+          git config --global --add url."https://github.com/".insteadOf ssh://git@github.com/
+          git -C upstream submodule sync --recursive
           git -C upstream submodule update --init --recursive
+          git -C upstream submodule status --recursive | tee /tmp/mylauncher-submodules.txt
+          if grep -Eq '^[+-U]' /tmp/mylauncher-submodules.txt; then
+            echo "A submodule is missing or not checked out at the commit pinned by upstream." >&2
+            exit 1
+          fi
+
           ACTUAL_UPSTREAM_COMMIT=$(git -C upstream rev-parse HEAD)
           echo "Expected upstream: $EXPECTED_UPSTREAM_COMMIT"
           echo "Actual upstream:   $ACTUAL_UPSTREAM_COMMIT"
