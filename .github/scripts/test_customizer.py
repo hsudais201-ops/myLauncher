@@ -318,17 +318,36 @@ class SelectAuthFragment {
 
 
     def test_rejects_incomplete_offline_username_validation(self) -> None:
-        with tempfile.TemporaryDirectory() as temp:
-            root = Path(temp)
-            self.fixture(root)
-            local_login = root / "app_pojavlauncher/src/main/java/net/kdt/pojavlaunch/fragments/LocalLoginFragment.java"
-            login_text = local_login.read_text(encoding="utf-8").replace(
-                "text.length() > 16",
-                "text.length() > 64",
-            )
-            local_login.write_text(login_text, encoding="utf-8")
-            with self.assertRaisesRegex(ValueError, "Offline username validation is incomplete"):
-                customizer.patch_upstream(root)
+        invalidations = (
+            (
+                'mUsernameValidationPattern = Pattern.compile("^[a-zA-Z0-9_]*$");',
+                'mUsernameValidationPattern = Pattern.compile("^[a-zA-Z]*$");',
+                "Offline username validation pattern",
+            ),
+            ("text.length() < 3", "text.length() < 2", "Offline username validation is incomplete"),
+            ("text.length() > 16", "text.length() > 64", "Offline username validation is incomplete"),
+            ("!matcher.find()", "matcher.find()", "Offline username validation is incomplete"),
+            (
+                'new File(Tools.DIR_ACCOUNT_NEW + "/" + text + ".json").exists()',
+                "false",
+                "Offline username validation is incomplete",
+            ),
+            (
+                "Matcher matcher = mUsernameValidationPattern.matcher(text);",
+                "String matcher = mUsernameValidationPattern.matcher(text);",
+                "Offline username validation is incomplete",
+            ),
+        )
+        for original, replacement, expected_error in invalidations:
+            with self.subTest(missing_guard=original), tempfile.TemporaryDirectory() as temp:
+                root = Path(temp)
+                self.fixture(root)
+                local_login = root / "app_pojavlauncher/src/main/java/net/kdt/pojavlaunch/fragments/LocalLoginFragment.java"
+                login_text = local_login.read_text(encoding="utf-8")
+                self.assertIn(original, login_text)
+                local_login.write_text(login_text.replace(original, replacement, 1), encoding="utf-8")
+                with self.assertRaisesRegex(ValueError, expected_error):
+                    customizer.patch_upstream(root)
 
     def test_is_idempotent(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
