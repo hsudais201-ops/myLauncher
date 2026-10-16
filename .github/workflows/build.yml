@@ -141,7 +141,7 @@ jobs:
             adb shell am force-stop com.mf.mylauncher.debug || true
             adb shell monkey -p com.mf.mylauncher.debug 1
             for i in $(seq 1 45); do
-              if adb shell dumpsys activity activities | tr -d '\r' | grep -E 'mResumedActivity.*com\.mf\.mylauncher\.debug/net\.kdt\.pojavlaunch\.LauncherActivity|topResumedActivity.*com\.mf\.mylauncher\.debug/net\.kdt\.pojavlaunch\.LauncherActivity'; then
+              if adb shell dumpsys activity activities | tr -d '\r' | grep -F 'com.mf.mylauncher.debug/net.kdt.pojavlaunch.LauncherActivity'; then
                 break
               fi
               if [ "$i" -eq 45 ]; then
@@ -155,7 +155,7 @@ jobs:
               sleep 2
             done
             adb shell dumpsys activity activities > /tmp/mylauncher-activities.txt
-            grep -q 'com\.mf\.mylauncher\.debug/net\.kdt\.pojavlaunch\.LauncherActivity' /tmp/mylauncher-activities.txt
+            grep -Fq 'com.mf.mylauncher.debug/net.kdt.pojavlaunch.LauncherActivity' /tmp/mylauncher-activities.txt
             adb logcat -d -t 5000 > /tmp/mylauncher-emulator-logcat.txt
             echo "Emulator smoke test passed: APK installed and LauncherActivity resumed."
 
