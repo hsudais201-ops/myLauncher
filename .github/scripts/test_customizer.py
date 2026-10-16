@@ -52,6 +52,48 @@ class CustomizeAmethystTests(unittest.TestCase):
         )
         (root / "settings.gradle").write_text("rootProject.name='Amethyst'\n", encoding="utf-8")
 
+        local_login = app / "src/main/java/net/kdt/pojavlaunch/fragments/LocalLoginFragment.java"
+        local_login.parent.mkdir(parents=True)
+        local_login.write_text(
+            """import static net.kdt.pojavlaunch.Tools.hasOnlineProfile;
+
+class LocalLoginFragment {
+    void onViewCreated() {
+        // This is overkill but meh
+        if (!hasOnlineProfile()){
+            Tools.swapFragment(requireActivity(), MainMenuFragment.class, MainMenuFragment.TAG, null);
+        }
+    }
+}
+""",
+            encoding="utf-8",
+        )
+        login_layout = app / "src/main/res/layout/fragment_local_login.xml"
+        login_layout.write_text('<EditText android:inputType="textEmailAddress" />\n', encoding="utf-8")
+
+        for relative in (
+            "src/main/res/layout/fragment_launcher.xml",
+            "src/main/res/layout-land/fragment_launcher.xml",
+        ):
+            launcher_layout = app / relative
+            launcher_layout.parent.mkdir(parents=True, exist_ok=True)
+            launcher_layout.write_text(
+                """<ConstraintLayout>
+    <androidx.constraintlayout.widget.Guideline android:id="@+id/center_guideline" />
+    <com.kdt.mcgui.LauncherMenuButton
+        android:id="@+id/news_button"
+        app:layout_constraintTop_toTopOf="parent" />
+    <View
+        android:id="@+id/social_divider"
+        app:layout_constraintTop_toTopOf="parent" />
+    <com.kdt.mcgui.LauncherMenuButton
+        android:id="@+id/discord_button"
+        app:layout_constraintTop_toTopOf="parent" />
+</ConstraintLayout>
+""",
+                encoding="utf-8",
+            )
+
         prefs = root / "app_pojavlauncher/src/main/java/net/kdt/pojavlaunch/prefs/LauncherPreferences.java"
         prefs.parent.mkdir(parents=True)
         prefs.write_text(
@@ -92,6 +134,15 @@ class CustomizeAmethystTests(unittest.TestCase):
             self.assertIn("rootProject.name='myLauncher'", settings)
             self.assertIn("if (deviceRam <= 2048) return 656;", prefs)
             self.assertIn("Tools.getTotalDeviceMemory(context) <= 2048 ? 480 : 720", prefs)
+            local_login = (root / "app_pojavlauncher/src/main/java/net/kdt/pojavlaunch/fragments/LocalLoginFragment.java").read_text(encoding="utf-8")
+            login_layout = (root / "app_pojavlauncher/src/main/res/layout/fragment_local_login.xml").read_text(encoding="utf-8")
+            self.assertNotIn("if (!hasOnlineProfile())", local_login)
+            self.assertIn('android:inputType="textPersonName"', login_layout)
+            for relative in ("src/main/res/layout/fragment_launcher.xml", "src/main/res/layout-land/fragment_launcher.xml"):
+                launcher_layout = (root / "app_pojavlauncher" / relative).read_text(encoding="utf-8")
+                self.assertIn("mylauncher_hero_title", launcher_layout)
+                self.assertIn('app:layout_constraintTop_toBottomOf="@id/mylauncher_hero_subtitle"', launcher_layout)
+
 
     def test_is_idempotent(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
