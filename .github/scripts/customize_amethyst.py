@@ -292,6 +292,29 @@ def patch_upstream(upstream: Path) -> None:
     if not main_menu.is_file():
         raise FileNotFoundError(f"Expected main menu fragment is missing: {main_menu}")
     main_menu_text = main_menu.read_text(encoding="utf-8")
+    # The game-directory browser is local file access and should also work for local profiles.
+    # Preserve the demo-profile warning, but remove the unrelated online-account gate.
+    directory_gate = """            } else if (!hasOnlineProfile()) { // Otherwise display the generic pop-up to log in
+                hasNoOnlineProfileDialog(requireActivity());
+            } else openPath(v.getContext(), getCurrentProfileDirectory(), false);"""
+    directory_allowed = """            } else openPath(v.getContext(), getCurrentProfileDirectory(), false);"""
+    if directory_gate in main_menu_text:
+        main_menu_text = main_menu_text.replace(directory_gate, directory_allowed, 1)
+    elif directory_allowed not in main_menu_text:
+        raise ValueError("Could not make game-directory access available to local profiles safely")
+    directory_handler = re.search(
+        r"mOpenDirectoryButton\\.setOnClickListener.*?\\);",
+        main_menu_text,
+        flags=re.DOTALL,
+    )
+    if (
+        not directory_handler
+        or "Tools.isDemoProfile(v.getContext())" not in directory_handler.group(0)
+        or "else openPath(v.getContext(), getCurrentProfileDirectory(), false);" not in directory_handler.group(0)
+        or "else if (!hasOnlineProfile())" in directory_handler.group(0)
+    ):
+        raise ValueError("Game-directory access or demo-profile protection is incomplete")
+
     account_binding = "Button mMyLauncherAccountButton = view.findViewById(R.id.mylauncher_account_button);"
     if account_binding not in main_menu_text:
         binding_anchor = "Button mOpenDirectoryButton = view.findViewById(R.id.open_files_button);"
