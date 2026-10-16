@@ -1,0 +1,17 @@
+# Local upstream checkout used by the build instructions
+/upstream/
+
+# Python bytecode and test-run caches
+__pycache__/
+*.py[cod]
+
+# Gradle and Android build outputs
+.gradle/
+**/build/
+*.apk
+*.aab
+local.properties
+
+# IDE metadata
+.idea/
+*.iml
