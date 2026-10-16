@@ -773,9 +773,11 @@ public final class CoreTests {
         byte[] clientBytes = "client-jar-bytes".getBytes(StandardCharsets.UTF_8);
         byte[] libraryBytes = "library-a".getBytes(StandardCharsets.UTF_8);
         byte[] loggingBytes = "<Configuration/>".getBytes(StandardCharsets.UTF_8);
+        byte[] indexBytes = "{\"objects\":{}}".getBytes(StandardCharsets.UTF_8);
         String clientHash = sha1Hex(clientBytes);
         String libraryHash = sha1Hex(libraryBytes);
         String loggingHash = sha1Hex(loggingBytes);
+        String indexHash = sha1Hex(indexBytes);
         String placeholderHash = "0123456789abcdef0123456789abcdef01234567";
 
         DownloadArtifact clientArtifact = new DownloadArtifact(
@@ -799,8 +801,8 @@ public final class CoreTests {
                 java.util.Collections.singletonList(new LibraryRule(true, "windows", null, null, null)),
                 java.util.Collections.emptyList());
         AssetIndexMetadata assetIndex = new AssetIndexMetadata("1.21.4",
-                URI.create("https://piston-meta.mojang.com/v1/packages/" + placeholderHash + "/index.json"),
-                placeholderHash, 20, 200);
+                URI.create("https://piston-meta.mojang.com/v1/packages/" + indexHash + "/index.json"),
+                indexHash, indexBytes.length, 200);
         LoggingConfigurationMetadata logging = new LoggingConfigurationMetadata("client-log4j.xml",
                 URI.create("https://piston-data.mojang.com/v1/objects/" + loggingHash + "/logging.xml"),
                 loggingHash, loggingBytes.length);
@@ -815,12 +817,15 @@ public final class CoreTests {
             Path clientPath = game.resolve("versions/1.21.4/1.21.4.jar");
             Path libraryPath = game.resolve("libraries/org/example/core/1.0/core-1.0.jar");
             Path loggingPath = game.resolve("assets/log_configs/client-log4j.xml");
+            Path indexPath = game.resolve("assets/indexes/1.21.4.json");
             Files.createDirectories(clientPath.getParent());
             Files.createDirectories(libraryPath.getParent());
             Files.createDirectories(loggingPath.getParent());
+            Files.createDirectories(indexPath.getParent());
             Files.write(clientPath, clientBytes);
             Files.write(libraryPath, libraryBytes);
             Files.write(loggingPath, loggingBytes);
+            Files.write(indexPath, indexBytes);
 
             LibraryPlatform linux = new LibraryPlatform("linux", "aarch64", "6.1.0",
                     java.util.Collections.emptyMap());
@@ -851,6 +856,45 @@ public final class CoreTests {
                     "launch preflight verifies metadata-required Java runtime major");
             eq(result.getClasspath(), preflight.getClasspath().getClasspath(),
                     "launch preflight returns the checksum-verified classpath");
+
+            VersionArgumentSet launchArguments = new VersionArgumentSet(
+                    java.util.Collections.singletonList(new VersionArgumentSet.ArgumentEntry(
+                            java.util.Collections.singletonList("--version"),
+                            java.util.Collections.emptyList())),
+                    java.util.Collections.emptyList());
+            VersionDetails coordinatorDetails = new VersionDetails("1.21.4", "net.minecraft.client.main.Main",
+                    "1.21.4", assetIndex, clientArtifact, hostMajor,
+                    Arrays.asList(linuxLibrary, duplicateLibrary, windowsLibrary),
+                    launchArguments, null, logging);
+            Path nativesDirectory = game.resolve("natives/1.21.4");
+            Files.createDirectories(nativesDirectory);
+            LaunchContext launchContext = new LaunchContext.Builder("Steve_123",
+                    "12345678-1234-1234-1234-1234567890ab", "test-access-token")
+                    .gameDirectory(game).assetsRoot(game.resolve("assets"))
+                    .librariesDirectory(game.resolve("libraries")).nativesDirectory(nativesDirectory)
+                    .classpath(result.getClasspath()).loggingConfigPath(result.getLoggingConfigurationPath())
+                    .platform(linux).build();
+            LaunchCoordinator.LaunchResult launchResult = new LaunchCoordinator().launch(
+                    coordinatorDetails, launchContext, hostJava, CancellationToken.NONE, 15_000, null);
+            yes(!launchResult.isSuccess(),
+                    "launch coordinator reports nonzero child exit for deliberately invalid fixture client");
+            yes(launchResult.getElapsedMillis() >= 0,
+                    "launch coordinator reports child process timing");
+            LaunchContext mismatchedClasspath = new LaunchContext.Builder("Steve_123",
+                    "12345678-1234-1234-1234-1234567890ab", "test-access-token")
+                    .gameDirectory(game).assetsRoot(game.resolve("assets"))
+                    .librariesDirectory(game.resolve("libraries")).nativesDirectory(nativesDirectory)
+                    .classpath("unverified-classpath").loggingConfigPath(result.getLoggingConfigurationPath())
+                    .platform(linux).build();
+            io(() -> {
+                try {
+                    new LaunchCoordinator().launch(coordinatorDetails, mismatchedClasspath, hostJava,
+                            CancellationToken.NONE, 15_000, null);
+                } catch (InterruptedException exception) {
+                    Thread.currentThread().interrupt();
+                    throw new IOException("Interrupted during launch classpath mismatch test", exception);
+                }
+            }, "launch coordinator rejects a classpath that differs from verified installed files");
             VersionDetails wrongRuntimeDetails = new VersionDetails("1.21.4", "net.minecraft.client.main.Main",
                     "1.21.4", assetIndex, clientArtifact, hostMajor == 8 ? 9 : 8,
                     Arrays.asList(linuxLibrary, duplicateLibrary, windowsLibrary),
