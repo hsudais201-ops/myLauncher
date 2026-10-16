@@ -352,7 +352,7 @@ def patch_upstream(upstream: Path) -> None:
         raise ValueError("The upstream SELECT_AUTH_METHOD event is not wired to the account selector")
 
     auth_listener = re.search(
-        r"private\\s+final\\s+ExtraListener<Boolean>\\s+mSelectAuthMethod\\s*=\\s*\\(key,\\s*value\\)\\s*->\\s*\\{(?P<body>.*?)^\\s*\\};",
+        r"private\s+final\s+ExtraListener<Boolean>\s+mSelectAuthMethod\s*=\s*\(key,\s*value\)\s*->\s*\{(?P<body>.*?)^\s*\};",
         activity_text,
         flags=re.DOTALL | re.MULTILINE,
     )
