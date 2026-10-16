@@ -60,7 +60,7 @@ Then fetch the pinned upstream source and build:
 
 ## Verification and limitations
 
-As of 2026-10-16, GitHub Actions runner provisioning is the immediate build blocker. The latest APK build, [run 38880101851](https://github.com/hsudais201-ops/myLauncher/actions/runs/38880101851), failed as job `116904492686` before any step ran; there are no artifacts and downloading its logs returned `BlobNotFound`. The earlier [build run 38873369124](https://github.com/hsudais201-ops/myLauncher/actions/runs/38873369124) and [runner diagnostic run 38872830228](https://github.com/hsudais201-ops/myLauncher/actions/runs/38872830228) were also retried and failed before steps executed.
+As of 2026-10-16, GitHub Actions runner provisioning is still the immediate build blocker. The latest APK build, [run 38880643713](https://github.com/hsudais201-ops/myLauncher/actions/runs/38880643713), failed as job `116906275606` with zero steps executed, so the checksum, regression tests, Android build, and artifact upload did not run. The preceding [build run 38880631231](https://github.com/hsudais201-ops/myLauncher/actions/runs/38880631231) and earlier [run 38880101851](https://github.com/hsudais201-ops/myLauncher/actions/runs/38880101851) failed before steps too; log retrieval for run 38880101851 returned `BlobNotFound`. There are no build artifacts from these runs. Across the 89 workflow runs currently visible in the repository, all 89 have failed.
 
 The diagnostic now tests four runner labels side by side. All four jobs failed before recording steps:
 - `ubuntu-24.04`: job `116904025736`
