@@ -149,7 +149,7 @@ jobs:
                 adb shell dumpsys activity activities > /tmp/mylauncher-activities.txt
                 cat /tmp/mylauncher-activities.txt
                 grep -E 'FATAL EXCEPTION|AndroidRuntime|com\.mf\.mylauncher\.debug' /tmp/mylauncher-emulator-logcat.txt | tail -250 || true
-                echo "myLauncher did not reach LauncherActivity in the emulator" >&2
+                echo "APK did not reach LauncherActivity in the emulator" >&2
                 exit 1
               fi
               sleep 2
