@@ -23,7 +23,7 @@ public final class CoreTests {
     private CoreTests() { }
 
     public static void main(String[] args) throws Exception {
-        versions(); catalogs(); manifests(); jsonDecoder(); versionDetails(); launchArguments(); safeArchiveExtraction(); javaProcessRunner(); javaRuntimeProbe(); javaRuntimeLocator(); assetIndex(); assetIndexDownload(); assetLayoutMaterializer(); installationPlan(); classpathResolver(); nativeLibraryPlanner(); installationService(); nativeInstallationService(); verifiedDownloads(); downloader(); profiles(); memory();
+        versions(); catalogs(); manifests(); jsonDecoder(); versionDetails(); launchArguments(); safeArchiveExtraction(); javaProcessRunner(); javaRuntimeProbe(); javaRuntimeLocator(); launchCoordinator(); assetIndex(); assetIndexDownload(); assetLayoutMaterializer(); installationPlan(); classpathResolver(); nativeLibraryPlanner(); installationService(); nativeInstallationService(); verifiedDownloads(); downloader(); profiles(); memory();
         System.out.println("PASS: " + checks + " launcher-core assertions");
     }
 
@@ -519,6 +519,153 @@ public final class CoreTests {
                 });
             }
         }
+    }
+
+    private static void launchCoordinator() throws Exception {
+        byte[] clientBytes = "fake-client-jar".getBytes(StandardCharsets.UTF_8);
+        byte[] libraryBytes = processFixtureJar();
+        byte[] assetIndexBytes = "{\"objects\":{}}".getBytes(StandardCharsets.UTF_8);
+        String clientHash = sha1Hex(clientBytes);
+        String libraryHash = sha1Hex(libraryBytes);
+        String indexHash = sha1Hex(assetIndexBytes);
+        int javaMajor;
+        String spec = System.getProperty("java.specification.version");
+        javaMajor = spec.startsWith("1.") ? Integer.parseInt(spec.substring(2)) : Integer.parseInt(spec);
+
+        DownloadArtifact client = new DownloadArtifact(
+                URI.create("https://piston-data.mojang.com/v1/objects/" + clientHash + "/client.jar"),
+                clientHash, clientBytes.length, null);
+        DownloadArtifact library = new DownloadArtifact(
+                URI.create("https://libraries.minecraft.net/org/mylauncher/test-fixture/1.0/test-fixture-1.0.jar"),
+                libraryHash, libraryBytes.length, "org/mylauncher/test-fixture/1.0/test-fixture-1.0.jar");
+        LibraryMetadata libraryMetadata = new LibraryMetadata("org.mylauncher:test-fixture:1.0",
+                library, java.util.Collections.emptyMap(), java.util.Collections.emptyMap(),
+                java.util.Collections.emptyList(), java.util.Collections.emptyList());
+        AssetIndexMetadata indexMetadata = new AssetIndexMetadata("1.21.4",
+                URI.create("https://piston-meta.mojang.com/v1/packages/" + indexHash + "/1.21.4.json"),
+                indexHash, assetIndexBytes.length, 1000);
+        VersionArgumentSet arguments = new VersionArgumentSet(
+                java.util.Collections.singletonList(new VersionArgumentSet.ArgumentEntry(
+                        Arrays.asList("--echo", "{auth_player_name}", "--version", "{version_name}"),
+                        java.util.Collections.emptyList())),
+                java.util.Collections.emptyList());
+        VersionDetails details = new VersionDetails("1.21.4",
+                "com.mf.mylauncher.core.ProcessEchoMain", "1.21.4", indexMetadata, client,
+                javaMajor, java.util.Collections.singletonList(libraryMetadata), arguments, null);
+        LibraryPlatform platform = new LibraryPlatform("linux", System.getProperty("os.arch"),
+                System.getProperty("os.version"), java.util.Collections.emptyMap());
+        Path temporary = Files.createTempDirectory("mylauncher-launch-coordinator-");
+        try {
+            Path game = temporary.resolve("game");
+            Path clientPath = game.resolve("versions/1.21.4/1.21.4.jar");
+            Path libraryPath = game.resolve("libraries/org/mylauncher/test-fixture/1.0/test-fixture-1.0.jar");
+            Path indexPath = game.resolve("assets/indexes/1.21.4.json");
+            Path natives = game.resolve("natives/1.21.4");
+            Files.createDirectories(clientPath.getParent());
+            Files.createDirectories(libraryPath.getParent());
+            Files.createDirectories(indexPath.getParent());
+            Files.createDirectories(natives);
+            Files.write(clientPath, clientBytes);
+            Files.write(libraryPath, libraryBytes);
+            Files.write(indexPath, assetIndexBytes);
+            ClasspathResolver.Result resolved = ClasspathResolver.resolve(details, platform, game);
+            Path javaExecutable = java.nio.file.Paths.get(System.getProperty("java.home"), "bin", "java").toRealPath();
+            LaunchContext context = new LaunchContext.Builder("Runner_1",
+                    "12345678-1234-1234-1234-1234567890ab", "fake-access-token")
+                    .gameDirectory(game).assetsRoot(game.resolve("assets"))
+                    .librariesDirectory(game.resolve("libraries")).nativesDirectory(natives)
+                    .classpath(resolved.getClasspath()).platform(platform).build();
+            List<String> output = java.util.Collections.synchronizedList(new java.util.ArrayList<>());
+            LaunchCoordinator coordinator = new LaunchCoordinator();
+            LaunchCoordinator.LaunchResult launched = coordinator.launch(details, context, javaExecutable,
+                    CancellationToken.NONE, 15_000, (stream, line) -> output.add(stream + ":" + line));
+            yes(launched.isSuccess(), "launch coordinator starts the Java main class successfully");
+            eq(0, launched.getExitCode(), "launch coordinator reports child exit code");
+            eq(javaMajor, launched.getPreflight().getRequiredJavaMajorVersion(),
+                    "launch coordinator returns completed runtime preflight");
+            yes(output.stream().anyMatch(line -> line.contains("--echo|Runner_1|--version|1.21.4")),
+                    "argument placeholders reach the Java process as separate argv values");
+            yes(launched.getElapsedMillis() >= 0, "launch process duration available");
+            yes(launched.getStdoutLineCount() > 0, "launch process stdout drained");
+
+            LaunchContext badClasspath = new LaunchContext.Builder("Runner_1",
+                    "12345678-1234-1234-1234-1234567890ab", "fake-access-token")
+                    .gameDirectory(game).assetsRoot(game.resolve("assets"))
+                    .librariesDirectory(game.resolve("libraries")).nativesDirectory(natives)
+                    .classpath(game.resolve("missing.jar").toString()).platform(platform).build();
+            io(() -> {
+                try { coordinator.launch(details, badClasspath, javaExecutable, CancellationToken.NONE, 15_000, null); }
+                catch (InterruptedException exception) {
+                    Thread.currentThread().interrupt();
+                    throw new IOException("Interrupted during invalid classpath test", exception);
+                }
+            }, "launch coordinator rejects a classpath that differs from verified files");
+
+            Files.write(indexPath, "{}".getBytes(StandardCharsets.UTF_8));
+            io(() -> {
+                try { coordinator.launch(details, context, javaExecutable, CancellationToken.NONE, 15_000, null); }
+                catch (InterruptedException exception) {
+                    Thread.currentThread().interrupt();
+                    throw new IOException("Interrupted during bad asset index test", exception);
+                }
+            }, "launch coordinator rejects a corrupted asset index before process start");
+            Files.write(indexPath, assetIndexBytes);
+
+            Path wrongNatives = game.resolve("natives/wrong");
+            Files.createDirectories(wrongNatives);
+            LaunchContext wrongLayout = new LaunchContext.Builder("Runner_1",
+                    "12345678-1234-1234-1234-1234567890ab", "fake-access-token")
+                    .gameDirectory(game).assetsRoot(game.resolve("assets"))
+                    .librariesDirectory(game.resolve("libraries")).nativesDirectory(wrongNatives)
+                    .classpath(resolved.getClasspath()).platform(platform).build();
+            io(() -> {
+                try { coordinator.launch(details, wrongLayout, javaExecutable, CancellationToken.NONE, 15_000, null); }
+                catch (InterruptedException exception) {
+                    Thread.currentThread().interrupt();
+                    throw new IOException("Interrupted during bad native layout test", exception);
+                }
+            }, "launch coordinator rejects wrong native directory layout");
+
+            Path linkedAssets = game.resolve("linked-assets");
+            try {
+                Files.createSymbolicLink(linkedAssets, game.resolve("assets"));
+                LaunchContext symlinkContext = new LaunchContext.Builder("Runner_1",
+                        "12345678-1234-1234-1234-1234567890ab", "fake-access-token")
+                        .gameDirectory(game).assetsRoot(linkedAssets)
+                        .librariesDirectory(game.resolve("libraries")).nativesDirectory(natives)
+                        .classpath(resolved.getClasspath()).platform(platform).build();
+                io(() -> {
+                    try { coordinator.launch(details, symlinkContext, javaExecutable, CancellationToken.NONE, 15_000, null); }
+                    catch (InterruptedException exception) {
+                        Thread.currentThread().interrupt();
+                        throw new IOException("Interrupted during symlink path test", exception);
+                    }
+                }, "launch coordinator rejects symlinked directories");
+            } catch (UnsupportedOperationException | java.nio.file.FileSystemException exception) {
+                // Skip only where the filesystem forbids symlink creation.
+            }
+        } finally {
+            try (java.util.stream.Stream<Path> paths = Files.walk(temporary)) {
+                paths.sorted(java.util.Comparator.reverseOrder()).forEach(path -> {
+                    try { Files.deleteIfExists(path); }
+                    catch (IOException exception) { throw new java.io.UncheckedIOException(exception); }
+                });
+            }
+        }
+    }
+
+    private static byte[] processFixtureJar() throws IOException {
+        ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+        try (java.util.jar.JarOutputStream jar = new java.util.jar.JarOutputStream(bytes);
+             InputStream classBytes = ProcessEchoMain.class.getResourceAsStream("ProcessEchoMain.class")) {
+            if (classBytes == null) throw new IOException("Process fixture class resource is missing");
+            jar.putNextEntry(new java.util.jar.JarEntry("com/mf/mylauncher/core/ProcessEchoMain.class"));
+            byte[] buffer = new byte[8192];
+            int count;
+            while ((count = classBytes.read(buffer)) != -1) jar.write(buffer, 0, count);
+            jar.closeEntry();
+        }
+        return bytes.toByteArray();
     }
 
     private static void assetIndex() {

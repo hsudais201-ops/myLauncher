@@ -85,6 +85,12 @@ public final class LaunchContext {
     public String getUsername() { return username; }
     public String getUuid() { return uuid; }
     public String getAccessToken() { return accessToken; }
+    public Path getGameDirectoryPath() { return java.nio.file.Paths.get(gameDirectory); }
+    public Path getAssetsRootPath() { return java.nio.file.Paths.get(assetsRoot); }
+    public Path getLibrariesDirectoryPath() { return java.nio.file.Paths.get(librariesDirectory); }
+    public Path getNativesDirectoryPath() { return java.nio.file.Paths.get(nativesDirectory); }
+    public String getClasspath() { return classpath; }
+    public String getLoggingConfigPath() { return loggingConfigPath; }
     public int getMinHeapMiB() { return minHeapMiB; }
     public int getMaxHeapMiB() { return maxHeapMiB; }
     public LibraryPlatform getPlatform() { return platform; }
