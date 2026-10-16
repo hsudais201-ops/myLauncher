@@ -126,6 +126,39 @@ jobs:
           echo "APK_SHA256_PATH=$APK_SHA256_PATH" >> "$GITHUB_ENV"
           echo "APK SHA-256: $(cut -d ' ' -f1 "$APK_SHA256_PATH")" >> upstream/MYLAUNCHER_BUILD_INFO.txt
 
+      - name: Install and launch APK in a headless Android emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          target: google_apis
+          arch: x86_64
+          profile: pixel_5
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -camera-front none
+          script: |
+            set -euo pipefail
+            adb install -r "$APK_PATH"
+            adb shell am force-stop com.mf.mylauncher.debug || true
+            adb shell monkey -p com.mf.mylauncher.debug 1
+            for i in $(seq 1 45); do
+              if adb shell dumpsys activity activities | tr -d '\r' | grep -E 'mResumedActivity.*com\.mf\.mylauncher\.debug/net\.kdt\.pojavlaunch\.LauncherActivity|topResumedActivity.*com\.mf\.mylauncher\.debug/net\.kdt\.pojavlaunch\.LauncherActivity'; then
+                break
+              fi
+              if [ "$i" -eq 45 ]; then
+                adb logcat -d -t 5000 > /tmp/mylauncher-emulator-logcat.txt
+                adb shell dumpsys activity activities > /tmp/mylauncher-activities.txt
+                cat /tmp/mylauncher-activities.txt
+                grep -E 'FATAL EXCEPTION|AndroidRuntime|com\.mf\.mylauncher\.debug' /tmp/mylauncher-emulator-logcat.txt | tail -250 || true
+                echo "myLauncher did not reach LauncherActivity in the emulator" >&2
+                exit 1
+              fi
+              sleep 2
+            done
+            adb shell dumpsys activity activities > /tmp/mylauncher-activities.txt
+            grep -q 'com\.mf\.mylauncher\.debug/net\.kdt\.pojavlaunch\.LauncherActivity' /tmp/mylauncher-activities.txt
+            adb logcat -d -t 5000 > /tmp/mylauncher-emulator-logcat.txt
+            echo "Emulator smoke test passed: APK installed and LauncherActivity resumed."
+
       - name: Upload debug APK
         uses: actions/upload-artifact@v4
         with:
