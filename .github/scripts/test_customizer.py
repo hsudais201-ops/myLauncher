@@ -140,6 +140,15 @@ class MainMenuFragment {
     void onViewCreated(View view) {
         Button mOpenDirectoryButton = view.findViewById(R.id.open_files_button);
         mVersionSpinner = view.findViewById(R.id.mc_version_spinner);
+        mOpenDirectoryButton.setOnClickListener((v)-> {
+            if (Tools.isDemoProfile(v.getContext())) { // Say a different message when on demo profile
+                hasNoOnlineProfileDialog(getActivity(), getString(R.string.demo_unsupported), getString(R.string.change_account));
+            } else if (!hasOnlineProfile()) { // Otherwise display the generic pop-up to log in
+                hasNoOnlineProfileDialog(requireActivity());
+            } else openPath(v.getContext(), getCurrentProfileDirectory(), false);
+
+        });
+        mNewsButton.setOnLongClickListener(v -> true);
     }
 }
 """,
@@ -222,6 +231,9 @@ class SelectAuthFragment {
             self.assertIn("Button mMyLauncherAccountButton = view.findViewById(R.id.mylauncher_account_button);", main_menu)
             self.assertIn("mMyLauncherAccountButton.setOnClickListener", main_menu)
             self.assertIn("ExtraConstants.SELECT_AUTH_METHOD", main_menu)
+            self.assertIn("Tools.isDemoProfile(v.getContext())", main_menu)
+            self.assertIn("else openPath(v.getContext(), getCurrentProfileDirectory(), false);", main_menu)
+            self.assertNotIn("else if (!hasOnlineProfile())", main_menu)
             activity = (root / "app_pojavlauncher/src/main/java/net/kdt/pojavlaunch/LauncherActivity.java").read_text(encoding="utf-8")
             self.assertIn("ExtraCore.addExtraListener(ExtraConstants.SELECT_AUTH_METHOD, mSelectAuthMethod);", activity)
             self.assertIn("Tools.swapFragment(this, SelectAuthFragment.class, SelectAuthFragment.TAG, null);", activity)
