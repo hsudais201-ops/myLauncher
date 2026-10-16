@@ -8,7 +8,7 @@ A personal Minecraft: Java Edition launcher build for Android, customized for lo
 
 - Android 9 (API 28) and newer. Upstream Amethyst declares a lower minimum Android SDK, so this build does not raise it.
 - Intended for testing on devices with 2 GB RAM or less; performance is not guaranteed and varies with CPU, GPU, renderer, version, and free memory.
-- Built-in low-memory defaults: the launcher starts with a 656 MB memory allocation when Android reports at most 2,048 MB total RAM (smaller devices keep Amethyst’s lower tiers). For devices in that RAM tier, the default resolution scaler targets a 480-pixel short screen edge when the edge is larger than 480 pixels; scaling is rounded to the nearest supported 5% step. Saved preferences still take priority, so users can change the values afterward.
+- Built-in low-memory defaults: for devices reporting at most 2,048 MB total RAM, the allocator uses the conservative upstream tiers (296 MB below 1,024 MB, 448 MB below 1,536 MB, and 656 MB from 1,536–2,048 MB). The default resolution scaler targets a 480-pixel short screen edge for that RAM tier when the physical edge is larger than 480 pixels; scaling is rounded to the nearest supported 5% step. Saved preferences still take priority, so users can change the values afterward.
 - Suggested Minecraft settings: use 1.8.9 or 1.12.2, render distance 4–6 chunks, Fast graphics, and no shaders. Set these in Minecraft; this project does not force in-game settings.
 
 ## Account support and interface
@@ -35,7 +35,7 @@ The workflow fetches the exact Amethyst commit `330c6eae3164df64bdc4828e946a9e62
 
 ## Local build
 
-From this repository's root on Linux, clone the upstream source and then run the customization script:
+From this repository's root on Linux, fetch the pinned upstream source and then run the customization script:
 
     git init upstream
     git -C upstream remote add origin https://github.com/AngelAuraMC/Amethyst-Android.git
