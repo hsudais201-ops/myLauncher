@@ -303,7 +303,7 @@ def patch_upstream(upstream: Path) -> None:
     elif directory_allowed not in main_menu_text:
         raise ValueError("Could not make game-directory access available to local profiles safely")
     directory_handler = re.search(
-        r"mOpenDirectoryButton\\.setOnClickListener.*?\\);",
+        r"mOpenDirectoryButton\.setOnClickListener.*?mNewsButton\.setOnLongClickListener",
         main_menu_text,
         flags=re.DOTALL,
     )
