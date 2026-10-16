@@ -410,7 +410,7 @@ def patch_upstream(upstream: Path) -> None:
     preferences_text = replace_idempotently(
         preferences_text,
         "int targetSide = isDevicePowerful ? 1080 : 720;",
-        "int targetSide = isDevicePowerful ? 1080 : (Tools.getTotalDeviceMemory(context) <= 2048 ? 480 : 720);",
+        "int targetSide = Tools.getTotalDeviceMemory(context) <= 2048 ? 480 : (isDevicePowerful ? 1080 : 720);",
         str(launcher_preferences),
     )
     preferences_text = replace_idempotently(
@@ -419,8 +419,10 @@ def patch_upstream(upstream: Path) -> None:
         "if (deviceRam <= 2048) return 512;",
         str(launcher_preferences),
     )
-    if "int targetSide = isDevicePowerful ? 1080 : 720;" in preferences_text:
-        raise ValueError("Low-memory resolution target was not applied")
+    if "int targetSide = Tools.getTotalDeviceMemory(context) <= 2048 ? 480 : (isDevicePowerful ? 1080 : 720);" not in preferences_text:
+        raise ValueError("Low-memory resolution target must override the powerful-device heuristic")
+    if "int targetSide = isDevicePowerful ? 1080 :" in preferences_text:
+        raise ValueError("Powerful-device heuristic incorrectly overrides the 2 GB RAM limit")
     if "if (deviceRam < 2048) return 656;" in preferences_text or "if (deviceRam <= 2048) return 656;" in preferences_text:
         raise ValueError("The low-memory RAM allocation was not reduced at the 2 GB boundary")
     if "if (deviceRam <= 2048) return 512;" not in preferences_text:
