@@ -35,13 +35,18 @@ The workflow fetches the exact Amethyst commit `330c6eae3164df64bdc4828e946a9e62
 
 ## Local build
 
-From this repository's root on Linux, fetch the pinned upstream source and then run the customization script:
+From this repository's root on Linux, use Python 3, Git, JDK 21, Android SDK command-line tools, platform `android-37`, and NDK `27.3.13750724`. First run the regression suite:
+
+    python3 -m unittest discover -s .github/scripts -p 'test_*.py' -v
+
+Then fetch the pinned upstream source and build:
 
     git init upstream
     git -C upstream remote add origin https://github.com/AngelAuraMC/Amethyst-Android.git
     git -C upstream fetch --depth 1 origin 330c6eae3164df64bdc4828e946a9e62cc5169e4
     git -C upstream checkout --detach FETCH_HEAD
     git -C upstream submodule update --init --recursive
+    sdkmanager --install 'platforms;android-37' 'ndk;27.3.13750724'
     python3 .github/scripts/customize_amethyst.py upstream
     cd upstream
     ./gradlew :jre_lwjgl3glfw:build :app_pojavlauncher:assembleDebug
