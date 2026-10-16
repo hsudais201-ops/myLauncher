@@ -820,6 +820,35 @@ public final class CoreTests {
                     result.getClasspath(), "classpath string uses host path separator");
             eq(loggingPath.toAbsolutePath().normalize().toString(), result.getLoggingConfigurationPath(),
                     "logging config path resolved from checked asset cache");
+
+            Path hostJava = java.nio.file.Paths.get(System.getProperty("java.home"), "bin", "java").toRealPath();
+            String specificationVersion = System.getProperty("java.specification.version");
+            int hostMajor = specificationVersion.startsWith("1.")
+                    ? Integer.parseInt(specificationVersion.substring(2))
+                    : Integer.parseInt(specificationVersion);
+            VersionDetails hostRuntimeDetails = new VersionDetails("1.21.4", "net.minecraft.client.main.Main",
+                    "1.21.4", assetIndex, clientArtifact, hostMajor,
+                    Arrays.asList(linuxLibrary, duplicateLibrary, windowsLibrary),
+                    VersionArgumentSet.empty(), null, logging);
+            LaunchPreflight.Result preflight = new LaunchPreflight().inspect(hostRuntimeDetails, linux, game,
+                    hostJava, CancellationToken.NONE, 15_000);
+            eq(hostMajor, preflight.getRequiredJavaMajorVersion(),
+                    "launch preflight verifies metadata-required Java runtime major");
+            eq(result.getClasspath(), preflight.getClasspath().getClasspath(),
+                    "launch preflight returns the checksum-verified classpath");
+            VersionDetails wrongRuntimeDetails = new VersionDetails("1.21.4", "net.minecraft.client.main.Main",
+                    "1.21.4", assetIndex, clientArtifact, hostMajor == 8 ? 9 : 8,
+                    Arrays.asList(linuxLibrary, duplicateLibrary, windowsLibrary),
+                    VersionArgumentSet.empty(), null, logging);
+            io(() -> {
+                try {
+                    new LaunchPreflight().inspect(wrongRuntimeDetails, linux, game, hostJava,
+                            CancellationToken.NONE, 15_000);
+                } catch (InterruptedException exception) {
+                    Thread.currentThread().interrupt();
+                    throw new IOException("Interrupted during launch preflight mismatch test", exception);
+                }
+            }, "launch preflight rejects Java runtime major mismatch");
             unsupported(() -> result.getClasspathEntries().clear(), "resolved classpath entries immutable");
             io(() -> ClasspathResolver.resolve(details, linux, game.resolve("missing")),
                     "missing game directory rejected");
