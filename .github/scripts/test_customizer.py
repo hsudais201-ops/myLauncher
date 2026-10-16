@@ -310,6 +310,10 @@ class SelectAuthFragment {
             self.assertIn("mMicrosoftButton.setOnClickListener(v -> Tools.swapFragment", auth_selector)
             for relative in ("src/main/res/layout/fragment_launcher.xml", "src/main/res/layout-land/fragment_launcher.xml"):
                 launcher_layout = (root / "app_pojavlauncher" / relative).read_text(encoding="utf-8")
+                self.assertFalse(
+                    any(line.endswith((" ", "\t")) for line in launcher_layout.splitlines()),
+                    "generated launcher layout must not contain trailing whitespace",
+                )
                 self.assertEqual(launcher_layout.count('android:id="@+id/mylauncher_hero_title"'), 1)
                 self.assertEqual(launcher_layout.count('android:id="@+id/mylauncher_hero_subtitle"'), 1)
                 self.assertEqual(launcher_layout.count('android:id="@+id/mylauncher_account_button"'), 1)
