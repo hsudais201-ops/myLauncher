@@ -22,11 +22,17 @@ jobs:
       - name: Check out myLauncher customizations
         uses: actions/checkout@v4
 
+      - name: Validate customizer and regression suite
+        run: |
+          python3 -m py_compile .github/scripts/customize_amethyst.py .github/scripts/test_customizer.py
+          python3 -m unittest discover -s .github/scripts -p 'test_*.py' -v
+
       - name: Set up Java
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '21'
+          cache: gradle
 
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
@@ -39,9 +45,6 @@ jobs:
 
       - name: Install required Android SDK and NDK
         run: sdkmanager --install 'platforms;android-37' 'ndk;27.3.13750724'
-
-      - name: Test customization script
-        run: python3 -m unittest discover -s .github/scripts -p 'test_*.py' -v
 
       - name: Fetch pinned Amethyst engine and submodules
         run: |
@@ -69,7 +72,7 @@ jobs:
 
       - name: Build GLFW support and debug APK
         working-directory: upstream
-        run: ./gradlew :jre_lwjgl3glfw:build :app_pojavlauncher:assembleDebug --stacktrace
+        run: ./gradlew --no-daemon :jre_lwjgl3glfw:build :app_pojavlauncher:assembleDebug --stacktrace
 
       - name: Confirm APK and inspect package metadata
         run: |
@@ -85,7 +88,10 @@ jobs:
           "$AAPT" dump badging "$APK" > /tmp/mylauncher-badging.txt
           grep -q "package: name='com.mf.mylauncher.debug'" /tmp/mylauncher-badging.txt
           grep -q "application-label:'myLauncher (Debug)'" /tmp/mylauncher-badging.txt
-          echo "Verified APK metadata:"
+          MIN_SDK=$(sed -n "s/^sdkVersion:'\\([0-9][0-9]*\\)'.*/\\1/p" /tmp/mylauncher-badging.txt)
+          test -n "$MIN_SDK"
+          test "$MIN_SDK" -le 28
+          echo "Verified APK metadata (min SDK: $MIN_SDK):"
           grep -E "^(package: name=|application-label:)" /tmp/mylauncher-badging.txt
 
       - name: Upload debug APK
