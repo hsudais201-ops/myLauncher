@@ -9,6 +9,7 @@ Product-owned Java code lives here, separated from CI configuration and generate
 - Asset-index download with declared byte size and SHA-1 verification before JSON parsing; deterministic asset maps and content-addressed resource paths.
 - Verified file downloader: exact HTTPS host allow-list, timeouts, disabled redirects, safe cache paths/no symlink components, temporary file writes, size and SHA-1 verification before atomic promotion, and verified-cache reuse.
 - Deterministic installation-plan generation for the client JAR, platform-rule-matched ordinary library artifacts, and content-addressed asset objects. Identical output payloads are deduplicated; conflicting paths are rejected and unique download sizes are totaled.
+- InstallationService orchestrates per-version metadata, SHA-1/size-verified asset-index download and persistence, then runs the plan using the verified-file cache. It emits immutable byte/task progress snapshots and checks cancellation between stages/tasks and during file transfer.
 - Local profile-name validation, conservative memory defaults, and native Android shell with official version-list refresh and persisted version/profile/memory settings.
 
 ## Android build
@@ -22,4 +23,4 @@ CI assembles the debug APK and checks its package name. The current screen suppo
 
 ## Next steps
 
-Connect the plan to a progress-aware installation service and durable cache metadata. Then add Android-compatible runtime/native-library support, launch arguments, Microsoft authentication and real-device testing. Native-only library classifiers are intentionally excluded from the current plan until Android-specific runtime handling exists.
+Connect InstallationService to an Android install progress/cancellation interface, persist install state, then add Android-compatible runtime/native-library support, launch arguments, Microsoft authentication and real-device testing. Native-only library classifiers are intentionally excluded from the current plan until Android-specific runtime handling exists.

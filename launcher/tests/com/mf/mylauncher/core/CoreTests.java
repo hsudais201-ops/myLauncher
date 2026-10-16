@@ -18,7 +18,7 @@ public final class CoreTests {
     private CoreTests() { }
 
     public static void main(String[] args) throws Exception {
-        versions(); catalogs(); manifests(); jsonDecoder(); versionDetails(); assetIndex(); assetIndexDownload(); installationPlan(); verifiedDownloads(); downloader(); profiles(); memory();
+        versions(); catalogs(); manifests(); jsonDecoder(); versionDetails(); assetIndex(); assetIndexDownload(); installationPlan(); installationService(); verifiedDownloads(); downloader(); profiles(); memory();
         System.out.println("PASS: " + checks + " launcher-core assertions");
     }
 
@@ -313,6 +313,132 @@ public final class CoreTests {
         VersionDetails withConflict = new VersionDetails("1.21.4", "net.minecraft.client.main.Main", "1.21.4",
                 indexMetadata, client, 21, java.util.Arrays.asList(included, conflicting));
         bad(() -> InstallationPlanner.create(withConflict, assets, platform), "conflicting output path metadata rejected");
+    }
+
+    private static void installationService() throws Exception {
+        byte[] clientBytes = "client".getBytes(StandardCharsets.UTF_8);
+        byte[] libraryBytes = "lib".getBytes(StandardCharsets.UTF_8);
+        byte[] assetBytes = "hello".getBytes(StandardCharsets.UTF_8);
+        String clientHash = sha1Hex(clientBytes);
+        String libraryHash = sha1Hex(libraryBytes);
+        String assetHash = sha1Hex(assetBytes);
+        String assetIndexJson = "{\"virtual\":false,\"objects\":{\"demo.txt\":{\"hash\":\""
+                + assetHash + "\",\"size\":" + assetBytes.length + "}}}";
+        byte[] assetIndexBytes = assetIndexJson.getBytes(StandardCharsets.UTF_8);
+        String assetIndexHash = sha1Hex(assetIndexBytes);
+        String metadataUrlPathHash = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+        URI versionMetadataUrl = URI.create("https://piston-meta.mojang.com/v1/packages/"
+                + metadataUrlPathHash + "/1.21.4.json");
+        URI assetIndexUrl = URI.create("https://piston-meta.mojang.com/v1/packages/"
+                + assetIndexHash + "/1.21.4.json");
+        String versionJson = "{\"id\":\"1.21.4\",\"mainClass\":\"net.minecraft.client.main.Main\","
+                + "\"assets\":\"1.21.4\",\"assetIndex\":{\"id\":\"1.21.4\",\"url\":\"" + assetIndexUrl
+                + "\",\"sha1\":\"" + assetIndexHash + "\",\"size\":" + assetIndexBytes.length
+                + ",\"totalSize\":" + assetBytes.length + "},"
+                + "\"downloads\":{\"client\":{\"url\":\"https://piston-data.mojang.com/v1/objects/"
+                + clientHash + "/client.jar\",\"sha1\":\"" + clientHash + "\",\"size\":" + clientBytes.length + "}},"
+                + "\"libraries\":[{\"name\":\"org.demo:lib:1.0\",\"downloads\":{\"artifact\":{\"path\":"
+                + "\"org/demo/lib/1.0/lib-1.0.jar\",\"url\":\"https://libraries.minecraft.net/org/demo/lib.jar\","
+                + "\"sha1\":\"" + libraryHash + "\",\"size\":" + libraryBytes.length + "}}}]}";
+        byte[] versionJsonBytes = versionJson.getBytes(StandardCharsets.UTF_8);
+        MinecraftVersion selected = new MinecraftVersion("1.21.4", "release", versionMetadataUrl, time1);
+        VersionManifestDownloader metadataNetwork = new VersionManifestDownloader(uri -> {
+            if (uri.equals(versionMetadataUrl)) return new Fake(200, versionJsonBytes, versionJsonBytes.length);
+            if (uri.equals(assetIndexUrl)) return new Fake(200, assetIndexBytes, assetIndexBytes.length);
+            throw new IOException("Unexpected metadata URL in test: " + uri);
+        });
+
+        Map<String, byte[]> payloads = new LinkedHashMap<>();
+        URI clientUrl = URI.create("https://piston-data.mojang.com/v1/objects/" + clientHash + "/client.jar");
+        URI libraryUrl = URI.create("https://libraries.minecraft.net/org/demo/lib.jar");
+        URI assetUrl = URI.create("https://resources.download.minecraft.net/" + assetHash.substring(0, 2) + "/" + assetHash);
+        payloads.put(clientUrl.toString(), clientBytes);
+        payloads.put(libraryUrl.toString(), libraryBytes);
+        payloads.put(assetUrl.toString(), assetBytes);
+        final int[] transferOpenCount = {0};
+        VerifiedFileDownloader files = new VerifiedFileDownloader(uri -> {
+            byte[] payload = payloads.get(uri.toString());
+            if (payload == null) throw new IOException("Unexpected file URL in test: " + uri);
+            transferOpenCount[0]++;
+            return new FakeFileConnection(200, payload, payload.length);
+        });
+        InstallationService installer = new InstallationService(new VersionDetailsDownloader(metadataNetwork),
+                new AssetIndexDownloader(metadataNetwork), files);
+        Path temporary = Files.createTempDirectory("mylauncher-installer-tests-");
+        try {
+            Path gameDirectory = temporary.resolve("game");
+            List<InstallationProgress> progress = new java.util.ArrayList<>();
+            InstallationResult result = installer.install(selected, gameDirectory,
+                    new LibraryPlatform("linux", "aarch64", "6.1", java.util.Collections.emptyMap()),
+                    CancellationToken.NONE, progress::add);
+            eq("1.21.4", result.getVersionId(), "installer result version retained");
+            eq(3, result.getPlan().getTaskCount(), "installer executes planned client/library/asset tasks");
+            eq(3, result.getDownloadedTaskCount(), "all planned files downloaded on first run");
+            eq(0, result.getCachedTaskCount(), "first install contains no cached task hits");
+            eq(transferOpenCount[0], 3, "exact planned file count requested");
+            eq(14L, result.getPlan().getTotalBytes(), "planned install size includes each unique payload");
+            eq("client", new String(Files.readAllBytes(gameDirectory.resolve("versions/1.21.4/1.21.4.jar")), StandardCharsets.UTF_8),
+                    "client JAR stored at version path");
+            eq("lib", new String(Files.readAllBytes(gameDirectory.resolve("libraries/org/demo/lib/1.0/lib-1.0.jar")), StandardCharsets.UTF_8),
+                    "library stored at Maven path");
+            eq("hello", new String(Files.readAllBytes(gameDirectory.resolve("assets/objects/" + assetHash.substring(0, 2) + "/" + assetHash)), StandardCharsets.UTF_8),
+                    "asset object stored at content-addressed cache path");
+            eq(assetIndexJson, new String(Files.readAllBytes(result.getAssetIndexPath()), StandardCharsets.UTF_8),
+                    "verified asset index JSON persisted under assets/indexes");
+            yes(progress.get(progress.size() - 1).getStage() == InstallationProgress.Stage.COMPLETED,
+                    "successful installation ends with completed progress");
+            eq(100, progress.get(progress.size() - 1).getPercent(), "completed progress is 100 percent");
+            for (int i = 1; i < progress.size(); i++) {
+                yes(progress.get(i).getCompletedBytes() >= progress.get(i - 1).getCompletedBytes(),
+                        "progress byte count is monotonic");
+            }
+
+            InstallationService cacheInstaller = new InstallationService(new VersionDetailsDownloader(metadataNetwork),
+                    new AssetIndexDownloader(metadataNetwork),
+                    new VerifiedFileDownloader(uri -> { throw new AssertionError("verified cache should avoid file network request"); }));
+            InstallationResult cached = cacheInstaller.install(selected, gameDirectory,
+                    new LibraryPlatform("linux", "aarch64", "6.1", java.util.Collections.emptyMap()));
+            eq(0, cached.getDownloadedTaskCount(), "second install makes no duplicate downloads");
+            eq(3, cached.getCachedTaskCount(), "second install reuses every verified file");
+            yes(Files.isRegularFile(cached.getAssetIndexPath()), "verified asset index remains available");
+
+            Path cancelledDirectory = temporary.resolve("cancelled-game");
+            final boolean[] cancelled = {false};
+            final boolean[] sawCompletedTask = {false};
+            InstallationService cancellableInstaller = new InstallationService(new VersionDetailsDownloader(metadataNetwork),
+                    new AssetIndexDownloader(metadataNetwork), new VerifiedFileDownloader(uri -> {
+                        byte[] payload = payloads.get(uri.toString());
+                        if (payload == null) throw new IOException("Unexpected file URL in cancellation test: " + uri);
+                        return new FakeFileConnection(200, payload, payload.length);
+                    }));
+            try {
+                cancellableInstaller.install(selected, cancelledDirectory,
+                        new LibraryPlatform("linux", "aarch64", "6.1", java.util.Collections.emptyMap()),
+                        () -> cancelled[0], snapshot -> {
+                            if (snapshot.getStage() == InstallationProgress.Stage.DOWNLOADING
+                                    && snapshot.getCompletedTasks() >= 1) {
+                                cancelled[0] = true;
+                                sawCompletedTask[0] = true;
+                            }
+                        });
+                throw new AssertionError("cancellation should stop before the next task");
+            } catch (java.io.InterruptedIOException expected) {
+                checks++;
+            }
+            yes(sawCompletedTask[0], "cancellation fixture stopped after one complete task");
+            int downloadedBeforeCancellation = 0;
+            try (java.util.stream.Stream<Path> paths = Files.walk(cancelledDirectory)) {
+                downloadedBeforeCancellation = (int) paths.filter(Files::isRegularFile)
+                        .filter(path -> !path.toString().endsWith(".json")).count();
+            }
+            eq(1, downloadedBeforeCancellation, "cancelled installation leaves only completed verified task and no partial files");
+        } finally {
+            try (java.util.stream.Stream<Path> paths = Files.walk(temporary)) {
+                paths.sorted(java.util.Comparator.reverseOrder()).forEach(path -> {
+                    try { Files.deleteIfExists(path); } catch (IOException exception) { throw new java.io.UncheckedIOException(exception); }
+                });
+            }
+        }
     }
 
     private static void verifiedDownloads() throws Exception {

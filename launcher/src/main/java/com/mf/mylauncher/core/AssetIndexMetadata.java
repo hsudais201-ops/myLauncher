@@ -17,9 +17,7 @@ public final class AssetIndexMetadata {
         if (sizeBytes <= 0 || totalSizeBytes < 0) {
             throw new IllegalArgumentException("Asset index sizes are invalid");
         }
-        if (totalSizeBytes > 0 && totalSizeBytes < sizeBytes) {
-            throw new IllegalArgumentException("Asset index total size cannot be smaller than index file size");
-        }
+        // totalSize describes referenced asset payloads, not the index JSON file itself.
         this.id = id;
         this.artifact = new DownloadArtifact(url, sha1, sizeBytes, null);
         this.totalSizeBytes = totalSizeBytes;

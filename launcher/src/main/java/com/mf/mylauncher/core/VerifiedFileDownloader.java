@@ -1,6 +1,7 @@
 package com.mf.mylauncher.core;
 
 import java.io.IOException;
+import java.io.InterruptedIOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.URI;
@@ -58,6 +59,18 @@ public final class VerifiedFileDownloader {
     /** Download a trusted artifact into a checked relative cache path. Verified cache hits are reused. */
     public DownloadResult download(URI source, Path cacheRoot, String relativePath,
                                    long expectedSizeBytes, String expectedSha1) throws IOException {
+        return download(source, cacheRoot, relativePath, expectedSizeBytes, expectedSha1,
+                CancellationToken.NONE, transferred -> { });
+    }
+
+    /** Variant supporting cooperative cancellation and per-file byte progress. */
+    public DownloadResult download(URI source, Path cacheRoot, String relativePath,
+                                   long expectedSizeBytes, String expectedSha1,
+                                   CancellationToken cancellation, TransferProgressListener progress)
+            throws IOException {
+        if (cancellation == null) throw new IllegalArgumentException("Cancellation token is required");
+        if (progress == null) throw new IllegalArgumentException("Transfer progress listener is required");
+        checkCancelled(cancellation);
         validateSource(source);
         validateRelativePath(relativePath);
         validateExpectedMetadata(expectedSizeBytes, expectedSha1);
@@ -72,6 +85,7 @@ public final class VerifiedFileDownloader {
         prepareParentDirectories(root, destination.getParent());
         rejectSymlink(destination);
 
+        checkCancelled(cancellation);
         if (Files.exists(destination, LinkOption.NOFOLLOW_LINKS)) {
             if (!Files.isRegularFile(destination, LinkOption.NOFOLLOW_LINKS)) {
                 throw new IOException("Cache destination exists and is not a regular file");
@@ -105,7 +119,10 @@ public final class VerifiedFileDownloader {
             byte[] buffer = new byte[BUFFER_SIZE];
             try (InputStream input = connection.getInputStream(); OutputStream output = Files.newOutputStream(temporary)) {
                 int count;
-                while ((count = input.read(buffer)) != -1) {
+                while (true) {
+                    checkCancelled(cancellation);
+                    count = input.read(buffer);
+                    if (count == -1) break;
                     if (count == 0) continue;
                     if (total > expectedSizeBytes - count) {
                         throw new IOException("Downloaded file exceeds the expected size");
@@ -113,8 +130,11 @@ public final class VerifiedFileDownloader {
                     total += count;
                     digest.update(buffer, 0, count);
                     output.write(buffer, 0, count);
+                    progress.onBytesTransferred(total);
+                    checkCancelled(cancellation);
                 }
             }
+            checkCancelled(cancellation);
             if (total != expectedSizeBytes) throw new IOException("Downloaded file size did not match metadata");
             String actualSha1 = toHex(digest.digest());
             if (!actualSha1.equalsIgnoreCase(expectedSha1)) throw new IOException("Downloaded file SHA-1 did not match metadata");
@@ -131,6 +151,67 @@ public final class VerifiedFileDownloader {
             connection.disconnect();
             if (temporary != null) Files.deleteIfExists(temporary);
         }
+    }
+
+    /**
+     * Writes already downloaded bytes to cache only when their SHA-1 matches metadata.
+     * Intended for a small metadata document whose network response was already verified.
+     */
+    public DownloadResult storeVerifiedBytes(byte[] content, Path cacheRoot,
+                                             String relativePath, String expectedSha1) throws IOException {
+        if (content == null) throw new IllegalArgumentException("Content bytes are required");
+        validateRelativePath(relativePath);
+        validateExpectedMetadata(content.length, expectedSha1);
+        String actualSha1 = toHex(sha1Digest().digest(content));
+        if (!actualSha1.equalsIgnoreCase(expectedSha1)) {
+            throw new IOException("Content SHA-1 did not match metadata");
+        }
+        if (cacheRoot == null) throw new IllegalArgumentException("Cache root is required");
+        Path root = cacheRoot.toAbsolutePath().normalize();
+        prepareRoot(root);
+        Path destination = root.resolve(relativePath.replace('/', java.io.File.separatorChar)).normalize();
+        if (!destination.startsWith(root) || destination.equals(root)) {
+            throw new IOException("Resolved cache path escapes the cache root");
+        }
+        prepareParentDirectories(root, destination.getParent());
+        rejectSymlink(destination);
+        if (Files.exists(destination, LinkOption.NOFOLLOW_LINKS)) {
+            if (!Files.isRegularFile(destination, LinkOption.NOFOLLOW_LINKS)) {
+                throw new IOException("Cache destination exists and is not a regular file");
+            }
+            if (isVerified(destination, content.length, expectedSha1)) {
+                return new DownloadResult(destination, content.length, true);
+            }
+        }
+
+        Path temporary = Files.createTempFile(destination.getParent(), ".mylauncher-metadata-", ".part");
+        try {
+            Files.write(temporary, content);
+            if (!isVerified(temporary, content.length, expectedSha1)) {
+                throw new IOException("Stored metadata failed verification");
+            }
+            rejectSymlink(destination);
+            try {
+                Files.move(temporary, destination, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
+            } catch (AtomicMoveNotSupportedException exception) {
+                Files.move(temporary, destination, StandardCopyOption.REPLACE_EXISTING);
+            }
+            return new DownloadResult(destination, content.length, false);
+        } finally {
+            Files.deleteIfExists(temporary);
+        }
+    }
+
+    private static void checkCancelled(CancellationToken cancellation) throws InterruptedIOException {
+        if (Thread.currentThread().isInterrupted() || cancellation.isCancelled()) {
+            throw new InterruptedIOException("Minecraft download was cancelled");
+        }
+    }
+
+    @FunctionalInterface
+    public interface TransferProgressListener {
+        /** Number of bytes received for the current file so far. */
+        void onBytesTransferred(long bytesReceived);
     }
 
     public static boolean isApprovedDownloadUri(URI uri) {

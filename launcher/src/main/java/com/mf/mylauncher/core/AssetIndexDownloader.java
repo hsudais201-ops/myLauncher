@@ -20,6 +20,11 @@ public final class AssetIndexDownloader {
     }
 
     public AssetIndex download(AssetIndexMetadata metadata) throws IOException {
+        return downloadDocument(metadata).getIndex();
+    }
+
+    /** Downloads, verifies and parses the document while retaining the exact JSON for assets/indexes. */
+    public DownloadedAssetIndex downloadDocument(AssetIndexMetadata metadata) throws IOException {
         if (metadata == null) throw new IllegalArgumentException("Asset-index metadata is required");
         String json = network.downloadMetadata(metadata.getUrl());
         byte[] bytes = json.getBytes(StandardCharsets.UTF_8);
@@ -31,10 +36,24 @@ public final class AssetIndexDownloader {
             throw new IOException("Asset-index JSON SHA-1 did not match version metadata");
         }
         try {
-            return AssetIndexJsonDecoder.decode(json);
+            AssetIndex index = AssetIndexJsonDecoder.decode(json);
+            return new DownloadedAssetIndex(json, index);
         } catch (IllegalArgumentException exception) {
             throw new IOException("Minecraft asset-index JSON was invalid", exception);
         }
+    }
+
+    public static final class DownloadedAssetIndex {
+        private final String json;
+        private final AssetIndex index;
+
+        private DownloadedAssetIndex(String json, AssetIndex index) {
+            this.json = json;
+            this.index = index;
+        }
+
+        public String getJson() { return json; }
+        public AssetIndex getIndex() { return index; }
     }
 
     private static String sha1(byte[] bytes) {
