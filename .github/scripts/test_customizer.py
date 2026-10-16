@@ -92,7 +92,7 @@ class LocalLoginFragment {
     }
 
     private boolean checkEditText() {
-        String text = "name";
+        String text = mUsernameEditText.getText().toString();
         Matcher matcher = mUsernameValidationPattern.matcher(text);
         return !(text.isEmpty()
                 || text.length() < 3
