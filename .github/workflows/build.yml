@@ -59,7 +59,9 @@ jobs:
           test "$ACTUAL_UPSTREAM_COMMIT" = "$EXPECTED_UPSTREAM_COMMIT"
 
       - name: Apply and inspect myLauncher customization
-        run: python3 .github/scripts/customize_amethyst.py upstream
+        run: |
+          python3 .github/scripts/customize_amethyst.py upstream
+          git -C upstream diff --check
 
       - name: Record upstream revision
         run: |
