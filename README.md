@@ -13,7 +13,7 @@ A personal Minecraft: Java Edition launcher build for Android, customized for lo
 
 ## Account support and interface
 
-- The launcher retains Amethyst's Microsoft account sign-in and local/offline profile flow. The custom patch removes a guard that incorrectly sent users back to the main menu when no online account existed, and makes the local username field behave like a username field.
+- The launcher retains Amethyst's Microsoft account sign-in and local/offline profile flow. The custom patch removes the online-account gate in the account selector and the local-login screen, so a local profile can be created without first adding a Microsoft account. The local username field is configured as a username field.
 - An offline profile is only a local player name; it is **not** a Microsoft-authenticated Minecraft account. Servers requiring authenticated/online-mode accounts may reject it. Do not use offline mode to impersonate another player.
 - The launcher home screen gets a lightweight myLauncher title/subtitle header plus a dedicated **Add account** shortcut in portrait and landscape. The shortcut opens the existing Microsoft/local account selector. This adds no UI library or significant runtime dependency.
 
