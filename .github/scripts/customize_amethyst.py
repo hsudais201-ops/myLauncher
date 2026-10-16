@@ -137,7 +137,7 @@ def patch_upstream(upstream: Path) -> None:
                 raise ValueError(f"Could not find launcher layout insertion point in {layout_path}")
             layout_text = layout_text[:anchor_match.start()] + header + layout_text[anchor_match.start():]
         for button_id in ("news_button", "discord_button"):
-            pattern = re.compile(r'(<com\.kdt\.mcgui\.LauncherMenuButton\s+android:id="@\+id/' + button_id + r'".*?/\s*)', re.DOTALL)
+            pattern = re.compile(r'(<com\.kdt\.mcgui\.LauncherMenuButton\s+android:id="@\+id/' + button_id + r'".*?/>\s*)', re.DOTALL)
             match = pattern.search(layout_text)
             if not match:
                 raise ValueError(f"Could not find {button_id} in {layout_path}")
