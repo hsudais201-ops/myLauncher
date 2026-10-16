@@ -10,7 +10,7 @@ This directory contains the product-owned launcher core, separated from CI autom
 - Rule-based modern game/JVM argument parsing, legacy `minecraftArguments` tokenization, and argv building without shell concatenation.
 - Verified classpath resolution and launch preflight; runtime-major probe and private-runtime lookup; launch coordinator validates install paths/index/classpath/runtime, then supervises a Java child process.
 - Explicit-target native classifier planning; checksum-verified native downloads; cancellation-aware single/multi-archive extraction with exclusions, traversal/symlink rejection, size caps, duplicate-file rejection and staged publication.
-- A dependency-free core regression suite; the current launch-coordinator commit passed 378 assertions under JDK 21.
+- A dependency-free core regression suite; the current launch-coordinator commit passed 371 assertions under JDK 21.
 
 ## Run tests
 
