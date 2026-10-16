@@ -32,7 +32,12 @@ public final class SafeArchiveExtractor {
      * match one exact relative entry path.
      */
     public static ExtractionResult extract(Path archive, Path destination, List<String> excludes) throws IOException {
-        return extractAll(Collections.singletonList(new ArchiveSpec(archive, excludes)), destination);
+        return extractAll(Collections.singletonList(new ArchiveSpec(archive, excludes)), destination, CancellationToken.NONE);
+    }
+
+    public static ExtractionResult extract(Path archive, Path destination, List<String> excludes,
+                                           CancellationToken cancellation) throws IOException {
+        return extractAll(Collections.singletonList(new ArchiveSpec(archive, excludes)), destination, cancellation);
     }
 
     /**
@@ -40,6 +45,14 @@ public final class SafeArchiveExtractor {
      * Duplicate unexcluded file names across archives are rejected rather than silently overwritten.
      */
     public static ExtractionResult extractAll(List<ArchiveSpec> archives, Path destination) throws IOException {
+        return extractAll(archives, destination, CancellationToken.NONE);
+    }
+
+    /** Cancellation aborts before publishing staging, preserving the previous destination. */
+    public static ExtractionResult extractAll(List<ArchiveSpec> archives, Path destination,
+                                              CancellationToken cancellation) throws IOException {
+        if (cancellation == null) throw new IllegalArgumentException("Cancellation token is required");
+        checkCancelled(cancellation);
         if (archives == null || archives.isEmpty()) {
             throw new IllegalArgumentException("At least one native archive is required");
         }
@@ -75,7 +88,8 @@ public final class SafeArchiveExtractor {
             MutableStats stats = new MutableStats();
             Set<String> seenFiles = new HashSet<>();
             for (ArchiveSpec spec : validatedArchives) {
-                extractInto(spec.archive, staging, spec.excludes, stats, seenFiles);
+                checkCancelled(cancellation);
+                extractInto(spec.archive, staging, spec.excludes, stats, seenFiles, cancellation);
             }
 
             rejectSymlink(target);
@@ -110,12 +124,14 @@ public final class SafeArchiveExtractor {
     }
 
     private static void extractInto(Path archive, Path staging, List<String> excludes,
-                                    MutableStats stats, Set<String> seenFiles) throws IOException {
+                                    MutableStats stats, Set<String> seenFiles,
+                                    CancellationToken cancellation) throws IOException {
         byte[] buffer = new byte[BUFFER_SIZE];
         try (InputStream fileInput = Files.newInputStream(archive);
              ZipInputStream zip = new ZipInputStream(fileInput)) {
             ZipEntry entry;
             while ((entry = zip.getNextEntry()) != null) {
+                checkCancelled(cancellation);
                 stats.entryCount++;
                 if (stats.entryCount > MAX_ENTRIES) throw new IOException("Native archive collection contains too many ZIP entries");
 
@@ -149,6 +165,7 @@ public final class SafeArchiveExtractor {
                     long entryBytes = 0;
                     int count;
                     while ((count = zip.read(buffer)) != -1) {
+                        checkCancelled(cancellation);
                         if (count == 0) continue;
                         entryBytes += count;
                         stats.bytesRead += count;
@@ -169,6 +186,12 @@ public final class SafeArchiveExtractor {
                     zip.closeEntry();
                 }
             }
+        }
+    }
+
+    private static void checkCancelled(CancellationToken cancellation) throws java.io.InterruptedIOException {
+        if (Thread.currentThread().isInterrupted() || cancellation.isCancelled()) {
+            throw new java.io.InterruptedIOException("Native archive extraction was cancelled");
         }
     }
 

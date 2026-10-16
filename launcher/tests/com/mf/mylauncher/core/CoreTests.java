@@ -345,6 +345,21 @@ public final class CoreTests {
                     "first archive content retained in combined native directory");
             eq("b", new String(Files.readAllBytes(combinedDestination.resolve("lib/b.so")), StandardCharsets.UTF_8),
                     "second archive content retained in combined native directory");
+
+            Path cancelDestination = temporary.resolve("natives/cancelled");
+            Files.createDirectories(cancelDestination);
+            Files.write(cancelDestination.resolve("keep.txt"), "old-native".getBytes(StandardCharsets.UTF_8));
+            java.util.concurrent.atomic.AtomicInteger cancellationChecks = new java.util.concurrent.atomic.AtomicInteger();
+            CancellationToken cancelDuringExtraction = () -> cancellationChecks.incrementAndGet() >= 4;
+            io(() -> SafeArchiveExtractor.extractAll(
+                    java.util.Collections.singletonList(new SafeArchiveExtractor.ArchiveSpec(archiveOne,
+                            java.util.Collections.emptyList())),
+                    cancelDestination, cancelDuringExtraction), "cancellation interrupts native extraction");
+            eq("old-native", new String(Files.readAllBytes(cancelDestination.resolve("keep.txt")),
+                    StandardCharsets.UTF_8), "cancelled extraction preserves previous native directory");
+            yes(!Files.exists(cancelDestination.resolve("lib/a.so")),
+                    "cancelled extraction does not publish partial native files");
+
             yes(!Files.exists(combinedDestination.resolve("META-INF/MANIFEST.MF")),
                     "per-archive excludes prevent duplicate manifest files");
 

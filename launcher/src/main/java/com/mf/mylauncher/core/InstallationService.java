@@ -121,7 +121,7 @@ public final class InstallationService {
                 }
                 archives.add(new SafeArchiveExtractor.ArchiveSpec(archivePath, nativeArchive.getExtractionExcludes()));
             }
-            SafeArchiveExtractor.extractAll(archives, gameRoot.resolve("natives").resolve(details.getId()));
+            SafeArchiveExtractor.extractAll(archives, gameRoot.resolve("natives").resolve(details.getId()), cancellation);
         }
         checkCancelled(cancellation);
         publish(listener, new InstallationProgress(InstallationProgress.Stage.MATERIALIZING_ASSETS,
