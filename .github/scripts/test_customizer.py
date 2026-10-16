@@ -152,8 +152,13 @@ class LocalLoginFragment {
         launcher_activity.parent.mkdir(parents=True, exist_ok=True)
         launcher_activity.write_text(
             """class LauncherActivity {
-    void connectAccountSelector() {
+    private final ExtraListener<Boolean> mSelectAuthMethod = (key, value) -> {
+        Fragment fragment = getSupportFragmentManager().findFragmentById(mFragmentView.getId());
+        if(!(fragment instanceof MainMenuFragment)) return false;
         Tools.swapFragment(this, SelectAuthFragment.class, SelectAuthFragment.TAG, null);
+        return false;
+    };
+    void connectAccountSelector() {
         ExtraCore.addExtraListener(ExtraConstants.SELECT_AUTH_METHOD, mSelectAuthMethod);
     }
 }
@@ -358,6 +363,21 @@ class SelectAuthFragment {
                 local_login.write_text(login_text.replace(original, replacement, 1), encoding="utf-8")
                 with self.assertRaisesRegex(ValueError, expected_error):
                     customizer.patch_upstream(root)
+
+    def test_rejects_broken_auth_selector_listener(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            self.fixture(root)
+            activity = root / "app_pojavlauncher/src/main/java/net/kdt/pojavlaunch/LauncherActivity.java"
+            text = activity.read_text(encoding="utf-8")
+            good_guard = "if(!(fragment instanceof MainMenuFragment)) return false;"
+            self.assertIn(good_guard, text)
+            activity.write_text(
+                text.replace(good_guard, "if(!(fragment instanceof MainMenuFragment)) Tools.backToMainMenu(this);", 1),
+                encoding="utf-8",
+            )
+            with self.assertRaisesRegex(ValueError, "SELECT_AUTH_METHOD listener"):
+                customizer.patch_upstream(root)
 
     def test_is_idempotent(self) -> None:
         with tempfile.TemporaryDirectory() as temp:

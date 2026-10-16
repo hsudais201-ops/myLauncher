@@ -351,6 +351,33 @@ def patch_upstream(upstream: Path) -> None:
     ):
         raise ValueError("The upstream SELECT_AUTH_METHOD event is not wired to the account selector")
 
+    auth_listener = re.search(
+        r"private\\s+final\\s+ExtraListener<Boolean>\\s+mSelectAuthMethod\\s*=\\s*\\(key,\\s*value\\)\\s*->\\s*\\{(?P<body>.*?)^\\s*\\};",
+        activity_text,
+        flags=re.DOTALL | re.MULTILINE,
+    )
+    if not auth_listener:
+        raise ValueError("The SELECT_AUTH_METHOD listener body is missing")
+    auth_listener_body = " ".join(auth_listener.group("body").split())
+    required_listener_anchors = (
+        "Fragment fragment = getSupportFragmentManager().findFragmentById(mFragmentView.getId());",
+        "if(!(fragment instanceof MainMenuFragment)) return false;",
+        "Tools.swapFragment(this, SelectAuthFragment.class, SelectAuthFragment.TAG, null);",
+        "return false;",
+    )
+    missing_listener_anchors = [
+        anchor for anchor in required_listener_anchors if anchor not in auth_listener_body
+    ]
+    if missing_listener_anchors:
+        raise ValueError(
+            "The SELECT_AUTH_METHOD listener is incomplete or unsafe: "
+            f"{missing_listener_anchors}"
+        )
+    if auth_listener_body.index("if(!(fragment instanceof MainMenuFragment)) return false;") > auth_listener_body.index(
+        "Tools.swapFragment(this, SelectAuthFragment.class, SelectAuthFragment.TAG, null);"
+    ):
+        raise ValueError("The SELECT_AUTH_METHOD listener must check the active fragment before navigation")
+
     main_menu = upstream / "app_pojavlauncher" / "src" / "main" / "java" / "net" / "kdt" / "pojavlaunch" / "fragments" / "MainMenuFragment.java"
     if not main_menu.is_file():
         raise FileNotFoundError(f"Expected main menu fragment is missing: {main_menu}")
