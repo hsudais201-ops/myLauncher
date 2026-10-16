@@ -134,6 +134,24 @@ def patch_upstream(upstream: Path) -> None:
         or "if(!checkEditText())" not in login_text
     ):
         raise ValueError("The upstream offline-login submission/username validation flow is incomplete")
+
+    # Fail closed if upstream changes the local username rules. Local profile names
+    # must remain valid and unique rather than silently admitting unusable profiles.
+    username_validation_anchors = (
+        'mUsernameValidationPattern = Pattern.compile("^[a-zA-Z0-9_]*$");',
+        "Matcher matcher = mUsernameValidationPattern.matcher(text);",
+        "text.isEmpty()",
+        "text.length() < 3",
+        "text.length() > 16",
+        "!matcher.find()",
+        'new File(Tools.DIR_ACCOUNT_NEW + "/" + text + ".json").exists()',
+    )
+    missing_validation = [anchor for anchor in username_validation_anchors if anchor not in login_text]
+    if missing_validation:
+        raise ValueError(
+            "Offline username validation is incomplete; expected username syntax, "
+            f"length, and duplicate-profile guards are missing: {missing_validation}"
+        )
     local_login.write_text(login_text, encoding="utf-8")
 
     login_layout = upstream / "app_pojavlauncher" / "src" / "main" / "res" / "layout" / "fragment_local_login.xml"
