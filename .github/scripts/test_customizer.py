@@ -328,8 +328,10 @@ class SelectAuthFragment {
             self.fixture(root)
             login_layout = root / "app_pojavlauncher/src/main/res/layout/fragment_local_login.xml"
             login_layout.write_text(
-                '<EditText xmlns:android="http://schemas.android.com/apk/res/android" '
-                'android:inputType="textEmailAddress">\n',
+                '<androidx.constraintlayout.widget.ConstraintLayout '
+                'xmlns:android="http://schemas.android.com/apk/res/android">'
+                '<EditText android:inputType="textEmailAddress" />'
+                '<com.kdt.mcgui.MineButton android:text="@string/login_online_login_label" />\n',
                 encoding="utf-8",
             )
             with self.assertRaisesRegex(ValueError, "Generated Android XML is invalid"):
