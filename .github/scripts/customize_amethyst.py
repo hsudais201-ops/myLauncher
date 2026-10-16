@@ -413,13 +413,15 @@ def patch_upstream(upstream: Path) -> None:
     preferences_text = replace_idempotently(
         preferences_text,
         "if (deviceRam < 2048) return 656;",
-        "if (deviceRam <= 2048) return 656;",
+        "if (deviceRam <= 2048) return 512;",
         str(launcher_preferences),
     )
     if "int targetSide = isDevicePowerful ? 1080 : 720;" in preferences_text:
         raise ValueError("Low-memory resolution target was not applied")
-    if "if (deviceRam < 2048) return 656;" in preferences_text:
-        raise ValueError("The 2 GB RAM allocation boundary was not corrected")
+    if "if (deviceRam < 2048) return 656;" in preferences_text or "if (deviceRam <= 2048) return 656;" in preferences_text:
+        raise ValueError("The low-memory RAM allocation was not reduced at the 2 GB boundary")
+    if "if (deviceRam <= 2048) return 512;" not in preferences_text:
+        raise ValueError("The 1.5–2 GB RAM tier must default to a 512 MB heap")
     launcher_preferences.write_text(preferences_text, encoding="utf-8")
 
     validate_xml_files((
@@ -436,7 +438,7 @@ def patch_upstream(upstream: Path) -> None:
     print("  app label: myLauncher")
     print("  application ID: com.mf.mylauncher (debug adds .debug)")
     print("  storage/share authorities: customized")
-    print("  low-memory defaults: conservative upstream RAM tiers and ~480 px short-edge target for <=2 GB")
+    print("  low-memory defaults: 296/448/512 MB RAM tiers and ~480 px short-edge target for <=2 GB")
 
 
 def main(argv: list[str]) -> int:
