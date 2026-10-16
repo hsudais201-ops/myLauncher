@@ -189,6 +189,29 @@ def patch_upstream(upstream: Path) -> None:
         main_menu_text = main_menu_text.replace(listener_anchor, listener_anchor + "\n        " + account_listener, 1)
     main_menu.write_text(main_menu_text, encoding="utf-8")
 
+    # Replace the upstream launcher artwork with a small vector mark that scales cleanly.
+    manifest = upstream / "app_pojavlauncher" / "src" / "main" / "AndroidManifest.xml"
+    if not manifest.is_file():
+        raise FileNotFoundError(f"Expected Android manifest is missing: {manifest}")
+    manifest_text = manifest.read_text(encoding="utf-8")
+    manifest_text = manifest_text.replace('android:icon="@mipmap/ic_launcher"', 'android:icon="@drawable/mylauncher_icon"')
+    manifest_text = manifest_text.replace('android:roundIcon="@mipmap/ic_launcher_round"', 'android:roundIcon="@drawable/mylauncher_icon"')
+    if 'android:icon="@drawable/mylauncher_icon"' not in manifest_text or 'android:roundIcon="@drawable/mylauncher_icon"' not in manifest_text:
+        raise ValueError("Could not apply myLauncher app icon to the Android manifest")
+    manifest.write_text(manifest_text, encoding="utf-8")
+    icon = upstream / "app_pojavlauncher" / "src" / "main" / "res" / "drawable" / "mylauncher_icon.xml"
+    icon.parent.mkdir(parents=True, exist_ok=True)
+    icon.write_text("""<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path android:fillColor="#171B26" android:pathData="M0,0h108v108h-108z" />
+    <path android:fillColor="#7C5CFF" android:pathData="M18,28H32L54,54L76,28H90V80H76V50L54,76L32,50V80H18Z" />
+</vector>
+""", encoding="utf-8")
+
     # The upstream auth selector also blocks local profiles until an online account exists.
     # Replace that gate so users can actually choose the offline account path.
     auth_selector = upstream / "app_pojavlauncher" / "src" / "main" / "java" / "net" / "kdt" / "pojavlaunch" / "fragments" / "SelectAuthFragment.java"
