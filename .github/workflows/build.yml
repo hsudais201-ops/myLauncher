@@ -123,6 +123,30 @@ jobs:
           echo "APK_SHA256_PATH=$APK_SHA256_PATH" >> "$GITHUB_ENV"
           echo "APK SHA-256: $(cut -d ' ' -f1 "$APK_SHA256_PATH")" >> upstream/MYLAUNCHER_BUILD_INFO.txt
 
+      - name: Install and launch APK in a headless Android emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          arch: x86_64
+          profile: pixel_2
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          script: |
+            set -euo pipefail
+            adb wait-for-device
+            adb install -r "$APK_PATH"
+            PACKAGE="com.mf.mylauncher.debug"
+            adb shell pm path "$PACKAGE"
+            adb shell am force-stop "$PACKAGE"
+            adb shell monkey -p "$PACKAGE" -c android.intent.category.LAUNCHER 1
+            sleep 15
+            adb shell pidof "$PACKAGE"
+            adb shell dumpsys activity activities | grep -F "$PACKAGE"
+            if adb logcat -d -s AndroidRuntime:E | grep -E 'FATAL EXCEPTION|Process: com.mf.mylauncher.debug'; then
+              echo "Detected an Android runtime crash during launcher smoke test." >&2
+              exit 1
+            fi
+
       - name: Upload debug APK
         uses: actions/upload-artifact@v4
         with:
