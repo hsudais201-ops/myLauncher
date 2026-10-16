@@ -23,7 +23,7 @@ public final class CoreTests {
     private CoreTests() { }
 
     public static void main(String[] args) throws Exception {
-        versions(); catalogs(); manifests(); jsonDecoder(); versionDetails(); launchArguments(); safeArchiveExtraction(); javaProcessRunner(); assetIndex(); assetIndexDownload(); installationPlan(); installationService(); verifiedDownloads(); downloader(); profiles(); memory();
+        versions(); catalogs(); manifests(); jsonDecoder(); versionDetails(); launchArguments(); safeArchiveExtraction(); javaProcessRunner(); javaRuntimeProbe(); assetIndex(); assetIndexDownload(); installationPlan(); installationService(); verifiedDownloads(); downloader(); profiles(); memory();
         System.out.println("PASS: " + checks + " launcher-core assertions");
     }
 
@@ -342,6 +342,54 @@ public final class CoreTests {
             }
         }
         return bytes.toByteArray();
+    }
+
+    private static void javaRuntimeProbe() throws Exception {
+        eq(8, JavaRuntimeProbe.parseMajorVersion("java version \"1.8.0_442\""), "legacy Java 8 version parsed");
+        eq(17, JavaRuntimeProbe.parseMajorVersion("openjdk version \"17.0.10\" 2024-01-16"), "quoted Java 17 version parsed");
+        eq(21, JavaRuntimeProbe.parseMajorVersion("openjdk 21 2023-09-19"), "bare modern Java major parsed");
+        bad(() -> JavaRuntimeProbe.parseMajorVersion("Java is not installed"), "unknown Java version text rejected");
+        bad(() -> JavaRuntimeProbe.parseMajorVersion(""), "empty Java version output rejected");
+
+        Path temporary = Files.createTempDirectory("mylauncher-runtime-probe-");
+        try {
+            Path working = Files.createDirectories(temporary.resolve("work"));
+            Path javaExecutable = java.nio.file.Paths.get(System.getProperty("java.home"), "bin", "java").toRealPath();
+            String specificationVersion = System.getProperty("java.specification.version");
+            int actualMajor = specificationVersion.startsWith("1.")
+                    ? Integer.parseInt(specificationVersion.substring(2))
+                    : Integer.parseInt(specificationVersion);
+            JavaRuntimeProbe probe = new JavaRuntimeProbe();
+            JavaRuntimeProbe.RuntimeInfo info = probe.inspect(javaExecutable, working, actualMajor,
+                    CancellationToken.NONE, 15_000);
+            eq(actualMajor, info.getMajorVersion(), "runtime probe detects the running JDK major");
+            yes(info.getExecutable().isAbsolute(), "runtime executable path resolved");
+            yes(info.getVersionOutput().toLowerCase(java.util.Locale.ROOT).contains("version"),
+                    "runtime output retained for diagnostics");
+
+            int wrongMajor = actualMajor == 8 ? 9 : 8;
+            try {
+                probe.inspect(javaExecutable, working, wrongMajor, CancellationToken.NONE, 15_000);
+                throw new AssertionError("runtime major mismatch should be rejected");
+            } catch (IOException expected) {
+                checks++;
+                yes(expected.getMessage().contains("requires Java " + wrongMajor),
+                        "runtime mismatch message includes required major version");
+            }
+
+            bad(() -> {
+                try { probe.inspect(javaExecutable, working, 7, CancellationToken.NONE, 1_000); }
+                catch (IOException | InterruptedException exception) {
+                    throw new AssertionError("unsupported requested version should fail before probing", exception);
+                }
+            }, "unsupported required Java version rejected");
+        } finally {
+            try (java.util.stream.Stream<Path> paths = Files.walk(temporary)) {
+                paths.sorted(java.util.Comparator.reverseOrder()).forEach(path -> {
+                    try { Files.deleteIfExists(path); } catch (IOException exception) { throw new java.io.UncheckedIOException(exception); }
+                });
+            }
+        }
     }
 
     private static void assetIndex() {
