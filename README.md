@@ -15,6 +15,7 @@ A personal Minecraft: Java Edition launcher build for Android, customized for lo
 
 - The launcher retains Amethyst's Microsoft account sign-in and local/offline profile flow. The custom patch removes the online-account gate in the account selector and the local-login screen, so a local profile can be created without first adding a Microsoft account. The local username field is configured as a username field.
 - An offline profile is only a local player name; it is **not** a Microsoft-authenticated Minecraft account. Servers requiring authenticated/online-mode accounts may reject it. Do not use offline mode to impersonate another player.
+- An offline profile does not supply game files or bypass Minecraft licensing. The required game version/assets must already be present or downloaded, and downloading them may require an internet connection.
 - Local profiles can browse their game directory. Some upstream utilities, including the JAR installer, retain the upstream online-account requirement; this customization does not remove those separate restrictions.
 - The launcher home screen gets a lightweight myLauncher title/subtitle header plus a dedicated **Add account** shortcut in portrait and landscape. The shortcut opens the existing Microsoft/local account selector.
 - The Android launcher icon is replaced by a lightweight vector mark matching the new dark/purple identity. No UI library or significant runtime dependency is added.
@@ -59,6 +60,16 @@ Then fetch the pinned upstream source and build:
 ## Verification and limitations
 
 The regression tests validate the patching logic when executed. Recent GitHub Actions runs have failed before a runner was assigned (the job has no runner ID and no steps), so those runs have **not** tested the build script or compiled the APK. Check repository Actions availability and the account's Actions usage/billing settings if that persists. GitHub Actions additionally compiles the app when a workflow run succeeds. A successful build is not proof of a real-device gameplay test: Microsoft sign-in, asset downloads, rendering, heat, memory pressure, and FPS still need checking on the target device.
+
+## Manual device smoke test
+
+After a debug APK is available on the target Android 9 device:
+
+1. Install the APK and open **Add account → Local account**.
+2. Create a unique username with 3–16 letters, digits, or underscores and confirm it appears in the account spinner.
+3. Select a previously installed, lightweight Minecraft version (for example 1.8.9), start the game, and test a single-player world.
+4. Return to the launcher and verify that **Open game directory** works with only the local profile.
+5. Verify the Microsoft account button still opens Microsoft sign-in. An actual device test is still required for memory pressure, rendering, and gameplay stability.
 
 ## Upstream and licensing
 
