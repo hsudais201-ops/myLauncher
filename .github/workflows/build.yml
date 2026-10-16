@@ -16,7 +16,7 @@ concurrency:
 jobs:
   build-debug-apk:
     name: Test and build Android APK
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-slim
     timeout-minutes: 90
     steps:
       - name: Check out myLauncher customizations
