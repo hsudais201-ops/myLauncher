@@ -49,6 +49,8 @@ def patch_upstream(upstream: Path) -> None:
         raise ValueError("The patched Gradle file has no expected myLauncher applicationId")
     if "org.angelauramc.amethyst" in build_text:
         raise ValueError("An upstream application ID/authority remains in build.gradle")
+    if build_text.count("'shareProviderAuthority', 'com.mf.mylauncher.scoped.controlfolder'") != 1:
+        raise ValueError("The release share-provider authority is missing or duplicated")
     gradle.write_text(build_text, encoding="utf-8")
 
     strings_text = strings.read_text(encoding="utf-8")
@@ -71,6 +73,7 @@ def patch_upstream(upstream: Path) -> None:
         "'storageProviderAuthorities', 'com.mf.mylauncher.scoped.gamefolder.debug'",
         "'storageProviderAuthorities', 'com.mf.mylauncher.scoped.gamefolder'",
         "'shareProviderAuthority', 'com.mf.mylauncher.scoped.controlfolder.debug'",
+        "'shareProviderAuthority', 'com.mf.mylauncher.scoped.controlfolder'",
     )
     missing_values = [value for value in required_gradle_values if value not in build_text]
     if missing_values:
