@@ -34,7 +34,9 @@ jobs:
           distribution: temurin
           java-version: '21'
       - name: Set up Android SDK tools
-        uses: android-actions/setup-android@v3
+        uses: android-actions/setup-android@v4
+        with:
+          packages: 'platform-tools'
       - name: Accept Android SDK licenses
         run: yes | sdkmanager --licenses
       - name: Install Android platform and build tools
