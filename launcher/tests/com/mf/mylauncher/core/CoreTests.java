@@ -904,20 +904,6 @@ public final class CoreTests {
                 Arrays.asList(nativeOne), VersionArgumentSet.empty(), null);
         bad(() -> InstallationPlanner.create(otherVersion, noAssets, linux, plan),
                 "native plan from another version rejected");
-        AssetIndex noAssets = new AssetIndex(java.util.Collections.emptyMap(), false, false);
-        InstallationPlan withNativeTask = InstallationPlanner.create(details, noAssets, linux, plan);
-        eq(2, withNativeTask.getTaskCount(), "native plan adds one archive to the client plan");
-        eq(1, withNativeTask.count(DownloadTask.Kind.NATIVE), "one native download task planned");
-        eq(799L, withNativeTask.getTotalBytes(), "native bytes included in install total");
-        yes(withNativeTask.getTasks().stream().anyMatch(task ->
-                task.getKind() == DownloadTask.Kind.NATIVE
-                        && task.getRelativePath().equals(archive.getRelativeLibraryPath())),
-                "native archive path connected to install task");
-        VersionDetails otherVersion = new VersionDetails("1.20.6", "net.minecraft.client.main.Main",
-                "1.21.4", indexMetadata, client, 21,
-                Arrays.asList(nativeOne), VersionArgumentSet.empty(), null);
-        bad(() -> InstallationPlanner.create(otherVersion, noAssets, linux, plan),
-                "native plan from another version rejected");
     }
 
     private static void installationService() throws Exception {
