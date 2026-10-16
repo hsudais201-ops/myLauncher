@@ -222,7 +222,7 @@ class SelectAuthFragment {
             self.assertNotIn("Amethyst", strings)
             self.assertIn("myLauncher crashed", strings)
             self.assertIn("rootProject.name='myLauncher'", settings)
-            self.assertIn("if (deviceRam <= 2048) return 656;", prefs)
+            self.assertIn("if (deviceRam <= 2048) return 512;", prefs)
             self.assertIn("Tools.getTotalDeviceMemory(context) <= 2048 ? 480 : 720", prefs)
             local_login = (root / "app_pojavlauncher/src/main/java/net/kdt/pojavlaunch/fragments/LocalLoginFragment.java").read_text(encoding="utf-8")
             login_layout = (root / "app_pojavlauncher/src/main/res/layout/fragment_local_login.xml").read_text(encoding="utf-8")
