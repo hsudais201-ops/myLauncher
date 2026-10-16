@@ -156,14 +156,17 @@ def patch_upstream(upstream: Path) -> None:
     if not validation_method:
         raise ValueError("Offline account checkEditText() username validator is missing")
     username_validation_anchors = (
+        "String text = mUsernameEditText.getText().toString();",
         "Matcher matcher = mUsernameValidationPattern.matcher(text);",
-        "text.isEmpty()",
-        "text.length() < 3",
-        "text.length() > 16",
-        "!matcher.find()",
+        "return !(text.isEmpty() ||",
+        "text.length() < 3 ||",
+        "text.length() > 16 ||",
+        "!matcher.find() ||",
         'new File(Tools.DIR_ACCOUNT_NEW + "/" + text + ".json").exists()',
     )
-    validation_body = validation_method.group("body")
+    # Normalize whitespace so validation checks the operators and their ordering,
+    # not harmless formatting differences in the pinned upstream method.
+    validation_body = " ".join(validation_method.group("body").split())
     missing_validation = [
         anchor for anchor in username_validation_anchors if anchor not in validation_body
     ]

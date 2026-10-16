@@ -337,6 +337,16 @@ class SelectAuthFragment {
                 "String matcher = mUsernameValidationPattern.matcher(text);",
                 "Offline username validation is incomplete",
             ),
+            (
+                "return !(",
+                "return (",
+                "Offline username validation is incomplete",
+            ),
+            (
+                "text.isEmpty()\\n                || text.length() < 3",
+                "text.isEmpty()\\n                && text.length() < 3",
+                "Offline username validation is incomplete",
+            ),
         )
         for original, replacement, expected_error in invalidations:
             with self.subTest(missing_guard=original), tempfile.TemporaryDirectory() as temp:
