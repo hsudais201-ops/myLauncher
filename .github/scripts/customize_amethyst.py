@@ -392,12 +392,14 @@ def patch_upstream(upstream: Path) -> None:
         auth_text,
         flags=re.MULTILINE,
     )
+    microsoft_auth_handler = "mMicrosoftButton.setOnClickListener(v -> Tools.swapFragment(requireActivity(), MicrosoftLoginFragment.class, MicrosoftLoginFragment.TAG, null));"
     if (
         "hasNoOnlineProfileDialog(requireActivity()" in auth_text
         or "import static net.kdt.pojavlaunch.Tools.hasNoOnlineProfileDialog;" in auth_text
         or auth_text.count(new_local_auth) != 1
+        or auth_text.count(microsoft_auth_handler) != 1
     ):
-        raise ValueError("Offline account selection is still gated or its handler is incomplete")
+        raise ValueError("Offline account selection is gated or an account sign-in handler is incomplete")
     auth_selector.write_text(auth_text, encoding="utf-8")
 
     launcher_preferences = upstream / "app_pojavlauncher" / "src" / "main" / "java" / "net" / "kdt" / "pojavlaunch" / "prefs" / "LauncherPreferences.java"
