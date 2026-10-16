@@ -15,7 +15,8 @@ A personal Minecraft: Java Edition launcher build for Android, customized for lo
 
 - The launcher retains Amethyst's Microsoft account sign-in and local/offline profile flow. The custom patch removes the online-account gate in the account selector and the local-login screen, so a local profile can be created without first adding a Microsoft account. The local username field is configured as a username field.
 - An offline profile is only a local player name; it is **not** a Microsoft-authenticated Minecraft account. Servers requiring authenticated/online-mode accounts may reject it. Do not use offline mode to impersonate another player.
-- The launcher home screen gets a lightweight myLauncher title/subtitle header plus a dedicated **Add account** shortcut in portrait and landscape. The shortcut opens the existing Microsoft/local account selector. This adds no UI library or significant runtime dependency.
+- The launcher home screen gets a lightweight myLauncher title/subtitle header plus a dedicated **Add account** shortcut in portrait and landscape. The shortcut opens the existing Microsoft/local account selector.
+- The Android launcher icon is replaced by a lightweight vector mark matching the new dark/purple identity. No UI library or significant runtime dependency is added.
 
 ## Build the APK
 
@@ -29,7 +30,7 @@ The workflow checks out the Amethyst source and submodules at pinned commit `330
 ## Files
 
 - `.github/workflows/build.yml` — repeatable Android build workflow.
-- `.github/scripts/customize_amethyst.py` — deterministic patch for app branding, package/authority IDs, low-memory defaults, offline account access, and the launcher header.
+- `.github/scripts/customize_amethyst.py` — deterministic patch for app branding, package/authority IDs, low-memory defaults, offline account access, launcher header, account shortcut, and vector app icon.
 - `.github/scripts/test_customizer.py` — regression tests for the patch logic, offline login, and launcher header.
 
 ## Local build
