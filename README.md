@@ -1,28 +1,28 @@
 # myLauncher
 
-myLauncher is a Minecraft: Java Edition launcher foundation being rebuilt for Android. Product-owned code lives in `launcher/`, separate from build automation and generated upstream runtime files.
+myLauncher is an Android launcher project for Minecraft: Java Edition. The project keeps its new, independently tested Java core in `launcher/` and builds the real Android launcher on top of the pinned open-source Amethyst-Android engine.
 
-## Current status
+## Two build targets
 
-The tested core loads official version metadata, plans and checksum-verifies client/library/asset downloads, supports progress/cancellation, and builds modern or legacy Java argument lists. Native archive extraction supports multiple archives in a single staged directory with per-archive exclusions, duplicate-file rejection, and preservation of the previous directory on failure. A verified classpath resolver checks client/library/logging files before building an ordered classpath.
+**Actual launcher APK:** the `Build myLauncher APK` workflow fetches the pinned Amethyst-Android source and submodules, applies the project's branding, low-memory defaults, and local-profile customizations, then builds the existing Java-game runtime/renderer launcher. Run it from GitHub Actions or open a pull request that changes `.github/workflows/build.yml` or `.github/scripts/**`. Download the `myLauncher-debug-apk` artifact (APK plus SHA-256 sidecar) from the completed run. The actual APK has not been device-tested by this core regression work; test it on an Android device before relying on gameplay.
 
-The installation service can download and extract native archives when given an explicit target plan. Launch preflight verifies the installed classpath and the selected runtime's required Java major version. The launch coordinator now joins those checks with asset-index integrity, directory-layout validation, argument expansion and process supervision; its end-to-end regression test launches a harmless fixture main class from a test JAR.
+**Core development shell:** the small native Android shell in `launcher/android-app/` is a separate test UI for version selection, file preparation and runtime discovery. It is intentionally not the playable Amethyst app. Its artifact is named `myLauncher-core-shell-debug-apk` so it cannot be confused with the full launcher.
 
-This is not yet a playable launcher. No Android-compatible runtime provider or Android-native library selection is connected, and authenticated Microsoft sign-in, graphics/renderer integration, full real-game launch and real-device testing remain unfinished. The game-launch button stays disabled until those pieces are integrated and tested. Passing core tests or building an APK does not prove Minecraft starts successfully.
+## Isolated Java core
 
-The old Amethyst-based customization/build work is preserved on `backup/pre-clear-2026-10-16` and remains untouched.
+The product-owned code in `launcher/src/main/java/` contains validated version metadata, safe verified downloads, installation planning, asset materialization, native archive extraction, verified classpath resolution, launch-argument generation, runtime checks and process supervision. It has dependency-free regression tests and is not yet wired into Amethyst's existing launch screen; Amethyst currently remains the actual game-launch engine.
 
-## Test the core
-
-Requires a JDK:
+Run the core checks with a JDK:
 
     ./launcher/test.sh
 
-## Build the Android shell
+Run the customizer regression tests with Python 3:
 
-With JDK 17+, Gradle 8.9, and Android SDK platform/build-tools 35 installed:
+    python3 -m unittest discover -s .github/scripts -p 'test_*.py' -v
+
+Build the separate shell APK with JDK 17+, Gradle 8.9 and Android SDK platform/build-tools 35:
 
     cd launcher/android-app
     gradle :app:assembleDebug
 
-GitHub Actions runs the warning-free core regression suite and Android debug APK package validation.
+The existing Android 9+ customization and upstream source pin are preserved on `backup/pre-clear-2026-10-16`. Keep the upstream license/notices and don't treat either a successful unit test or APK compilation as proof of successful Minecraft gameplay. Actual gameplay, Microsoft sign-in, rendering, runtime compatibility, thermal/memory pressure, and FPS still require device testing.
