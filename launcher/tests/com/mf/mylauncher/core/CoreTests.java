@@ -4,6 +4,7 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InterruptedIOException;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -736,10 +737,10 @@ public final class CoreTests {
         Path temporary = Files.createTempDirectory("mylauncher-process-tests-");
         try {
             Path working = Files.createDirectories(temporary.resolve("work"));
-            Path java = java.nio.file.Paths.get(System.getProperty("java.home"), "bin", "java").toRealPath();
+            Path javaExecutable = java.nio.file.Paths.get(System.getProperty("java.home"), "bin", "java").toRealPath();
             JavaProcessRunner runner = new JavaProcessRunner();
             List<String> output = java.util.Collections.synchronizedList(new java.util.ArrayList<>());
-            JavaProcessRunner.Result result = runner.run(java, working, java.util.Collections.singletonList("-version"),
+            JavaProcessRunner.Result result = runner.run(javaExecutable, working, java.util.Collections.singletonList("-version"),
                     CancellationToken.NONE, 15_000, (stream, line) -> output.add(stream + ":" + line));
             yes(result.isSuccess(), "Java process exits successfully");
             yes(result.getElapsedMillis() >= 0, "process duration reported");
@@ -756,7 +757,7 @@ public final class CoreTests {
             cancelThread.setDaemon(true);
             cancelThread.start();
             try {
-                runner.run(java, working, sleeper, cancel::get, 15_000, null);
+                runner.run(javaExecutable, working, sleeper, cancel::get, 15_000, null);
                 throw new AssertionError("cancelled Java process should not report success");
             } catch (InterruptedIOException expected) {
                 checks++;
@@ -766,7 +767,7 @@ public final class CoreTests {
             }
 
             try {
-                runner.run(java, working, sleeper, CancellationToken.NONE, 300, null);
+                runner.run(javaExecutable, working, sleeper, CancellationToken.NONE, 300, null);
                 throw new AssertionError("timed-out Java process should not report success");
             } catch (IOException expected) {
                 checks++;
@@ -774,21 +775,21 @@ public final class CoreTests {
             }
 
             bad(() -> {
-                try { runner.run(java, working, Arrays.asList("-Dx=" + (char) 0),
+                try { runner.run(javaExecutable, working, Arrays.asList("-Dx=" + (char) 0),
                         CancellationToken.NONE, 1_000, null); }
                 catch (IOException | InterruptedException exception) {
                     throw new AssertionError("invalid argv should be rejected before process start", exception);
                 }
             }, "NUL in process argv rejected");
             bad(() -> {
-                try { runner.run(java, working, Arrays.asList("-version", null),
+                try { runner.run(javaExecutable, working, Arrays.asList("-version", null),
                         CancellationToken.NONE, 1_000, null); }
                 catch (IOException | InterruptedException exception) {
                     throw new AssertionError("null argv should be rejected before process start", exception);
                 }
             }, "null process argv rejected");
             bad(() -> {
-                try { runner.run(java, working, Arrays.asList("-version"),
+                try { runner.run(javaExecutable, working, Arrays.asList("-version"),
                         CancellationToken.NONE, 0, null); }
                 catch (IOException | InterruptedException exception) {
                     throw new AssertionError("invalid timeout should fail before process start", exception);
