@@ -54,7 +54,7 @@ Then fetch the pinned upstream source and build:
     git -C upstream submodule sync --recursive
     git -C upstream submodule update --init --recursive
     yes | sdkmanager --licenses
-    sdkmanager --install 'platforms;android-37' 'ndk;27.3.13750724'
+    sdkmanager --install 'platforms;android-37.0' 'ndk;27.3.13750724' --channel=3
     python3 .github/scripts/customize_amethyst.py upstream
     cd upstream
     ./gradlew :jre_lwjgl3glfw:build :app_pojavlauncher:assembleDebug
