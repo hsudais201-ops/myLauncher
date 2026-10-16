@@ -415,6 +415,9 @@ class BuildWorkflowTests(unittest.TestCase):
         self.assertIn("grep -Eq '^[+-U]'", self.workflow)
 
     def test_workflow_checks_source_pin_and_android_9_apk(self) -> None:
+        self.assertIn("  push:\n    branches:\n      - main", self.workflow)
+        self.assertIn("  pull_request:", self.workflow)
+        self.assertIn("  workflow_dispatch:", self.workflow)
         self.assertIn("EXPECTED_UPSTREAM_COMMIT=330c6eae3164df64bdc4828e946a9e62cc5169e4", self.workflow)
         self.assertIn("python3 -m py_compile .github/scripts/customize_amethyst.py .github/scripts/test_customizer.py", self.workflow)
         self.assertIn("python3 -m unittest discover -s .github/scripts -p 'test_*.py' -v", self.workflow)
