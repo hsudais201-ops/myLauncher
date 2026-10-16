@@ -47,8 +47,14 @@ class CustomizeAmethystTests(unittest.TestCase):
   <string name="app_short_name">Amethyst</string>
   <string name="error_fatal">Amethyst crashed</string>
   <string name="storageProviderAuthorities">org.angelauramc.amethyst.scoped.gamefolder</string>
+  <string name="main_add_account">Add account</string>
 </resources>
 ''',
+            encoding="utf-8",
+        )
+        (app / "src/main/res/values/colors.xml").write_text(
+            '<resources><color name="primary_text">#FFFFFF</color>'
+            '<color name="secondary_text">#B2B2B2</color></resources>\n',
             encoding="utf-8",
         )
         (root / "settings.gradle").write_text("rootProject.name='Amethyst'\n", encoding="utf-8")
@@ -206,6 +212,7 @@ class SelectAuthFragment {
                 root / "app_pojavlauncher/src/main/AndroidManifest.xml",
                 root / "app_pojavlauncher/src/main/res/drawable/mylauncher_icon.xml",
                 root / "app_pojavlauncher/src/main/res/values/strings.xml",
+                root / "app_pojavlauncher/src/main/res/values/colors.xml",
             ):
                 with self.subTest(xml=str(xml_path.relative_to(root))):
                     ET.parse(xml_path)
@@ -224,7 +231,6 @@ class SelectAuthFragment {
             root = Path(temp)
             self.fixture(root)
             customizer.patch_upstream(root)
-            customizer.patch_upstream(root)
             first_snapshot = {
                 path.relative_to(root).as_posix(): path.read_bytes()
                 for path in root.rglob("*")
@@ -237,6 +243,21 @@ class SelectAuthFragment {
                 if path.is_file()
             }
             self.assertEqual(first_snapshot, second_snapshot)
+
+    def test_rejects_missing_launcher_button_instead_of_silently_skipping_it(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            self.fixture(root)
+            layout = root / "app_pojavlauncher/src/main/res/layout/fragment_launcher.xml"
+            layout.write_text(
+                layout.read_text(encoding="utf-8").replace(
+                    'android:id="@+id/discord_button"',
+                    'android:id="@+id/discord_missing"',
+                ),
+                encoding="utf-8",
+            )
+            with self.assertRaisesRegex(ValueError, "Could not find discord_button"):
+                customizer.patch_upstream(root)
 
     def test_rejects_minimum_sdk_above_android_9(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
