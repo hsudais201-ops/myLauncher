@@ -1,11 +1,6 @@
 name: Build myLauncher APK
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - '.github/workflows/build.yml'
-      - '.github/scripts/**'
   pull_request:
     paths:
       - '.github/workflows/build.yml'
