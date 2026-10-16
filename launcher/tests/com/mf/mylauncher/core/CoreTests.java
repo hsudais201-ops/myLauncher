@@ -23,7 +23,7 @@ public final class CoreTests {
     private CoreTests() { }
 
     public static void main(String[] args) throws Exception {
-        versions(); catalogs(); manifests(); jsonDecoder(); versionDetails(); launchArguments(); safeArchiveExtraction(); javaProcessRunner(); javaRuntimeProbe(); assetIndex(); assetIndexDownload(); assetLayoutMaterializer(); installationPlan(); classpathResolver(); installationService(); verifiedDownloads(); downloader(); profiles(); memory();
+        versions(); catalogs(); manifests(); jsonDecoder(); versionDetails(); launchArguments(); safeArchiveExtraction(); javaProcessRunner(); javaRuntimeProbe(); assetIndex(); assetIndexDownload(); assetLayoutMaterializer(); installationPlan(); classpathResolver(); nativeLibraryPlanner(); installationService(); verifiedDownloads(); downloader(); profiles(); memory();
         System.out.println("PASS: " + checks + " launcher-core assertions");
     }
 
@@ -770,6 +770,83 @@ public final class CoreTests {
                 });
             }
         }
+    }
+
+    private static void nativeLibraryPlanner() {
+        String hash1 = "0123456789abcdef0123456789abcdef01234567";
+        String hash2 = "fedcba9876543210fedcba9876543210fedcba98";
+        AssetIndexMetadata indexMetadata = new AssetIndexMetadata("1.21.4",
+                URI.create("https://piston-meta.mojang.com/v1/packages/" + hash1 + "/index.json"),
+                hash1, 80, 800);
+        DownloadArtifact client = new DownloadArtifact(
+                URI.create("https://piston-data.mojang.com/v1/objects/" + hash1 + "/client.jar"),
+                hash1, 700, null);
+        DownloadArtifact arm64 = new DownloadArtifact(
+                URI.create("https://libraries.minecraft.net/org/example/native/1.0/native-arm64.jar"),
+                hash1, 99, "org/example/native/1.0/native-1.0-natives.jar");
+        LibraryRule linuxRule = new LibraryRule(true, "linux", "aarch64", null, null);
+        Map<String, DownloadArtifact> classifiers = new LinkedHashMap<>();
+        classifiers.put("natives-linux-arm64", arm64);
+        Map<String, String> linuxNatives = java.util.Collections.singletonMap("linux", "natives-linux-${arch}");
+        LibraryMetadata nativeOne = new LibraryMetadata("org.example:native-one:1.0", null,
+                classifiers, linuxNatives, java.util.Collections.singletonList(linuxRule),
+                java.util.Collections.singletonList("META-INF/"));
+        LibraryMetadata nativeDuplicate = new LibraryMetadata("org.example:native-two:1.0", null,
+                classifiers, linuxNatives, java.util.Collections.singletonList(linuxRule),
+                java.util.Collections.singletonList("META-INF/"));
+        DownloadArtifact excludedArtifact = new DownloadArtifact(
+                URI.create("https://libraries.minecraft.net/org/example/native/1.0/windows-native.jar"),
+                hash2, 120, "org/example/native/1.0/windows-natives.jar");
+        LibraryMetadata windowsOnly = new LibraryMetadata("org.example:windows-native:1.0", null,
+                java.util.Collections.singletonMap("natives-windows-64", excludedArtifact),
+                java.util.Collections.singletonMap("windows", "natives-windows-${arch}"),
+                java.util.Collections.singletonList(new LibraryRule(true, "windows", null, null, null)),
+                java.util.Collections.emptyList());
+        VersionDetails details = new VersionDetails("1.21.4", "net.minecraft.client.main.Main", "1.21.4",
+                indexMetadata, client, 21,
+                Arrays.asList(nativeOne, nativeDuplicate, windowsOnly),
+                VersionArgumentSet.empty(), null);
+        LibraryPlatform linux = new LibraryPlatform("linux", "aarch64", "6.1.0",
+                java.util.Collections.emptyMap());
+        NativeLibraryPlan plan = NativeLibraryPlanner.create(details, linux, "linux", "arm64");
+        eq("1.21.4", plan.getVersionId(), "native plan version retained");
+        eq("linux", plan.getNativeOsName(), "native OS target retained explicitly");
+        eq("arm64", plan.getArchitectureToken(), "native architecture token retained explicitly");
+        eq(1, plan.getArchiveCount(), "identical native archive paths deduplicated");
+        eq(99L, plan.getTotalBytes(), "unique native archive bytes totaled");
+        NativeLibraryArchive archive = plan.getArchives().get(0);
+        eq("libraries/org/example/native/1.0/native-1.0-natives.jar", archive.getRelativeLibraryPath(),
+                "native jar resolved under libraries cache");
+        eq("org.example:native-one:1.0", archive.getLibraryName(),
+                "first metadata occurrence preserved when native payload is deduplicated");
+        eq(1, archive.getExtractionExcludes().size(), "native extraction exclusions preserved");
+        unsupported(() -> plan.getArchives().clear(), "native archive list immutable");
+        eq(0, NativeLibraryPlanner.create(details, linux, "windows", "64").getArchiveCount(),
+                "platform-rule-incompatible native library skipped");
+        bad(() -> NativeLibraryPlanner.create(details, linux, "../linux", "arm64"),
+                "unsafe native OS token rejected");
+
+        LibraryMetadata missingClassifier = new LibraryMetadata("org.example:missing-native:1.0", null,
+                java.util.Collections.singletonMap("natives-windows-64", excludedArtifact),
+                java.util.Collections.singletonMap("linux", "natives-linux-${arch}"),
+                java.util.Collections.singletonList(linuxRule), java.util.Collections.emptyList());
+        VersionDetails missingDetails = new VersionDetails("1.21.4", "net.minecraft.client.main.Main",
+                "1.21.4", indexMetadata, client, 21,
+                Arrays.asList(missingClassifier), VersionArgumentSet.empty(), null);
+        bad(() -> NativeLibraryPlanner.create(missingDetails, linux, "linux", "arm64"),
+                "declared native template with absent classifier rejected");
+
+        DownloadArtifact conflictingArtifact = new DownloadArtifact(
+                URI.create("https://libraries.minecraft.net/org/example/native/1.0/native-conflict.jar"),
+                hash2, 101, "org/example/native/1.0/native-1.0-natives.jar");
+        LibraryMetadata conflicting = new LibraryMetadata("org.example:conflict-native:1.0", null,
+                java.util.Collections.singletonMap("natives-linux-arm64", conflictingArtifact),
+                linuxNatives, java.util.Collections.singletonList(linuxRule), java.util.Collections.singletonList("META-INF/"));
+        VersionDetails conflictingDetails = new VersionDetails("1.21.4", "net.minecraft.client.main.Main",
+                "1.21.4", indexMetadata, client, 21,
+                Arrays.asList(nativeOne, conflicting), VersionArgumentSet.empty(), null);
+        bad(() -> NativeLibraryPlanner.create(conflictingDetails, linux, "linux", "arm64"),
+                "conflicting native outputs rejected");
     }
 
     private static void installationService() throws Exception {

@@ -4,9 +4,9 @@ myLauncher is a Minecraft: Java Edition launcher foundation being rebuilt for An
 
 ## Current status
 
-The tested core loads official version metadata, plans and checksum-verifies client/library/asset downloads, supports progress/cancellation, and builds modern or legacy Java argument lists. Native ZIP extraction has traversal protection, size/entry caps, excludes and staged publication. A verified classpath resolver now checks all required client/library/logging files on disk and builds the ordered classpath only when their hashes and sizes match metadata.
+The tested core loads official version metadata, plans and checksum-verifies client/library/asset downloads, supports progress/cancellation, and builds modern or legacy Java argument lists. Native ZIP extraction has traversal protection, size/entry caps, excludes and staged publication. A verified classpath resolver checks all required client/library/logging files before building an ordered classpath. Native classifier selection is now a separate explicit-target plan, with archive-path conflict checks.
 
-This is not yet a playable launcher. Android-compatible Java runtime integration, platform-specific native selection/validation, full launch orchestration, authenticated Microsoft account flow, complete launch integration and real-device tests remain unfinished. The game-launch button remains disabled until those pieces exist.
+This is not yet a playable launcher. Android-compatible Java runtime integration, Android-specific native selection/validation/extraction, full launch orchestration, authenticated Microsoft account flow and real-device tests remain unfinished. The game-launch button remains disabled until those pieces exist.
 
 The old Amethyst-based customization/build work is preserved on backup/pre-clear-2026-10-16 and remains untouched.
 
