@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import re
 import sys
+import xml.etree.ElementTree as ET
 from pathlib import Path
 
 
@@ -14,6 +15,15 @@ def replace_idempotently(text: str, old: str, new: str, label: str) -> str:
     if new in text:
         return text
     raise ValueError(f"Could not find expected token in {label}: {old!r} or {new!r}")
+
+
+def validate_xml_files(paths: tuple[Path, ...]) -> None:
+    """Fail early when a generated Android resource is not well-formed XML."""
+    for path in paths:
+        try:
+            ET.parse(path)
+        except ET.ParseError as exc:
+            raise ValueError(f"Generated Android XML is invalid at {path}: {exc}") from exc
 
 
 def patch_upstream(upstream: Path) -> None:
@@ -51,8 +61,20 @@ def patch_upstream(upstream: Path) -> None:
     ):
         raise ValueError("The patched strings.xml is missing app_name=myLauncher")
     # Upstream defines app_short_name through Gradle resValue, not strings.xml.
-    if '"app_short_name", "myLauncher (Debug)"' not in build_text or '"app_short_name", "myLauncher"' not in build_text:
-        raise ValueError("Gradle app_short_name branding was not applied")
+    required_gradle_values = (
+        '"app_name", "myLauncher (Debug)"',
+        '"app_name", "myLauncher"',
+        '"app_short_name", "myLauncher (Debug)"',
+        '"app_short_name", "myLauncher"',
+        "'application_package', 'com.mf.mylauncher.debug'",
+        "'application_package', 'com.mf.mylauncher'",
+        "'storageProviderAuthorities', 'com.mf.mylauncher.scoped.gamefolder.debug'",
+        "'storageProviderAuthorities', 'com.mf.mylauncher.scoped.gamefolder'",
+        "'shareProviderAuthority', 'com.mf.mylauncher.scoped.controlfolder.debug'",
+    )
+    missing_values = [value for value in required_gradle_values if value not in build_text]
+    if missing_values:
+        raise ValueError(f"Gradle app labels or authorities are incomplete: {missing_values}")
     if "org.angelauramc.amethyst" in strings_text:
         raise ValueError("An upstream application authority remains in strings.xml")
     if not re.search(r'<string\s+name="main_add_account"', strings_text):
@@ -368,6 +390,16 @@ def patch_upstream(upstream: Path) -> None:
     if "if (deviceRam < 2048) return 656;" in preferences_text:
         raise ValueError("The 2 GB RAM allocation boundary was not corrected")
     launcher_preferences.write_text(preferences_text, encoding="utf-8")
+
+    validate_xml_files((
+        strings,
+        colors,
+        login_layout,
+        upstream / "app_pojavlauncher" / "src" / "main" / "res" / "layout" / "fragment_launcher.xml",
+        upstream / "app_pojavlauncher" / "src" / "main" / "res" / "layout-land" / "fragment_launcher.xml",
+        manifest,
+        icon,
+    ))
 
     print("myLauncher patch OK")
     print("  app label: myLauncher")
