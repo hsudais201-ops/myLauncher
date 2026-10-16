@@ -23,7 +23,7 @@ public final class CoreTests {
     private CoreTests() { }
 
     public static void main(String[] args) throws Exception {
-        versions(); catalogs(); manifests(); jsonDecoder(); versionDetails(); launchArguments(); safeArchiveExtraction(); javaProcessRunner(); javaRuntimeProbe(); assetIndex(); assetIndexDownload(); assetLayoutMaterializer(); installationPlan(); classpathResolver(); nativeLibraryPlanner(); installationService(); nativeInstallationService(); verifiedDownloads(); downloader(); profiles(); memory();
+        versions(); catalogs(); manifests(); jsonDecoder(); versionDetails(); launchArguments(); safeArchiveExtraction(); javaProcessRunner(); javaRuntimeProbe(); javaRuntimeLocator(); assetIndex(); assetIndexDownload(); assetLayoutMaterializer(); installationPlan(); classpathResolver(); nativeLibraryPlanner(); installationService(); nativeInstallationService(); verifiedDownloads(); downloader(); profiles(); memory();
         System.out.println("PASS: " + checks + " launcher-core assertions");
     }
 
@@ -461,6 +461,46 @@ public final class CoreTests {
             try (java.util.stream.Stream<Path> paths = Files.walk(temporary)) {
                 paths.sorted(java.util.Comparator.reverseOrder()).forEach(path -> {
                     try { Files.deleteIfExists(path); } catch (IOException exception) { throw new java.io.UncheckedIOException(exception); }
+                });
+            }
+        }
+    }
+
+    private static void javaRuntimeLocator() throws Exception {
+        Path temporary = Files.createTempDirectory("mylauncher-runtime-locator-");
+        try {
+            JavaRuntimeLocator locator = new JavaRuntimeLocator(temporary);
+            yes(!locator.locate("java-21").isPresent(), "missing runtime returns empty without downloading");
+            bad(() -> {
+                try { locator.locate("../outside"); }
+                catch (IOException exception) { throw new AssertionError("invalid ID should fail before filesystem access", exception); }
+            }, "runtime traversal ID rejected");
+
+            Path executable = Files.createDirectories(
+                    temporary.resolve("runtimes/java-21/bin")).resolve("java");
+            Files.write(executable, "#!/bin/sh\nexit 0\n".getBytes(StandardCharsets.UTF_8));
+            yes(executable.toFile().setExecutable(true, true), "test runtime executable permission set");
+            Path located = locator.locate("java-21").get();
+            eq(executable.toRealPath(), located, "runtime locator resolves private installed Java executable");
+
+            Path nonExecutable = Files.createDirectories(
+                    temporary.resolve("runtimes/not-executable/bin")).resolve("java");
+            Files.write(nonExecutable, new byte[] {1, 2, 3});
+            nonExecutable.toFile().setExecutable(false, false);
+            io(() -> locator.locate("not-executable"), "non-executable runtime rejected");
+
+            Path linkedRuntime = temporary.resolve("runtimes/linked");
+            try {
+                Files.createSymbolicLink(linkedRuntime, temporary.resolve("runtimes/java-21"));
+                io(() -> locator.locate("linked"), "symlinked runtime directory rejected");
+            } catch (UnsupportedOperationException | java.nio.file.FileSystemException unsupported) {
+                // The CI filesystem normally supports symlinks; skip only where the OS forbids creation.
+            }
+        } finally {
+            try (java.util.stream.Stream<Path> paths = Files.walk(temporary)) {
+                paths.sorted(java.util.Comparator.reverseOrder()).forEach(path -> {
+                    try { Files.deleteIfExists(path); }
+                    catch (IOException exception) { throw new java.io.UncheckedIOException(exception); }
                 });
             }
         }

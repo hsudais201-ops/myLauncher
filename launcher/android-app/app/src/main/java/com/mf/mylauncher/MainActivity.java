@@ -189,7 +189,7 @@ public final class MainActivity extends Activity {
         launchButton.setEnabled(false);
         launchButton.setAlpha(0.58f);
         content.addView(launchButton, margins(matchWrap(), 0, 0, 0, dp(12)));
-        content.addView(text("This downloads and verifies the client JAR, ordinary libraries and assets. Android Java runtime integration, native-library extraction, Microsoft sign-in and actual game launch are still being built.",
+        content.addView(text("This downloads and verifies the client JAR, ordinary libraries and assets. The core can plan and extract native archives when given a compatible target, but an Android runtime provider, Android-native selection, Microsoft sign-in and the actual game launch are not connected yet.",
                 12, MUTED, false), matchWrap());
 
         setContentView(scrollView);
