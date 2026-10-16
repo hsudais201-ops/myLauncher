@@ -45,8 +45,12 @@ jobs:
 
       - name: Fetch pinned Amethyst engine and submodules
         run: |
-          git clone --depth 1 --branch v3_openjdk --recurse-submodules https://github.com/AngelAuraMC/Amethyst-Android.git upstream
           EXPECTED_UPSTREAM_COMMIT=330c6eae3164df64bdc4828e946a9e62cc5169e4
+          git init upstream
+          git -C upstream remote add origin https://github.com/AngelAuraMC/Amethyst-Android.git
+          git -C upstream fetch --depth 1 origin "$EXPECTED_UPSTREAM_COMMIT"
+          git -C upstream checkout --detach FETCH_HEAD
+          git -C upstream submodule update --init --recursive
           ACTUAL_UPSTREAM_COMMIT=$(git -C upstream rev-parse HEAD)
           echo "Expected upstream: $EXPECTED_UPSTREAM_COMMIT"
           echo "Actual upstream:   $ACTUAL_UPSTREAM_COMMIT"
