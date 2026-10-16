@@ -163,7 +163,8 @@ class SelectAuthFragment {
         manifest.write_text(
             '<manifest xmlns:android="http://schemas.android.com/apk/res/android">'
             '<application android:icon="@mipmap/ic_launcher" '
-            'android:roundIcon="@mipmap/ic_launcher_round" /></manifest>\n',
+            'android:roundIcon="@mipmap/ic_launcher_round" '
+            'android:label="@string/app_name" /></manifest>\n',
             encoding="utf-8",
         )
 
