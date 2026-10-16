@@ -25,7 +25,7 @@ A personal Minecraft: Java Edition launcher build for Android, customized for lo
 3. Open the completed workflow run and download its **myLauncher-debug-apk** artifact.
 4. Transfer the APK to Android, install it, and allow installation from your download source if Android asks.
 
-The workflow fetches the exact Amethyst commit `330c6eae3164df64bdc4828e946a9e62cc5169e4` and its submodules, validates the customization regression suite before installing the Android toolchain, applies the customizations, and builds the debug APK. The source pin is independent of branch movement. Update the pin deliberately when adopting a newer upstream version.
+The workflow fetches the exact Amethyst commit `330c6eae3164df64bdc4828e946a9e62cc5169e4` and its submodules, rewrites SSH-style public GitHub submodule URLs to HTTPS for hosted runners, validates submodule checkout status, validates the customization regression suite before installing the Android toolchain, applies the customizations, and builds the debug APK. The source pin is independent of branch movement. Update the pin deliberately when adopting a newer upstream version.
 
 ## Files
 
