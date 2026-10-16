@@ -470,7 +470,7 @@ class BuildWorkflowTests(unittest.TestCase):
         self.assertIn("EXPECTED_UPSTREAM_COMMIT=330c6eae3164df64bdc4828e946a9e62cc5169e4", self.workflow)
         # Keep the hosted build toolchain aligned with the pinned upstream project.
         self.assertIn("java-version: '21'", self.workflow)
-        self.assertIn("sdkmanager --install 'platforms;android-37' 'ndk;27.3.13750724'", self.workflow)
+        self.assertIn("sdkmanager --install 'platforms;android-37.0' 'ndk;27.3.13750724' --channel=3", self.workflow)
         self.assertIn("./gradlew --no-daemon :jre_lwjgl3glfw:build :app_pojavlauncher:assembleDebug --stacktrace", self.workflow)
         self.assertIn("python3 -m py_compile .github/scripts/customize_amethyst.py .github/scripts/test_customizer.py", self.workflow)
         self.assertIn("python3 -m unittest discover -s .github/scripts -p 'test_*.py' -v", self.workflow)
