@@ -384,6 +384,9 @@ class BuildWorkflowTests(unittest.TestCase):
         self.assertIn('name apksigner', self.workflow)
         self.assertIn('"$APKSIGNER" verify --verbose "$APK"', self.workflow)
         self.assertIn("myLauncher-debug-apk", self.workflow)
+        self.assertIn('sha256sum "$(basename "$APK")"', self.workflow)
+        self.assertIn("${{ env.APK_SHA256_PATH }}", self.workflow)
+        self.assertIn("APK SHA-256:", self.workflow)
 
 
 if __name__ == "__main__":
