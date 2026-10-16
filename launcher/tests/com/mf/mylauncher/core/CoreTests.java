@@ -1,6 +1,7 @@
 package com.mf.mylauncher.core;
 
 import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
@@ -11,6 +12,8 @@ import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
 
 /** Dependency-free regression tests so the launcher core can be tested with only a JDK. */
 public final class CoreTests {
@@ -18,7 +21,7 @@ public final class CoreTests {
     private CoreTests() { }
 
     public static void main(String[] args) throws Exception {
-        versions(); catalogs(); manifests(); jsonDecoder(); versionDetails(); launchArguments(); assetIndex(); assetIndexDownload(); installationPlan(); installationService(); verifiedDownloads(); downloader(); profiles(); memory();
+        versions(); catalogs(); manifests(); jsonDecoder(); versionDetails(); launchArguments(); safeArchiveExtraction(); assetIndex(); assetIndexDownload(); installationPlan(); installationService(); verifiedDownloads(); downloader(); profiles(); memory();
         System.out.println("PASS: " + checks + " launcher-core assertions");
     }
 
@@ -256,6 +259,87 @@ public final class CoreTests {
         bad(() -> VersionArgumentSet.fromDecodedJson(java.util.Collections.singletonMap("game", "not-an-array")),
                 "malformed modern arguments shape rejected");
         bad(() -> LaunchCommandBuilder.build(details, null), "null launch context rejected");
+    }
+
+    private static void safeArchiveExtraction() throws Exception {
+        Path temporary = Files.createTempDirectory("mylauncher-extract-tests-");
+        try {
+            byte[] archiveBytes = makeZip(new String[][] {
+                    {"META-INF/", ""},
+                    {"META-INF/MANIFEST.MF", "discard"},
+                    {"lib/", ""},
+                    {"lib/liblwjgl.so", "native"},
+                    {"config.txt", "ok"}
+            });
+            Path archive = temporary.resolve("natives.zip");
+            Files.write(archive, archiveBytes);
+            Path destination = temporary.resolve("natives/1.21.4");
+            SafeArchiveExtractor.ExtractionResult extracted = SafeArchiveExtractor.extract(
+                    archive, destination, java.util.Collections.singletonList("META-INF/"));
+            eq(2, extracted.getFileCount(), "safe extractor counts extracted files");
+            eq(1, extracted.getDirectoryCount(), "safe extractor counts non-excluded directories");
+            eq(8L, extracted.getBytesWritten(), "excluded metadata is not written");
+            eq(15L, extracted.getBytesRead(), "archive data is bounded even in excluded entries");
+            yes(Files.isRegularFile(destination.resolve("lib/liblwjgl.so")), "native file extracted");
+            eq("native", new String(Files.readAllBytes(destination.resolve("lib/liblwjgl.so")), StandardCharsets.UTF_8),
+                    "native bytes preserved");
+            yes(Files.isRegularFile(destination.resolve("config.txt")), "normal archive resource extracted");
+            yes(!Files.exists(destination.resolve("META-INF/MANIFEST.MF")), "excluded META-INF contents omitted");
+            eq(destination.toAbsolutePath().normalize(), extracted.getDestination(), "destination normalized");
+
+            Files.write(destination.resolve("stale.bin"), new byte[] {1, 2, 3});
+            byte[] unsafeBytes = makeZip(new String[][] {{"../escape.txt", "bad"}});
+            Path unsafeArchive = temporary.resolve("unsafe.zip");
+            Files.write(unsafeArchive, unsafeBytes);
+            io(() -> SafeArchiveExtractor.extract(unsafeArchive, destination, java.util.Collections.emptyList()),
+                    "ZIP traversal rejected");
+            yes(Files.exists(destination.resolve("stale.bin")), "failed extraction preserves previous destination");
+            yes(!Files.exists(temporary.resolve("escape.txt")), "ZIP traversal writes nothing outside destination");
+
+            byte[] absoluteBytes = makeZip(new String[][] {{"/absolute.txt", "bad"}});
+            Path absoluteArchive = temporary.resolve("absolute.zip");
+            Files.write(absoluteArchive, absoluteBytes);
+            io(() -> SafeArchiveExtractor.extract(absoluteArchive, temporary.resolve("absolute-out"),
+                    java.util.Collections.emptyList()), "absolute ZIP path rejected");
+            bad(() -> {
+                try { SafeArchiveExtractor.extract(archive, temporary.resolve("invalid-excludes"),
+                        java.util.Collections.singletonList("../outside/")); }
+                catch (IOException exception) { throw new AssertionError("unsafe exclusion fails validation before writing", exception); }
+            }, "unsafe exclusion path rejected");
+
+            Path outside = temporary.resolve("outside");
+            Files.createDirectories(outside);
+            Path outsideSentinel = outside.resolve("sentinel.txt");
+            Files.write(outsideSentinel, "safe".getBytes(StandardCharsets.UTF_8));
+            Path linked = temporary.resolve("linked-natives");
+            try {
+                Files.createSymbolicLink(linked, outside);
+                io(() -> SafeArchiveExtractor.extract(archive, linked, java.util.Collections.emptyList()),
+                        "symlink extraction destination rejected");
+                eq("safe", new String(Files.readAllBytes(outsideSentinel), StandardCharsets.UTF_8),
+                        "symlink destination cannot overwrite outside data");
+            } catch (UnsupportedOperationException | SecurityException exception) {
+                // Some platforms disable symlink creation for ordinary users.
+            }
+        } finally {
+            try (java.util.stream.Stream<Path> paths = Files.walk(temporary)) {
+                paths.sorted(java.util.Comparator.reverseOrder()).forEach(path -> {
+                    try { Files.deleteIfExists(path); } catch (IOException exception) { throw new java.io.UncheckedIOException(exception); }
+                });
+            }
+        }
+    }
+
+    private static byte[] makeZip(String[][] entries) throws IOException {
+        ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+        try (ZipOutputStream zip = new ZipOutputStream(bytes)) {
+            for (String[] entry : entries) {
+                zip.putNextEntry(new ZipEntry(entry[0]));
+                if (!entry[0].endsWith("/")) zip.write(entry[1].getBytes(StandardCharsets.UTF_8));
+                zip.closeEntry();
+            }
+        }
+        return bytes.toByteArray();
     }
 
     private static void assetIndex() {
