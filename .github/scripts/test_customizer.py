@@ -248,6 +248,7 @@ class SelectAuthFragment {
             self.assertIn('android:icon="@drawable/mylauncher_icon"', manifest)
             self.assertIn('android:roundIcon="@drawable/mylauncher_icon"', manifest)
             self.assertIn('android:label="@string/app_name"', manifest)
+            self.assertNotIn("org.angelauramc.amethyst", manifest)
             self.assertIn('android:fillColor="#7C5CFF"', icon)
             # All transformed resources must remain well-formed XML.
             for xml_path in (
