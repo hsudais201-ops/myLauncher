@@ -41,7 +41,12 @@ jobs:
           java-version: '21'
 
       - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
+        uses: android-actions/setup-android@v4
+        with:
+          # Accept licenses explicitly in the next step to avoid interactive setup failures.
+          accept-android-sdk-licenses: false
+          # The old "tools" package no longer exists; the build installs exact SDK/NDK packages below.
+          packages: ''
 
       - name: Accept Android SDK licenses
         run: |
