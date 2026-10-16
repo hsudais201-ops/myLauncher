@@ -502,7 +502,7 @@ class BuildWorkflowTests(unittest.TestCase):
         self.assertIn("accept-android-sdk-licenses: false", self.workflow)
         self.assertIn("packages: ''", self.workflow)
         self.assertIn("yes | sdkmanager --licenses", self.workflow)
-        self.assertIn("sdkmanager --install 'platforms;android-37' 'ndk;27.3.13750724'", self.workflow)
+        self.assertIn("sdkmanager --install 'platforms;android-37.0' 'ndk;27.3.13750724' --channel=3", self.workflow)
         self.assertIn("./gradlew --no-daemon :jre_lwjgl3glfw:build :app_pojavlauncher:assembleDebug --stacktrace", self.workflow)
         self.assertIn("python3 -m py_compile .github/scripts/customize_amethyst.py .github/scripts/test_customizer.py", self.workflow)
         self.assertIn("python3 -m unittest discover -s .github/scripts -p 'test_*.py' -v", self.workflow)
