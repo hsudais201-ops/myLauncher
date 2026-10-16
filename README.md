@@ -11,6 +11,12 @@ A personal Minecraft: Java Edition launcher build for Android, customized for lo
 - Built-in low-memory defaults: the launcher starts with a 656 MB memory allocation when Android reports at most 2,048 MB total RAM (smaller devices keep Amethyst’s lower tiers). For devices in that RAM tier, the default resolution scaler targets a 480-pixel short screen edge when the edge is larger than 480 pixels; scaling is rounded to the nearest supported 5% step. Saved preferences still take priority, so users can change the values afterward.
 - Suggested Minecraft settings: use 1.8.9 or 1.12.2, render distance 4–6 chunks, Fast graphics, and no shaders. Set these in Minecraft; this project does not force in-game settings.
 
+## Account support and interface
+
+- The launcher retains Amethyst's Microsoft account sign-in and local/offline profile flow. The custom patch removes a guard that incorrectly sent users back to the main menu when no online account existed, and makes the local username field behave like a username field.
+- An offline profile is only a local player name; it is **not** a Microsoft-authenticated Minecraft account. Servers requiring authenticated/online-mode accounts may reject it. Do not use offline mode to impersonate another player.
+- The launcher home screen gets a lightweight myLauncher title/subtitle header in portrait and landscape. This is an XML-only change and adds no UI library or significant runtime dependency.
+
 ## Build the APK
 
 1. Open the Actions tab in this GitHub repository.
@@ -23,8 +29,8 @@ The workflow checks out the Amethyst source and submodules at pinned commit `330
 ## Files
 
 - `.github/workflows/build.yml` — repeatable Android build workflow.
-- `.github/scripts/customize_amethyst.py` — deterministic patch for the app label, package/authority IDs, and low-memory defaults.
-- `.github/scripts/test_customizer.py` — local regression tests for the patch logic.
+- `.github/scripts/customize_amethyst.py` — deterministic patch for app branding, package/authority IDs, low-memory defaults, offline account access, and the launcher header.
+- `.github/scripts/test_customizer.py` — regression tests for the patch logic, offline login, and launcher header.
 
 ## Local build
 
@@ -40,7 +46,7 @@ From this repository's root on Linux, clone the upstream source and then run the
 
 ## Verification and limitations
 
-The local tests validate the patching logic. GitHub Actions additionally compiles the app when a workflow run succeeds. A successful build is not proof of a real-device gameplay test: Microsoft sign-in, asset downloads, rendering, heat, memory pressure, and FPS still need checking on the target device.
+The regression tests validate the patching logic when executed. Recent GitHub Actions runs have failed before a runner was assigned (the job has no runner ID and no steps), so those runs have **not** tested the build script or compiled the APK. Check repository Actions availability and the account's Actions usage/billing settings if that persists. GitHub Actions additionally compiles the app when a workflow run succeeds. A successful build is not proof of a real-device gameplay test: Microsoft sign-in, asset downloads, rendering, heat, memory pressure, and FPS still need checking on the target device.
 
 ## Upstream and licensing
 
