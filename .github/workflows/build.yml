@@ -115,12 +115,18 @@ jobs:
           test "$MIN_SDK" -le 28
           echo "Verified APK metadata (min SDK: $MIN_SDK):"
           grep -E "^(package: name=|application-label:)" /tmp/mylauncher-badging.txt
+          APK_SHA256_PATH="${APK}.sha256"
+          (cd "$(dirname "$APK")" && sha256sum "$(basename "$APK")" > "$(basename "$APK").sha256")
+          echo "APK_SHA256_PATH=$APK_SHA256_PATH" >> "$GITHUB_ENV"
+          echo "APK SHA-256: $(cut -d ' ' -f1 "$APK_SHA256_PATH")" >> upstream/MYLAUNCHER_BUILD_INFO.txt
 
       - name: Upload debug APK
         uses: actions/upload-artifact@v4
         with:
           name: myLauncher-debug-apk
-          path: ${{ env.APK_PATH }}
+          path: |
+            ${{ env.APK_PATH }}
+            ${{ env.APK_SHA256_PATH }}
           if-no-files-found: error
           retention-days: 14
 
