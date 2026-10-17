@@ -128,7 +128,7 @@ public final class CoreTests {
                 + "\"sha1\":\"" + sha1 + "\",\"size\":123}},\"rules\":["
                 + "{\"action\":\"allow\",\"os\":{\"name\":\"linux\",\"arch\":\"aarch64\",\"version\":\"6\\\\..*\"}},"
                 + "{\"action\":\"disallow\",\"features\":{\"is_demo_user\":true}}]},"
-                + "{\"name\":\"org.lwjgl:lwjgl:3.3.3\",\"downloads\":{\"classifiers\":{"
+                + "{\"name\":\"org.lwjgl:lwjgl:3.3.3:natives-linux-arm64\",\"downloads\":{\"classifiers\":{"
                 + "\"natives-linux-arm64\":{\"path\":\"org/lwjgl/lwjgl/3.3.3/lwjgl-natives.jar\","
                 + "\"url\":\"https://libraries.minecraft.net/lwjgl-natives.jar\",\"sha1\":\"" + sha2 + "\",\"size\":456}}},"
                 + "\"natives\":{\"linux\":\"natives-linux-${arch}\"},\"extract\":{\"exclude\":[\"META-INF/\"]}}]}";
@@ -192,6 +192,8 @@ public final class CoreTests {
 
         yes(!details.getClientDownload().hasPath(), "client JAR destination is launcher-selected");
         eq(2, details.getLibraries().size(), "library list mapped");
+        eq("org.lwjgl:lwjgl:3.3.3:natives-linux-arm64", details.getLibraries().get(1).getName(),
+                "four-part Maven classifier coordinate accepted for native library metadata");
         LibraryMetadata core = details.getLibraries().get(0);
         eq("org/example/core/1.0/core-1.0.jar", core.getArtifact().get().getPath(), "library path mapped");
         yes(core.isAllowedOn("linux", "aarch64", "6.1.0", java.util.Collections.singletonMap("is_demo_user", false)), "matching allow rule accepted");
