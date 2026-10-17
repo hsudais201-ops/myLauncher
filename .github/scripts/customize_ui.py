@@ -218,21 +218,20 @@ def patch_upstream(upstream: Path) -> None:
     # Retheme the primary Play button and text fields so core controls match the
     # shared component styles on the rest of the application.
     button_text = mine_button.read_text(encoding="utf-8")
-    button_text = replace_idempotently(
-        button_text,
-        "R.drawable.mine_button_background",
-        "R.drawable.mylauncher_play_button_background",
-        str(mine_button),
-    )
+    for old_background in ("R.drawable.mine_button_background", "R.drawable.mylauncher_primary_button_background"):
+        if old_background in button_text:
+            button_text = button_text.replace(old_background, "R.drawable.mylauncher_play_button_background", 1)
+            break
+    if "R.drawable.mylauncher_play_button_background" not in button_text:
+        raise ValueError(f"Could not find the expected MineButton background in {mine_button}")
     mine_button.write_text(button_text, encoding="utf-8")
 
     input_text = mine_edit_text.read_text(encoding="utf-8")
-    input_text = replace_idempotently(
-        input_text,
-        'setBackgroundColor(Color.parseColor("#131313"));',
-        "setBackgroundResource(R.drawable.mylauncher_input_background);",
-        str(mine_edit_text),
-    )
+    old_input_background = 'setBackgroundColor(Color.parseColor("#131313"));'
+    if old_input_background in input_text:
+        input_text = input_text.replace(old_input_background, "setBackgroundResource(R.drawable.mylauncher_input_background);", 1)
+    elif "R.drawable.mylauncher_input_background" not in input_text:
+        raise ValueError(f"Could not find the expected MineEditText background in {mine_edit_text}")
     mine_edit_text.write_text(input_text, encoding="utf-8")
 
     # The MobileGlues project documents a 26.3-snapshot-3+ compatibility setting:
