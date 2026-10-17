@@ -76,7 +76,18 @@ class CustomizeAmethystTests(unittest.TestCase):
             '* License:<br>\n • GNU GPLv3<br>\n • Third party components and their licenses<br>\n',
             encoding="utf-8",
         )
-        (root / "settings.gradle").write_text("rootProject.name='Amethyst'\n", encoding="utf-8")
+        (root / "settings.gradle").write_text(
+            """pluginManagement {
+    repositories {
+        gradlePluginPortal()
+        google()
+    }
+}
+
+rootProject.name='Amethyst'
+""",
+            encoding="utf-8",
+        )
 
         tools_java = app / "src/main/java/net/kdt/pojavlaunch/Tools.java"
         tools_java.parent.mkdir(parents=True, exist_ok=True)
@@ -307,6 +318,22 @@ class ProfileTypeSelectFragment {
             encoding="utf-8",
         )
 
+    def test_plugin_management_includes_maven_central(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            self.fixture(root)
+            customizer.patch_upstream(root)
+            settings = (root / "settings.gradle").read_text(encoding="utf-8")
+            plugin_management = settings.split("dependencyResolutionManagement", 1)[0]
+            self.assertIn("pluginManagement", plugin_management)
+            self.assertIn("gradlePluginPortal()", plugin_management)
+            self.assertIn("google()", plugin_management)
+            self.assertIn("mavenCentral()", plugin_management)
+            customizer.patch_upstream(root)
+            settings_again = (root / "settings.gradle").read_text(encoding="utf-8")
+            self.assertEqual(settings, settings_again)
+            self.assertEqual(settings.count("mavenCentral()"), 1)
+
     def test_local_profiles_can_download_missing_versions_when_connected(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
@@ -362,6 +389,8 @@ class ProfileTypeSelectFragment {
             self.assertIn('public static String APP_NAME = "VoidCraft Launcher";', tools_java)
             self.assertNotIn('public static String APP_NAME = "Amethyst";', tools_java)
             self.assertIn("rootProject.name='VoidCraft Launcher'", settings)
+            self.assertIn("pluginManagement", settings)
+            self.assertIn("mavenCentral()", settings.split("rootProject.name")[0])
             self.assertIn('<string name="main_mods_folder">Mods folder</string>', strings)
             self.assertIn('<string name="main_resourcepacks_folder">Resource packs</string>', strings)
             self.assertIn('<string name="main_world_saves_folder">World saves</string>', strings)
