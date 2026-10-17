@@ -40,6 +40,9 @@ jobs:
           distribution: temurin
           java-version: '21'
 
+      - name: Test isolated launcher core
+        run: ./launcher/test.sh
+
       - name: Set up Android SDK
         uses: android-actions/setup-android@v4
         with:
