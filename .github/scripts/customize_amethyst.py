@@ -122,7 +122,7 @@ def patch_visual_theme(upstream: Path) -> None:
     }.items():
         style_text = set_style_item(style_text, "LauncherMenuButton", item, value, str(styles))
     style_text = set_style_item(style_text, "LauncherMenuButton.Universal", "android:layout_height", "58dp", str(styles))
-    if not re.search(r'<style\s+name="MyLauncherDialogTheme"\b', style_text):
+    if not re.search(r'<style\s+name="MyLauncherDialogTheme"(?:\s|>)', style_text):
         end = re.search(r'</resources\s*>', style_text)
         if not end:
             raise ValueError(f"Could not find </resources> in {styles}")
