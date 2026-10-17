@@ -329,6 +329,29 @@ def patch_upstream(upstream: Path) -> None:
             strings_text,
         ):
             raise ValueError(f"Log-diagnosis resource is missing or invalid: {string_name}")
+    config_export_strings = {
+        "main_config_export_hint": "Config folder. Long-press to export safe launcher settings.",
+        "main_config_export_subject": "VoidCraft Launcher safe settings export",
+        "main_config_export_no_values": "No saved portable settings were found to export.",
+        "main_config_export_chooser": "Export safe launcher settings. Review before sharing.",
+        "main_config_export_note": "This export contains only a safe subset of portable launcher settings. Account data, session tokens, profile selection, free-form Java arguments, control-file paths, and world data are excluded.",
+    }
+    for string_name, string_value in config_export_strings.items():
+        if not re.search(r'<string\s+name="' + re.escape(string_name) + r'"', strings_text):
+            config_anchor = re.search(
+                r'(?m)^([ \t]*<string\s+name="main_config_folder"[^>]*>.*?</string>)[ \t]*$',
+                strings_text,
+            )
+            if not config_anchor:
+                raise ValueError("Could not find the Config-folder resource to add settings-export strings")
+            indent = re.match(r"[ \t]*", config_anchor.group(1)).group(0)
+            new_string = indent + '<string name="' + string_name + '">' + string_value + '</string>'
+            strings_text = strings_text[:config_anchor.end()] + "\n" + new_string + strings_text[config_anchor.end():]
+        if not re.search(
+            r'<string\s+name="' + re.escape(string_name) + r'"[^>]*>\s*' + re.escape(string_value) + r'\s*</string>',
+            strings_text,
+        ):
+            raise ValueError(f"Config settings-export resource is missing or invalid: {string_name}")
     strings.write_text(strings_text, encoding="utf-8")
 
     # App names can be localized in values-*/strings.xml. Force the product
@@ -1809,15 +1832,72 @@ def patch_upstream(upstream: Path) -> None:
         });"""
     if config_listener not in main_menu_text:
         main_menu_text = main_menu_text.replace(crash_reports_listener, crash_reports_listener + "\n\n        " + config_listener, 1)
+    config_hint_binding = "mMyLauncherConfigButton.setContentDescription(getString(R.string.main_config_export_hint));"
+    if config_hint_binding not in main_menu_text:
+        main_menu_text = main_menu_text.replace(config_binding, config_binding + "\n        " + config_hint_binding, 1)
+    config_long_listener = """mMyLauncherConfigButton.setOnLongClickListener(v -> {
+            if (Tools.isDemoProfile(v.getContext())) {
+                hasNoOnlineProfileDialog(getActivity(), getString(R.string.demo_unsupported), getString(R.string.change_account));
+                return true;
+            }
+            String[] exportKeys = new String[] {
+                    "buttonscale", "mousescale", "mousespeed", "ignoreNotch", "timeLongPressTrigger",
+                    "force_english", "checkLibraries", "disableGestures", "gamepadPassthruForced",
+                    "disableDoubleTap", "allocation", "sustainedPerformance", "mouse_start", "arc_capes",
+                    "alternate_surface", "resolutionRatio", "enableGyro", "gyroSensitivity", "gyroSampleRate",
+                    "gyroSmoothing", "gyroInvertX", "gyroInvertY", "force_vsync", "buttonAllCaps",
+                    "dump_shaders", "gamepad_deadzone_scale", "bigCoreAffinity", "zinkPreferSystemDriver",
+                    "verifyManifest", "skipNotificationPermissionCheck", "vsync_in_zink",
+                    "forceEnableTouchController", "touchControllerVibrateLength", "always_grab_mouse",
+                    "keyboardPanning"
+            };
+            java.util.Map<String, ?> storedPreferences = LauncherPreferences.DEFAULT_PREF.getAll();
+            java.util.Map<String, Object> safeSettings = new java.util.LinkedHashMap<>();
+            for (String key : exportKeys) {
+                Object value = storedPreferences.get(key);
+                if (value instanceof Boolean || value instanceof Integer
+                        || value instanceof Long || value instanceof Float) {
+                    safeSettings.put(key, value);
+                }
+            }
+            if (safeSettings.isEmpty()) {
+                Toast.makeText(requireContext(), R.string.main_config_export_no_values, Toast.LENGTH_LONG).show();
+                return true;
+            }
+            String exportText = new org.json.JSONObject(safeSettings).toString()
+                    + "\\n\\n" + getString(R.string.main_config_export_note);
+            Intent exportIntent = new Intent(Intent.ACTION_SEND);
+            exportIntent.setType("text/plain");
+            exportIntent.putExtra(Intent.EXTRA_SUBJECT, getString(R.string.main_config_export_subject));
+            exportIntent.putExtra(Intent.EXTRA_TEXT, exportText);
+            try {
+                startActivity(Intent.createChooser(exportIntent, getString(R.string.main_config_export_chooser)));
+            } catch (android.content.ActivityNotFoundException error) {
+                Toast.makeText(requireContext(), "No app can export text right now", Toast.LENGTH_LONG).show();
+            }
+            return true;
+        });"""
+    if config_long_listener not in main_menu_text:
+        main_menu_text = main_menu_text.replace(config_listener, config_listener + "\n\n        " + config_long_listener, 1)
     if (
         main_menu_text.count(config_binding) != 1
+        or main_menu_text.count(config_hint_binding) != 1
         or main_menu_text.count(config_listener) != 1
-        or 'new File(getCurrentProfileDirectory(), "config")' not in main_menu_text
-        or "!configDirectory.isDirectory() && !configDirectory.mkdirs()" not in main_menu_text
-        or "openPath(v.getContext(), configDirectory, false);" not in main_menu_text
-        or "Tools.isDemoProfile(v.getContext())" not in config_listener
+        or main_menu_text.count(config_long_listener) != 1
+        or 'new File(getCurrentProfileDirectory(), "config")' not in config_listener
+        or "!configDirectory.isDirectory() && !configDirectory.mkdirs()" not in config_listener
+        or "openPath(v.getContext(), configDirectory, false);" not in config_listener
+        or "LauncherPreferences.DEFAULT_PREF.getAll()" not in config_long_listener
+        or "new org.json.JSONObject(safeSettings).toString()" not in config_long_listener
+        or "Intent.ACTION_SEND" not in config_long_listener
+        or "Intent.EXTRA_TEXT" not in config_long_listener
+        or "R.string.main_config_export_note" not in config_long_listener
+        or '"javaArgs"' in config_long_listener
+        or '"defaultCtrl"' in config_long_listener
+        or "PREF_KEY_CURRENT_PROFILE" in config_long_listener
+        or "Tools.isDemoProfile(v.getContext())" not in config_long_listener
     ):
-        raise ValueError("The Config-folder shortcut binding, directory creation, or handler is incomplete")
+        raise ValueError("The Config-folder settings export is incomplete or includes excluded preference fields")
 
     shaderpacks_binding = "Button mMyLauncherShaderPacksButton = view.findViewById(R.id.mylauncher_shaderpacks_button);"
     if shaderpacks_binding not in main_menu_text:
