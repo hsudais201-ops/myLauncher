@@ -105,6 +105,7 @@ After a debug APK is available on the target Android 9 device:
 3. Select a lightweight Minecraft version (for example 1.8.9); while connected to the internet, let the launcher download it if needed, then start the game and test a single-player world.
 4. Return to the launcher and verify that **Open game directory** works with only the local profile.
 5. Verify the Microsoft account button still opens Microsoft sign-in. Tap **Mods folder**, **Resource packs**, and **World saves** and confirm they open the selected profile's `mods/`, `resourcepacks/`, and `saves/` directories. These actions have source/regression and launcher-start CI coverage, but their taps still require interactive acceptance testing. An actual device test is still required for memory pressure, rendering, and gameplay stability.
+6. Test a current version separately: select Minecraft Java Edition 26.3 while connected, allow the metadata/game files and Java 25 runtime to download, and confirm the game reaches its main menu before opening a world. The automated emulator smoke test does not test this path. Keep a backup of any important worlds and capture the launcher log if the game fails.
 
 ## Upstream and licensing
 
