@@ -303,7 +303,7 @@ def patch_upstream(upstream: Path) -> None:
 
     log_diagnosis_strings = {
         "main_log_diagnose_action": "Diagnose latest log",
-        "main_log_diagnosis_title": "Latest game log diagnosis",
+        "main_log_diagnosis_title": "Possible cause from latest log",
         "main_log_diagnosis_unknown": "No common failure signature was found near the end of the latest game log. This quick diagnosis may miss uncommon causes. Copy or share the sanitized log and review the final error or exception lines.",
         "main_log_diagnosis_storage": "Possible storage or file-access problem. Free device storage and check that the launcher can read and write the game directory, then retry.",
         "main_log_diagnosis_memory": "Possible memory exhaustion. Close background apps, reduce render distance and resolution, disable shaders, and choose a heap size suited to available device RAM.",
