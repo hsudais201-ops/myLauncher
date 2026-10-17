@@ -300,6 +300,35 @@ def patch_upstream(upstream: Path) -> None:
             strings_text,
         ):
             raise ValueError(f"Version-repair resource is missing or invalid: {string_name}")
+
+    log_diagnosis_strings = {
+        "main_log_diagnose_action": "Diagnose latest log",
+        "main_log_diagnosis_title": "Latest game log diagnosis",
+        "main_log_diagnosis_unknown": "No common failure signature was found in the latest 1 MiB of the game log. This quick diagnosis may miss uncommon causes. Copy or share the sanitized log and review the final error or exception lines.",
+        "main_log_diagnosis_storage": "Possible storage or file-access problem. Free device storage and check that the launcher can read and write the game directory, then retry.",
+        "main_log_diagnosis_memory": "Possible memory exhaustion. Close background apps, reduce render distance and resolution, disable shaders, and choose a heap size suited to the device's available RAM.",
+        "main_log_diagnosis_java": "Possible Java runtime mismatch. Select a Java runtime compatible with this Minecraft version and its mod loader, then retry.",
+        "main_log_diagnosis_renderer": "Possible graphics or renderer failure. Try another supported renderer, lower the game resolution, and disable shaders. Revert any recent renderer or driver changes.",
+        "main_log_diagnosis_missing_files": "Possible missing or unreadable Minecraft files or version metadata. Use Verify / repair version for official versions, or rerun the matching installer for modded or custom versions.",
+        "main_log_diagnosis_mod": "Possible mod, loader, or library incompatibility. Disable recently added mods, confirm that the loader matches the Minecraft version, and test again.",
+        "main_log_diagnosis_network": "Possible download or network failure. Check the connection, DNS/VPN/proxy settings, device date and time, and available storage; then retry repair while online.",
+    }
+    for string_name, string_value in log_diagnosis_strings.items():
+        if not re.search(r'<string\s+name="' + re.escape(string_name) + r'"', strings_text):
+            repair_failure_match = re.search(
+                r'(?m)^([ \t]*<string\s+name="main_repair_version_failure"[^>]*>.*?</string>)[ \t]*$',
+                strings_text,
+            )
+            if not repair_failure_match:
+                raise ValueError("Could not find the selected-version repair resource to add log-diagnosis messages")
+            indent = re.match(r"[ \t]*", repair_failure_match.group(1)).group(0)
+            new_string = indent + '<string name="' + string_name + '">' + string_value + '</string>'
+            strings_text = strings_text[:repair_failure_match.end()] + "\n" + new_string + strings_text[repair_failure_match.end():]
+        if not re.search(
+            r'<string\s+name="' + re.escape(string_name) + r'"[^>]*>\s*' + re.escape(string_value) + r'\s*</string>',
+            strings_text,
+        ):
+            raise ValueError(f"Log-diagnosis resource is missing or invalid: {string_name}")
     strings.write_text(strings_text, encoding="utf-8")
 
     # App names can be localized in values-*/strings.xml. Force the product
@@ -1511,7 +1540,7 @@ def patch_upstream(upstream: Path) -> None:
                 final String sanitizedLog = logText;
                 new android.app.AlertDialog.Builder(requireContext())
                         .setTitle("Latest game log")
-                        .setItems(new String[]{"Copy latest log", "Share latest log"}, (dialog, which) -> {
+                        .setItems(new String[]{"Copy latest log", "Share latest log", getString(R.string.main_log_diagnose_action)}, (dialog, which) -> {
                             if (which == 0) {
                                 android.content.ClipboardManager clipboard = (android.content.ClipboardManager)
                                         requireContext().getSystemService(android.content.Context.CLIPBOARD_SERVICE);
@@ -1532,6 +1561,63 @@ def patch_upstream(upstream: Path) -> None:
                                 } catch (android.content.ActivityNotFoundException error) {
                                     Toast.makeText(requireContext(), "No app can share text right now", Toast.LENGTH_LONG).show();
                                 }
+                            } else if (which == 2) {
+                                String normalizedLog = sanitizedLog.toLowerCase(java.util.Locale.ROOT);
+                                int diagnosisResource;
+                                if (normalizedLog.contains("no space left on device")
+                                        || normalizedLog.contains("enospc")
+                                        || normalizedLog.contains("eacces")
+                                        || normalizedLog.contains("permission denied")) {
+                                    diagnosisResource = R.string.main_log_diagnosis_storage;
+                                } else if (normalizedLog.contains("outofmemoryerror")
+                                        || normalizedLog.contains("java heap space")
+                                        || normalizedLog.contains("gc overhead limit exceeded")) {
+                                    diagnosisResource = R.string.main_log_diagnosis_memory;
+                                } else if (normalizedLog.contains("unsupportedclassversionerror")
+                                        || normalizedLog.contains("unsupported class file major version")
+                                        || normalizedLog.contains("incorrect java version")
+                                        || normalizedLog.contains("requires java 17")
+                                        || normalizedLog.contains("requires java 21")) {
+                                    diagnosisResource = R.string.main_log_diagnosis_java;
+                                } else if (normalizedLog.contains("renderer initialization failed")
+                                        || normalizedLog.contains("failed to create renderer")
+                                        || normalizedLog.contains("could not initialize opengl")
+                                        || normalizedLog.contains("egl_bad_alloc")
+                                        || normalizedLog.contains("eglinitialize")
+                                        || normalizedLog.contains("opengl error")
+                                        || normalizedLog.contains("virglrenderer")
+                                        || normalizedLog.contains("mobileglues")
+                                        || normalizedLog.contains("zink")) {
+                                    diagnosisResource = R.string.main_log_diagnosis_renderer;
+                                } else if (normalizedLog.contains("filenotfoundexception")
+                                        || normalizedLog.contains("nosuchfileexception")
+                                        || normalizedLog.contains("missing version metadata")
+                                        || normalizedLog.contains("metadata is missing")
+                                        || normalizedLog.contains("/versions/")) {
+                                    diagnosisResource = R.string.main_log_diagnosis_missing_files;
+                                } else if (normalizedLog.contains("modloadingexception")
+                                        || normalizedLog.contains("classnotfoundexception")
+                                        || normalizedLog.contains("noclassdeffounderror")
+                                        || normalizedLog.contains("nosuchmethoderror")
+                                        || normalizedLog.contains("mixin apply failed")
+                                        || normalizedLog.contains("failed to load mod")
+                                        || normalizedLog.contains("mod resolution failed")) {
+                                    diagnosisResource = R.string.main_log_diagnosis_mod;
+                                } else if (normalizedLog.contains("unknownhostexception")
+                                        || normalizedLog.contains("sockettimeoutexception")
+                                        || normalizedLog.contains("connectexception")
+                                        || normalizedLog.contains("sslhandshakeexception")
+                                        || normalizedLog.contains("connection reset")
+                                        || normalizedLog.contains("failed to download")) {
+                                    diagnosisResource = R.string.main_log_diagnosis_network;
+                                } else {
+                                    diagnosisResource = R.string.main_log_diagnosis_unknown;
+                                }
+                                new android.app.AlertDialog.Builder(requireContext())
+                                        .setTitle(R.string.main_log_diagnosis_title)
+                                        .setMessage(diagnosisResource)
+                                        .setPositiveButton(android.R.string.ok, null)
+                                        .show();
                             }
                         })
                         .show();
@@ -1552,15 +1638,23 @@ def patch_upstream(upstream: Path) -> None:
         or "logReader.seek(offset);" not in main_menu_text
         or "access[_-]?token|refresh[_-]?token|client[_-]?secret|authorization" not in main_menu_text
         or 'Bearer [REDACTED]' not in main_menu_text
-        or 'setItems(new String[]{"Copy latest log", "Share latest log"}' not in main_menu_text
+        or 'setItems(new String[]{"Copy latest log", "Share latest log", getString(R.string.main_log_diagnose_action)}' not in main_menu_text
         or "ClipboardManager" not in main_menu_text
         or "Intent.ACTION_SEND" not in main_menu_text
         or "Intent.EXTRA_TEXT" not in main_menu_text
         or "review before sending" not in main_menu_text
         or "Latest game log copied with sensitive tokens redacted" not in main_menu_text
+        or "toLowerCase(java.util.Locale.ROOT)" not in logs_long_listener
+        or "R.string.main_log_diagnosis_memory" not in logs_long_listener
+        or "R.string.main_log_diagnosis_renderer" not in logs_long_listener
+        or "R.string.main_log_diagnosis_missing_files" not in logs_long_listener
+        or "R.string.main_log_diagnosis_mod" not in logs_long_listener
+        or "R.string.main_log_diagnosis_network" not in logs_long_listener
+        or "R.string.main_log_diagnosis_storage" not in logs_long_listener
+        or "setMessage(diagnosisResource)" not in logs_long_listener
         or "Tools.isDemoProfile(v.getContext())" not in logs_long_listener
     ):
-        raise ValueError("Latest-log copy/share, read limit, token redaction, or demo-profile guard is incomplete")
+        raise ValueError("Latest-log copy/share/diagnosis, bounded read, token redaction, or demo-profile guard is incomplete")
 
     screenshots_binding = "Button mMyLauncherScreenshotsButton = view.findViewById(R.id.mylauncher_screenshots_button);"
     if screenshots_binding not in main_menu_text:
