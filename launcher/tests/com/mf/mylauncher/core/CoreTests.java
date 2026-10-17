@@ -23,7 +23,7 @@ public final class CoreTests {
     private CoreTests() { }
 
     public static void main(String[] args) throws Exception {
-        versions(); catalogs(); manifests(); jsonDecoder(); versionDetails(); launchArguments(); safeArchiveExtraction(); javaProcessRunner(); javaRuntimeProbe(); javaRuntimeLocator(); assetIndex(); assetIndexDownload(); assetLayoutMaterializer(); installationPlan(); classpathResolver(); nativeLibraryPlanner(); installationService(); nativeInstallationService(); verifiedDownloads(); downloader(); profiles(); memory();
+        versions(); catalogs(); manifests(); jsonDecoder(); versionDetails(); launchArguments(); safeArchiveExtraction(); javaProcessRunner(); javaRuntimeProbe(); javaRuntimeLocator(); assetIndex(); assetIndexDownload(); assetLayoutMaterializer(); installationPlan(); classpathResolver(); nativeLibraryPlanner(); installationService(); nativeInstallationService(); verifiedDownloads(); downloader(); profiles(); memory(); installationProgress();
         System.out.println("PASS: " + checks + " launcher-core assertions");
     }
 
@@ -1788,6 +1788,19 @@ public final class CoreTests {
         eq(384, MemoryDefaults.capToRuntimeMaximum(512, 384), "heap capped to runtime maximum");
         bad(() -> MemoryDefaults.suggestedHeapMiB(0), "zero RAM rejected");
         bad(() -> MemoryDefaults.capToRuntimeMaximum(512, 0), "zero runtime heap rejected");
+    }
+
+    private static void installationProgress() {
+        eq(50, new InstallationProgress(InstallationProgress.Stage.DOWNLOADING, null,
+                0, 0, Long.MAX_VALUE / 2, Long.MAX_VALUE).getPercent(),
+                "download percentage does not overflow on large metadata byte totals");
+        eq(99, new InstallationProgress(InstallationProgress.Stage.DOWNLOADING, null,
+                0, 0, Long.MAX_VALUE - 1, Long.MAX_VALUE).getPercent(),
+                "almost-complete huge download reports 99 percent");
+        eq(33, new InstallationProgress(InstallationProgress.Stage.DOWNLOADING, null,
+                1, 3, 0, 0).getPercent(), "task-based progress works when total bytes are zero");
+        eq(100, new InstallationProgress(InstallationProgress.Stage.COMPLETED, null,
+                0, 0, 0, 0).getPercent(), "completed installation always reports 100 percent");
     }
 
     private static MinecraftVersion version(String id, String type, String time) {
