@@ -477,6 +477,22 @@ public final class CoreTests {
             Files.createDirectories(outside);
             Path outsideSentinel = outside.resolve("sentinel.txt");
             Files.write(outsideSentinel, "safe".getBytes(StandardCharsets.UTF_8));
+            Path archiveParentTarget = temporary.resolve("native-archive-parent-target");
+            Files.createDirectories(archiveParentTarget);
+            Path copiedArchive = archiveParentTarget.resolve("source.zip");
+            Files.copy(archive, copiedArchive);
+            Path linkedArchiveParent = temporary.resolve("linked-native-archive-parent");
+            try {
+                Files.createSymbolicLink(linkedArchiveParent, archiveParentTarget);
+                io(() -> SafeArchiveExtractor.extract(linkedArchiveParent.resolve("source.zip"),
+                        temporary.resolve("linked-archive-output"), java.util.Collections.emptyList()),
+                        "symlinked ancestor of native archive rejected");
+                yes(!Files.exists(temporary.resolve("linked-archive-output")),
+                        "symlinked native archive is rejected before extraction output is created");
+            } catch (UnsupportedOperationException | SecurityException | java.nio.file.FileSystemException exception) {
+                // Some filesystems disable symbolic links for ordinary users.
+            }
+
             Path linked = temporary.resolve("linked-natives");
             try {
                 Files.createSymbolicLink(linked, outside);
