@@ -1127,6 +1127,71 @@ def patch_upstream(upstream: Path) -> None:
     ):
         raise ValueError("The crash-reports shortcut binding, directory creation, or handler is incomplete")
 
+    crash_reports_share_listener = """mMyLauncherCrashReportsButton.setOnLongClickListener(v -> {
+            if (Tools.isDemoProfile(v.getContext())) {
+                hasNoOnlineProfileDialog(getActivity(), getString(R.string.demo_unsupported), getString(R.string.change_account));
+                return true;
+            }
+            File crashReportsDirectory = new File(getCurrentProfileDirectory(), "crash-reports");
+            File[] reportFiles = crashReportsDirectory.listFiles((directory, name) -> {
+                if (name == null) return false;
+                String normalizedName = name.toLowerCase(java.util.Locale.ROOT);
+                return new File(directory, name).isFile()
+                        && (normalizedName.endsWith(".txt") || normalizedName.endsWith(".log"));
+            });
+            if (reportFiles == null || reportFiles.length == 0) {
+                Toast.makeText(requireContext(), "No text crash reports are available to share", Toast.LENGTH_LONG).show();
+                return true;
+            }
+            java.util.Arrays.sort(reportFiles, (left, right) ->
+                    Long.compare(right.lastModified(), left.lastModified()));
+            File latestReport = reportFiles[0];
+            final long maxShareBytes = 2L * 1024L * 1024L;
+            try (java.io.RandomAccessFile reportReader = new java.io.RandomAccessFile(latestReport, "r")) {
+                long fileLength = reportReader.length();
+                long bytesToRead = Math.min(maxShareBytes, fileLength);
+                long offset = fileLength - bytesToRead;
+                reportReader.seek(offset);
+                byte[] reportBytes = new byte[(int) bytesToRead];
+                reportReader.readFully(reportBytes);
+                String reportText = new String(reportBytes, java.nio.charset.StandardCharsets.UTF_8);
+                if (offset > 0) {
+                    reportText = "[Earlier crash report content omitted; sharing final 2 MiB only.]\n" + reportText;
+                }
+                reportText = reportText.replaceAll(
+                        "(?i)((?:access[_-]?token|refresh[_-]?token|client[_-]?secret|authorization|xsts[_-]?token|minecraft[_-]?token)[^A-Za-z0-9]{0,5})[A-Za-z0-9._~+/-=]+",
+                        "$1[REDACTED]");
+                reportText = reportText.replaceAll("(?i)Bearer[ ]+[A-Za-z0-9._~+/-=]+", "Bearer [REDACTED]");
+                android.content.Intent shareIntent = new android.content.Intent(android.content.Intent.ACTION_SEND);
+                shareIntent.setType("text/plain");
+                shareIntent.putExtra(android.content.Intent.EXTRA_SUBJECT,
+                        "VoidCraft Launcher crash report: " + latestReport.getName());
+                shareIntent.putExtra(android.content.Intent.EXTRA_TEXT, reportText);
+                startActivity(android.content.Intent.createChooser(shareIntent,
+                        "Share crash report — review before sending"));
+            } catch (java.io.IOException error) {
+                Toast.makeText(requireContext(), "Unable to prepare crash report: " + error.getMessage(), Toast.LENGTH_LONG).show();
+            }
+            return true;
+        });"""
+    if crash_reports_share_listener not in main_menu_text:
+        main_menu_text = main_menu_text.replace(crash_reports_listener,
+                crash_reports_listener + "\n\n        " + crash_reports_share_listener, 1)
+    if (
+        main_menu_text.count(crash_reports_share_listener) != 1
+        or main_menu_text.count("mMyLauncherCrashReportsButton.setOnLongClickListener") != 1
+        or "final long maxShareBytes = 2L * 1024L * 1024L;" not in main_menu_text
+        or "reportReader.seek(offset);" not in main_menu_text
+        or "Long.compare(right.lastModified(), left.lastModified())" not in main_menu_text
+        or "access[_-]?token|refresh[_-]?token|client[_-]?secret|authorization" not in main_menu_text
+        or 'Bearer [REDACTED]' not in main_menu_text
+        or "Intent.ACTION_SEND" not in main_menu_text
+        or "Intent.EXTRA_TEXT" not in main_menu_text
+        or "review before sending" not in main_menu_text
+        or "Tools.isDemoProfile(v.getContext())" not in crash_reports_share_listener
+    ):
+        raise ValueError("Crash report selection, bounded read, redaction, share chooser, or demo-profile guard is incomplete")
+
     required_backup_imports = (
         "import java.io.FileInputStream;",
         "import java.io.FileOutputStream;",
