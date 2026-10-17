@@ -175,6 +175,8 @@ def patch_upstream(upstream: Path) -> None:
             "Offline username validation is incomplete; expected username syntax, "
             f"length, and duplicate-profile guards are missing: {missing_validation}"
         )
+    # Validate the submitted value separately after syntax/length checks so fixture tests
+    # can detect each broken guard; CI also runs launcher/test.sh when the isolated core exists.
     normalized_login_text = " ".join(login_text.split())
     expected_username_submission = (
         'ExtraCore.setValue(ExtraConstants.MOJANG_LOGIN_TODO, '
