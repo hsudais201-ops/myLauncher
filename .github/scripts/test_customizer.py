@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib.util
+import subprocess
 import tempfile
 import unittest
 import xml.etree.ElementTree as ET
@@ -710,6 +711,19 @@ class BuildWorkflowTests(unittest.TestCase):
         self.assertIn('sha256sum "$(basename "$APK")"', self.workflow)
         self.assertIn("${{ env.APK_SHA256_PATH }}", self.workflow)
         self.assertIn("APK SHA-256:", self.workflow)
+
+
+    def test_smoke_script_reports_missing_apk_argument(self) -> None:
+        script = Path(__file__).with_name("emulator_smoke_test.sh")
+        result = subprocess.run(
+            ["sh", str(script)],
+            capture_output=True,
+            text=True,
+            timeout=10,
+            check=False,
+        )
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("Usage: emulator_smoke_test.sh <apk-path>", result.stderr)
 
 
 if __name__ == "__main__":
