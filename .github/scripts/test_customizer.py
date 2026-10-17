@@ -472,6 +472,34 @@ class ProfileTypeSelectFragment {
             self.assertIn('String tryagain = "Connect to the internet and try again.";', downloader)
             self.assertNotIn("Please try again on your Microsoft Account", downloader)
 
+    def test_verify_repair_version_action_checks_official_version_and_does_not_launch(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            self.fixture(root)
+            customizer.patch_upstream(root)
+            menu = (root / "app_pojavlauncher/src/main/java/net/kdt/pojavlaunch/fragments/MainMenuFragment.java").read_text(encoding="utf-8")
+            strings = (root / "app_pojavlauncher/src/main/res/values/strings.xml").read_text(encoding="utf-8")
+            self.assertIn('<string name="main_repair_version">Verify / repair version</string>', strings)
+            self.assertIn("Button mMyLauncherRepairVersionButton = view.findViewById(R.id.mylauncher_repair_version_button);", menu)
+            self.assertIn("mMyLauncherRepairVersionButton.setOnClickListener", menu)
+            self.assertIn("Tools.isOnline(v.getContext())", menu)
+            self.assertIn("ProgressKeeper.getTaskCount() > 0", menu)
+            self.assertIn("AsyncMinecraftDownloader.normalizeVersionId(selectedProfile.lastVersionId)", menu)
+            self.assertIn("AsyncMinecraftDownloader.getListedVersion(normalizedVersionId)", menu)
+            self.assertIn("new MinecraftDownloader().start(requireActivity(), selectedVersion, normalizedVersionId", menu)
+            self.assertIn("onDownloadDone()", menu)
+            self.assertIn("onDownloadFailed(Throwable throwable)", menu)
+            self.assertIn("main_repair_version_failure", strings)
+            repair_start = menu.index("mMyLauncherRepairVersionButton.setOnClickListener")
+            repair_block = menu[repair_start:repair_start + 6500]
+            self.assertNotIn("ExtraConstants.LAUNCH_GAME", repair_block)
+            for relative in ("src/main/res/layout/fragment_launcher.xml", "src/main/res/layout-land/fragment_launcher.xml"):
+                layout = (root / "app_pojavlauncher" / relative).read_text(encoding="utf-8")
+                self.assertEqual(layout.count('android:id="@+id/mylauncher_repair_version_button"'), 1)
+                self.assertIn('android:text="@string/main_repair_version"', layout)
+                self.assertIn('app:layout_constraintTop_toBottomOf="@id/mylauncher_shaderpacks_button"', layout)
+                self.assertIn('app:layout_constraintTop_toBottomOf="@id/mylauncher_repair_version_button"', layout)
+
     def test_patches_branding_and_ids(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
