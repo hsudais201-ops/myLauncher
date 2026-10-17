@@ -96,21 +96,32 @@ public final class LibraryMetadata {
      * explicit classifier instead of the legacy natives/classifiers maps.
      */
     public boolean hasExplicitNativeClassifier() {
+        return getExplicitClassifier().map(classifier -> classifier.startsWith("natives-")).orElse(false);
+    }
+
+    /** True for known OS/CPU-qualified classifiers, including non-native jars with embedded native resources. */
+    public boolean hasExplicitPlatformClassifier() {
         Optional<String> optional = getExplicitClassifier();
         if (!optional.isPresent()) return false;
         String classifier = optional.get();
-        return classifier.startsWith("natives-")
+        return hasExplicitNativeClassifier()
                 || classifier.matches("(?:linux|windows|osx|macos)-(?:aarch_64|x86_64|arm64|arm32|arm32hf|arm32v6|arm32v7|x86|i386|i486|i586|i686)");
     }
 
-    /** Safely filters classifier-qualified native binaries by both OS and CPU architecture. */
+    /** Selects only native-archive classifiers that target the requested OS and CPU architecture. */
     public boolean isExplicitNativeClassifierCompatible(String osName, String architecture) {
-        Optional<String> optional = getExplicitClassifier();
-        if (!optional.isPresent()) return true;
-        String classifier = optional.get();
-        if (!hasExplicitNativeClassifier()) return true;
+        if (!hasExplicitNativeClassifier()) return false;
+        return matchesClassifierTarget(getExplicitClassifier().get(), osName, architecture);
+    }
 
-        if (classifier.startsWith("natives-")) classifier = classifier.substring("natives-".length());
+    /** Filters platform-specific artifacts from downloads/classpath when they target another CPU. */
+    public boolean isExplicitPlatformClassifierCompatible(String osName, String architecture) {
+        if (!hasExplicitPlatformClassifier()) return true;
+        return matchesClassifierTarget(getExplicitClassifier().get(), osName, architecture);
+    }
+
+    private static boolean matchesClassifierTarget(String value, String osName, String architecture) {
+        String classifier = value.startsWith("natives-") ? value.substring("natives-".length()) : value;
         String[] parts = classifier.split("-", -1);
         if (parts.length == 0) return false;
         String classifierOs = normalizeClassifierOs(parts[0]);
@@ -127,10 +138,10 @@ public final class LibraryMetadata {
         return classifierArch != null && classifierArch.equals(normalizeClassifierArch(architecture));
     }
 
-    /** Platform-specific native classifiers must not leak into the classpath for another CPU target. */
+    /** Platform-specific artifacts must not leak into the classpath for another CPU target. */
     public boolean isCompatibleWithPlatform(LibraryPlatform platform) {
         if (platform == null) throw new IllegalArgumentException("Library platform is required");
-        return isExplicitNativeClassifierCompatible(platform.getOsName(), platform.getArchitecture());
+        return isExplicitPlatformClassifierCompatible(platform.getOsName(), platform.getArchitecture());
     }
 
     private static String normalizeClassifierOs(String value) {
