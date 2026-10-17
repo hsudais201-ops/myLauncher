@@ -165,9 +165,16 @@ class LauncherActivity {
             self.fixture(root)
             customizer.patch_upstream(root)
             res = root / "app_pojavlauncher/src/main/res"
-            paths = list((res / "values").glob("*.xml")) + list((res / "layout").glob("*.xml")) + list((res / "layout-land").glob("*.xml")) + list((res / "drawable").glob("*.xml"))
+            xml_paths = list((res / "values").glob("*.xml")) + list((res / "layout").glob("*.xml")) + list((res / "layout-land").glob("*.xml")) + list((res / "drawable").glob("*.xml"))
+            source_paths = [
+                root / "app_pojavlauncher/src/main/java/com/kdt/mcgui/MineButton.java",
+                root / "app_pojavlauncher/src/main/java/com/kdt/mcgui/MineEditText.java",
+                root / "app_pojavlauncher/src/main/java/net/kdt/pojavlaunch/LauncherActivity.java",
+                root / "app_pojavlauncher/src/main/java/net/kdt/pojavlaunch/prefs/LauncherPreferences.java",
+            ]
+            paths = xml_paths + source_paths
             before = {p: p.read_text(encoding="utf-8") for p in paths}
-            for path in paths:
+            for path in xml_paths:
                 ET.parse(path)
             customizer.patch_upstream(root)
             after = {p: p.read_text(encoding="utf-8") for p in paths}
