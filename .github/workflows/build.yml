@@ -126,6 +126,9 @@ jobs:
           echo "APK_SHA256_PATH=$APK_SHA256_PATH" >> "$GITHUB_ENV"
           echo "APK SHA-256: $(cut -d ' ' -f1 "$APK_SHA256_PATH")" >> upstream/MYLAUNCHER_BUILD_INFO.txt
 
+      - name: Stop Gradle daemons before emulator startup
+        working-directory: upstream
+        run: ./gradlew --stop || true
       - name: Install and launch APK in a headless Android emulator
         uses: reactivecircus/android-emulator-runner@v2
         with:
@@ -133,9 +136,10 @@ jobs:
           api-level: 28
           target: google_apis
           arch: x86_64
-          profile: pixel_5
+          profile: pixel_2
           disable-animations: true
-          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -camera-front none
+          # Reduce RAM pressure on hosted runners without KVM; the launcher boot check is the goal here.
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -no-snapshot -memory 1536 -cores 2 -camera-back none -camera-front none
           script: |
             # This action executes the script with /bin/sh (dash), not bash.
             set -eu
