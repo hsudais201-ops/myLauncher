@@ -39,6 +39,46 @@ def ensure_color(text: str, name: str, value: str) -> str:
     )
 
 
+
+def set_style_item(text: str, style_name: str, item_name: str, value: str) -> str:
+    """Set a theme item without creating duplicates on repeat patcher runs."""
+    style = re.search(
+        r'(<style\s+name="' + re.escape(style_name) + r'"[^>]*>)(.*?)(</style>)',
+        text,
+        re.DOTALL,
+    )
+    if not style:
+        raise ValueError(f"Could not find {style_name!r} in styles.xml")
+    body = style.group(2)
+    item = re.compile(
+        r'(<item\s+name="' + re.escape(item_name) + r'"\s*>)(.*?)(</item>)',
+        re.DOTALL,
+    )
+    body, count = item.subn(lambda m: m.group(1) + value + m.group(3), body, count=1)
+    if not count:
+        if re.search(r'<item\s+name="' + re.escape(item_name) + r'"', body):
+            raise ValueError(f"Unsupported style item {item_name!r} in {style_name!r}")
+        body = body.rstrip() + f'\n        <item name="{item_name}">{value}</item>\n    '
+    return text[:style.start()] + style.group(1) + body + style.group(3) + text[style.end():]
+
+
+def upsert_string(text: str, name: str, value: str) -> str:
+    """Set or append a string resource idempotently."""
+    pattern = re.compile(
+        r'(<string\s+name="' + re.escape(name) + r'"[^>]*>)(.*?)(</string>)',
+        re.DOTALL,
+    )
+    text, count = pattern.subn(lambda m: m.group(1) + value + m.group(3), text, count=1)
+    if count:
+        return text
+    if re.search(r'<string\s+name="' + re.escape(name) + r'"', text):
+        raise ValueError(f"Unsupported string declaration for {name!r}")
+    closing = re.search(r'</resources\s*>', text)
+    if not closing:
+        raise ValueError("Could not find </resources> in strings.xml")
+    return text[:closing.start()] + f'    <string name="{name}">{value}</string>\n' + text[closing.start():]
+
+
 def write_resource(path: Path, content: str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(content.strip() + "\n", encoding="utf-8")
@@ -51,11 +91,13 @@ def patch_upstream(upstream: Path) -> None:
     styles = res / "values/styles.xml"
     strings = res / "values/strings.xml"
     launcher_activity = app / "src/main/java/net/kdt/pojavlaunch/LauncherActivity.java"
+    manifest = app / "src/main/AndroidManifest.xml"
+    card = res / "drawable/background_card.xml"
     launcher_preferences = app / "src/main/java/net/kdt/pojavlaunch/prefs/LauncherPreferences.java"
     mine_button = app / "src/main/java/com/kdt/mcgui/MineButton.java"
     mine_edit_text = app / "src/main/java/com/kdt/mcgui/MineEditText.java"
 
-    for path in (colors, styles, strings, launcher_activity, launcher_preferences, mine_button, mine_edit_text):
+    for path in (colors, styles, strings, launcher_activity, launcher_preferences, mine_button, mine_edit_text, manifest, card):
         if not path.is_file():
             raise FileNotFoundError(f"Required UI/compatibility source is missing: {path}")
 
@@ -63,59 +105,86 @@ def patch_upstream(upstream: Path) -> None:
     # feel like the same product instead of unrelated upstream screens.
     color_text = colors.read_text(encoding="utf-8")
     palette = {
-        "minebutton_color": "#8B72FF",
-        "background_app": "#0C1020",
-        "background_overlay": "#29334D",
-        "background_status_bar": "#151B2D",
-        "background_bottom_bar": "#0A0F1D",
-        "primary_text": "#F5F6FF",
-        "secondary_text": "#B8C2DC",
+        "minebutton_color": "#8D6BFF",
+        "background_app": "#0D0A14",
+        "background_overlay": "#362747",
+        "background_status_bar": "#100C19",
+        "background_bottom_bar": "#15101F",
+        "primary_text": "#F7F2FF",
+        "secondary_text": "#B7AACD",
     }
     for name, value in palette.items():
         color_text = set_color(color_text, name, value)
     for name, value in {
-        "mylauncher_accent": "#A78BFA",
-        "mylauncher_accent_pressed": "#7C3AED",
-        "mylauncher_surface": "#182238",
-        "mylauncher_surface_pressed": "#292747",
-        "mylauncher_border": "#394766",
-        "mylauncher_field": "#10182A",
+        "mylauncher_accent": "#BBA2FF",
+        "mylauncher_accent_pressed": "#7650D8",
+        "mylauncher_surface": "#15111F",
+        "mylauncher_surface_pressed": "#2D2240",
+        "mylauncher_border": "#433452",
+        "mylauncher_field": "#100C19",
+        "mylauncher_primary_text": "#FFFFFF",
+        "mylauncher_ripple": "#66BBA2FF",
+        "mylauncher_hero_top": "#2C2043",
+        "mylauncher_hero_bottom": "#171120",
     }.items():
         color_text = ensure_color(color_text, name, value)
     colors.write_text(color_text, encoding="utf-8")
 
     styles_text = styles.read_text(encoding="utf-8")
-    app_theme = re.search(r'(<style\s+name="AppTheme"[^>]*>)(.*?)(</style>)', styles_text, re.DOTALL)
-    if not app_theme:
-        raise ValueError("Could not find AppTheme in styles.xml")
-    theme = app_theme.group(0)
-    for item in (
-        '<item name="colorAccent">@color/mylauncher_accent</item>',
-        '<item name="android:colorAccent">@color/mylauncher_accent</item>',
-        '<item name="colorControlActivated">@color/mylauncher_accent</item>',
-        '<item name="android:windowBackground">@color/background_app</item>',
-    ):
-        if item not in theme:
-            theme = theme.replace("</style>", f"        {item}\n    </style>")
-    styles_text = styles_text[:app_theme.start()] + theme + styles_text[app_theme.end():]
-
-    button_style = re.search(r'(<style\s+name="LauncherMenuButton"[^>]*>)(.*?)(</style>)', styles_text, re.DOTALL)
-    if not button_style:
-        raise ValueError("Could not find LauncherMenuButton style")
-    button_block = button_style.group(0)
-    button_block = button_block.replace(
-        '<item name="android:background">?android:attr/selectableItemBackground</item>',
-        '<item name="android:background">@drawable/mylauncher_button_background</item>',
-    )
-    if '<item name="android:background">@drawable/mylauncher_button_background</item>' not in button_block:
-        raise ValueError("LauncherMenuButton could not be given the myLauncher background")
-    if '<item name="android:textColor">@color/primary_text</item>' not in button_block:
-        button_block = button_block.replace(
-            "</style>",
-            '        <item name="android:textColor">@color/primary_text</item>\n    </style>',
-        )
-    styles_text = styles_text[:button_style.start()] + button_block + styles_text[button_style.end():]
+    for item, value in {
+        "colorAccent": "@color/mylauncher_accent",
+        "android:colorAccent": "@color/mylauncher_accent",
+        "colorControlActivated": "@color/mylauncher_accent",
+        "android:colorControlActivated": "@color/mylauncher_accent",
+        "colorControlHighlight": "@color/mylauncher_ripple",
+        "android:colorControlHighlight": "@color/mylauncher_ripple",
+        "colorButtonNormal": "@color/mylauncher_surface",
+        "android:windowBackground": "@color/background_app",
+        "android:textColorPrimary": "@color/primary_text",
+        "android:textColorSecondary": "@color/secondary_text",
+        "android:statusBarColor": "@color/background_status_bar",
+        "android:navigationBarColor": "@color/background_app",
+        "android:windowLightStatusBar": "false",
+        "android:windowLightNavigationBar": "false",
+    }.items():
+        styles_text = set_style_item(styles_text, "AppTheme", item, value)
+    for item, value in {
+        "android:background": "@drawable/mylauncher_button_background",
+        "android:textColor": "@color/primary_text",
+        "android:textAllCaps": "false",
+        "android:fontFamily": "sans-serif-medium",
+        "android:minHeight": "48dp",
+        "android:letterSpacing": "0.01",
+    }.items():
+        styles_text = set_style_item(styles_text, "LauncherMenuButton", item, value)
+    styles_text = set_style_item(styles_text, "LauncherMenuButton.Universal", "android:layout_height", "58dp")
+    if not re.search(r'<style\s+name="MyLauncherDialogTheme"\b', styles_text):
+        end = re.search(r'</resources\s*>', styles_text)
+        if not end:
+            raise ValueError(f"Could not find </resources> in {styles}")
+        styles_text = styles_text[:end.start()] + """
+    <style name="MyLauncherDialogTheme" parent="Theme.AppCompat.DayNight.Dialog">
+        <item name="colorAccent">@color/mylauncher_accent</item>
+        <item name="android:colorAccent">@color/mylauncher_accent</item>
+        <item name="android:windowBackground">@color/mylauncher_surface</item>
+        <item name="android:textColorPrimary">@color/primary_text</item>
+        <item name="android:textColorSecondary">@color/secondary_text</item>
+        <item name="android:windowMinWidthMajor">87%</item>
+        <item name="android:windowMinWidthMinor">87%</item>
+    </style>
+""" + styles_text[end.start():]
     styles.write_text(styles_text, encoding="utf-8")
+
+    card = res / "drawable/background_card.xml"
+    card_text = card.read_text(encoding="utf-8")
+    card_text = re.sub(r'<corners\s+android:radius="[^"]+"\s*/>', '<corners android:radius="18dp" />', card_text, count=1)
+    card_text = re.sub(r'<solid\s+android:color="[^"]+"\s*/>', '<solid android:color="@color/mylauncher_surface" />', card_text, count=1)
+    if "<stroke " not in card_text:
+        solid = re.search(r'^[ \t]*<solid[^>]*/>', card_text, re.MULTILINE)
+        if not solid:
+            raise ValueError(f"Could not find the card fill in {card}")
+        card_text = card_text[:solid.end()] + '\n    <stroke android:width="1dp" android:color="@color/mylauncher_border" />' + card_text[solid.end():]
+    card.write_text(card_text, encoding="utf-8")
 
     drawables = {
         "mylauncher_button_background.xml": """<?xml version="1.0" encoding="utf-8"?>
@@ -159,9 +228,9 @@ def patch_upstream(upstream: Path) -> None:
 </shape>""",
         "mylauncher_hero_background.xml": """<?xml version="1.0" encoding="utf-8"?>
 <shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
-    <gradient android:angle="0" android:startColor="#242044" android:endColor="#17263C" />
-    <stroke android:width="1dp" android:color="#51477F" />
-    <corners android:radius="20dp" />
+    <gradient android:angle="270" android:startColor="@color/mylauncher_hero_top" android:endColor="@color/mylauncher_hero_bottom" />
+    <stroke android:width="1dp" android:color="@color/mylauncher_border" />
+    <corners android:radius="22dp" />
 </shape>""",
     }
     for filename, content in drawables.items():
