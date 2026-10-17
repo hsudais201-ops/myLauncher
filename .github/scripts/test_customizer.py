@@ -162,11 +162,12 @@ public class LoggerView extends ConstraintLayout {
         });
         autoscrollToggle.setChecked(true);
         mLogListener = text -> {
-            if (mLogTextView.getVisibility() != VISIBLE) return;
+            if(mLogTextView.getVisibility() != VISIBLE) return;
             post(() -> {
                 mLogTextView.append(text + '\n');
-                if (mScrollView.isKeepFocusing()) mScrollView.fullScroll(View.FOCUS_DOWN);
+                if(mScrollView.isKeepFocusing()) mScrollView.fullScroll(View.FOCUS_DOWN);
             });
+
         };
     }
 }
