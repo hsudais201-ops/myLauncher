@@ -734,8 +734,12 @@ class BuildWorkflowTests(unittest.TestCase):
             self.smoke_script.index("android.permission.WRITE_EXTERNAL_STORAGE"),
             self.smoke_script.index("adb shell monkey -p com.mf.mylauncher.debug 1"),
         )
-        self.assertIn("APK did not reach LauncherActivity", self.smoke_script)
-        self.assertIn("Emulator smoke test passed: APK installed and LauncherActivity resumed.", self.smoke_script)
+        self.assertIn("ACTIVITY_PATTERN='(mResumedActivity|topResumedActivity)", self.smoke_script)
+        self.assertIn('grep -Eq "$ACTIVITY_PATTERN"', self.smoke_script)
+        self.assertIn("APK did not keep LauncherActivity resumed", self.smoke_script)
+        self.assertIn("Emulator smoke test passed: APK installed and LauncherActivity remained resumed.", self.smoke_script)
+        # Avoid a false-positive caused by matching a stopped activity in the task history.
+        self.assertNotIn("grep -Fq 'com.mf.mylauncher.debug/net.kdt.pojavlaunch.LauncherActivity'", self.smoke_script)
         self.assertIn("name: voidcraft-launcher-emulator-diagnostics", self.workflow)
         self.assertIn("upstream/mylauncher-emulator-logcat.txt", self.workflow)
         self.assertIn("if: ${{ always() && env.APK_PATH != '' }}", self.workflow)
