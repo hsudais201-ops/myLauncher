@@ -623,6 +623,31 @@ class ProfileTypeSelectFragment {
             self.assertIn('Tools.isDemoProfile(v.getContext())', menu)
             self.assertNotIn('else if (!hasOnlineProfile())', menu)
 
+    def test_mods_long_press_can_enable_disable_jars_safely(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            self.fixture(root)
+            customizer.patch_upstream(root)
+            menu = (root / "app_pojavlauncher/src/main/java/net/kdt/pojavlaunch/fragments/MainMenuFragment.java").read_text(encoding="utf-8")
+            strings = (root / "app_pojavlauncher/src/main/res/values/strings.xml").read_text(encoding="utf-8")
+            self.assertIn('<string name="main_mods_folder_hint">Mods folder. Long-press to enable or disable JAR mods.</string>', strings)
+            self.assertIn("mMyLauncherModsButton.setContentDescription(getString(R.string.main_mods_folder_hint));", menu)
+            self.assertIn("mMyLauncherModsButton.setOnClickListener", menu)
+            self.assertIn('openPath(v.getContext(), modsDirectory, false);', menu)
+            self.assertIn("mMyLauncherModsButton.setOnLongClickListener", menu)
+            self.assertIn("File[] modFiles = modsDirectory.listFiles", menu)
+            self.assertIn('normalizedName.endsWith(".jar")', menu)
+            self.assertIn('normalizedName.endsWith(".jar.disabled")', menu)
+            self.assertIn('selectedName + ".disabled"', menu)
+            self.assertIn('selectedName.substring(0, selectedName.length() - ".disabled".length())', menu)
+            self.assertIn('setPositiveButton(wasDisabled ? "Enable" : "Disable"', menu)
+            self.assertIn("destination.exists()", menu)
+            self.assertIn("!selectedMod.renameTo(destination)", menu)
+            self.assertIn("The selected mod is no longer available", menu)
+            self.assertIn("Tools.isDemoProfile(v.getContext())", menu)
+            self.assertIn("A file already exists with that name", menu)
+            self.assertLess(menu.index("mMyLauncherModsButton.setOnClickListener"), menu.index("mMyLauncherModsButton.setOnLongClickListener"))
+
     def test_resourcepacks_folder_shortcut_opens_the_selected_profile_resourcepacks_directory(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
