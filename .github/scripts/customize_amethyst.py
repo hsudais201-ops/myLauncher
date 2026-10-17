@@ -1166,7 +1166,13 @@ def patch_upstream(upstream: Path) -> None:
     private static void extractWorldBackup(File backupArchive, File stagingDirectory) throws IOException {
         final String stagingRoot = stagingDirectory.getCanonicalPath();
         final int maxEntries = 250000;
-        final long maxUncompressedBytes = 20L * 1024L * 1024L * 1024L;
+        final long availableBytes = new android.os.StatFs(stagingDirectory.getAbsolutePath()).getAvailableBytes();
+        final long reserveBytes = Math.min(256L * 1024L * 1024L, Math.max(8L * 1024L * 1024L, availableBytes / 10L));
+        final long storageBudgetBytes = availableBytes > reserveBytes ? availableBytes - reserveBytes : 0L;
+        final long maxUncompressedBytes = Math.min(20L * 1024L * 1024L * 1024L, storageBudgetBytes);
+        if (maxUncompressedBytes <= 0L) {
+            throw new IOException("Not enough free storage to restore a world backup safely");
+        }
         int entryCount = 0;
         long uncompressedBytes = 0L;
         Set<String> seenEntries = new HashSet<>();
@@ -1220,10 +1226,10 @@ def patch_upstream(upstream: Path) -> None:
                         byte[] buffer = new byte[16384];
                         int count;
                         while ((count = zipInput.read(buffer)) != -1) {
-                            uncompressedBytes += count;
-                            if (uncompressedBytes > maxUncompressedBytes) {
-                                throw new IOException("The uncompressed ZIP is larger than the 20 GB safety limit");
+                            if (count > maxUncompressedBytes - uncompressedBytes) {
+                                throw new IOException("The ZIP exceeds the available storage budget or the 20 GB safety limit");
                             }
+                            uncompressedBytes += count;
                             fileOutput.write(buffer, 0, count);
                         }
                     }
@@ -1314,6 +1320,9 @@ def patch_upstream(upstream: Path) -> None:
         or "private static void restoreWorldBackup(" not in main_menu_text
         or "private static void extractWorldBackup(" not in main_menu_text
         or "outputPath.startsWith(stagingRoot + File.separator)" not in main_menu_text
+        or "new android.os.StatFs(stagingDirectory.getAbsolutePath()).getAvailableBytes()" not in main_menu_text
+        or "storageBudgetBytes" not in main_menu_text
+        or "The ZIP exceeds the available storage budget or the 20 GB safety limit" not in main_menu_text
         or "private static File uniqueRestoredWorldDestination(" not in main_menu_text
         or "The ZIP contains an unsafe path segment" not in main_menu_text
     ):
