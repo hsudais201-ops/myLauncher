@@ -14,7 +14,18 @@ timeout 180s adb install -r "$APK_PATH"
 timeout 15s adb shell pm grant com.mf.mylauncher.debug android.permission.READ_EXTERNAL_STORAGE
 timeout 15s adb shell pm grant com.mf.mylauncher.debug android.permission.WRITE_EXTERNAL_STORAGE
 timeout 15s adb shell am force-stop com.mf.mylauncher.debug || true
-timeout 30s adb shell monkey -p com.mf.mylauncher.debug 1
+# Some Android emulator images keep monkey alive after it has dispatched the launcher tap.
+# Tolerate a timeout only here; the activity check below remains the pass/fail condition.
+if timeout 30s adb shell monkey -p com.mf.mylauncher.debug 1; then
+    :
+else
+    monkey_status=$?
+    if [ "$monkey_status" -eq 124 ]; then
+        echo "Monkey timed out after dispatch; continuing to verify LauncherActivity."
+    else
+        exit "$monkey_status"
+    fi
+fi
 
 for i in $(seq 1 45); do
     if timeout 10s adb shell dumpsys activity activities | tr -d '\r' | grep -Fq 'com.mf.mylauncher.debug/net.kdt.pojavlaunch.LauncherActivity'; then
