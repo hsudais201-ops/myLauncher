@@ -667,6 +667,7 @@ class BuildWorkflowTests(unittest.TestCase):
     def setUpClass(cls) -> None:
         workflow_path = Path(__file__).parents[1] / "workflows" / "build.yml"
         cls.workflow = workflow_path.read_text(encoding="utf-8")
+        cls.apply_logo_script = Path(__file__).with_name("apply_logo.py").read_text(encoding="utf-8")
         cls.smoke_script = Path(__file__).with_name("emulator_smoke_test.sh").read_text(encoding="utf-8")
         cls.kvm_script = Path(__file__).with_name("prepare_emulator_kvm.sh").read_text(encoding="utf-8")
 
