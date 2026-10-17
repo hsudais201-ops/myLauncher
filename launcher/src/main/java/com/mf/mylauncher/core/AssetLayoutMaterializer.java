@@ -49,14 +49,14 @@ public final class AssetLayoutMaterializer {
             if (!Files.isRegularFile(object, LinkOption.NOFOLLOW_LINKS) || Files.isSymbolicLink(object)) {
                 throw new IOException("Verified asset object is missing: " + asset.getObjectRelativePath());
             }
-            if (!hasExpectedContent(object, asset)) {
+            if (!hasExpectedContent(object, asset, cancellation)) {
                 throw new IOException("Cached asset object failed integrity verification: " + asset.getObjectRelativePath());
             }
 
             if (index.isVirtual()) {
                 Path destination = safeResolve(normalizedAssets,
                         "virtual/" + assetIndexId + "/" + asset.getResourceRelativePath());
-                boolean reused = copyVerifiedIfNeeded(object, destination, asset);
+                boolean reused = copyVerifiedIfNeeded(object, destination, asset, cancellation);
                 if (reused) cached++;
                 else {
                     written++;
@@ -76,7 +76,8 @@ public final class AssetLayoutMaterializer {
         return new Result(written, cached, bytesWritten);
     }
 
-    private static boolean copyVerifiedIfNeeded(Path source, Path destination, AssetObjectMetadata metadata)
+    private static boolean copyVerifiedIfNeeded(Path source, Path destination,
+                                                 AssetObjectMetadata metadata, CancellationToken cancellation)
             throws IOException {
         Path parent = destination.getParent();
         if (parent == null) throw new IOException("Asset materialization destination has no parent");
@@ -86,7 +87,7 @@ public final class AssetLayoutMaterializer {
             if (!Files.isRegularFile(destination, LinkOption.NOFOLLOW_LINKS)) {
                 throw new IOException("Asset materialization destination is not a regular file");
             }
-            if (hasExpectedContent(destination, metadata)) return true;
+            if (hasExpectedContent(destination, metadata, cancellation)) return true;
         }
 
         Path temporary = Files.createTempFile(parent, ".mylauncher-asset-", ".part");
@@ -97,7 +98,10 @@ public final class AssetLayoutMaterializer {
             byte[] buffer = new byte[BUFFER_SIZE];
             try (InputStream input = Files.newInputStream(source); OutputStream output = Files.newOutputStream(temporary)) {
                 int count;
-                while ((count = input.read(buffer)) != -1) {
+                while (true) {
+                    checkCancelled(cancellation);
+                    count = input.read(buffer);
+                    if (count == -1) break;
                     if (count == 0) continue;
                     total += count;
                     if (total > metadata.getSizeBytes()) {
@@ -105,6 +109,7 @@ public final class AssetLayoutMaterializer {
                     }
                     digest.update(buffer, 0, count);
                     output.write(buffer, 0, count);
+                    checkCancelled(cancellation);
                 }
             }
             if (total != metadata.getSizeBytes()
@@ -158,14 +163,18 @@ public final class AssetLayoutMaterializer {
         }
     }
 
-    private static boolean hasExpectedContent(Path path, AssetObjectMetadata metadata) throws IOException {
+    private static boolean hasExpectedContent(Path path, AssetObjectMetadata metadata,
+                                               CancellationToken cancellation) throws IOException {
         if (Files.size(path) != metadata.getSizeBytes()) return false;
         MessageDigest digest = sha1Digest();
         long total = 0;
         byte[] buffer = new byte[BUFFER_SIZE];
         try (InputStream input = Files.newInputStream(path)) {
             int count;
-            while ((count = input.read(buffer)) != -1) {
+            while (true) {
+                checkCancelled(cancellation);
+                count = input.read(buffer);
+                if (count == -1) break;
                 if (count == 0) continue;
                 total += count;
                 if (total > metadata.getSizeBytes()) return false;
