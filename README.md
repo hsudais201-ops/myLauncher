@@ -32,20 +32,15 @@ If the launcher reports `FileNotFoundException` for a path like `versions/<versi
 - The home screen retains **Add account**, **Mods folder**, **Resource packs**, and **World saves** shortcuts. The app icon, account forms, common buttons and dialogs share the same custom palette. Native renderer/gameplay compatibility remains an engine concern; a reskin alone cannot make an incompatible renderer work.
 
 
-### Troubleshooting: Minecraft 26.3+ graphics backend failures
+### Minecraft 26.x graphics backend failures
 
-If the game log contains Failed to create backend OpenGL / glGetError mismatch and Failed to create backend Vulkan / vkGetInstanceProcAddr mismatch, the Java runtime has already started but Minecraft cannot initialize either graphics backend. This is a renderer/runtime compatibility failure, not the APK's launcher UI or offline-account flow. Similar errors have been reported for Minecraft 26.3 on other Android GPUs, but that does not establish the exact cause or a working renderer for every device ([upstream report](https://github.com/AngelAuraMC/Amethyst-Android/issues/314)).
+If the log shows `Failed to create backend OpenGL` / `glGetError mismatch` and `Failed to create backend Vulkan` / `vkGetInstanceProcAddr mismatch`, the JVM has started but Minecraft cannot initialize its graphics backends. This is a renderer/runtime compatibility problem, not a launcher UI or offline-account error. Similar failures have been reported on other Android GPUs ([upstream report](https://github.com/AngelAuraMC/Amethyst-Android/issues/314)); that does not prove the exact cause or a working renderer for every phone.
 
-1. Open **Settings → Video and renderer**, switch only one renderer at a time, fully close the game between attempts, and try a clean vanilla profile without shaders or mods. Renderer options are hardware-dependent; do not assume that a Vulkan choice will work unless the device/driver supports the required API.
-2. In the supplied log, MobileGlues initialized OpenGL ES 3.2, but Minecraft still rejected the OpenGL and Vulkan backends. That log alone does not confirm a working renderer for the Adreno 619. A successful launcher APK build or launcher-only emulator test is not proof that Minecraft 26.3 will start on that phone.
-3. The separate Fullscreen: Not a boolean: off line is a settings parse warning, not the reported backend exception. Back up the game's options.txt; if it contains fullscreen:off, change only that value to fullscreen:false.
-4. Until a compatible renderer path is verified on the device, use a Minecraft version that you have confirmed launches on that phone. Do not delete worlds or reinstall the launcher just to address this renderer exception.
-### Minecraft 26.3+ graphics compatibility
+myLauncher applies a **targeted MobileGlues workaround** at the final renderer setup: it is limited to Minecraft 26.3 stable/later 26.x IDs (excluding 26.3-snapshot-1), only when MobileGlues is selected, and only while the saved error-filter setting remains at its default `Auto` value. The generated config then ignores shader/program errors (MobileGlues filter value `2`), without changing the saved preference. This may help with the documented error-filter compatibility issue, but it cannot guarantee that RenderPearl/OpenGL or Vulkan will initialize on every GPU or driver. See the [MobileGlues release notes](https://github.com/MobileGL-Dev/MobileGlues-release/releases).
 
-Minecraft 26.3+ can fail during Android graphics initialization with messages such as `glGetError mismatch` or Vulkan capability errors. The upstream launcher project documents additional 26.3-snapshot renderer issues, and MobileGlues notes that its error-filter setting must ignore shader/program errors on 26.3-snapshot-3 and later. See the [Amethyst 26.3 renderer issue](https://github.com/AngelAuraMC/Amethyst-Android/issues/314) and [MobileGlues release notes](https://github.com/MobileGL-Dev/MobileGlues-release/releases).
+If it still fails, try a clean vanilla profile and switch only to a renderer your device supports, fully closing the game between attempts. A successful launcher APK build or emulator launch is not proof that Minecraft 26.x will render correctly on your physical device.
 
-myLauncher prepares the MobileGlues error-filter compatibility configuration for Minecraft 26.3+ at launch without changing the saved preference. This is a targeted workaround, not a promise that all phones can run 26.x: the game may still fail when a GPU or system driver lacks capabilities required by its graphics backend. If it still fails, try a renderer that the device supports or use a Minecraft version known to launch on that device, then share the new `latestlog.txt` without account tokens.
-
+The separate log warning `Fullscreen: Not a boolean: "off"` is a settings parse issue, not the backend exception above. Back up the game's `options.txt`; if it contains `fullscreen:off`, change only that value to `fullscreen:false`. Do not delete worlds or reinstall the launcher to address the renderer error.
 ## Build the APK
 
 1. Open the Actions tab in this GitHub repository.
