@@ -304,7 +304,7 @@ def patch_upstream(upstream: Path) -> None:
     log_diagnosis_strings = {
         "main_log_diagnose_action": "Diagnose latest log",
         "main_log_diagnosis_title": "Latest game log diagnosis",
-        "main_log_diagnosis_unknown": "No common failure signature was found in the latest 1 MiB of the game log. This quick diagnosis may miss uncommon causes. Copy or share the sanitized log and review the final error or exception lines.",
+        "main_log_diagnosis_unknown": "No common failure signature was found near the end of the latest game log. This quick diagnosis may miss uncommon causes. Copy or share the sanitized log and review the final error or exception lines.",
         "main_log_diagnosis_storage": "Possible storage or file-access problem. Free device storage and check that the launcher can read and write the game directory, then retry.",
         "main_log_diagnosis_memory": "Possible memory exhaustion. Close background apps, reduce render distance and resolution, disable shaders, and choose a heap size suited to the device's available RAM.",
         "main_log_diagnosis_java": "Possible Java runtime mismatch. Select a Java runtime compatible with this Minecraft version and its mod loader, then retry.",
@@ -1563,52 +1563,59 @@ def patch_upstream(upstream: Path) -> None:
                                 }
                             } else if (which == 2) {
                                 String normalizedLog = sanitizedLog.toLowerCase(java.util.Locale.ROOT);
+                                String diagnosisText = normalizedLog.substring(Math.max(0, normalizedLog.length() - 65536));
                                 int diagnosisResource;
-                                if (normalizedLog.contains("no space left on device")
-                                        || normalizedLog.contains("enospc")
-                                        || normalizedLog.contains("eacces")
-                                        || normalizedLog.contains("permission denied")) {
+                                if (diagnosisText.contains("no space left on device")
+                                        || diagnosisText.contains("enospc")
+                                        || diagnosisText.contains("eacces")
+                                        || diagnosisText.contains("permission denied")) {
                                     diagnosisResource = R.string.main_log_diagnosis_storage;
-                                } else if (normalizedLog.contains("outofmemoryerror")
-                                        || normalizedLog.contains("java heap space")
-                                        || normalizedLog.contains("gc overhead limit exceeded")) {
+                                } else if (diagnosisText.contains("outofmemoryerror")
+                                        || diagnosisText.contains("java heap space")
+                                        || diagnosisText.contains("gc overhead limit exceeded")) {
                                     diagnosisResource = R.string.main_log_diagnosis_memory;
-                                } else if (normalizedLog.contains("unsupportedclassversionerror")
-                                        || normalizedLog.contains("unsupported class file major version")
-                                        || normalizedLog.contains("incorrect java version")
-                                        || normalizedLog.contains("requires java 17")
-                                        || normalizedLog.contains("requires java 21")) {
+                                } else if (diagnosisText.contains("unsupportedclassversionerror")
+                                        || diagnosisText.contains("unsupported class file major version")
+                                        || diagnosisText.contains("incorrect java version")
+                                        || diagnosisText.contains("requires java 17")
+                                        || diagnosisText.contains("requires java 21")) {
                                     diagnosisResource = R.string.main_log_diagnosis_java;
-                                } else if (normalizedLog.contains("renderer initialization failed")
-                                        || normalizedLog.contains("failed to create renderer")
-                                        || normalizedLog.contains("could not initialize opengl")
-                                        || normalizedLog.contains("egl_bad_alloc")
-                                        || normalizedLog.contains("eglinitialize")
-                                        || normalizedLog.contains("opengl error")
-                                        || normalizedLog.contains("virglrenderer")
-                                        || normalizedLog.contains("mobileglues")
-                                        || normalizedLog.contains("zink")) {
+                                } else if (diagnosisText.contains("renderer initialization failed")
+                                        || diagnosisText.contains("failed to create renderer")
+                                        || diagnosisText.contains("could not initialize opengl")
+                                        || diagnosisText.contains("egl_bad_alloc")
+                                        || diagnosisText.contains("eglinitialize")
+                                        || diagnosisText.contains("opengl error")
+                                        || diagnosisText.contains("virglrenderer initialization failed")
+                                        || diagnosisText.contains("failed to initialize mobileglues")
+                                        || diagnosisText.contains("could not initialize mobileglues")
+                                        || diagnosisText.contains("error initializing zink")
+                                        || diagnosisText.contains("zink initialization failed")) {
                                     diagnosisResource = R.string.main_log_diagnosis_renderer;
-                                } else if (normalizedLog.contains("filenotfoundexception")
-                                        || normalizedLog.contains("nosuchfileexception")
-                                        || normalizedLog.contains("missing version metadata")
-                                        || normalizedLog.contains("metadata is missing")
-                                        || normalizedLog.contains("/versions/")) {
+                                } else if (diagnosisText.contains("filenotfoundexception")
+                                        || diagnosisText.contains("nosuchfileexception")
+                                        || diagnosisText.contains("missing version metadata")
+                                        || diagnosisText.contains("metadata is missing")
+                                        || diagnosisText.contains("failed to read version json")
+                                        || (diagnosisText.contains("/versions/")
+                                            && (diagnosisText.contains("not found")
+                                                || diagnosisText.contains("no such file")
+                                                || diagnosisText.contains("missing"))) {
                                     diagnosisResource = R.string.main_log_diagnosis_missing_files;
-                                } else if (normalizedLog.contains("modloadingexception")
-                                        || normalizedLog.contains("classnotfoundexception")
-                                        || normalizedLog.contains("noclassdeffounderror")
-                                        || normalizedLog.contains("nosuchmethoderror")
-                                        || normalizedLog.contains("mixin apply failed")
-                                        || normalizedLog.contains("failed to load mod")
-                                        || normalizedLog.contains("mod resolution failed")) {
+                                } else if (diagnosisText.contains("modloadingexception")
+                                        || diagnosisText.contains("classnotfoundexception")
+                                        || diagnosisText.contains("noclassdeffounderror")
+                                        || diagnosisText.contains("nosuchmethoderror")
+                                        || diagnosisText.contains("mixin apply failed")
+                                        || diagnosisText.contains("failed to load mod")
+                                        || diagnosisText.contains("mod resolution failed")) {
                                     diagnosisResource = R.string.main_log_diagnosis_mod;
-                                } else if (normalizedLog.contains("unknownhostexception")
-                                        || normalizedLog.contains("sockettimeoutexception")
-                                        || normalizedLog.contains("connectexception")
-                                        || normalizedLog.contains("sslhandshakeexception")
-                                        || normalizedLog.contains("connection reset")
-                                        || normalizedLog.contains("failed to download")) {
+                                } else if (diagnosisText.contains("unknownhostexception")
+                                        || diagnosisText.contains("sockettimeoutexception")
+                                        || diagnosisText.contains("connectexception")
+                                        || diagnosisText.contains("sslhandshakeexception")
+                                        || diagnosisText.contains("connection reset")
+                                        || diagnosisText.contains("failed to download")) {
                                     diagnosisResource = R.string.main_log_diagnosis_network;
                                 } else {
                                     diagnosisResource = R.string.main_log_diagnosis_unknown;
