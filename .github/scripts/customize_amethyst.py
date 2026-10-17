@@ -430,12 +430,12 @@ def patch_upstream(upstream: Path) -> None:
                 app:layout_constraintTop_toBottomOf="@id/mylauncher_world_saves_button" />
 
 """
-            resourcepacks_pattern = re.compile(r'(<com\.kdt\.mcgui\.LauncherMenuButton\s+android:id="@\+id/mylauncher_resourcepacks_button".*?/>\s*)', re.DOTALL)
-            resourcepacks_match = resourcepacks_pattern.search(layout_text)
-            if not resourcepacks_match:
-                raise ValueError(f"Could not find mylauncher_resourcepacks_button in {layout_path}")
-            block = resourcepacks_match.group(1) + "\n" + account_button
-            layout_text = layout_text[:resourcepacks_match.start(1)] + block + layout_text[resourcepacks_match.end(1):]
+            world_saves_pattern = re.compile(r'(<com\.kdt\.mcgui\.LauncherMenuButton\s+android:id="@\+id/mylauncher_world_saves_button".*?/>\s*)', re.DOTALL)
+            world_saves_match = world_saves_pattern.search(layout_text)
+            if not world_saves_match:
+                raise ValueError(f"Could not find mylauncher_world_saves_button in {layout_path}")
+            block = world_saves_match.group(1) + "\n" + account_button
+            layout_text = layout_text[:world_saves_match.start(1)] + block + layout_text[world_saves_match.end(1):]
 
         account_pattern = re.compile(r'<com\.kdt\.mcgui\.LauncherMenuButton\s+android:id="@\+id/mylauncher_account_button".*?/>', re.DOTALL)
         account_match = account_pattern.search(layout_text)
@@ -503,7 +503,7 @@ def patch_upstream(upstream: Path) -> None:
             or resourcepacks_match.start() > world_saves_match.start()
             or world_saves_match.start() > account_match.start()
         ):
-            raise ValueError(f"myLauncher mods/resource-packs/account shortcuts are incomplete in {layout_path}")
+            raise ValueError(f"myLauncher mods/resource-packs/world-saves/account shortcuts are incomplete in {layout_path}")
 
         title_match = re.search(
             r'<TextView\s+android:id="@\+id/mylauncher_hero_title".*?/>',
