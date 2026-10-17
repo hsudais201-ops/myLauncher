@@ -1617,6 +1617,9 @@ public final class CoreTests {
                 Files.createSymbolicLink(linkRoot.resolve("jump"), outside);
                 io(() -> new VerifiedFileDownloader(uri -> { throw new AssertionError("symlink cache path must be rejected before networking"); })
                         .download(source, linkRoot, "jump/sentinel", 1, "bf8b4530d8d246dd74ac53a13471bba17941dff7"), "symbolic-link parent rejected");
+                yes(!VerifiedFileDownloader.isVerifiedFile(linkRoot.resolve("jump/sentinel"), 1,
+                        "0123456789abcdef0123456789abcdef01234567"),
+                        "cached file verification rejects symlink ancestors as well as a symlink leaf");
                 eq(1L, Files.size(outsideFile), "outside file not modified through symlink");
             } catch (UnsupportedOperationException | SecurityException exception) {
                 // Some filesystems do not permit symlink creation; traversal checks above still run.
