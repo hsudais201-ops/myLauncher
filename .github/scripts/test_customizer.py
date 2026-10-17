@@ -589,6 +589,7 @@ class BuildWorkflowTests(unittest.TestCase):
         self.assertIn("  push:\n    branches:\n      - main", self.workflow)
         self.assertIn("  pull_request:", self.workflow)
         self.assertIn("  workflow_dispatch:", self.workflow)
+        self.assertIn("group: mylauncher-build-v2-${{ github.ref }}", self.workflow)
         self.assertIn("EXPECTED_UPSTREAM_COMMIT=330c6eae3164df64bdc4828e946a9e62cc5169e4", self.workflow)
         # Keep the hosted build toolchain aligned with the pinned upstream project.
         self.assertIn("java-version: '21'", self.workflow)
