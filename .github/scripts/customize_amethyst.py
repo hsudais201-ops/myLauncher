@@ -1065,6 +1065,62 @@ def patch_upstream(upstream: Path) -> None:
     ):
         raise ValueError("The game-logs shortcut binding, directory creation, or handler is incomplete")
 
+    logs_long_listener = """mMyLauncherLogsButton.setOnLongClickListener(v -> {
+            if (Tools.isDemoProfile(v.getContext())) {
+                hasNoOnlineProfileDialog(getActivity(), getString(R.string.demo_unsupported), getString(R.string.change_account));
+                return true;
+            }
+            File latestLog = new File(new File(getCurrentProfileDirectory(), "logs"), "latest.log");
+            if (!latestLog.isFile() || !latestLog.canRead()) {
+                Toast.makeText(requireContext(), "Latest game log is not available yet", Toast.LENGTH_LONG).show();
+                return true;
+            }
+            final long maxCopyBytes = 1024L * 1024L;
+            try (java.io.RandomAccessFile logReader = new java.io.RandomAccessFile(latestLog, "r")) {
+                long fileLength = logReader.length();
+                long bytesToRead = Math.min(maxCopyBytes, fileLength);
+                long offset = fileLength - bytesToRead;
+                logReader.seek(offset);
+                byte[] logBytes = new byte[(int) bytesToRead];
+                logReader.readFully(logBytes);
+                String copiedText = new String(logBytes, java.nio.charset.StandardCharsets.UTF_8);
+                if (offset > 0) {
+                    copiedText = "[Earlier log content omitted; copied final 1 MiB only.]\\n" + copiedText;
+                }
+                copiedText = copiedText.replaceAll(
+                        "(?i)((?:access[_-]?token|refresh[_-]?token|client[_-]?secret|authorization|xsts[_-]?token|minecraft[_-]?token)[^A-Za-z0-9]{0,5})[A-Za-z0-9._~+/-=]+",
+                        "$1[REDACTED]");
+                copiedText = copiedText.replaceAll("(?i)Bearer[ ]+[A-Za-z0-9._~+/-=]+", "Bearer [REDACTED]");
+                android.content.ClipboardManager clipboard = (android.content.ClipboardManager)
+                        requireContext().getSystemService(android.content.Context.CLIPBOARD_SERVICE);
+                if (clipboard == null) {
+                    Toast.makeText(requireContext(), "Clipboard is not available", Toast.LENGTH_LONG).show();
+                } else {
+                    clipboard.setPrimaryClip(android.content.ClipData.newPlainText("VoidCraft Launcher latest.log", copiedText));
+                    Toast.makeText(requireContext(), "Latest game log copied with sensitive tokens redacted", Toast.LENGTH_LONG).show();
+                }
+            } catch (java.io.IOException error) {
+                Toast.makeText(requireContext(), "Unable to copy latest game log: " + error.getMessage(), Toast.LENGTH_LONG).show();
+            }
+            return true;
+        });"""
+    if logs_long_listener not in main_menu_text:
+        listener_anchor = "mVersionSpinner = view.findViewById(R.id.mc_version_spinner);"
+        if listener_anchor not in main_menu_text:
+            raise ValueError("Could not find the listener insertion point for the latest-log copy action")
+        main_menu_text = main_menu_text.replace(listener_anchor, "        " + logs_long_listener + "\n        " + listener_anchor, 1)
+    if (
+        main_menu_text.count(logs_long_listener) != 1
+        or 'new File(new File(getCurrentProfileDirectory(), "logs"), "latest.log")' not in main_menu_text
+        or "final long maxCopyBytes = 1024L * 1024L;" not in main_menu_text
+        or "logReader.seek(offset);" not in main_menu_text
+        or "access[_-]?token|refresh[_-]?token|client[_-]?secret|authorization" not in main_menu_text
+        or 'Bearer [REDACTED]' not in main_menu_text
+        or "ClipboardManager" not in main_menu_text
+        or "Latest game log copied with sensitive tokens redacted" not in main_menu_text
+    ):
+        raise ValueError("Latest-log copy, size limit, clipboard, or token redaction is incomplete")
+
     screenshots_binding = "Button mMyLauncherScreenshotsButton = view.findViewById(R.id.mylauncher_screenshots_button);"
     if screenshots_binding not in main_menu_text:
         if logs_binding not in main_menu_text:
