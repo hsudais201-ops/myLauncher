@@ -122,6 +122,15 @@ class LauncherActivity {
     }
 }
 """, encoding="utf-8")
+        (app / "src/main/java/net/kdt/pojavlaunch/MainActivity.java").write_text("""package net.kdt.pojavlaunch;
+class MainActivity {
+    void start(String versionId) {
+        if (Tools.LOCAL_RENDERER.equals("opengles_mobileglues")) {
+            LauncherPreferences.writeMGRendererSettings();
+        }
+    }
+}
+""", encoding="utf-8")
 
     def test_original_theme_applies_across_shared_controls(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
@@ -158,20 +167,17 @@ class LauncherActivity {
             root = Path(temp)
             self.fixture(root)
             customizer.patch_upstream(root)
-            activity = (root / "app_pojavlauncher/src/main/java/net/kdt/pojavlaunch/LauncherActivity.java").read_text(encoding="utf-8")
+            main_activity = (root / "app_pojavlauncher/src/main/java/net/kdt/pojavlaunch/MainActivity.java").read_text(encoding="utf-8")
             prefs = (root / "app_pojavlauncher/src/main/java/net/kdt/pojavlaunch/prefs/LauncherPreferences.java").read_text(encoding="utf-8")
-            self.assertIn('normalizedVersionId.matches("(?i)^26\\\\.(?:3|[4-9]|[1-9][0-9]+)(?:[.-].*|$)")', activity)
-            self.assertIn('normalizedVersionId.matches("(?i)^26\\\\.3-snapshot-1(?:$|[-+].*)")', activity)
-            self.assertIn("LauncherPreferences.writeMGRendererSettings();", activity)
-            self.assertIn('"opengles_mobileglues".equals(Tools.LOCAL_RENDERER)', activity)
-            self.assertIn("useDefaultRendererErrorFilter", activity)
-            self.assertIn("LauncherPreferences.MYLAUNCHER_RENDERPEARL_COMPAT = false;", activity)
-            self.assertIn('errorSetting = "2";', prefs)
+            self.assertIn("LauncherPreferences.writeMGRendererSettings(versionId);", main_activity)
+            self.assertIn('isRenderPearlWorkaroundTarget(String versionId)', prefs)
+            self.assertIn('id.matches("(?i)^26\\\\.(?:3|[4-9]|[1-9][0-9]+)(?:[.-].*|$)")', prefs)
+            self.assertIn('id.matches("(?i)^26\\\\.3-snapshot-1(?:$|[-+].*)")', prefs)
+            self.assertIn('"opengles_mobileglues".equals(Tools.LOCAL_RENDERER)', prefs)
             self.assertIn('&& "0".equals(errorSetting)', prefs)
-            self.assertIn('"0".equals(\n                LauncherPreferences.DEFAULT_PREF.getString("mg_renderer_setting_errorSetting", "0"))', activity)
+            self.assertIn('errorSetting = "2";', prefs)
             self.assertIn('DEFAULT_PREF.getString("mg_renderer_setting_errorSetting", "0")', prefs)
             strings = (root / "app_pojavlauncher/src/main/res/values/strings.xml").read_text(encoding="utf-8")
-            self.assertIn("mylauncher_26x_renderer_compat", strings)
             self.assertIn("26.3 compatibility varies by device", strings)
             self.assertIn("requires a compatible Vulkan driver", strings)
 
@@ -202,6 +208,7 @@ class LauncherActivity {
                 root / "app_pojavlauncher/src/main/java/com/kdt/mcgui/MineButton.java",
                 root / "app_pojavlauncher/src/main/java/com/kdt/mcgui/MineEditText.java",
                 root / "app_pojavlauncher/src/main/java/net/kdt/pojavlaunch/LauncherActivity.java",
+                root / "app_pojavlauncher/src/main/java/net/kdt/pojavlaunch/MainActivity.java",
                 root / "app_pojavlauncher/src/main/java/net/kdt/pojavlaunch/prefs/LauncherPreferences.java",
                 root / "app_pojavlauncher/src/main/AndroidManifest.xml",
             ]
