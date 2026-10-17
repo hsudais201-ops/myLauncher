@@ -1156,7 +1156,7 @@ def patch_upstream(upstream: Path) -> None:
                 reportReader.readFully(reportBytes);
                 String reportText = new String(reportBytes, java.nio.charset.StandardCharsets.UTF_8);
                 if (offset > 0) {
-                    reportText = "[Earlier crash report content omitted; sharing final 2 MiB only.]\n" + reportText;
+                    reportText = "[Earlier crash report content omitted; sharing final 2 MiB only.]\\n" + reportText;
                 }
                 reportText = reportText.replaceAll(
                         "(?i)((?:access[_-]?token|refresh[_-]?token|client[_-]?secret|authorization|xsts[_-]?token|minecraft[_-]?token)[^A-Za-z0-9]{0,5})[A-Za-z0-9._~+/-=]+",
