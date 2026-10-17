@@ -43,13 +43,22 @@ public final class JavaProcessRunner {
         }
         checkCancelled(cancellation);
 
+        Path requestedExecutable = javaExecutable.toAbsolutePath().normalize();
+        Path current = requestedExecutable.getRoot();
+        for (Path segment : requestedExecutable) {
+            current = current.resolve(segment);
+            if (Files.isSymbolicLink(current)) {
+                throw new IOException("Java executable path must not contain symbolic links");
+            }
+        }
+
         Path executable;
         try {
-            executable = javaExecutable.toAbsolutePath().normalize().toRealPath();
+            executable = requestedExecutable.toRealPath();
         } catch (IOException exception) {
             throw new IOException("Java executable could not be resolved", exception);
         }
-        if (Files.isSymbolicLink(executable) || !Files.isRegularFile(executable, LinkOption.NOFOLLOW_LINKS)
+        if (!Files.isRegularFile(executable, LinkOption.NOFOLLOW_LINKS)
                 || !Files.isExecutable(executable)) {
             throw new IOException("Java executable must be a regular executable file");
         }
