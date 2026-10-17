@@ -47,8 +47,10 @@ public final class NativeLibraryPlanner {
             if (!artifact.hasPath()) {
                 throw new IllegalArgumentException("Native classifier has no safe library path for " + library.getName());
             }
+            List<String> extractionExcludes = new ArrayList<>(library.getExtractionExcludes());
+            if (!extractionExcludes.contains("META-INF/")) extractionExcludes.add("META-INF/");
             NativeLibraryArchive nativeArchive = new NativeLibraryArchive(
-                    library.getName(), artifact, library.getExtractionExcludes());
+                    library.getName(), artifact, extractionExcludes);
             NativeLibraryArchive previous = byPath.putIfAbsent(nativeArchive.getRelativeLibraryPath(), nativeArchive);
             if (previous != null && !previous.hasSameArchive(nativeArchive)) {
                 throw new IllegalArgumentException("Conflicting native archives target the same library path: "
