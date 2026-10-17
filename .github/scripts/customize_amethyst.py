@@ -318,6 +318,17 @@ def patch_upstream(upstream: Path) -> None:
         strings_text = strings_text[:resourcepacks_string_match.end()] + "\n" + saves_string + strings_text[resourcepacks_string_match.end():]
     if not re.search(r'<string\s+name="main_world_saves_folder"[^>]*>\s*World saves\s*</string>', strings_text):
         raise ValueError("Required main_world_saves_folder string is missing or invalid")
+
+    # Flag current Android renderer compatibility honestly in the existing renderer chooser.
+    # These labels are guidance, not a claim that any backend is verified on every device.
+    renderer_labels = {
+        "mcl_setting_renderer_mobileglues": "MobileGlues (OpenGL ES) - 26.3 compatibility varies by device",
+        "mcl_setting_renderer_vulkan_kopper_zink": "Kopper Zink (Vulkan) - requires a compatible Vulkan driver",
+        "mcl_setting_renderer_vulkan_zink": "Zink (Vulkan) - compatibility and speed vary by device",
+    }
+    for resource_name, label_text in renderer_labels.items():
+        strings_text = upsert_xml_value(strings_text, "string", resource_name, label_text, str(strings))
+
     strings.write_text(strings_text, encoding="utf-8")
 
     colors_text = colors.read_text(encoding="utf-8")
@@ -737,6 +748,16 @@ def patch_upstream(upstream: Path) -> None:
         ):
             raise ValueError(f"myLauncher mods/resource-packs/world-saves/account shortcuts are incomplete in {layout_path}")
 
+        hero_background_match = re.search(
+            r'<View\s+android:id="@\+id/mylauncher_hero_background".*?/>',
+            layout_text,
+            flags=re.DOTALL,
+        )
+        kicker_match = re.search(
+            r'<TextView\s+android:id="@\+id/mylauncher_hero_kicker".*?/>',
+            layout_text,
+            flags=re.DOTALL,
+        )
         title_match = re.search(
             r'<TextView\s+android:id="@\+id/mylauncher_hero_title".*?/>',
             layout_text,
@@ -748,7 +769,14 @@ def patch_upstream(upstream: Path) -> None:
             flags=re.DOTALL,
         )
         if (
-            layout_text.count('android:id="@+id/mylauncher_hero_title"') != 1
+            layout_text.count('android:id="@+id/mylauncher_hero_background"') != 1
+            or layout_text.count('android:id="@+id/mylauncher_hero_kicker"') != 1
+            or not hero_background_match
+            or not kicker_match
+            or 'android:background="@drawable/mylauncher_hero_background"' not in hero_background_match.group(0)
+            or 'android:text="MYLAUNCHER  /  JAVA EDITION"' not in kicker_match.group(0)
+            or 'android:textColor="@color/mylauncher_accent"' not in kicker_match.group(0)
+            or layout_text.count('android:id="@+id/mylauncher_hero_title"') != 1
             or layout_text.count('android:id="@+id/mylauncher_hero_subtitle"') != 1
             or layout_text.count('android:id="@+id/mylauncher_account_button"') != 1
             or layout_text.count('android:id="@+id/mylauncher_world_saves_button"') != 1
@@ -760,7 +788,7 @@ def patch_upstream(upstream: Path) -> None:
             or 'android:layout_width="0dp"' not in title_match.group(0)
             or 'android:text="myLauncher"' not in title_match.group(0)
             or 'android:layout_width="0dp"' not in subtitle_match.group(0)
-            or 'android:text="Minecraft Java Edition · built for lightweight devices"' not in subtitle_match.group(0)
+            or 'android:text="Your Java worlds, reimagined for mobile."' not in subtitle_match.group(0)
             or 'app:layout_constraintTop_toBottomOf="@id/mylauncher_hero_title"' not in subtitle_match.group(0)
         ):
             raise ValueError(f"myLauncher header or folder/account shortcut is missing, duplicated, or incomplete in {layout_path}")
