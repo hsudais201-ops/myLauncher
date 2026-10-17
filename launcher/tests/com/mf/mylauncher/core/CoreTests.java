@@ -179,6 +179,16 @@ public final class CoreTests {
         eq("client-1.12.xml", loggedDetails.getLoggingConfiguration().get().getId(), "logging configuration ID parsed");
         eq(512L, loggedDetails.getLoggingConfiguration().get().getSizeBytes(), "logging configuration size parsed");
         eq(sha1, loggedDetails.getLoggingConfiguration().get().getSha1(), "logging configuration SHA-1 parsed");
+        eq("-Dlog4j.configurationFile=${path}", loggedDetails.getLoggingConfiguration().get().getArgument(),
+                "Minecraft logging JVM argument is retained from metadata");
+        Map<String, Object> missingLoggingArgumentClient = new LinkedHashMap<>(loggingClient);
+        missingLoggingArgumentClient.remove("argument");
+        Map<String, Object> missingLoggingArgumentRoot = new LinkedHashMap<>(loggingRoot);
+        missingLoggingArgumentRoot.put("client", missingLoggingArgumentClient);
+        Map<String, Object> missingLoggingArgumentDocument = new LinkedHashMap<>(withLogging);
+        missingLoggingArgumentDocument.put("logging", missingLoggingArgumentRoot);
+        bad(() -> VersionDetailsMapper.fromDecodedJson(missingLoggingArgumentDocument, "1.21.4"),
+                "missing mandatory logging argument rejected");
         Map<String, Object> unsafeLoggingFile = new LinkedHashMap<>(loggingFile);
         unsafeLoggingFile.put("id", "../escape.xml");
         Map<String, Object> unsafeLoggingClient = new LinkedHashMap<>(loggingClient);
