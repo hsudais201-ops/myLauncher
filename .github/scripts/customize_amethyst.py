@@ -248,6 +248,31 @@ def patch_upstream(upstream: Path) -> None:
         strings_text = strings_text[:shaderpacks_label_match.end()] + "\n" + shaderpacks_hint + strings_text[shaderpacks_label_match.end():]
     if not re.search(r'<string\s+name="main_shaderpacks_folder_hint"[^>]*>\s*Shader packs\. Long-press to enable or disable ZIP packs\.\s*</string>', strings_text):
         raise ValueError("Required main_shaderpacks_folder_hint text is missing or invalid")
+    live_log_strings = {
+        "main_live_log_filter_hint": "Filter live logs (case-insensitive)",
+        "main_live_log_filter_clear": "Clear log filter",
+        "main_live_log_count_all": "%1$d lines retained",
+        "main_live_log_count_matches": "%1$d matching lines",
+        "main_live_log_count_none": "No matching lines",
+        "main_live_log_truncated": "[Older log lines omitted to bound memory use]",
+    }
+    for string_name, string_value in live_log_strings.items():
+        if not re.search(r'<string\s+name="' + re.escape(string_name) + r'"', strings_text):
+            shader_hint_match = re.search(
+                r'(?m)^([ \t]*<string\s+name="main_shaderpacks_folder_hint"[^>]*>.*?</string>)[ \t]*$',
+                strings_text,
+            )
+            if not shader_hint_match:
+                raise ValueError("Could not find the shader-pack hint to add live-log filter resources")
+            indent = re.match(r"[ \t]*", shader_hint_match.group(1)).group(0)
+            new_string = indent + '<string name="' + string_name + '">' + string_value + '</string>'
+            strings_text = strings_text[:shader_hint_match.end()] + "\n" + new_string + strings_text[shader_hint_match.end():]
+        expected_value = re.escape(string_value)
+        if not re.search(
+            r'<string\s+name="' + re.escape(string_name) + r'"[^>]*>\s*' + expected_value + r'\s*</string>',
+            strings_text,
+        ):
+            raise ValueError(f"Live log filter resource is missing or invalid: {string_name}")
     strings.write_text(strings_text, encoding="utf-8")
 
     # App names can be localized in values-*/strings.xml. Force the product
@@ -2008,7 +2033,226 @@ def patch_upstream(upstream: Path) -> None:
 
     main_menu.write_text(main_menu_text, encoding="utf-8")
 
-    # Replace the upstream launcher artwork with a small vector mark that scales cleanly.
+    # Add a live, case-insensitive filter to the existing upstream LoggerView.
+    logger_view = upstream / "app_pojavlauncher" / "src" / "main" / "java" / "com" / "kdt" / "LoggerView.java"
+    logger_layout = upstream / "app_pojavlauncher" / "src" / "main" / "res" / "layout" / "view_logger.xml"
+    for logger_path in (logger_view, logger_layout):
+        if not logger_path.is_file():
+            raise FileNotFoundError(f"Expected upstream logger file is missing: {logger_path}")
+
+    logger_view_text = logger_view.read_text(encoding="utf-8")
+    if "import android.widget.EditText;" not in logger_view_text:
+        logger_view_text = logger_view_text.replace(
+            "import android.content.Context;\n",
+            "import android.content.Context;\nimport android.text.Editable;\nimport android.text.TextWatcher;\n",
+            1,
+        )
+        logger_view_text = logger_view_text.replace(
+            "import android.widget.ImageButton;\n",
+            "import android.widget.ImageButton;\nimport android.widget.EditText;\nimport java.util.Locale;\n",
+            1,
+        )
+    if "private EditText mLogFilterInput;" not in logger_view_text:
+        logger_view_text = logger_view_text.replace(
+            "    private TextView mLogTextView;\n",
+            "    private TextView mLogTextView;\n"
+            "    private EditText mLogFilterInput;\n"
+            "    private TextView mLogFilterCount;\n"
+            "    private static final int MAX_LOG_BUFFER_CHARS = 300000;\n"
+            "    private final StringBuilder mLogBuffer = new StringBuilder();\n"
+            "    private boolean mLogBufferTruncated;\n",
+            1,
+        )
+
+    filter_setup = """        mLogFilterInput = findViewById(R.id.content_log_filter_input);
+        mLogFilterCount = findViewById(R.id.content_log_filter_count);
+        ImageButton clearFilterButton = findViewById(R.id.content_log_filter_clear);
+        clearFilterButton.setContentDescription(getContext().getString(R.string.main_live_log_filter_clear));
+        clearFilterButton.setOnClickListener(view -> mLogFilterInput.setText(""));
+        mLogFilterInput.addTextChangedListener(new TextWatcher() {
+            @Override
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) { }
+
+            @Override
+            public void onTextChanged(CharSequence s, int start, int before, int count) { }
+
+            @Override
+            public void afterTextChanged(Editable s) {
+                renderFilteredLog();
+            }
+        });
+        renderFilteredLog();
+
+"""
+    if "mLogFilterInput = findViewById(R.id.content_log_filter_input);" not in logger_view_text:
+        logger_view_text = logger_view_text.replace(
+            "        mLogTextView.setVisibility(GONE);\n",
+            "        mLogTextView.setVisibility(GONE);\n\n" + filter_setup,
+            1,
+        )
+
+    old_toggle_off = """                        mLogTextView.setText("");
+                        Logger.removeLogListener(mLogListener);"""
+    new_toggle_off = """                        mLogTextView.setText("");
+                        mLogBuffer.setLength(0);
+                        mLogBufferTruncated = false;
+                        mLogFilterInput.setText("");
+                        mLogFilterCount.setText(getContext().getString(R.string.main_live_log_count_all, 0));
+                        Logger.removeLogListener(mLogListener);"""
+    if old_toggle_off in logger_view_text:
+        logger_view_text = logger_view_text.replace(old_toggle_off, new_toggle_off, 1)
+    elif new_toggle_off not in logger_view_text:
+        raise ValueError("Could not safely patch LoggerView to clear the bounded filter buffer when output stops")
+
+    original_log_listener = r"""        mLogListener = text -> {
+            if(mLogTextView.getVisibility() != VISIBLE) return;
+            post(() -> {
+                mLogTextView.append(text + '\n');
+                if(mScrollView.isKeepFocusing()) mScrollView.fullScroll(View.FOCUS_DOWN);
+            });
+
+        };"""
+    new_log_listener = r"""        mLogListener = text -> {
+            if(mLogTextView.getVisibility() != VISIBLE) return;
+            post(() -> {
+                if (!mLogToggle.isChecked() || mLogTextView.getVisibility() != VISIBLE) return;
+                appendLogText(text);
+                renderFilteredLog();
+                if(mScrollView.isKeepFocusing()) mScrollView.fullScroll(View.FOCUS_DOWN);
+            });
+        };"""
+    if original_log_listener in logger_view_text:
+        logger_view_text = logger_view_text.replace(original_log_listener, new_log_listener, 1)
+    elif new_log_listener not in logger_view_text:
+        raise ValueError("Could not safely patch the upstream live-log callback")
+
+    live_log_helpers = r"""
+    private void appendLogText(String text) {
+        mLogBuffer.append(text == null ? "" : text).append('\n');
+        if (mLogBuffer.length() <= MAX_LOG_BUFFER_CHARS) return;
+        int overflow = mLogBuffer.length() - MAX_LOG_BUFFER_CHARS;
+        int nextLine = mLogBuffer.indexOf("\n", overflow);
+        int removeChars = nextLine >= 0 ? nextLine + 1 : overflow;
+        mLogBuffer.delete(0, removeChars);
+        mLogBufferTruncated = true;
+    }
+
+    private void renderFilteredLog() {
+        if (mLogTextView == null || mLogFilterInput == null || mLogFilterCount == null) return;
+        String filter = mLogFilterInput.getText().toString().trim().toLowerCase(Locale.ROOT);
+        StringBuilder filteredText = new StringBuilder();
+        if (mLogBufferTruncated) {
+            filteredText.append(getContext().getString(R.string.main_live_log_truncated)).append('\n');
+        }
+        String[] lines = mLogBuffer.toString().split("\\n", -1);
+        int lineCount = 0;
+        int matchCount = 0;
+        for (String line : lines) {
+            if (line.isEmpty()) continue;
+            lineCount++;
+            if (filter.isEmpty() || line.toLowerCase(Locale.ROOT).contains(filter)) {
+                filteredText.append(line).append('\n');
+                matchCount++;
+            }
+        }
+        mLogTextView.setText(filteredText.toString());
+        if (filter.isEmpty()) {
+            mLogFilterCount.setText(getContext().getString(R.string.main_live_log_count_all, lineCount));
+        } else if (matchCount == 0) {
+            mLogFilterCount.setText(R.string.main_live_log_count_none);
+        } else {
+            mLogFilterCount.setText(getContext().getString(R.string.main_live_log_count_matches, matchCount));
+        }
+    }
+"""
+    if "private void renderFilteredLog()" not in logger_view_text:
+        class_end = logger_view_text.rfind("\n}")
+        if class_end < 0:
+            raise ValueError("Could not find the LoggerView class closing brace")
+        logger_view_text = logger_view_text[:class_end] + "\n" + live_log_helpers + logger_view_text[class_end:]
+
+    required_logger_tokens = (
+        "mLogFilterInput.addTextChangedListener",
+        "mLogBuffer.delete(0, removeChars)",
+        "line.toLowerCase(Locale.ROOT).contains(filter)",
+        "MAX_LOG_BUFFER_CHARS = 300000",
+        "main_live_log_count_matches",
+        "mLogToggle.isChecked()",
+    )
+    if any(token not in logger_view_text for token in required_logger_tokens):
+        raise ValueError("Live log filtering, bounded retention or listener shutdown guard is incomplete")
+    logger_view.write_text(logger_view_text, encoding="utf-8")
+
+    logger_layout_text = logger_layout.read_text(encoding="utf-8")
+    filter_row = """    <LinearLayout
+        android:id="@+id/log_filter_row"
+        android:layout_width="match_parent"
+        android:layout_height="48dp"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingStart="8dp"
+        android:paddingEnd="8dp"
+        app:layout_constraintTop_toBottomOf="@+id/top_log_view"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
+
+        <EditText
+            android:id="@+id/content_log_filter_input"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:hint="@string/main_live_log_filter_hint"
+            android:imeOptions="actionDone"
+            android:inputType="text"
+            android:maxLines="1"
+            android:singleLine="true" />
+
+        <ImageButton
+            android:id="@+id/content_log_filter_clear"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="@string/main_live_log_filter_clear"
+            android:scaleType="centerInside"
+            android:src="@android:drawable/ic_menu_close_clear_cancel" />
+
+        <TextView
+            android:id="@+id/content_log_filter_count"
+            android:layout_width="wrap_content"
+            android:layout_height="match_parent"
+            android:gravity="center_vertical"
+            android:paddingHorizontal="8dp"
+            android:text="@string/main_live_log_count_all"
+            android:textSize="12sp" />
+    </LinearLayout>
+
+"""
+    if 'android:id="@+id/log_filter_row"' not in logger_layout_text:
+        scroll_anchor = '    <com.kdt.DefocusableScrollView\n        android:id="@+id/content_log_scroll"'
+        if scroll_anchor not in logger_layout_text:
+            raise ValueError("Could not find the existing live log scroll view to add its filter row")
+        logger_layout_text = logger_layout_text.replace(scroll_anchor, filter_row + scroll_anchor, 1)
+    old_scroll_constraint = 'app:layout_constraintTop_toBottomOf="@+id/top_log_view"'
+    new_scroll_constraint = 'app:layout_constraintTop_toBottomOf="@+id/log_filter_row"'
+    scroll_start = logger_layout_text.find('<com.kdt.DefocusableScrollView\n        android:id="@+id/content_log_scroll"')
+    if scroll_start < 0:
+        raise ValueError("Could not find the scroll view after adding the log filter row")
+    scroll_end = logger_layout_text.find('>', scroll_start)
+    scroll_opening = logger_layout_text[scroll_start:scroll_end + 1]
+    if old_scroll_constraint in scroll_opening:
+        scroll_opening = scroll_opening.replace(old_scroll_constraint, new_scroll_constraint, 1)
+        logger_layout_text = logger_layout_text[:scroll_start] + scroll_opening + logger_layout_text[scroll_end + 1:]
+    if (
+        logger_layout_text.count('android:id="@+id/log_filter_row"') != 1
+        or logger_layout_text.count('android:id="@+id/content_log_filter_input"') != 1
+        or logger_layout_text.count('android:id="@+id/content_log_filter_clear"') != 1
+        or logger_layout_text.count('android:id="@+id/content_log_filter_count"') != 1
+        or new_scroll_constraint not in logger_layout_text[scroll_start:scroll_start + 500]
+    ):
+        raise ValueError("Live log filter row or scroll layout constraints are incomplete")
+    logger_layout.write_text(logger_layout_text, encoding="utf-8")
+
+    # Replace the upstream launcher artwork with a small vector mark that scales cleanly. with a small vector mark that scales cleanly.
     manifest = upstream / "app_pojavlauncher" / "src" / "main" / "AndroidManifest.xml"
     if not manifest.is_file():
         raise FileNotFoundError(f"Expected Android manifest is missing: {manifest}")
