@@ -511,6 +511,13 @@ class BuildWorkflowTests(unittest.TestCase):
 
     def test_workflow_installs_and_launches_apk_in_headless_emulator(self) -> None:
         self.assertIn("uses: reactivecircus/android-emulator-runner@v2", self.workflow)
+        self.assertIn("Stop Gradle daemons before emulator startup", self.workflow)
+        self.assertLess(
+            self.workflow.index("Stop Gradle daemons before emulator startup"),
+            self.workflow.index("Install and launch APK in a headless Android emulator"),
+        )
+        self.assertIn("profile: pixel_2", self.workflow)
+        self.assertIn("-no-snapshot -memory 1536 -cores 2", self.workflow)
         self.assertIn("api-level: 28", self.workflow)
         self.assertIn('adb install -r "$APK_PATH"', self.workflow)
         self.assertIn("com.mf.mylauncher.debug/net.kdt.pojavlaunch.LauncherActivity", self.workflow)
