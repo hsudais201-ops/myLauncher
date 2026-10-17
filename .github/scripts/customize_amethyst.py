@@ -186,6 +186,27 @@ def patch_upstream(upstream: Path) -> None:
             raise ValueError(f"Required header color {color_name!r} is missing from colors.xml")
 
     settings_text = settings.read_text(encoding="utf-8")
+    # AGP resolves some of its transitive buildscript dependencies from Maven
+    # Central. pluginManagement repositories are separate from ordinary project
+    # dependency repositories, so adding it only below dependencyResolutionManagement
+    # is not sufficient for those classpath artifacts.
+    settings_text = replace_idempotently(
+        settings_text,
+        """pluginManagement {
+    repositories {
+        gradlePluginPortal()
+        google()
+    }
+}""",
+        """pluginManagement {
+    repositories {
+        gradlePluginPortal()
+        google()
+        mavenCentral()
+    }
+}""",
+        str(settings),
+    )
     settings_text = replace_idempotently(settings_text, "Amethyst", "VoidCraft Launcher", str(settings))
     if not re.search(r"rootProject\.name\s*=\s*['\"]VoidCraft Launcher['\"]", settings_text):
         raise ValueError("Gradle rootProject.name was not customized")
