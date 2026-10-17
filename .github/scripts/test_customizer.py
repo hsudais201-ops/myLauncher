@@ -944,7 +944,7 @@ class ProfileTypeSelectFragment {
                 self.assertEqual(layout_text.count('android:id="@+id/' + view_id + '"'), 1)
             self.assertIn('app:layout_constraintTop_toBottomOf="@+id/log_filter_row"', layout_text)
 
-    def test_long_press_game_logs_copies_bounded_redacted_latest_log(self) -> None:
+    def test_long_press_game_logs_offers_copy_and_bounded_redacted_share(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
             self.fixture(root)
@@ -952,11 +952,17 @@ class ProfileTypeSelectFragment {
             menu = (root / "app_pojavlauncher/src/main/java/net/kdt/pojavlaunch/fragments/MainMenuFragment.java").read_text(encoding="utf-8")
             self.assertIn("mMyLauncherLogsButton.setOnLongClickListener", menu)
             self.assertIn('new File(new File(getCurrentProfileDirectory(), "logs"), "latest.log")', menu)
-            self.assertIn("final long maxCopyBytes = 1024L * 1024L;", menu)
+            self.assertIn("final long maxLogBytes = 1024L * 1024L;", menu)
             self.assertIn("logReader.seek(offset);", menu)
             self.assertIn("access[_-]?token|refresh[_-]?token|client[_-]?secret|authorization", menu)
             self.assertIn('Bearer [REDACTED]', menu)
             self.assertIn("android.content.ClipboardManager", menu)
+            self.assertIn('new android.app.AlertDialog.Builder(requireContext())', menu)
+            self.assertIn('setItems(new String[]{"Copy latest log", "Share latest log"}', menu)
+            self.assertIn("Intent.ACTION_SEND", menu)
+            self.assertIn("Intent.EXTRA_SUBJECT", menu)
+            self.assertIn("Intent.EXTRA_TEXT", menu)
+            self.assertIn("review before sending", menu)
             self.assertIn("Latest game log copied with sensitive tokens redacted", menu)
             self.assertIn("Tools.isDemoProfile(v.getContext())", menu)
 
