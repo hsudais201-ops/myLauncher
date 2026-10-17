@@ -34,6 +34,16 @@ public final class LaunchCommandBuilder {
         }
         if (configuredJvm.isEmpty()) command.add("-Dfile.encoding=UTF-8");
         for (String arg : configuredJvm) command.add(expand(arg, variables));
+
+        if (details.getLoggingConfiguration().isPresent()
+                && !containsPrefix(configuredJvm, "-Dlog4j.configurationFile=")) {
+            String loggingPath = variables.get("path");
+            if (loggingPath == null || loggingPath.isEmpty()) {
+                throw new IllegalArgumentException("A verified logging-configuration path is required by version metadata");
+            }
+            command.add(expand(details.getLoggingConfiguration().get().getArgument(), variables));
+        }
+
         if (!hasClasspathOption(configuredJvm)) {
             command.add("-cp");
             command.add(variables.get("classpath"));
