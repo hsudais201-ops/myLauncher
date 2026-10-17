@@ -128,7 +128,7 @@ class LocalLoginFragment {
             Tools.swapFragment(requireActivity(), MainMenuFragment.class, MainMenuFragment.TAG, null);
         }
         if(!checkEditText()) return;
-        ExtraCore.setValue(ExtraConstants.MOJANG_LOGIN_TODO, new String[]{ "name", "" });
+        ExtraCore.setValue(ExtraConstants.MOJANG_LOGIN_TODO, new String[]{ mUsernameEditText.getText().toString(), "" });
     }
 
     private boolean checkEditText() {
@@ -372,7 +372,7 @@ class ProfileTypeSelectFragment {
             login_layout = (root / "app_pojavlauncher/src/main/res/layout/fragment_local_login.xml").read_text(encoding="utf-8")
             self.assertNotIn("if (!hasOnlineProfile())", local_login)
             self.assertNotIn("import static net.kdt.pojavlaunch.Tools.hasOnlineProfile;", local_login)
-            self.assertIn("ExtraCore.setValue(ExtraConstants.MOJANG_LOGIN_TODO, new String[]{", local_login)
+            self.assertIn('ExtraCore.setValue(ExtraConstants.MOJANG_LOGIN_TODO, new String[]{ mUsernameEditText.getText().toString(), "" });', local_login)
             self.assertIn('Pattern.compile("^[a-zA-Z0-9_]*$")', local_login)
             self.assertIn("text.length() < 3", local_login)
             self.assertIn("text.length() > 16", local_login)
@@ -460,6 +460,19 @@ class ProfileTypeSelectFragment {
                 self.assertIn('app:layout_constraintTop_toTopOf="@id/news_button"', launcher_layout)
                 self.assertIn('app:layout_constraintTop_toBottomOf="@id/mylauncher_hero_subtitle"', launcher_layout)
 
+
+    def test_rejects_hardcoded_offline_username_submission(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            self.fixture(root)
+            local_login = root / "app_pojavlauncher/src/main/java/net/kdt/pojavlaunch/fragments/LocalLoginFragment.java"
+            login_text = local_login.read_text(encoding="utf-8")
+            expected = 'ExtraCore.setValue(ExtraConstants.MOJANG_LOGIN_TODO, new String[]{ mUsernameEditText.getText().toString(), "" });'
+            self.assertIn(expected, login_text)
+            hardcoded = 'ExtraCore.setValue(ExtraConstants.MOJANG_LOGIN_TODO, new String[]{ "name", "" });'
+            local_login.write_text(login_text.replace(expected, hardcoded, 1), encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "does not submit the validated username"):
+                customizer.patch_upstream(root)
 
     def test_rejects_incomplete_offline_username_validation(self) -> None:
         invalidations = (

@@ -277,6 +277,15 @@ def patch_upstream(upstream: Path) -> None:
         or "if(!checkEditText())" not in login_text
     ):
         raise ValueError("The upstream offline-login submission/username validation flow is incomplete")
+    normalized_login_text = " ".join(login_text.split())
+    expected_username_submission = (
+        "ExtraCore.setValue(ExtraConstants.MOJANG_LOGIN_TODO, "
+        'new String[]{ mUsernameEditText.getText().toString(), "" });'
+    )
+    if expected_username_submission not in normalized_login_text:
+        raise ValueError(
+            "The upstream offline-login submission is incomplete or does not submit the validated username"
+        )
 
     # Fail closed if upstream changes the local username rules. Local profile names
     # must remain valid and unique rather than silently admitting unusable profiles.
