@@ -84,7 +84,7 @@ public final class VersionArgumentSet {
                 || (!"allow".equals(rawAction) && !"disallow".equals(rawAction))) {
             throw new IllegalArgumentException(field + ".action must be allow or disallow");
         }
-        String osName = null, osArch = null, osVersion = null;
+        String osName = null, osArch = null, osVersion = null, osVersionMin = null, osVersionMax = null;
         Object rawOs = value.get("os");
         if (rawOs != null) {
             if (!(rawOs instanceof Map<?, ?>)) throw new IllegalArgumentException(field + ".os must be an object");
@@ -92,6 +92,18 @@ public final class VersionArgumentSet {
             osName = optionalString(os.get("name"), field + ".os.name");
             osArch = optionalString(os.get("arch"), field + ".os.arch");
             osVersion = optionalString(os.get("version"), field + ".os.version");
+            Object rawVersionRange = os.get("versionRange");
+            if (rawVersionRange != null) {
+                if (!(rawVersionRange instanceof Map<?, ?>)) {
+                    throw new IllegalArgumentException(field + ".os.versionRange must be an object");
+                }
+                Map<?, ?> versionRange = (Map<?, ?>) rawVersionRange;
+                osVersionMin = optionalString(versionRange.get("min"), field + ".os.versionRange.min");
+                osVersionMax = optionalString(versionRange.get("max"), field + ".os.versionRange.max");
+                if (osVersionMin == null && osVersionMax == null) {
+                    throw new IllegalArgumentException(field + ".os.versionRange must contain min or max");
+                }
+            }
         }
         Map<String, Boolean> features = new LinkedHashMap<>();
         Object rawFeatures = value.get("features");
@@ -104,7 +116,8 @@ public final class VersionArgumentSet {
                 features.put((String) item.getKey(), (Boolean) item.getValue());
             }
         }
-        return new LibraryRule("allow".equals(rawAction), osName, osArch, osVersion, features);
+        return new LibraryRule("allow".equals(rawAction), osName, osArch, osVersion,
+                osVersionMin, osVersionMax, features);
     }
 
     private static String optionalString(Object value, String field) {
