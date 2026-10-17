@@ -9,6 +9,7 @@ public final class LaunchContext {
     private final String username, uuid, accessToken, userType, versionType;
     private final String gameDirectory, assetsRoot, librariesDirectory, nativesDirectory, classpath;
     private final String launcherName, launcherVersion, clientId, xuid, userPropertiesJson, loggingConfigPath;
+    private final String quickPlayPath, quickPlaySingleplayer, quickPlayMultiplayer, quickPlayRealms;
     private final int resolutionWidth, resolutionHeight, minHeapMiB, maxHeapMiB;
     private final LibraryPlatform platform;
 
@@ -38,6 +39,15 @@ public final class LaunchContext {
         this.xuid = builder.xuid == null ? "" : builder.xuid;
         this.userPropertiesJson = builder.userPropertiesJson == null ? "{}" : builder.userPropertiesJson;
         this.loggingConfigPath = builder.loggingConfigPath == null ? "" : builder.loggingConfigPath;
+        this.quickPlayPath = builder.quickPlayPath == null ? ""
+                : builder.quickPlayPath.toAbsolutePath().normalize().toString();
+        this.quickPlaySingleplayer = optionalArgument(builder.quickPlaySingleplayer, "quick-play singleplayer value");
+        this.quickPlayMultiplayer = optionalArgument(builder.quickPlayMultiplayer, "quick-play multiplayer value");
+        this.quickPlayRealms = optionalArgument(builder.quickPlayRealms, "quick-play Realms value");
+        requireFeatureValue(builder.platform, "has_quick_plays_support", quickPlayPath, "quickPlayPath");
+        requireFeatureValue(builder.platform, "is_quick_play_singleplayer", quickPlaySingleplayer, "quickPlaySingleplayer");
+        requireFeatureValue(builder.platform, "is_quick_play_multiplayer", quickPlayMultiplayer, "quickPlayMultiplayer");
+        requireFeatureValue(builder.platform, "is_quick_play_realms", quickPlayRealms, "quickPlayRealms");
         if (builder.resolutionWidth <= 0 || builder.resolutionHeight <= 0) throw new IllegalArgumentException("Window resolution values must be positive");
         this.resolutionWidth = builder.resolutionWidth;
         this.resolutionHeight = builder.resolutionHeight;
@@ -54,6 +64,21 @@ public final class LaunchContext {
 
     private static String nonEmptyOrDefault(String value, String fallback) {
         return value == null || value.isEmpty() ? fallback : value;
+    }
+
+    private static String optionalArgument(String value, String label) {
+        if (value == null) return "";
+        if (value.length() > 8192 || value.indexOf('\0') >= 0) {
+            throw new IllegalArgumentException(label + " is too long or contains a NUL character");
+        }
+        return value;
+    }
+
+    private static void requireFeatureValue(LibraryPlatform platform, String feature,
+                                            String value, String label) {
+        if (Boolean.TRUE.equals(platform.getFeatures().get(feature)) && value.isEmpty()) {
+            throw new IllegalArgumentException(label + " is required when launch feature " + feature + " is enabled");
+        }
     }
 
     Map<String, String> variables(VersionDetails details) {
@@ -79,6 +104,10 @@ public final class LaunchContext {
         variables.put("resolution_width", Integer.toString(resolutionWidth));
         variables.put("resolution_height", Integer.toString(resolutionHeight));
         variables.put("path", loggingConfigPath);
+        if (!quickPlayPath.isEmpty()) variables.put("quickPlayPath", quickPlayPath);
+        if (!quickPlaySingleplayer.isEmpty()) variables.put("quickPlaySingleplayer", quickPlaySingleplayer);
+        if (!quickPlayMultiplayer.isEmpty()) variables.put("quickPlayMultiplayer", quickPlayMultiplayer);
+        if (!quickPlayRealms.isEmpty()) variables.put("quickPlayRealms", quickPlayRealms);
         return variables;
     }
 
@@ -102,6 +131,8 @@ public final class LaunchContext {
         private String userType = "msa", versionType = "release";
         private String launcherName = "myLauncher", launcherVersion = "0.1.0";
         private String clientId = "", xuid = "", userPropertiesJson = "{}", loggingConfigPath = "";
+        private Path quickPlayPath;
+        private String quickPlaySingleplayer, quickPlayMultiplayer, quickPlayRealms;
         private int resolutionWidth = 854, resolutionHeight = 480, minHeapMiB = 128, maxHeapMiB = 512;
         private LibraryPlatform platform;
 
@@ -121,6 +152,10 @@ public final class LaunchContext {
         public Builder xuid(String value) { xuid = value; return this; }
         public Builder userPropertiesJson(String value) { userPropertiesJson = value; return this; }
         public Builder loggingConfigPath(String value) { loggingConfigPath = value; return this; }
+        public Builder quickPlayPath(Path value) { quickPlayPath = value; return this; }
+        public Builder quickPlaySingleplayer(String value) { quickPlaySingleplayer = value; return this; }
+        public Builder quickPlayMultiplayer(String value) { quickPlayMultiplayer = value; return this; }
+        public Builder quickPlayRealms(String value) { quickPlayRealms = value; return this; }
         public Builder resolution(int width, int height) { resolutionWidth = width; resolutionHeight = height; return this; }
         public Builder heapMiB(int min, int max) { minHeapMiB = min; maxHeapMiB = max; return this; }
         public Builder platform(LibraryPlatform value) { platform = value; return this; }
