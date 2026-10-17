@@ -332,7 +332,9 @@ public final class MainActivity extends Activity {
         else if ("armeabi-v7a".equals(arch)) arch = "arm";
         else if ("x86_64".equals(arch)) arch = "x86_64";
         else if ("x86".equals(arch)) arch = "x86";
-        return new LibraryPlatform("linux", arch, Build.VERSION.RELEASE, Collections.emptyMap());
+        // Mojang's os.version rules target the Java/Linux kernel version, not Android's release label.
+        String osVersion = System.getProperty("os.version", Build.VERSION.RELEASE);
+        return new LibraryPlatform("linux", arch, osVersion, Collections.emptyMap());
     }
 
     private void updateInstallationProgress(InstallationProgress snapshot) {
