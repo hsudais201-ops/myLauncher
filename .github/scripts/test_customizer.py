@@ -376,6 +376,8 @@ class ProfileTypeSelectFragment {
             self.assertIn('Pattern.compile("^[a-zA-Z0-9_]*$")', local_login)
             self.assertIn("text.length() < 3", local_login)
             self.assertIn("text.length() > 16", local_login)
+            self.assertIn("!matcher.matches()", local_login)
+            self.assertNotIn("!matcher.find()", local_login)
             self.assertIn('new File(Tools.DIR_ACCOUNT_NEW + "/" + text + ".json").exists()', local_login)
             self.assertIn('android:inputType="textPersonName"', login_layout)
             self.assertIn('android:text="@string/main_add_account"', login_layout)
