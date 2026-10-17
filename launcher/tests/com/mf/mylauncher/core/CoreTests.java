@@ -752,6 +752,9 @@ public final class CoreTests {
         yes(new LibraryRule(true, "linux", ".*64.*", null, null)
                 .matches("linux", "x86_64", "6.1", null),
                 "OS-architecture rule is evaluated as a regex");
+        yes(!new LibraryRule(true, "linux", "x86", null, null)
+                .matches("linux", "x86_64", "6.1", null),
+                "32-bit architecture rule must not match 64-bit architecture containing the same substring");
         bad(() -> new LibraryRule(true, null, "[", null, null),
                 "invalid OS-architecture regex rejected");
         LibraryMetadata included = new LibraryMetadata("org.example:core:1.0", libraryArtifact,
