@@ -117,6 +117,57 @@ def patch_upstream(upstream: Path) -> None:
         raise ValueError("Required main_world_saves_folder string is missing or invalid")
     strings.write_text(strings_text, encoding="utf-8")
 
+    # App names can be localized in values-*/strings.xml. Force the product
+    # identity in every translated app label/error string, not only the default locale.
+    resources_dir = upstream / "app_pojavlauncher" / "src" / "main" / "res"
+    localized_string_files = tuple(sorted(resources_dir.glob("values*/strings.xml")))
+    for localized_strings in localized_string_files:
+        localized_text = localized_strings.read_text(encoding="utf-8")
+        localized_text = localized_text.replace("Amethyst", "VoidCraft Launcher")
+        localized_text = re.sub(
+            r'(<string\s+name="app_name"[^>]*>).*?(</string>)',
+            r'\1VoidCraft Launcher\2',
+            localized_text,
+            count=1,
+            flags=re.DOTALL,
+        )
+        localized_text = re.sub(
+            r'(<string\s+name="app_short_name"[^>]*>).*?(</string>)',
+            r'\1VoidCraft Launcher\2',
+            localized_text,
+            count=1,
+            flags=re.DOTALL,
+        )
+        if "Amethyst" in localized_text:
+            raise ValueError(f"An old app-brand string remains in {localized_strings}")
+        localized_strings.write_text(localized_text, encoding="utf-8")
+
+    # The launcher About dialog is backed by this asset. Keep upstream credits and
+    # third-party license notices while identifying this custom build and its owner.
+    about_file = upstream / "app_pojavlauncher" / "src" / "main" / "assets" / "about_en.txt"
+    if not about_file.is_file():
+        raise FileNotFoundError(f"Expected launcher About text is missing: {about_file}")
+    about_text = about_file.read_text(encoding="utf-8")
+    old_about_intro = '%s (Minecraft Java Launcher for Android), version %s by Tran Khanh Duy (based on "Boardwalk" app)<br>'
+    new_about_intro = (
+        '%s (Minecraft Java Launcher for Android), version %s<br>\n\n'
+        '* Custom build:<br>\n'
+        ' • VoidCraft Launcher is customized and maintained by MF. Original upstream credits: '
+        'Tran Khanh Duy and contributors; based on the "Boardwalk" app.<br>'
+    )
+    if old_about_intro in about_text:
+        about_text = about_text.replace(old_about_intro, new_about_intro, 1)
+    elif "VoidCraft Launcher is customized and maintained by MF." not in about_text:
+        raise ValueError("Could not identify the launcher About header to add VoidCraft Launcher/MF attribution safely")
+    if (
+        "VoidCraft Launcher is customized and maintained by MF." not in about_text
+        or "Tran Khanh Duy and contributors" not in about_text
+        or "* License:" not in about_text
+        or "Third party components and their licenses" not in about_text
+    ):
+        raise ValueError("The About text must identify MF and preserve upstream/third-party license credits")
+    about_file.write_text(about_text, encoding="utf-8")
+
     colors_text = colors.read_text(encoding="utf-8")
     for color_name in ("primary_text", "secondary_text"):
         if not re.search(r'<color\s+name="' + color_name + r'"', colors_text):
@@ -861,6 +912,7 @@ def patch_upstream(upstream: Path) -> None:
         upstream / "app_pojavlauncher" / "src" / "main" / "res" / "layout-land" / "fragment_launcher.xml",
         manifest,
         icon,
+        *localized_string_files,
     ))
 
     print("VoidCraft Launcher patch OK")
