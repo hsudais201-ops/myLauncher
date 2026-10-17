@@ -306,7 +306,7 @@ def patch_upstream(upstream: Path) -> None:
         "main_log_diagnosis_title": "Latest game log diagnosis",
         "main_log_diagnosis_unknown": "No common failure signature was found near the end of the latest game log. This quick diagnosis may miss uncommon causes. Copy or share the sanitized log and review the final error or exception lines.",
         "main_log_diagnosis_storage": "Possible storage or file-access problem. Free device storage and check that the launcher can read and write the game directory, then retry.",
-        "main_log_diagnosis_memory": "Possible memory exhaustion. Close background apps, reduce render distance and resolution, disable shaders, and choose a heap size suited to the device's available RAM.",
+        "main_log_diagnosis_memory": "Possible memory exhaustion. Close background apps, reduce render distance and resolution, disable shaders, and choose a heap size suited to available device RAM.",
         "main_log_diagnosis_java": "Possible Java runtime mismatch. Select a Java runtime compatible with this Minecraft version and its mod loader, then retry.",
         "main_log_diagnosis_renderer": "Possible graphics or renderer failure. Try another supported renderer, lower the game resolution, and disable shaders. Revert any recent renderer or driver changes.",
         "main_log_diagnosis_missing_files": "Possible missing or unreadable Minecraft files or version metadata. Use Verify / repair version for official versions, or rerun the matching installer for modded or custom versions.",
