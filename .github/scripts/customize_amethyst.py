@@ -1030,7 +1030,7 @@ def patch_upstream(upstream: Path) -> None:
     )
     for import_line in repair_version_imports:
         if import_line not in main_menu_text:
-            import_anchor = "import net.kdt.pojavlaunch.CustomControlsActivity;\n"
+            import_anchor = "import net.kdt.pojavlaunch.extra.ExtraCore;\n"
             if import_anchor not in main_menu_text:
                 raise ValueError("Could not find MainMenuFragment import anchor for version repair")
             main_menu_text = main_menu_text.replace(import_anchor, import_anchor + import_line + "\n", 1)
