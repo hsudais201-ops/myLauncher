@@ -493,6 +493,7 @@ class ProfileTypeSelectFragment {
             repair_start = menu.index("mMyLauncherRepairVersionButton.setOnClickListener")
             repair_block = menu[repair_start:repair_start + 6500]
             self.assertNotIn("ExtraConstants.LAUNCH_GAME", repair_block)
+            self.assertNotIn(r"\n\n        mMyLauncherRepairVersionButton.setOnClickListener", menu)
             for relative in ("src/main/res/layout/fragment_launcher.xml", "src/main/res/layout-land/fragment_launcher.xml"):
                 layout = (root / "app_pojavlauncher" / relative).read_text(encoding="utf-8")
                 self.assertEqual(layout.count('android:id="@+id/mylauncher_repair_version_button"'), 1)
