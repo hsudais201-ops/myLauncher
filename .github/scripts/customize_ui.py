@@ -238,12 +238,15 @@ def patch_upstream(upstream: Path) -> None:
     # error filtering must ignore shader/program errors. Apply it at launch only
     # for affected versions and this renderer, leaving saved user preferences alone.
     prefs_text = launcher_preferences.read_text(encoding="utf-8")
-    prefs_text = replace_idempotently(
-        prefs_text,
-        "    public static SharedPreferences DEFAULT_PREF;",
-        "    public static boolean MYLAUNCHER_RENDERPEARL_COMPAT = false;\n\n    public static SharedPreferences DEFAULT_PREF;",
-        str(launcher_preferences),
-    )
+    if "public static boolean MYLAUNCHER_RENDERPEARL_COMPAT = false;" not in prefs_text:
+        prefs_text = replace_idempotently(
+            prefs_text,
+            "    public static SharedPreferences DEFAULT_PREF;",
+            "    public static boolean MYLAUNCHER_RENDERPEARL_COMPAT = false;\n\n    public static SharedPreferences DEFAULT_PREF;",
+            str(launcher_preferences),
+        )
+    elif "public static SharedPreferences DEFAULT_PREF;" not in prefs_text:
+        raise ValueError(f"SharedPreferences anchor is missing in {launcher_preferences}")
     old_setting = '        MGConfigJson.put("enableNoError", Integer.parseInt(DEFAULT_PREF.getString("mg_renderer_setting_errorSetting", "0")));'
     new_setting = """        String errorSetting = DEFAULT_PREF.getString("mg_renderer_setting_errorSetting", "0");
         if (MYLAUNCHER_RENDERPEARL_COMPAT && "opengles_mobileglues".equals(Tools.LOCAL_RENDERER)) {
