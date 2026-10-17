@@ -1600,7 +1600,7 @@ def patch_upstream(upstream: Path) -> None:
                                         || (diagnosisText.contains("/versions/")
                                             && (diagnosisText.contains("not found")
                                                 || diagnosisText.contains("no such file")
-                                                || diagnosisText.contains("missing"))) {
+                                                || diagnosisText.contains("missing")))) {
                                     diagnosisResource = R.string.main_log_diagnosis_missing_files;
                                 } else if (diagnosisText.contains("modloadingexception")
                                         || diagnosisText.contains("classnotfoundexception")
