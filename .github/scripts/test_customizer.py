@@ -691,6 +691,7 @@ class ProfileTypeSelectFragment {
             self.fixture(root)
             customizer.patch_upstream(root)
             menu = (root / "app_pojavlauncher/src/main/java/net/kdt/pojavlaunch/fragments/MainMenuFragment.java").read_text(encoding="utf-8")
+            strings = (root / "app_pojavlauncher/src/main/res/values/strings.xml").read_text(encoding="utf-8")
             self.assertIn("showWorldBackupPicker(requireActivity(), profileDirectory)", menu)
             self.assertIn("setItems(new String[]", menu)
             self.assertIn("private static void extractWorldBackup(", menu)
