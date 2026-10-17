@@ -709,6 +709,11 @@ class ProfileTypeSelectFragment {
             self.assertIn('<string name="main_world_backup_picker_title">Choose a world backup</string>', strings)
             self.assertIn('archivePath.startsWith(backupRoot + File.separator)', menu)
             self.assertIn('outputFile.exists()', menu)
+            self.assertIn("new android.os.StatFs(stagingDirectory.getAbsolutePath()).getAvailableBytes()", menu)
+            self.assertIn("storageBudgetBytes", menu)
+            self.assertIn("final long reserveBytes = Math.min(256L * 1024L * 1024L, Math.max(8L * 1024L * 1024L, availableBytes / 10L));", menu)
+            self.assertIn("The ZIP exceeds the available storage budget or the 20 GB safety limit", menu)
+            self.assertIn("Not enough free storage to restore a world backup safely", menu)
 
     def test_logs_folder_shortcut_opens_the_selected_profile_logs_directory(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
