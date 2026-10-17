@@ -741,6 +741,8 @@ class BuildWorkflowTests(unittest.TestCase):
         self.assertIn('test "$MIN_SDK" -le 28', self.workflow)
         self.assertIn('name apksigner', self.workflow)
         self.assertIn('"$APKSIGNER" verify --verbose "$APK"', self.workflow)
+        self.assertIn('ET.register_namespace("android", ANDROID[1:-1])', self.apply_logo_script)
+        self.assertIn('ET.register_namespace("tools", TOOLS[1:-1])', self.apply_logo_script)
         self.assertIn("voidcraft-launcher-debug-apk", self.workflow)
         self.assertIn('sha256sum "$(basename "$APK")"', self.workflow)
         self.assertIn("${{ env.APK_SHA256_PATH }}", self.workflow)
