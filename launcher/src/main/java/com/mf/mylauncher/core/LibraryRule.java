@@ -11,6 +11,7 @@ public final class LibraryRule {
     private final boolean allow;
     private final String osName;
     private final String osArch;
+    private final Pattern osArchPattern;
     private final Pattern osVersion;
     private final Map<String, Boolean> features;
 
@@ -19,6 +20,11 @@ public final class LibraryRule {
         this.allow = allow;
         this.osName = emptyToNull(osName);
         this.osArch = emptyToNull(osArch);
+        try {
+            this.osArchPattern = this.osArch == null ? null : Pattern.compile(this.osArch);
+        } catch (PatternSyntaxException exception) {
+            throw new IllegalArgumentException("Library rule OS-architecture regex is invalid", exception);
+        }
         try {
             this.osVersion = osVersionRegex == null || osVersionRegex.isEmpty()
                     ? null : Pattern.compile(osVersionRegex);
@@ -47,8 +53,8 @@ public final class LibraryRule {
     public boolean matches(String actualOsName, String actualOsArch, String actualOsVersion,
                            Map<String, Boolean> actualFeatures) {
         if (osName != null && !osName.equals(actualOsName)) return false;
-        if (osArch != null && !osArch.equals(actualOsArch)) return false;
-        if (osVersion != null && (actualOsVersion == null || !osVersion.matcher(actualOsVersion).matches())) return false;
+        if (osArchPattern != null && (actualOsArch == null || !osArchPattern.matcher(actualOsArch).find())) return false;
+        if (osVersion != null && (actualOsVersion == null || !osVersion.matcher(actualOsVersion).find())) return false;
         Map<String, Boolean> safeFeatures = actualFeatures == null ? Collections.emptyMap() : actualFeatures;
         for (Map.Entry<String, Boolean> entry : features.entrySet()) {
             if (!entry.getValue().equals(safeFeatures.get(entry.getKey()))) return false;
