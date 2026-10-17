@@ -1904,7 +1904,7 @@ def patch_upstream(upstream: Path) -> None:
         });"""
     if repair_version_listener not in main_menu_text:
         main_menu_text = main_menu_text.replace(shaderpacks_manager_listener,
-                shaderpacks_manager_listener + "\\n\\n        " + repair_version_listener, 1)
+                shaderpacks_manager_listener + "\n\n        " + repair_version_listener, 1)
     if (
         main_menu_text.count(repair_version_binding) != 1
         or main_menu_text.count(repair_version_listener) != 1
@@ -1916,6 +1916,7 @@ def patch_upstream(upstream: Path) -> None:
         or "onDownloadDone()" not in repair_version_listener
         or "onDownloadFailed(Throwable throwable)" not in repair_version_listener
         or "ExtraConstants.LAUNCH_GAME" in repair_version_listener
+        or r"\n\n        mMyLauncherRepairVersionButton.setOnClickListener" in main_menu_text
     ):
         raise ValueError("The selected-version repair action is missing validation, confirmation, callbacks or a no-launch guarantee")
 
