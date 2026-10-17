@@ -115,7 +115,7 @@ public final class LibraryRule {
                            Map<String, Boolean> actualFeatures) {
         if (osName != null && !osName.equals(actualOsName)) return false;
         if (osArchPattern != null && (actualOsArch == null || !osArchPattern.matcher(actualOsArch).matches())) return false;
-        if (osVersion != null && (actualOsVersion == null || !osVersion.matcher(actualOsVersion).find())) return false;
+        if (osVersion != null && (actualOsVersion == null || !osVersion.matcher(actualOsVersion).matches())) return false;
         if (osVersionMin != null || osVersionMax != null) {
             String numericActualVersion = numericVersionPrefix(actualOsVersion);
             if (numericActualVersion == null) return false;
