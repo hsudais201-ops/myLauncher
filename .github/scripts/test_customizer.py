@@ -695,6 +695,9 @@ class BuildWorkflowTests(unittest.TestCase):
         self.assertIn("Emulator smoke test passed: APK installed and LauncherActivity resumed.", self.smoke_script)
         self.assertIn("name: myLauncher-emulator-diagnostics", self.workflow)
         self.assertIn("upstream/mylauncher-emulator-logcat.txt", self.workflow)
+        self.assertIn("upstream/mylauncher-emulator-startup.png", self.workflow)
+        self.assertIn("capture_startup_screenshot", self.smoke_script)
+        self.assertIn("adb shell screencap -p /sdcard/mylauncher-emulator-startup.png", self.smoke_script)
         self.assertIn("if: ${{ always() && env.APK_PATH != '' }}", self.workflow)
         self.assertIn("if: ${{ always() && hashFiles('upstream/MYLAUNCHER_BUILD_INFO.txt') != '' }}", self.workflow)
         self.assertLess(
