@@ -127,6 +127,29 @@ def patch_upstream(upstream: Path) -> None:
         strings_text = strings_text[:world_saves_label_match.end()] + "\n" + backup_hint + strings_text[world_saves_label_match.end():]
     if not re.search(r'<string\s+name="main_world_saves_backup_hint"[^>]*>\s*World saves\. Long-press to create a ZIP backup\.\s*</string>', strings_text):
         raise ValueError("World saves backup accessibility hint is missing or invalid")
+    restore_strings = {
+        "main_world_saves_open_folder": "Open saves folder",
+        "main_world_backup_restore": "Restore a ZIP backup",
+        "main_world_backup_picker_title": "Choose a world backup",
+        "main_world_backup_confirm_title": "Restore world backup?",
+        "main_world_backup_confirm_message": "Existing worlds will not be overwritten. Name conflicts will be restored with a suffix.",
+    }
+    for string_name, string_value in restore_strings.items():
+        if not re.search(r'<string\s+name="' + re.escape(string_name) + r'"', strings_text):
+            hint_match = re.search(
+                r'(?m)^([ \t]*<string\s+name="main_world_saves_backup_hint"[^>]*>.*?</string>)[ \t]*$',
+                strings_text,
+            )
+            if not hint_match:
+                raise ValueError("Could not find the world-backup accessibility hint to add restore strings")
+            indent = re.match(r"[ \t]*", hint_match.group(1)).group(0)
+            new_string = indent + '<string name="' + string_name + '">' + string_value + '</string>'
+            strings_text = strings_text[:hint_match.end()] + "\n" + new_string + strings_text[hint_match.end():]
+        if not re.search(
+            r'<string\s+name="' + re.escape(string_name) + r'"[^>]*>\s*' + re.escape(string_value) + r'\s*</string>',
+            strings_text,
+        ):
+            raise ValueError(f"World backup restore string is missing or invalid: {string_name}")
     if not re.search(r'<string\s+name="main_logs_folder"', strings_text):
         world_saves_string_match = re.search(
             r'(?m)^([ \t]*<string\s+name="main_world_saves_folder"[^>]*>.*?</string>)[ \t]*$',
@@ -871,12 +894,25 @@ def patch_upstream(upstream: Path) -> None:
                 hasNoOnlineProfileDialog(getActivity(), getString(R.string.demo_unsupported), getString(R.string.change_account));
                 return;
             }
-            File worldSavesDirectory = new File(getCurrentProfileDirectory(), "saves");
+            File profileDirectory = getCurrentProfileDirectory();
+            File worldSavesDirectory = new File(profileDirectory, "saves");
             if (!worldSavesDirectory.isDirectory() && !worldSavesDirectory.mkdirs()) {
                 Toast.makeText(requireContext(), "Unable to create the world saves folder", Toast.LENGTH_LONG).show();
                 return;
             }
-            openPath(v.getContext(), worldSavesDirectory, false);
+            new AlertDialog.Builder(requireContext())
+                    .setTitle(R.string.main_world_saves_folder)
+                    .setItems(new String[] {
+                            getString(R.string.main_world_saves_open_folder),
+                            getString(R.string.main_world_backup_restore)
+                    }, (dialog, which) -> {
+                        if (which == 0) {
+                            openPath(v.getContext(), worldSavesDirectory, false);
+                        } else if (which == 1) {
+                            showWorldBackupPicker(requireActivity(), profileDirectory);
+                        }
+                    })
+                    .show();
         });"""
     if world_saves_listener not in main_menu_text:
         listener_anchor = "mVersionSpinner = view.findViewById(R.id.mc_version_spinner);"
@@ -886,8 +922,9 @@ def patch_upstream(upstream: Path) -> None:
     if (
         main_menu_text.count(world_saves_binding) != 1
         or main_menu_text.count(world_saves_listener) != 1
-        or 'new File(getCurrentProfileDirectory(), "saves")' not in main_menu_text
-        or "!worldSavesDirectory.isDirectory() && !worldSavesDirectory.mkdirs()" not in main_menu_text
+        or "File profileDirectory = getCurrentProfileDirectory();" not in world_saves_listener
+        or 'new File(profileDirectory, "saves")' not in world_saves_listener
+        or "!worldSavesDirectory.isDirectory() && !worldSavesDirectory.mkdirs()" not in world_saves_listener
         or "openPath(v.getContext(), worldSavesDirectory, false);" not in main_menu_text
     ):
         raise ValueError("The world-saves shortcut binding, directory creation, or handler is incomplete")
@@ -1037,11 +1074,189 @@ def patch_upstream(upstream: Path) -> None:
         main_menu_text = main_menu_text.replace("import java.io.FileInputStream;", "import java.util.HashSet;\nimport java.util.Set;\nimport java.io.FileInputStream;", 1)
     if "import java.util.zip.ZipEntry;" not in main_menu_text:
         main_menu_text = main_menu_text.replace("import java.util.Set;", "import java.util.zip.ZipEntry;\nimport java.util.zip.ZipOutputStream;\nimport java.util.Set;", 1)
+    if "import java.util.zip.ZipInputStream;" not in main_menu_text:
+        main_menu_text = main_menu_text.replace("import java.util.zip.ZipEntry;", "import java.util.zip.ZipEntry;\nimport java.util.zip.ZipInputStream;", 1)
     missing_backup_imports = [value for value in required_backup_imports if value not in main_menu_text]
     if missing_backup_imports:
         raise ValueError(f"World backup imports are incomplete: {missing_backup_imports}")
 
-    backup_helper = """    /**
+    backup_helper = """    private void showWorldBackupPicker(final android.app.Activity activity, File profileDirectory) {
+        File backupsDirectory = new File(profileDirectory, "backups");
+        File[] backupFiles = backupsDirectory.listFiles((directory, name) ->
+                name != null && name.endsWith(".zip") && new File(directory, name).isFile());
+        if (backupFiles == null || backupFiles.length == 0) {
+            Toast.makeText(activity, "No ZIP backups were found", Toast.LENGTH_LONG).show();
+            return;
+        }
+        java.util.Arrays.sort(backupFiles, (left, right) ->
+                Long.compare(right.lastModified(), left.lastModified()));
+        String[] backupNames = new String[backupFiles.length];
+        for (int i = 0; i < backupFiles.length; i++) {
+            backupNames[i] = backupFiles[i].getName();
+        }
+        new AlertDialog.Builder(activity)
+                .setTitle(R.string.main_world_backup_picker_title)
+                .setItems(backupNames, (dialog, which) -> {
+                    if (which < 0 || which >= backupFiles.length) return;
+                    File selectedBackup = backupFiles[which];
+                    new AlertDialog.Builder(activity)
+                            .setTitle(R.string.main_world_backup_confirm_title)
+                            .setMessage(R.string.main_world_backup_confirm_message)
+                            .setNegativeButton(android.R.string.cancel, null)
+                            .setPositiveButton(R.string.main_world_backup_restore, (confirmDialog, result) ->
+                                    restoreWorldBackup(activity, profileDirectory, selectedBackup))
+                            .show();
+                })
+                .show();
+    }
+
+    private static void restoreWorldBackup(final android.app.Activity activity, File profileDirectory, File backupArchive) {
+        File backupsDirectory = new File(profileDirectory, "backups");
+        File savesDirectory = new File(profileDirectory, "saves");
+        final File stagingDirectory = new File(profileDirectory, ".voidcraft-restore-" + System.nanoTime());
+        String resultMessage = "World backup restored";
+        try {
+            String backupRoot = backupsDirectory.getCanonicalPath();
+            String archivePath = backupArchive.getCanonicalPath();
+            if (!backupArchive.isFile()
+                    || !archivePath.startsWith(backupRoot + File.separator)) {
+                throw new IOException("The selected ZIP is not inside this profile's backups folder");
+            }
+            if (!savesDirectory.isDirectory() && !savesDirectory.mkdirs()) {
+                throw new IOException("Unable to create the saves folder");
+            }
+            if (stagingDirectory.exists() || !stagingDirectory.mkdirs()) {
+                throw new IOException("Unable to create a temporary restore folder");
+            }
+        } catch (IOException exception) {
+            Toast.makeText(activity, "World backup restore failed: " + exception.getMessage(), Toast.LENGTH_LONG).show();
+            return;
+        }
+
+        Toast.makeText(activity, "Restoring world backup…", Toast.LENGTH_SHORT).show();
+        new Thread(() -> {
+            String result;
+            int restoredCount = 0;
+            try {
+                extractWorldBackup(backupArchive, stagingDirectory);
+                File[] stagedEntries = stagingDirectory.listFiles();
+                if (stagedEntries == null || stagedEntries.length == 0) {
+                    throw new IOException("The ZIP contains no world files");
+                }
+                for (File stagedEntry : stagedEntries) {
+                    File destination = uniqueRestoredWorldDestination(savesDirectory, stagedEntry.getName());
+                    if (!stagedEntry.renameTo(destination)) {
+                        throw new IOException("Unable to move " + stagedEntry.getName()
+                                + "; " + restoredCount + " item(s) may already have been restored");
+                    }
+                    restoredCount++;
+                }
+                result = "World backup restored: " + restoredCount + " item(s)";
+            } catch (IOException exception) {
+                result = "World backup restore failed after " + restoredCount + " item(s): " + exception.getMessage();
+            } finally {
+                deleteRestoreTree(stagingDirectory);
+            }
+            final String message = result;
+            activity.runOnUiThread(() ->
+                    Toast.makeText(activity, message, Toast.LENGTH_LONG).show());
+        }, "VoidCraftWorldRestore").start();
+    }
+
+    private static void extractWorldBackup(File backupArchive, File stagingDirectory) throws IOException {
+        final String stagingRoot = stagingDirectory.getCanonicalPath();
+        final int maxEntries = 250000;
+        final long maxUncompressedBytes = 20L * 1024L * 1024L * 1024L;
+        int entryCount = 0;
+        long uncompressedBytes = 0L;
+        Set<String> seenEntries = new HashSet<>();
+        try (ZipInputStream zipInput = new ZipInputStream(new FileInputStream(backupArchive))) {
+            ZipEntry entry;
+            while ((entry = zipInput.getNextEntry()) != null) {
+                if (++entryCount > maxEntries) {
+                    throw new IOException("The ZIP contains too many entries");
+                }
+                String entryName = entry.getName();
+                if (entryName == null || entryName.isEmpty()
+                        || entryName.startsWith("/")
+                        || entryName.indexOf((char) 92) >= 0
+                        || entryName.indexOf((char) 0) >= 0
+                        || entryName.indexOf(':') >= 0) {
+                    throw new IOException("The ZIP contains an unsafe path");
+                }
+                boolean directoryEntry = entry.isDirectory();
+                String normalizedName = directoryEntry && entryName.endsWith("/")
+                        ? entryName.substring(0, entryName.length() - 1)
+                        : entryName;
+                if (normalizedName.isEmpty()) throw new IOException("The ZIP contains an empty path");
+                String[] segments = normalizedName.split("/", -1);
+                for (String segment : segments) {
+                    if (segment.isEmpty() || segment.equals(".") || segment.equals("..")) {
+                        throw new IOException("The ZIP contains an unsafe path segment");
+                    }
+                }
+                if (!seenEntries.add(normalizedName)) {
+                    throw new IOException("The ZIP contains duplicate entries");
+                }
+
+                File outputFile = new File(stagingDirectory, normalizedName);
+                String outputPath = outputFile.getCanonicalPath();
+                if (!outputPath.startsWith(stagingRoot + File.separator)) {
+                    throw new IOException("A ZIP path escapes the temporary restore folder");
+                }
+                if (directoryEntry) {
+                    if (outputFile.exists()) {
+                        if (!outputFile.isDirectory()) throw new IOException("A ZIP path has conflicting entry types");
+                    } else if (!outputFile.mkdirs()) {
+                        throw new IOException("Unable to create a restored directory");
+                    }
+                } else {
+                    File parent = outputFile.getParentFile();
+                    if (parent == null || (!parent.isDirectory() && !parent.mkdirs())) {
+                        throw new IOException("Unable to create a restored file's parent directory");
+                    }
+                    if (outputFile.exists()) throw new IOException("The ZIP contains a duplicate file");
+                    try (FileOutputStream fileOutput = new FileOutputStream(outputFile)) {
+                        byte[] buffer = new byte[16384];
+                        int count;
+                        while ((count = zipInput.read(buffer)) != -1) {
+                            uncompressedBytes += count;
+                            if (uncompressedBytes > maxUncompressedBytes) {
+                                throw new IOException("The uncompressed ZIP is larger than the 20 GB safety limit");
+                            }
+                            fileOutput.write(buffer, 0, count);
+                        }
+                    }
+                }
+                zipInput.closeEntry();
+            }
+        }
+    }
+
+    private static File uniqueRestoredWorldDestination(File savesDirectory, String originalName) {
+        File destination = new File(savesDirectory, originalName);
+        if (!destination.exists()) return destination;
+        int suffix = 1;
+        do {
+            String restoredName = originalName + " (restored" + (suffix == 1 ? "" : " " + suffix) + ")";
+            destination = new File(savesDirectory, restoredName);
+            suffix++;
+        } while (destination.exists());
+        return destination;
+    }
+
+    private static void deleteRestoreTree(File node) {
+        if (node == null || !node.exists()) return;
+        if (node.isDirectory()) {
+            File[] children = node.listFiles();
+            if (children != null) {
+                for (File child : children) deleteRestoreTree(child);
+            }
+        }
+        node.delete();
+    }
+
+    /**
      * Adds world saves to a ZIP without following paths outside the selected saves directory.
      * Repeated canonical paths are skipped to prevent symbolic-link cycles and duplicate entries.
      */
@@ -1095,8 +1310,14 @@ def patch_upstream(upstream: Path) -> None:
         "A world-save path escapes the saves directory" not in main_menu_text
         or "output.putNextEntry(new ZipEntry(relativePath))" not in main_menu_text
         or "new byte[16384]" not in main_menu_text
+        or "private void showWorldBackupPicker(" not in main_menu_text
+        or "private static void restoreWorldBackup(" not in main_menu_text
+        or "private static void extractWorldBackup(" not in main_menu_text
+        or "outputPath.startsWith(stagingRoot + File.separator)" not in main_menu_text
+        or "private static File uniqueRestoredWorldDestination(" not in main_menu_text
+        or "The ZIP contains an unsafe path segment" not in main_menu_text
     ):
-        raise ValueError("Existing world backup helper is incomplete")
+        raise ValueError("Existing world backup/restore helpers are incomplete")
 
     main_menu.write_text(main_menu_text, encoding="utf-8")
 
