@@ -79,6 +79,18 @@ def patch_upstream(upstream: Path) -> None:
         raise ValueError("An upstream application authority remains in strings.xml")
     if not re.search(r'<string\s+name="main_add_account"', strings_text):
         raise ValueError("Required main_add_account string is missing from strings.xml")
+    if not re.search(r'<string\s+name="main_mods_folder"', strings_text):
+        account_string = re.search(
+            r'(?m)^([ \t]*<string\s+name="main_add_account"[^>]*>.*?</string>)[ \t]*$',
+            strings_text,
+        )
+        if not account_string:
+            raise ValueError("Could not find main_add_account to add the mods-folder label")
+        indent = re.match(r"[ \t]*", account_string.group(1)).group(0)
+        mods_string = indent + '<string name="main_mods_folder">Mods folder</string>'
+        strings_text = strings_text[:account_string.end()] + "\n" + mods_string + strings_text[account_string.end():]
+    if not re.search(r'<string\s+name="main_mods_folder"[^>]*>\s*Mods folder\s*</string>', strings_text):
+        raise ValueError("Required main_mods_folder string is missing or invalid")
     strings.write_text(strings_text, encoding="utf-8")
 
     colors_text = colors.read_text(encoding="utf-8")
@@ -333,13 +345,13 @@ def patch_upstream(upstream: Path) -> None:
         if not divider_match or 'app:layout_constraintTop_toTopOf="@id/news_button"' not in divider_match.group(0):
             raise ValueError(f"Could not align social divider with news_button in {layout_path}")
 
-        if "mylauncher_account_button" not in layout_text:
-            account_button = """            <com.kdt.mcgui.LauncherMenuButton
-                android:id="@+id/mylauncher_account_button"
+        if "mylauncher_mods_button" not in layout_text:
+            mods_button = """            <com.kdt.mcgui.LauncherMenuButton
+                android:id="@+id/mylauncher_mods_button"
                 style="@style/LauncherMenuButton.Universal"
                 android:layout_width="match_parent"
-                android:drawableStart="@android:drawable/ic_menu_myplaces"
-                android:text="@string/main_add_account"
+                android:drawableStart="@android:drawable/ic_menu_manage"
+                android:text="@string/main_mods_folder"
                 app:layout_constraintTop_toBottomOf="@id/open_files_button" />
 
 """
@@ -347,27 +359,63 @@ def patch_upstream(upstream: Path) -> None:
             open_files_match = open_files_pattern.search(layout_text)
             if not open_files_match:
                 raise ValueError(f"Could not find open_files_button in {layout_path}")
-            block = open_files_match.group(1) + "\n" + account_button
+            block = open_files_match.group(1) + "\n" + mods_button
             layout_text = layout_text[:open_files_match.start(1)] + block + layout_text[open_files_match.end(1):]
 
-        account_match = re.search(
-            r'<com\.kdt\.mcgui\.LauncherMenuButton\s+android:id="@\+id/mylauncher_account_button".*?/>',
+        if "mylauncher_account_button" not in layout_text:
+            account_button = """            <com.kdt.mcgui.LauncherMenuButton
+                android:id="@+id/mylauncher_account_button"
+                style="@style/LauncherMenuButton.Universal"
+                android:layout_width="match_parent"
+                android:drawableStart="@android:drawable/ic_menu_myplaces"
+                android:text="@string/main_add_account"
+                app:layout_constraintTop_toBottomOf="@id/mylauncher_mods_button" />
+
+"""
+            mods_pattern = re.compile(r'(<com\.kdt\.mcgui\.LauncherMenuButton\s+android:id="@\+id/mylauncher_mods_button".*?/>\s*)', re.DOTALL)
+            mods_match = mods_pattern.search(layout_text)
+            if not mods_match:
+                raise ValueError(f"Could not find mylauncher_mods_button in {layout_path}")
+            block = mods_match.group(1) + "\n" + account_button
+            layout_text = layout_text[:mods_match.start(1)] + block + layout_text[mods_match.end(1):]
+
+        account_pattern = re.compile(r'<com\.kdt\.mcgui\.LauncherMenuButton\s+android:id="@\+id/mylauncher_account_button".*?/>', re.DOTALL)
+        account_match = account_pattern.search(layout_text)
+        if account_match and 'app:layout_constraintTop_toBottomOf="@id/open_files_button"' in account_match.group(0):
+            updated_account = account_match.group(0).replace(
+                'app:layout_constraintTop_toBottomOf="@id/open_files_button"',
+                'app:layout_constraintTop_toBottomOf="@id/mylauncher_mods_button"',
+                1,
+            )
+            layout_text = layout_text[:account_match.start()] + updated_account + layout_text[account_match.end():]
+            account_match = account_pattern.search(layout_text)
+        mods_match = re.search(
+            r'<com\.kdt\.mcgui\.LauncherMenuButton\s+android:id="@\+id/mylauncher_mods_button".*?/>',
             layout_text,
             flags=re.DOTALL,
         )
         open_files_index = layout_text.find('android:id="@+id/open_files_button"')
         if (
-            not account_match
+            not mods_match
+            or mods_match.group(0).count('android:id="@+id/mylauncher_mods_button"') != 1
+            or 'style="@style/LauncherMenuButton.Universal"' not in mods_match.group(0)
+            or 'android:layout_width="match_parent"' not in mods_match.group(0)
+            or 'android:drawableStart="@android:drawable/ic_menu_manage"' not in mods_match.group(0)
+            or 'android:text="@string/main_mods_folder"' not in mods_match.group(0)
+            or 'app:layout_constraintTop_toBottomOf="@id/open_files_button"' not in mods_match.group(0)
+            or not account_match
             or account_match.group(0).count('android:id="@+id/mylauncher_account_button"') != 1
             or 'style="@style/LauncherMenuButton.Universal"' not in account_match.group(0)
             or 'android:layout_width="match_parent"' not in account_match.group(0)
             or 'android:drawableStart="@android:drawable/ic_menu_myplaces"' not in account_match.group(0)
             or 'android:text="@string/main_add_account"' not in account_match.group(0)
-            or 'app:layout_constraintTop_toBottomOf="@id/open_files_button"' not in account_match.group(0)
+            or 'app:layout_constraintTop_toBottomOf="@id/mylauncher_mods_button"' not in account_match.group(0)
             or open_files_index < 0
-            or open_files_index > account_match.start()
+            or open_files_index > mods_match.start()
+            or mods_match.start() > account_match.start()
         ):
-            raise ValueError(f"myLauncher account shortcut is incomplete in {layout_path}")
+            raise ValueError(f"myLauncher mods-folder or account shortcut is incomplete in {layout_path}")
+
         title_match = re.search(
             r'<TextView\s+android:id="@\+id/mylauncher_hero_title".*?/>',
             layout_text,
@@ -484,6 +532,37 @@ def patch_upstream(upstream: Path) -> None:
         or "import net.kdt.pojavlaunch.extra.ExtraCore;" not in main_menu_text
     ):
         raise ValueError("The account shortcut binding, handler, or required Java imports are incomplete")
+    mods_binding = "Button mMyLauncherModsButton = view.findViewById(R.id.mylauncher_mods_button);"
+    if mods_binding not in main_menu_text:
+        if account_binding not in main_menu_text:
+            raise ValueError("Could not bind the mods-folder shortcut without the account shortcut")
+        main_menu_text = main_menu_text.replace(account_binding, account_binding + "\n        " + mods_binding, 1)
+    mods_listener = """mMyLauncherModsButton.setOnClickListener(v -> {
+            if (Tools.isDemoProfile(v.getContext())) {
+                hasNoOnlineProfileDialog(getActivity(), getString(R.string.demo_unsupported), getString(R.string.change_account));
+                return;
+            }
+            File modsDirectory = new File(getCurrentProfileDirectory(), "mods");
+            if (!modsDirectory.isDirectory() && !modsDirectory.mkdirs()) {
+                Toast.makeText(requireContext(), "Unable to create the mods folder", Toast.LENGTH_LONG).show();
+                return;
+            }
+            openPath(v.getContext(), modsDirectory, false);
+        });"""
+    if mods_listener not in main_menu_text:
+        listener_anchor = "mVersionSpinner = view.findViewById(R.id.mc_version_spinner);"
+        if listener_anchor not in main_menu_text:
+            raise ValueError("Could not find the listener insertion point for the mods-folder shortcut")
+        main_menu_text = main_menu_text.replace(listener_anchor, "        " + mods_listener + "\n        " + listener_anchor, 1)
+    if (
+        main_menu_text.count(mods_binding) != 1
+        or main_menu_text.count(mods_listener) != 1
+        or 'new File(getCurrentProfileDirectory(), "mods")' not in main_menu_text
+        or "!modsDirectory.isDirectory() && !modsDirectory.mkdirs()" not in main_menu_text
+        or "openPath(v.getContext(), modsDirectory, false);" not in main_menu_text
+    ):
+        raise ValueError("The mods-folder shortcut binding, directory creation, or handler is incomplete")
+
     main_menu.write_text(main_menu_text, encoding="utf-8")
 
     # Replace the upstream launcher artwork with a small vector mark that scales cleanly.
