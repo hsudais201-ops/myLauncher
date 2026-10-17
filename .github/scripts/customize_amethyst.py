@@ -117,7 +117,17 @@ def patch_upstream(upstream: Path) -> None:
         raise ValueError("Required main_resourcepacks_folder string is missing or invalid")
     if not re.search(r'<string\s+name="main_resourcepacks_folder_hint"', strings_text):
         resourcepacks_label_match = re.search(
-            r'(?m)^([ \t]*<string\s+name="main_resourcepacks_folder"[^>]*>.*?</string>)[ \t]*
+            r'(?m)^([ \t]*<string\s+name="main_resourcepacks_folder"[^>]*>.*?</string>)[ \t]*$',
+            strings_text,
+        )
+        if not resourcepacks_label_match:
+            raise ValueError("Could not find main_resourcepacks_folder to add the resource-pack toggle hint")
+        indent = re.match(r"[ \t]*", resourcepacks_label_match.group(1)).group(0)
+        resourcepacks_hint = indent + '<string name="main_resourcepacks_folder_hint">Resource packs. Long-press to enable or disable ZIP packs.</string>'
+        strings_text = strings_text[:resourcepacks_label_match.end()] + "\n" + resourcepacks_hint + strings_text[resourcepacks_label_match.end():]
+    if not re.search(r'<string\s+name="main_resourcepacks_folder_hint"[^>]*>\s*Resource packs\. Long-press to enable or disable ZIP packs\.\s*</string>', strings_text):
+        raise ValueError("Required main_resourcepacks_folder_hint text is missing or invalid")
+    if not re.search(r'<string\s+name="main_world_saves_folder"', strings_text):
         resourcepacks_string_match = re.search(
             r'(?m)^([ \t]*<string\s+name="main_resourcepacks_folder"[^>]*>.*?</string>)[ \t]*$',
             strings_text,
