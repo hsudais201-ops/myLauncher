@@ -624,12 +624,12 @@ def patch_upstream(upstream: Path) -> None:
                 app:layout_constraintTop_toBottomOf="@id/mylauncher_shaderpacks_button" />
 
 """
-            screenshots_pattern = re.compile(r'(<com\.kdt\.mcgui\.LauncherMenuButton\s+android:id="@\+id/mylauncher_screenshots_button".*?/>\s*)', re.DOTALL)
-            screenshots_match = screenshots_pattern.search(layout_text)
-            if not screenshots_match:
-                raise ValueError(f"Could not find mylauncher_screenshots_button in {layout_path}")
-            block = screenshots_match.group(1) + "\n" + account_button
-            layout_text = layout_text[:screenshots_match.start(1)] + block + layout_text[screenshots_match.end(1):]
+            shaderpacks_pattern = re.compile(r'(<com\.kdt\.mcgui\.LauncherMenuButton\s+android:id="@\+id/mylauncher_shaderpacks_button".*?/>\s*)', re.DOTALL)
+            shaderpacks_match = shaderpacks_pattern.search(layout_text)
+            if not shaderpacks_match:
+                raise ValueError(f"Could not find mylauncher_shaderpacks_button in {layout_path}")
+            block = shaderpacks_match.group(1) + "\n" + account_button
+            layout_text = layout_text[:shaderpacks_match.start(1)] + block + layout_text[shaderpacks_match.end(1):]
 
         account_pattern = re.compile(r'<com\.kdt\.mcgui\.LauncherMenuButton\s+android:id="@\+id/mylauncher_account_button".*?/>', re.DOTALL)
         account_match = account_pattern.search(layout_text)
