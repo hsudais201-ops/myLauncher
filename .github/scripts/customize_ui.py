@@ -79,6 +79,25 @@ def upsert_string(text: str, name: str, value: str) -> str:
     return text[:closing.start()] + f'    <string name="{name}">{value}</string>\n' + text[closing.start():]
 
 
+
+def set_view_attribute(layout_text: str, tag: str, view_id: str, attribute: str, value: str, label: str) -> str:
+    """Set a named attribute on one XML view in an idempotent way."""
+    pattern = re.compile(
+        r'<' + re.escape(tag) + r'\b(?=[^>]*android:id="@\+id/' + re.escape(view_id) + r'")[^>]*?/>',
+        re.DOTALL,
+    )
+    match = pattern.search(layout_text)
+    if not match:
+        raise ValueError(f"Could not find {view_id!r} view in {label}")
+    block = match.group(0)
+    attr = re.compile(r'(?<![\w:.-])' + re.escape(attribute) + r'="[^"]*"')
+    if attr.search(block):
+        block = attr.sub(f'{attribute}="{value}"', block, count=1)
+    else:
+        block = block[:-2].rstrip() + f' {attribute}="{value}" />'
+    return layout_text[:match.start()] + block + layout_text[match.end():]
+
+
 def write_resource(path: Path, content: str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(content.strip() + "\n", encoding="utf-8")
@@ -261,6 +280,76 @@ def patch_upstream(upstream: Path) -> None:
             if not title:
                 raise ValueError(f"Could not find myLauncher hero title in {layout}")
             text = text[:title.start()] + hero_surface + text[title.start():]
+
+        if "mylauncher_hero_kicker" not in text:
+            title = re.search(r'^[ \t]*<TextView\s+android:id="@\+id/mylauncher_hero_title"', text, re.MULTILINE)
+            if not title:
+                raise ValueError(f"Could not find myLauncher hero title in {layout}")
+            kicker = """            <TextView
+                android:id="@+id/mylauncher_hero_kicker"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="18dp"
+                android:layout_marginTop="15dp"
+                android:layout_marginEnd="18dp"
+                android:fontFamily="sans-serif-medium"
+                android:letterSpacing="0.12"
+                android:text="MYLAUNCHER  /  JAVA EDITION"
+                android:textColor="@color/mylauncher_accent"
+                android:textSize="10sp"
+                app:layout_constraintTop_toTopOf="@id/mylauncher_hero_surface"
+                app:layout_constraintStart_toStartOf="@id/mylauncher_hero_surface"
+                app:layout_constraintEnd_toEndOf="@id/mylauncher_hero_surface" />
+
+"""
+            text = text[:title.start()] + kicker + text[title.start():]
+
+        for attribute, value in (
+            ("android:layout_width", "0dp"),
+            ("android:layout_height", "wrap_content"),
+            ("android:layout_marginStart", "18dp"),
+            ("android:layout_marginTop", "33dp"),
+            ("android:layout_marginEnd", "18dp"),
+            ("android:text", "myLauncher"),
+            ("android:textColor", "@color/primary_text"),
+            ("android:textSize", "27sp"),
+            ("android:textStyle", "bold"),
+            ("android:fontFamily", "sans-serif"),
+            ("app:layout_constraintTop_toTopOf", "@id/mylauncher_hero_surface"),
+            ("app:layout_constraintStart_toStartOf", "@id/mylauncher_hero_surface"),
+            ("app:layout_constraintEnd_toEndOf", "@id/mylauncher_hero_surface"),
+        ):
+            text = set_view_attribute(text, "TextView", "mylauncher_hero_title", attribute, value, str(layout))
+        for attribute, value in (
+            ("android:layout_width", "0dp"),
+            ("android:layout_height", "wrap_content"),
+            ("android:layout_marginStart", "19dp"),
+            ("android:layout_marginTop", "1dp"),
+            ("android:layout_marginEnd", "18dp"),
+            ("android:text", "Your Java worlds, reimagined for mobile."),
+            ("android:textColor", "@color/secondary_text"),
+            ("android:textSize", "12sp"),
+            ("app:layout_constraintTop_toBottomOf", "@id/mylauncher_hero_title"),
+            ("app:layout_constraintStart_toStartOf", "@id/mylauncher_hero_surface"),
+            ("app:layout_constraintEnd_toEndOf", "@id/mylauncher_hero_surface"),
+        ):
+            text = set_view_attribute(text, "TextView", "mylauncher_hero_subtitle", attribute, value, str(layout))
+        for attribute, value in (
+            ("android:layout_width", "0dp"),
+            ("android:layout_height", "wrap_content"),
+            ("android:layout_marginStart", "18dp"),
+            ("android:layout_marginTop", "15dp"),
+            ("android:layout_marginEnd", "18dp"),
+            ("android:fontFamily", "sans-serif-medium"),
+            ("android:letterSpacing", "0.12"),
+            ("android:text", "MYLAUNCHER  /  JAVA EDITION"),
+            ("android:textColor", "@color/mylauncher_accent"),
+            ("android:textSize", "10sp"),
+            ("app:layout_constraintTop_toTopOf", "@id/mylauncher_hero_surface"),
+            ("app:layout_constraintStart_toStartOf", "@id/mylauncher_hero_surface"),
+            ("app:layout_constraintEnd_toEndOf", "@id/mylauncher_hero_surface"),
+        ):
+            text = set_view_attribute(text, "TextView", "mylauncher_hero_kicker", attribute, value, str(layout))
 
         for button_id in ("news_button", "discord_button"):
             pattern = re.compile(
