@@ -198,6 +198,18 @@ def patch_upstream(upstream: Path) -> None:
         strings_text = strings_text[:screenshots_string_match.end()] + "\n" + crash_reports_string + strings_text[screenshots_string_match.end():]
     if not re.search(r'<string\s+name="main_crash_reports_folder"[^>]*>\s*Crash reports\s*</string>', strings_text):
         raise ValueError("Required main_crash_reports_folder string is missing or invalid")
+    if not re.search(r'<string\s+name="main_config_folder"', strings_text):
+        crash_reports_string_match = re.search(
+            r'(?m)^([ \t]*<string\s+name="main_crash_reports_folder"[^>]*>.*?</string>)[ \t]*$',
+            strings_text,
+        )
+        if not crash_reports_string_match:
+            raise ValueError("Could not find main_crash_reports_folder to add the Config-folder label")
+        indent = re.match(r"[ \t]*", crash_reports_string_match.group(1)).group(0)
+        config_string = indent + '<string name="main_config_folder">Config folder</string>'
+        strings_text = strings_text[:crash_reports_string_match.end()] + "\n" + config_string + strings_text[crash_reports_string_match.end():]
+    if not re.search(r'<string\s+name="main_config_folder"[^>]*>\s*Config folder\s*</string>', strings_text):
+        raise ValueError("Required main_config_folder string is missing or invalid")
     strings.write_text(strings_text, encoding="utf-8")
 
     # App names can be localized in values-*/strings.xml. Force the product
@@ -626,6 +638,23 @@ def patch_upstream(upstream: Path) -> None:
             block = screenshots_match.group(1) + "\n" + crash_reports_button
             layout_text = layout_text[:screenshots_match.start(1)] + block + layout_text[screenshots_match.end(1):]
 
+        if "mylauncher_config_button" not in layout_text:
+            config_button = """            <com.kdt.mcgui.LauncherMenuButton
+                android:id="@+id/mylauncher_config_button"
+                style="@style/LauncherMenuButton.Universal"
+                android:layout_width="match_parent"
+                android:drawableStart="@android:drawable/ic_menu_preferences"
+                android:text="@string/main_config_folder"
+                app:layout_constraintTop_toBottomOf="@id/mylauncher_crash_reports_button" />
+
+"""
+            crash_reports_pattern = re.compile(r'(<com\.kdt\.mcgui\.LauncherMenuButton\s+android:id="@\+id/mylauncher_crash_reports_button".*?/>\s*)', re.DOTALL)
+            crash_reports_match = crash_reports_pattern.search(layout_text)
+            if not crash_reports_match:
+                raise ValueError(f"Could not find mylauncher_crash_reports_button to add Config folder in {layout_path}")
+            block = crash_reports_match.group(1) + "\n" + config_button
+            layout_text = layout_text[:crash_reports_match.start(1)] + block + layout_text[crash_reports_match.end(1):]
+
         if "mylauncher_account_button" not in layout_text:
             account_button = """            <com.kdt.mcgui.LauncherMenuButton
                 android:id="@+id/mylauncher_account_button"
@@ -633,25 +662,25 @@ def patch_upstream(upstream: Path) -> None:
                 android:layout_width="match_parent"
                 android:drawableStart="@android:drawable/ic_menu_myplaces"
                 android:text="@string/main_add_account"
-                app:layout_constraintTop_toBottomOf="@id/mylauncher_crash_reports_button" />
+                app:layout_constraintTop_toBottomOf="@id/mylauncher_config_button" />
 
 """
-            crash_reports_pattern = re.compile(r'(<com\.kdt\.mcgui\.LauncherMenuButton\s+android:id="@\+id/mylauncher_crash_reports_button".*?/>\s*)', re.DOTALL)
-            crash_reports_match = crash_reports_pattern.search(layout_text)
-            if not crash_reports_match:
-                raise ValueError(f"Could not find mylauncher_crash_reports_button in {layout_path}")
-            block = crash_reports_match.group(1) + "\n" + account_button
-            layout_text = layout_text[:crash_reports_match.start(1)] + block + layout_text[crash_reports_match.end(1):]
+            config_pattern = re.compile(r'(<com\.kdt\.mcgui\.LauncherMenuButton\s+android:id="@\+id/mylauncher_config_button".*?/>\s*)', re.DOTALL)
+            config_match = config_pattern.search(layout_text)
+            if not config_match:
+                raise ValueError(f"Could not find mylauncher_config_button in {layout_path}")
+            block = config_match.group(1) + "\n" + account_button
+            layout_text = layout_text[:config_match.start(1)] + block + layout_text[config_match.end(1):]
 
         account_pattern = re.compile(r'<com\.kdt\.mcgui\.LauncherMenuButton\s+android:id="@\+id/mylauncher_account_button".*?/>', re.DOTALL)
         account_match = account_pattern.search(layout_text)
         if account_match:
-            for prior_anchor in ("open_files_button", "mylauncher_mods_button", "mylauncher_resourcepacks_button", "mylauncher_world_saves_button", "mylauncher_logs_button", "mylauncher_screenshots_button"):
+            for prior_anchor in ("open_files_button", "mylauncher_mods_button", "mylauncher_resourcepacks_button", "mylauncher_world_saves_button", "mylauncher_logs_button", "mylauncher_screenshots_button", "mylauncher_crash_reports_button"):
                 prior_constraint = 'app:layout_constraintTop_toBottomOf="@id/' + prior_anchor + '"'
                 if prior_constraint in account_match.group(0):
                     updated_account = account_match.group(0).replace(
                         prior_constraint,
-                        'app:layout_constraintTop_toBottomOf="@id/mylauncher_crash_reports_button"',
+                        'app:layout_constraintTop_toBottomOf="@id/mylauncher_config_button"',
                         1,
                     )
                     layout_text = layout_text[:account_match.start()] + updated_account + layout_text[account_match.end():]
@@ -685,6 +714,11 @@ def patch_upstream(upstream: Path) -> None:
         )
         crash_reports_match = re.search(
             r'<com\.kdt\.mcgui\.LauncherMenuButton\s+android:id="@\+id/mylauncher_crash_reports_button".*?/>',
+            layout_text,
+            flags=re.DOTALL,
+        )
+        config_match = re.search(
+            r'<com\.kdt\.mcgui\.LauncherMenuButton\s+android:id="@\+id/mylauncher_config_button".*?/>',
             layout_text,
             flags=re.DOTALL,
         )
@@ -732,13 +766,20 @@ def patch_upstream(upstream: Path) -> None:
             or 'android:drawableStart="@android:drawable/ic_menu_info_details"' not in crash_reports_match.group(0)
             or 'android:text="@string/main_crash_reports_folder"' not in crash_reports_match.group(0)
             or 'app:layout_constraintTop_toBottomOf="@id/mylauncher_screenshots_button"' not in crash_reports_match.group(0)
+            or not config_match
+            or config_match.group(0).count('android:id="@+id/mylauncher_config_button"') != 1
+            or 'style="@style/LauncherMenuButton.Universal"' not in config_match.group(0)
+            or 'android:layout_width="match_parent"' not in config_match.group(0)
+            or 'android:drawableStart="@android:drawable/ic_menu_preferences"' not in config_match.group(0)
+            or 'android:text="@string/main_config_folder"' not in config_match.group(0)
+            or 'app:layout_constraintTop_toBottomOf="@id/mylauncher_crash_reports_button"' not in config_match.group(0)
             or not account_match
             or account_match.group(0).count('android:id="@+id/mylauncher_account_button"') != 1
             or 'style="@style/LauncherMenuButton.Universal"' not in account_match.group(0)
             or 'android:layout_width="match_parent"' not in account_match.group(0)
             or 'android:drawableStart="@android:drawable/ic_menu_myplaces"' not in account_match.group(0)
             or 'android:text="@string/main_add_account"' not in account_match.group(0)
-            or 'app:layout_constraintTop_toBottomOf="@id/mylauncher_crash_reports_button"' not in account_match.group(0)
+            or 'app:layout_constraintTop_toBottomOf="@id/mylauncher_config_button"' not in account_match.group(0)
             or open_files_index < 0
             or open_files_index > mods_match.start()
             or mods_match.start() > resourcepacks_match.start()
@@ -746,9 +787,10 @@ def patch_upstream(upstream: Path) -> None:
             or world_saves_match.start() > logs_match.start()
             or logs_match.start() > screenshots_match.start()
             or screenshots_match.start() > crash_reports_match.start()
-            or crash_reports_match.start() > account_match.start()
+            or crash_reports_match.start() > config_match.start()
+            or config_match.start() > account_match.start()
         ):
-            raise ValueError(f"myLauncher mods/resource-packs/world-saves/logs/screenshots/crash-reports/account shortcuts are incomplete in {layout_path}")
+            raise ValueError(f"myLauncher mods/resource-packs/world-saves/logs/screenshots/crash-reports/config/account shortcuts are incomplete in {layout_path}")
 
         title_match = re.search(
             r'<TextView\s+android:id="@\+id/mylauncher_hero_title".*?/>',
@@ -768,6 +810,7 @@ def patch_upstream(upstream: Path) -> None:
             or layout_text.count('android:id="@+id/mylauncher_logs_button"') != 1
             or layout_text.count('android:id="@+id/mylauncher_screenshots_button"') != 1
             or layout_text.count('android:id="@+id/mylauncher_crash_reports_button"') != 1
+            or layout_text.count('android:id="@+id/mylauncher_config_button"') != 1
             or layout_text.count('android:id="@+id/news_button"') != 1
             or layout_text.count('android:id="@+id/discord_button"') != 1
             or layout_text.count('android:id="@+id/social_divider"') != 1
@@ -1010,6 +1053,9 @@ def patch_upstream(upstream: Path) -> None:
         if mods_binding not in main_menu_text:
             raise ValueError("Could not bind the resource-packs shortcut without the mods shortcut")
         main_menu_text = main_menu_text.replace(mods_binding, mods_binding + "\n        " + resourcepacks_binding, 1)
+    resourcepacks_hint_binding = "mMyLauncherResourcePacksButton.setContentDescription(getString(R.string.main_resourcepacks_folder_hint));"
+    if resourcepacks_hint_binding not in main_menu_text:
+        main_menu_text = main_menu_text.replace(resourcepacks_binding, resourcepacks_binding + "\n        " + resourcepacks_hint_binding, 1)
     resourcepacks_listener = """mMyLauncherResourcePacksButton.setOnClickListener(v -> {
             if (Tools.isDemoProfile(v.getContext())) {
                 hasNoOnlineProfileDialog(getActivity(), getString(R.string.demo_unsupported), getString(R.string.change_account));
@@ -1029,12 +1075,108 @@ def patch_upstream(upstream: Path) -> None:
         main_menu_text = main_menu_text.replace(listener_anchor, "        " + resourcepacks_listener + "\n        " + listener_anchor, 1)
     if (
         main_menu_text.count(resourcepacks_binding) != 1
+        or main_menu_text.count(resourcepacks_hint_binding) != 1
         or main_menu_text.count(resourcepacks_listener) != 1
         or 'new File(getCurrentProfileDirectory(), "resourcepacks")' not in main_menu_text
         or "!resourcePackDirectory.isDirectory() && !resourcePackDirectory.mkdirs()" not in main_menu_text
         or "openPath(v.getContext(), resourcePackDirectory, false);" not in main_menu_text
     ):
-        raise ValueError("The resource-packs shortcut binding, directory creation, or handler is incomplete")
+        raise ValueError("The resource-packs shortcut binding, hint, directory creation, or handler is incomplete")
+
+    resourcepacks_manager_listener = """mMyLauncherResourcePacksButton.setOnLongClickListener(v -> {
+            if (Tools.isDemoProfile(v.getContext())) {
+                hasNoOnlineProfileDialog(getActivity(), getString(R.string.demo_unsupported), getString(R.string.change_account));
+                return true;
+            }
+            File resourcePackDirectory = new File(getCurrentProfileDirectory(), "resourcepacks");
+            if (!resourcePackDirectory.isDirectory() && !resourcePackDirectory.mkdirs()) {
+                Toast.makeText(requireContext(), "Unable to create the resource packs folder", Toast.LENGTH_LONG).show();
+                return true;
+            }
+            File[] packFiles = resourcePackDirectory.listFiles((directory, name) -> {
+                if (name == null) return false;
+                String normalizedName = name.toLowerCase(java.util.Locale.ROOT);
+                return new File(directory, name).isFile()
+                        && (normalizedName.endsWith(".zip") || normalizedName.endsWith(".zip.disabled"));
+            });
+            if (packFiles == null || packFiles.length == 0) {
+                Toast.makeText(requireContext(), "No ZIP resource packs found to enable or disable", Toast.LENGTH_LONG).show();
+                return true;
+            }
+            java.util.Arrays.sort(packFiles, (left, right) ->
+                    left.getName().compareToIgnoreCase(right.getName()));
+            String[] packChoices = new String[packFiles.length];
+            for (int i = 0; i < packFiles.length; i++) {
+                String normalizedName = packFiles[i].getName().toLowerCase(java.util.Locale.ROOT);
+                boolean disabled = normalizedName.endsWith(".zip.disabled");
+                packChoices[i] = (disabled ? "Disabled · " : "Enabled · ") + packFiles[i].getName();
+            }
+            new AlertDialog.Builder(requireContext())
+                    .setTitle("Manage resource packs — enable or disable")
+                    .setItems(packChoices, (dialog, which) -> {
+                        if (which < 0 || which >= packFiles.length) return;
+                        File selectedPack = packFiles[which];
+                        String selectedName = selectedPack.getName();
+                        String normalizedName = selectedName.toLowerCase(java.util.Locale.ROOT);
+                        boolean wasDisabled = normalizedName.endsWith(".zip.disabled");
+                        String destinationName = wasDisabled
+                                ? selectedName.substring(0, selectedName.length() - ".disabled".length())
+                                : selectedName + ".disabled";
+                        File destination = new File(resourcePackDirectory, destinationName);
+                        new AlertDialog.Builder(requireContext())
+                                .setTitle(wasDisabled ? "Enable resource pack?" : "Disable resource pack?")
+                                .setMessage((wasDisabled ? "Enable " : "Disable ") + selectedName + "?")
+                                .setNegativeButton(android.R.string.cancel, null)
+                                .setPositiveButton(wasDisabled ? "Enable" : "Disable", (confirmDialog, result) -> {
+                                    try {
+                                        String packsRoot = resourcePackDirectory.getCanonicalPath();
+                                        String selectedPath = selectedPack.getCanonicalPath();
+                                        String destinationPath = destination.getCanonicalPath();
+                                        if (!resourcePackDirectory.isDirectory()
+                                                || !selectedPack.isFile()
+                                                || !selectedPath.startsWith(packsRoot + File.separator)
+                                                || !destinationPath.startsWith(packsRoot + File.separator)) {
+                                            Toast.makeText(requireContext(), "The selected resource pack is no longer available", Toast.LENGTH_LONG).show();
+                                            return;
+                                        }
+                                        if (destination.exists()) {
+                                            Toast.makeText(requireContext(), "A file already exists with that name", Toast.LENGTH_LONG).show();
+                                            return;
+                                        }
+                                        if (!selectedPack.renameTo(destination)) {
+                                            Toast.makeText(requireContext(), "Unable to rename the resource pack file", Toast.LENGTH_LONG).show();
+                                            return;
+                                        }
+                                        Toast.makeText(requireContext(),
+                                                (wasDisabled ? "Enabled: " : "Disabled: ") + destination.getName(),
+                                                Toast.LENGTH_LONG).show();
+                                    } catch (IOException exception) {
+                                        Toast.makeText(requireContext(), "Unable to validate the resource-pack path: " + exception.getMessage(), Toast.LENGTH_LONG).show();
+                                    }
+                                })
+                                .show();
+                    })
+                    .show();
+            return true;
+        });"""
+    if resourcepacks_manager_listener not in main_menu_text:
+        main_menu_text = main_menu_text.replace(resourcepacks_listener, resourcepacks_listener + "\n\n        " + resourcepacks_manager_listener, 1)
+    if (
+        main_menu_text.count(resourcepacks_manager_listener) != 1
+        or main_menu_text.count("mMyLauncherResourcePacksButton.setOnLongClickListener") != 1
+        or "name.toLowerCase(java.util.Locale.ROOT)" not in resourcepacks_manager_listener
+        or 'normalizedName.endsWith(".zip")' not in resourcepacks_manager_listener
+        or 'normalizedName.endsWith(".zip.disabled")' not in resourcepacks_manager_listener
+        or 'selectedName + ".disabled"' not in resourcepacks_manager_listener
+        or 'selectedName.substring(0, selectedName.length() - ".disabled".length())' not in resourcepacks_manager_listener
+        or "destination.exists()" not in resourcepacks_manager_listener
+        or "!selectedPack.renameTo(destination)" not in resourcepacks_manager_listener
+        or "!selectedPath.startsWith(packsRoot + File.separator)" not in resourcepacks_manager_listener
+        or "Tools.isDemoProfile(v.getContext())" not in resourcepacks_manager_listener
+    ):
+        raise ValueError("The resource-pack enable/disable manager is incomplete or missing safety checks")
+    if resourcepacks_hint_binding not in main_menu_text or main_menu_text.count(resourcepacks_hint_binding) != 1:
+        raise ValueError("The Resource packs long-press accessibility hint is not wired exactly once")
 
     world_saves_binding = "Button mMyLauncherWorldSavesButton = view.findViewById(R.id.mylauncher_world_saves_button);"
     if world_saves_binding not in main_menu_text:
@@ -1177,6 +1319,62 @@ def patch_upstream(upstream: Path) -> None:
     ):
         raise ValueError("The game-logs shortcut binding, directory creation, or handler is incomplete")
 
+    logs_long_listener = """mMyLauncherLogsButton.setOnLongClickListener(v -> {
+            if (Tools.isDemoProfile(v.getContext())) {
+                hasNoOnlineProfileDialog(getActivity(), getString(R.string.demo_unsupported), getString(R.string.change_account));
+                return true;
+            }
+            File latestLog = new File(new File(getCurrentProfileDirectory(), "logs"), "latest.log");
+            if (!latestLog.isFile() || !latestLog.canRead()) {
+                Toast.makeText(requireContext(), "Latest game log is not available yet", Toast.LENGTH_LONG).show();
+                return true;
+            }
+            final long maxCopyBytes = 1024L * 1024L;
+            try (java.io.RandomAccessFile logReader = new java.io.RandomAccessFile(latestLog, "r")) {
+                long fileLength = logReader.length();
+                long bytesToRead = Math.min(maxCopyBytes, fileLength);
+                long offset = fileLength - bytesToRead;
+                logReader.seek(offset);
+                byte[] logBytes = new byte[(int) bytesToRead];
+                logReader.readFully(logBytes);
+                String copiedText = new String(logBytes, java.nio.charset.StandardCharsets.UTF_8);
+                if (offset > 0) {
+                    copiedText = "[Earlier log content omitted; copied final 1 MiB only.]\\n" + copiedText;
+                }
+                copiedText = copiedText.replaceAll(
+                        "(?i)((?:access[_-]?token|refresh[_-]?token|client[_-]?secret|authorization|xsts[_-]?token|minecraft[_-]?token)[^A-Za-z0-9]{0,5})[A-Za-z0-9._~+/-=]+",
+                        "$1[REDACTED]");
+                copiedText = copiedText.replaceAll("(?i)Bearer[ ]+[A-Za-z0-9._~+/-=]+", "Bearer [REDACTED]");
+                android.content.ClipboardManager clipboard = (android.content.ClipboardManager)
+                        requireContext().getSystemService(android.content.Context.CLIPBOARD_SERVICE);
+                if (clipboard == null) {
+                    Toast.makeText(requireContext(), "Clipboard is not available", Toast.LENGTH_LONG).show();
+                } else {
+                    clipboard.setPrimaryClip(android.content.ClipData.newPlainText("VoidCraft Launcher latest.log", copiedText));
+                    Toast.makeText(requireContext(), "Latest game log copied with sensitive tokens redacted", Toast.LENGTH_LONG).show();
+                }
+            } catch (java.io.IOException error) {
+                Toast.makeText(requireContext(), "Unable to copy latest game log: " + error.getMessage(), Toast.LENGTH_LONG).show();
+            }
+            return true;
+        });"""
+    if logs_long_listener not in main_menu_text:
+        listener_anchor = "mVersionSpinner = view.findViewById(R.id.mc_version_spinner);"
+        if listener_anchor not in main_menu_text:
+            raise ValueError("Could not find the listener insertion point for the latest-log copy action")
+        main_menu_text = main_menu_text.replace(listener_anchor, "        " + logs_long_listener + "\n        " + listener_anchor, 1)
+    if (
+        main_menu_text.count(logs_long_listener) != 1
+        or 'new File(new File(getCurrentProfileDirectory(), "logs"), "latest.log")' not in main_menu_text
+        or "final long maxCopyBytes = 1024L * 1024L;" not in main_menu_text
+        or "logReader.seek(offset);" not in main_menu_text
+        or "access[_-]?token|refresh[_-]?token|client[_-]?secret|authorization" not in main_menu_text
+        or 'Bearer [REDACTED]' not in main_menu_text
+        or "ClipboardManager" not in main_menu_text
+        or "Latest game log copied with sensitive tokens redacted" not in main_menu_text
+    ):
+        raise ValueError("Latest-log copy, size limit, clipboard, or token redaction is incomplete")
+
     screenshots_binding = "Button mMyLauncherScreenshotsButton = view.findViewById(R.id.mylauncher_screenshots_button);"
     if screenshots_binding not in main_menu_text:
         if logs_binding not in main_menu_text:
@@ -1238,6 +1436,100 @@ def patch_upstream(upstream: Path) -> None:
         or "openPath(v.getContext(), crashReportsDirectory, false);" not in main_menu_text
     ):
         raise ValueError("The crash-reports shortcut binding, directory creation, or handler is incomplete")
+
+    crash_reports_share_listener = """mMyLauncherCrashReportsButton.setOnLongClickListener(v -> {
+            if (Tools.isDemoProfile(v.getContext())) {
+                hasNoOnlineProfileDialog(getActivity(), getString(R.string.demo_unsupported), getString(R.string.change_account));
+                return true;
+            }
+            File crashReportsDirectory = new File(getCurrentProfileDirectory(), "crash-reports");
+            File[] reportFiles = crashReportsDirectory.listFiles((directory, name) -> {
+                if (name == null) return false;
+                String normalizedName = name.toLowerCase(java.util.Locale.ROOT);
+                return new File(directory, name).isFile()
+                        && (normalizedName.endsWith(".txt") || normalizedName.endsWith(".log"));
+            });
+            if (reportFiles == null || reportFiles.length == 0) {
+                Toast.makeText(requireContext(), "No text crash reports are available to share", Toast.LENGTH_LONG).show();
+                return true;
+            }
+            java.util.Arrays.sort(reportFiles, (left, right) ->
+                    Long.compare(right.lastModified(), left.lastModified()));
+            File latestReport = reportFiles[0];
+            final long maxShareBytes = 2L * 1024L * 1024L;
+            try (java.io.RandomAccessFile reportReader = new java.io.RandomAccessFile(latestReport, "r")) {
+                long fileLength = reportReader.length();
+                long bytesToRead = Math.min(maxShareBytes, fileLength);
+                long offset = fileLength - bytesToRead;
+                reportReader.seek(offset);
+                byte[] reportBytes = new byte[(int) bytesToRead];
+                reportReader.readFully(reportBytes);
+                String reportText = new String(reportBytes, java.nio.charset.StandardCharsets.UTF_8);
+                if (offset > 0) {
+                    reportText = "[Earlier crash report content omitted; sharing final 2 MiB only.]\\n" + reportText;
+                }
+                reportText = reportText.replaceAll(
+                        "(?i)((?:access[_-]?token|refresh[_-]?token|client[_-]?secret|authorization|xsts[_-]?token|minecraft[_-]?token)[^A-Za-z0-9]{0,5})[A-Za-z0-9._~+/-=]+",
+                        "$1[REDACTED]");
+                reportText = reportText.replaceAll("(?i)Bearer[ ]+[A-Za-z0-9._~+/-=]+", "Bearer [REDACTED]");
+                android.content.Intent shareIntent = new android.content.Intent(android.content.Intent.ACTION_SEND);
+                shareIntent.setType("text/plain");
+                shareIntent.putExtra(android.content.Intent.EXTRA_SUBJECT,
+                        "VoidCraft Launcher crash report: " + latestReport.getName());
+                shareIntent.putExtra(android.content.Intent.EXTRA_TEXT, reportText);
+                startActivity(android.content.Intent.createChooser(shareIntent,
+                        "Share crash report — review before sending"));
+            } catch (java.io.IOException error) {
+                Toast.makeText(requireContext(), "Unable to prepare crash report: " + error.getMessage(), Toast.LENGTH_LONG).show();
+            }
+            return true;
+        });"""
+    if crash_reports_share_listener not in main_menu_text:
+        main_menu_text = main_menu_text.replace(crash_reports_listener,
+                crash_reports_listener + "\n\n        " + crash_reports_share_listener, 1)
+    if (
+        main_menu_text.count(crash_reports_share_listener) != 1
+        or main_menu_text.count("mMyLauncherCrashReportsButton.setOnLongClickListener") != 1
+        or "final long maxShareBytes = 2L * 1024L * 1024L;" not in main_menu_text
+        or "reportReader.seek(offset);" not in main_menu_text
+        or "Long.compare(right.lastModified(), left.lastModified())" not in main_menu_text
+        or "access[_-]?token|refresh[_-]?token|client[_-]?secret|authorization" not in main_menu_text
+        or 'Bearer [REDACTED]' not in main_menu_text
+        or "Intent.ACTION_SEND" not in main_menu_text
+        or "Intent.EXTRA_TEXT" not in main_menu_text
+        or "review before sending" not in main_menu_text
+        or "Tools.isDemoProfile(v.getContext())" not in crash_reports_share_listener
+    ):
+        raise ValueError("Crash report selection, bounded read, redaction, share chooser, or demo-profile guard is incomplete")
+
+    config_binding = "Button mMyLauncherConfigButton = view.findViewById(R.id.mylauncher_config_button);"
+    if config_binding not in main_menu_text:
+        if crash_reports_binding not in main_menu_text:
+            raise ValueError("Could not bind the Config folder shortcut without the Crash reports shortcut")
+        main_menu_text = main_menu_text.replace(crash_reports_binding, crash_reports_binding + "\n        " + config_binding, 1)
+    config_listener = """mMyLauncherConfigButton.setOnClickListener(v -> {
+            if (Tools.isDemoProfile(v.getContext())) {
+                hasNoOnlineProfileDialog(getActivity(), getString(R.string.demo_unsupported), getString(R.string.change_account));
+                return;
+            }
+            File configDirectory = new File(getCurrentProfileDirectory(), "config");
+            if (!configDirectory.isDirectory() && !configDirectory.mkdirs()) {
+                Toast.makeText(requireContext(), "Unable to create the Config folder", Toast.LENGTH_LONG).show();
+                return;
+            }
+            openPath(v.getContext(), configDirectory, false);
+        });"""
+    if config_listener not in main_menu_text:
+        main_menu_text = main_menu_text.replace(crash_reports_listener, crash_reports_listener + "\n\n        " + config_listener, 1)
+    if (
+        main_menu_text.count(config_binding) != 1
+        or main_menu_text.count(config_listener) != 1
+        or 'new File(getCurrentProfileDirectory(), "config")' not in main_menu_text
+        or "!configDirectory.isDirectory() && !configDirectory.mkdirs()" not in main_menu_text
+        or "openPath(v.getContext(), configDirectory, false);" not in main_menu_text
+        or "Tools.isDemoProfile(v.getContext())" not in config_listener
+    ):
+        raise ValueError("The Config-folder shortcut binding, directory creation, or handler is incomplete")
 
     required_backup_imports = (
         "import java.io.FileInputStream;",
