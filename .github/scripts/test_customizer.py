@@ -197,7 +197,8 @@ public class LoggerView extends ConstraintLayout {
     <ImageButton android:id="@+id/log_view_cancel"
         android:layout_width="70dp" android:layout_height="70dp"
         app:layout_constraintTop_toTopOf="parent" />
-    <com.kdt.DefocusableScrollView android:id="@+id/content_log_scroll"
+    <com.kdt.DefocusableScrollView
+        android:id="@+id/content_log_scroll"
         android:layout_width="match_parent" android:layout_height="0dp"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/top_log_view">
