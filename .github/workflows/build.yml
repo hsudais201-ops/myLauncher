@@ -1,4 +1,4 @@
-name: Build Orbit Launcher APK
+name: Build VoidCraft Launcher APK
 
 on:
   push:
@@ -17,7 +17,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: orbit-launcher-build-v2-${{ github.ref }}
+  group: voidcraft-launcher-build-v2-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -26,7 +26,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 90
     steps:
-      - name: Check out Orbit Launcher customizations
+      - name: Check out VoidCraft Launcher customizations
         uses: actions/checkout@v4
 
       - name: Validate customizer and regression suite
@@ -84,22 +84,23 @@ jobs:
           echo "Actual upstream:   $ACTUAL_UPSTREAM_COMMIT"
           test "$ACTUAL_UPSTREAM_COMMIT" = "$EXPECTED_UPSTREAM_COMMIT"
 
-      - name: Apply and inspect Orbit Launcher customization
+      - name: Apply and inspect VoidCraft Launcher customization
         run: |
           python3 .github/scripts/customize_amethyst.py upstream
           git -C upstream diff --check
 
-      - name: Apply Orbit Launcher logo
+      - name: Apply VoidCraft Launcher logo
         run: python3 .github/scripts/apply_logo.py upstream
 
       - name: Record upstream revision
         run: |
-          echo "Upstream: https://github.com/AngelAuraMC/Amethyst-Android" > upstream/ORBIT_LAUNCHER_BUILD_INFO.txt
-          echo "Source line: v3_openjdk (commit pinned below)" >> upstream/ORBIT_LAUNCHER_BUILD_INFO.txt
-          echo "Pinned commit: 330c6eae3164df64bdc4828e946a9e62cc5169e4" >> upstream/ORBIT_LAUNCHER_BUILD_INFO.txt
-          echo "Built commit: $(git -C upstream rev-parse HEAD)" >> upstream/ORBIT_LAUNCHER_BUILD_INFO.txt
-          echo "Display name: Orbit Launcher" >> upstream/ORBIT_LAUNCHER_BUILD_INFO.txt
-          echo "Custom app ID: com.mf.mylauncher (debug: com.mf.mylauncher.debug)" >> upstream/ORBIT_LAUNCHER_BUILD_INFO.txt
+          echo "Upstream: https://github.com/AngelAuraMC/Amethyst-Android" > upstream/VOIDCRAFT_LAUNCHER_BUILD_INFO.txt
+          echo "Source line: v3_openjdk (commit pinned below)" >> upstream/VOIDCRAFT_LAUNCHER_BUILD_INFO.txt
+          echo "Pinned commit: 330c6eae3164df64bdc4828e946a9e62cc5169e4" >> upstream/VOIDCRAFT_LAUNCHER_BUILD_INFO.txt
+          echo "Built commit: $(git -C upstream rev-parse HEAD)" >> upstream/VOIDCRAFT_LAUNCHER_BUILD_INFO.txt
+          echo "Display name: VoidCraft Launcher" >> upstream/VOIDCRAFT_LAUNCHER_BUILD_INFO.txt
+          echo "Owner: MF" >> upstream/VOIDCRAFT_LAUNCHER_BUILD_INFO.txt
+          echo "Custom app ID: com.mf.mylauncher (debug: com.mf.mylauncher.debug)" >> upstream/VOIDCRAFT_LAUNCHER_BUILD_INFO.txt
 
       - name: Build GLFW support and debug APK
         working-directory: upstream
@@ -116,12 +117,12 @@ jobs:
           test -n "$APKSIGNER"
           "$APKSIGNER" verify --verbose "$APK"
           grep -q 'applicationId "com.mf.mylauncher"' upstream/app_pojavlauncher/build.gradle
-          grep -q 'app_name.*Orbit Launcher' upstream/app_pojavlauncher/src/main/res/values/strings.xml
+          grep -q 'app_name.*VoidCraft Launcher' upstream/app_pojavlauncher/src/main/res/values/strings.xml
           AAPT=$(find "${ANDROID_HOME}/build-tools" -type f -name aapt -print -quit)
           test -n "$AAPT"
           "$AAPT" dump badging "$APK" > /tmp/mylauncher-badging.txt
           grep -q "package: name='com.mf.mylauncher.debug'" /tmp/mylauncher-badging.txt
-          grep -q "application-label:'Orbit Launcher (Debug)'" /tmp/mylauncher-badging.txt
+          grep -q "application-label:'VoidCraft Launcher (Debug)'" /tmp/mylauncher-badging.txt
           MIN_SDK=$(sed -n "s/^sdkVersion:'\\([0-9][0-9]*\\)'.*/\\1/p" /tmp/mylauncher-badging.txt)
           test -n "$MIN_SDK"
           test "$MIN_SDK" -le 28
@@ -130,7 +131,7 @@ jobs:
           APK_SHA256_PATH="${APK}.sha256"
           (cd "$(dirname "$APK")" && sha256sum "$(basename "$APK")" > "$(basename "$APK").sha256")
           echo "APK_SHA256_PATH=$APK_SHA256_PATH" >> "$GITHUB_ENV"
-          echo "APK SHA-256: $(cut -d ' ' -f1 "$APK_SHA256_PATH")" >> upstream/ORBIT_LAUNCHER_BUILD_INFO.txt
+          echo "APK SHA-256: $(cut -d ' ' -f1 "$APK_SHA256_PATH")" >> upstream/VOIDCRAFT_LAUNCHER_BUILD_INFO.txt
 
       - name: Stop Gradle daemons before emulator startup
         working-directory: upstream
@@ -157,7 +158,7 @@ jobs:
         if: ${{ always() && env.APK_PATH != '' }}
         uses: actions/upload-artifact@v4
         with:
-          name: orbit-launcher-debug-apk
+          name: voidcraft-launcher-debug-apk
           path: |
             ${{ env.APK_PATH }}
             ${{ env.APK_SHA256_PATH }}
@@ -165,11 +166,11 @@ jobs:
           retention-days: 14
 
       - name: Upload upstream build notes
-        if: ${{ always() && hashFiles('upstream/ORBIT_LAUNCHER_BUILD_INFO.txt') != '' }}
+        if: ${{ always() && hashFiles('upstream/VOIDCRAFT_LAUNCHER_BUILD_INFO.txt') != '' }}
         uses: actions/upload-artifact@v4
         with:
-          name: orbit-launcher-build-info
-          path: upstream/ORBIT_LAUNCHER_BUILD_INFO.txt
+          name: voidcraft-launcher-build-info
+          path: upstream/VOIDCRAFT_LAUNCHER_BUILD_INFO.txt
           if-no-files-found: error
           retention-days: 14
 
@@ -177,7 +178,7 @@ jobs:
         if: ${{ always() }}
         uses: actions/upload-artifact@v4
         with:
-          name: orbit-launcher-emulator-diagnostics
+          name: voidcraft-launcher-emulator-diagnostics
           path: |
             upstream/mylauncher-emulator-logcat.txt
             upstream/mylauncher-activities.txt
