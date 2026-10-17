@@ -496,6 +496,8 @@ class BuildWorkflowTests(unittest.TestCase):
     def setUpClass(cls) -> None:
         workflow_path = Path(__file__).parents[1] / "workflows" / "build.yml"
         cls.workflow = workflow_path.read_text(encoding="utf-8")
+        cls.smoke_script = Path(__file__).with_name("emulator_smoke_test.sh").read_text(encoding="utf-8")
+        cls.kvm_script = Path(__file__).with_name("prepare_emulator_kvm.sh").read_text(encoding="utf-8")
 
     def test_ssh_submodule_urls_are_rewritten_before_checkout(self) -> None:
         ssh_rewrite = 'git config --global url."https://github.com/".insteadOf git@github.com:'
@@ -521,26 +523,22 @@ class BuildWorkflowTests(unittest.TestCase):
         self.assertIn("ram-size: 1536M", self.workflow)
         self.assertIn("heap-size: 512M", self.workflow)
         self.assertIn("disable-linux-hw-accel: false", self.workflow)
-        self.assertIn("pre-emulator-launch-script: |", self.workflow)
-        self.assertIn("sudo chmod 666 /dev/kvm", self.workflow)
-        self.assertIn("test -r /dev/kvm", self.workflow)
-        self.assertIn("test -w /dev/kvm", self.workflow)
-        self.assertLess(self.workflow.index("pre-emulator-launch-script: |"), self.workflow.index("emulator-options:"))
-        self.assertNotIn("-memory 1536 -cores 2", self.workflow)
-        self.assertIn("api-level: 28", self.workflow)
-        self.assertIn('adb install -r "$APK_PATH"', self.workflow)
-        self.assertIn("com.mf.mylauncher.debug/net.kdt.pojavlaunch.LauncherActivity", self.workflow)
-        self.assertIn("APK did not reach LauncherActivity", self.workflow)
-        self.assertIn("            set -eu", self.workflow)
-        self.assertNotIn("            set -euo pipefail", self.workflow)
-        self.assertIn('timeout 180s adb install -r "$APK_PATH"', self.workflow)
-        self.assertIn("adb shell pm grant com.mf.mylauncher.debug android.permission.READ_EXTERNAL_STORAGE", self.workflow)
-        self.assertIn("adb shell pm grant com.mf.mylauncher.debug android.permission.WRITE_EXTERNAL_STORAGE", self.workflow)
-        self.assertIn("timeout 30s adb shell monkey -p com.mf.mylauncher.debug 1", self.workflow)
+        self.assertIn("pre-emulator-launch-script: sh .github/scripts/prepare_emulator_kvm.sh", self.workflow)
+        self.assertIn("sudo chmod 666 /dev/kvm", self.kvm_script)
+        self.assertIn("test -r /dev/kvm", self.kvm_script)
+        self.assertIn("test -w /dev/kvm", self.kvm_script)
+        self.assertIn('script: sh .github/scripts/emulator_smoke_test.sh "$APK_PATH"', self.workflow)
+        self.assertNotIn("script: |", self.workflow[self.workflow.index("Install and launch APK in a headless Android emulator"):self.workflow.index("Upload debug APK")])
+        self.assertIn('timeout 180s adb install -r "$APK_PATH"', self.smoke_script)
+        self.assertIn("android.permission.READ_EXTERNAL_STORAGE", self.smoke_script)
+        self.assertIn("android.permission.WRITE_EXTERNAL_STORAGE", self.smoke_script)
+        self.assertIn("timeout 30s adb shell monkey -p com.mf.mylauncher.debug 1", self.smoke_script)
         self.assertLess(
-            self.workflow.index("android.permission.WRITE_EXTERNAL_STORAGE"),
-            self.workflow.index("adb shell monkey -p com.mf.mylauncher.debug 1"),
+            self.smoke_script.index("android.permission.WRITE_EXTERNAL_STORAGE"),
+            self.smoke_script.index("adb shell monkey -p com.mf.mylauncher.debug 1"),
         )
+        self.assertIn("APK did not reach LauncherActivity", self.smoke_script)
+        self.assertIn("Emulator smoke test passed: APK installed and LauncherActivity resumed.", self.smoke_script)
         self.assertIn("name: myLauncher-emulator-diagnostics", self.workflow)
         self.assertIn("upstream/mylauncher-emulator-logcat.txt", self.workflow)
         self.assertIn("if: ${{ always() && env.APK_PATH != '' }}", self.workflow)
@@ -565,6 +563,8 @@ class BuildWorkflowTests(unittest.TestCase):
         self.assertIn("sdkmanager --install 'platforms;android-37.0' 'ndk;27.3.13750724' --channel=3", self.workflow)
         self.assertIn("./gradlew --no-daemon :jre_lwjgl3glfw:build :app_pojavlauncher:assembleDebug --stacktrace", self.workflow)
         self.assertIn("python3 -m py_compile .github/scripts/customize_amethyst.py .github/scripts/test_customizer.py", self.workflow)
+        self.assertIn("sh -n .github/scripts/prepare_emulator_kvm.sh", self.workflow)
+        self.assertIn("sh -n .github/scripts/emulator_smoke_test.sh", self.workflow)
         self.assertIn("python3 -m unittest discover -s .github/scripts -p 'test_*.py' -v", self.workflow)
         self.assertIn("git -C upstream diff --check", self.workflow)
         self.assertIn('test "$MIN_SDK" -le 28', self.workflow)
