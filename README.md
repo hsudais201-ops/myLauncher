@@ -72,17 +72,21 @@ Then fetch the pinned upstream source and build:
 
 ## Verification and limitations
 
-The most recent completed smoke-test attempt before the KVM change is [run #38989641441](https://github.com/hsudais201-ops/myLauncher/actions/runs/38989641441). Regression tests, SDK/NDK setup, pinned Amethyst checkout, source customization plus `git diff --check`, Gradle compilation, APK signature verification, package metadata checks, and debug APK upload passed. Its emulator step failed after Android 9 booted but before our install script ran: the emulator-runner action's own `adb shell input keyevent 82` process was killed with exit code 137. No app crash was established, since the launch script did not reach `adb install`.
+The latest successful pipeline is [GitHub Actions run #38992817171](https://github.com/hsudais201-ops/myLauncher/actions/runs/38992817171) on main commit `f0c2fb795e04efe40287a286c06a7ede4b126547`. It passed the Python regression suite, Android SDK/NDK setup, pinned Amethyst source checkout and submodules, customization plus `git diff --check`, Gradle build, APK signature and package/minimum-SDK checks, and the Android 9/API 28 headless emulator install-and-launch smoke test. The `myLauncher-debug-apk` artifact includes the debug APK and its SHA-256 checksum sidecar; build information and emulator diagnostics were uploaded too.
 
-The latest workflow update grants access to `/dev/kvm` before emulator launch and explicitly enables hardware acceleration, with a Pixel 2 AVD capped at 1.5 GB RAM and a 512 MB heap. It also stops Gradle daemons before emulator startup, bounds ADB operations, and records diagnostics. The KVM-enabled build is under test in [main run #38991223949](https://github.com/hsudais201-ops/myLauncher/actions/runs/38991223949) and [Mods-folder PR run #38991230426](https://github.com/hsudais201-ops/myLauncher/actions/runs/38991230426); a fresh main verification run is also active at [#38991360521](https://github.com/hsudais201-ops/myLauncher/actions/runs/38991360521). These runs must pass the emulator install-and-launch step before that check is considered verified.
+The current smoke test verifies that the debug APK installs and that `LauncherActivity` becomes active in a cloud Android 9 emulator. It does not prove that Microsoft sign-in succeeds, that a Minecraft version downloads fully, that the game enters a world, or that rendering/controllers/performance work on a physical phone or Chromebook. These still require interactive device/gameplay acceptance tests.
 
-The APK from [run #38989641441](https://github.com/hsudais201-ops/myLauncher/actions/runs/38989641441) contains the offline version-metadata checks and has passed build, signature, and package/minimum-SDK checks. It is available from that run's **myLauncher-debug-apk** artifact. It has not yet been emulator-launch verified.
+The source patcher is regression-tested and the APK from the successful run is signature-verified by CI. The project still builds the upstream Amethyst engine pinned at `330c6eae3164df64bdc4828e946a9e62cc5169e4`; myLauncher is a customization of that engine, not a replacement Java VM or game engine. Review [FEATURE_ROADMAP.md](FEATURE_ROADMAP.md) for which other feature groups remain inherited from upstream, partial, or planned.
 
-A draft feature branch is being tested in [PR #2](https://github.com/hsudais201-ops/myLauncher/pull/2): a **Mods folder** shortcut opens the selected profile's `mods/` directory. It is a manual file-access shortcut, not a full mod installer or conflict resolver, and it is not considered shipped until the PR's full CI validation and review are complete.
+### Missing-version metadata recovery
 
-The workflow uses pinned Amethyst commit `330c6eae3164df64bdc4828e946a9e62cc5169e4`, regression-tests the customizer, runs `git diff --check`, builds GLFW and the debug APK, verifies signing and package metadata, writes a SHA-256 sidecar, and uploads artifacts. A launcher-start smoke test does not validate Microsoft sign-in, Minecraft downloads, entering a world, renderer compatibility, controller input, thermal behavior, memory pressure, or FPS on a physical device.
+If the launcher shows `FileNotFoundException` for `versions/<version>/<version>.json`, or reports that version metadata is missing, unreadable, or empty, treat that Minecraft installation as incomplete.
 
-Physical Android/Chromebook testing and in-game acceptance testing remain outstanding.
+1. Connect to a working internet connection, return to myLauncher, choose the same version, and press **Play** again. When online, the launcher is patched to download public version files even if the selected profile is local/offline.
+2. Leave the launcher open while downloads finish. Do not create an empty JSON file manually.
+3. If the error repeats, record the selected version ID and the relevant launcher log lines. Do not share Microsoft tokens or other account secrets.
+4. Without internet, use a version whose metadata, client, libraries, and assets are already installed. Creating a local profile alone does not install Minecraft.
+
 ## Manual device smoke test
 
 After a debug APK is available on the target Android 9 device:
@@ -91,7 +95,7 @@ After a debug APK is available on the target Android 9 device:
 2. Create a unique username with 3–16 letters, digits, or underscores and confirm it appears in the account spinner.
 3. Select a lightweight Minecraft version (for example 1.8.9); while connected to the internet, let the launcher download it if needed, then start the game and test a single-player world.
 4. Return to the launcher and verify that **Open game directory** works with only the local profile.
-5. Verify the Microsoft account button still opens Microsoft sign-in. An actual device test is still required for memory pressure, rendering, and gameplay stability.
+5. Verify the Microsoft account button still opens Microsoft sign-in. Tap **Mods folder** and confirm the launcher opens the selected profile's `mods/` directory. An actual device test is still required for memory pressure, rendering, and gameplay stability.
 
 ## Upstream and licensing
 
