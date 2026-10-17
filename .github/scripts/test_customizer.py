@@ -1381,7 +1381,19 @@ class BuildWorkflowTests(unittest.TestCase):
         self.assertIn("./gradlew --no-daemon :jre_lwjgl3glfw:build :app_pojavlauncher:assembleDebug --stacktrace", self.workflow)
         self.assertIn('plugin_management = settings.split("dependencyResolutionManagement", 1)[0]', self.workflow)
         self.assertIn("Maven Central must be configured in pluginManagement for AGP classpath dependencies", self.workflow)
-        self.assertIn("python3 -m py_compile .github/scripts/customize_amethyst.py .github/scripts/apply_logo.py .github/scripts/test_customizer.py", self.workflow)
+        py_compile_lines = [
+            line.strip() for line in self.workflow.splitlines()
+            if line.strip().startswith("python3 -m py_compile ")
+        ]
+        self.assertEqual(len(py_compile_lines), 1)
+        for required_script in (
+            ".github/scripts/customize_amethyst.py",
+            ".github/scripts/apply_logo.py",
+            ".github/scripts/patch_renderpearl_workaround.py",
+            ".github/scripts/test_customizer.py",
+            ".github/scripts/test_renderpearl_workaround.py",
+        ):
+            self.assertIn(required_script, py_compile_lines[0])
         self.assertIn("sh -n .github/scripts/prepare_emulator_kvm.sh", self.workflow)
         self.assertIn("sh -n .github/scripts/emulator_smoke_test.sh", self.workflow)
         self.assertIn("python3 -m unittest discover -s .github/scripts -p 'test_*.py' -v", self.workflow)
