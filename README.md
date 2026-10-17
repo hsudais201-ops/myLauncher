@@ -28,9 +28,18 @@ If the launcher reports `FileNotFoundException` for a path like `versions/<versi
 3. If the error continues, copy the exact version ID and the relevant error from the launcher log. Do not share Microsoft access tokens or other account secrets.
 4. When offline, use a version whose metadata, client, libraries, and assets are already installed. Creating a local profile alone does not install Minecraft files.
 - Local profiles can browse their game directory. Some upstream utilities, including the JAR installer, retain the upstream online-account requirement; this customization does not remove those separate restrictions.
-- The launcher home screen gets a lightweight myLauncher title/subtitle header plus a dedicated **Add account** shortcut in portrait and landscape. The shortcut opens the existing Microsoft/local account selector.
-- The Android launcher icon is replaced by a lightweight vector mark matching the new dark/purple identity. No UI library or significant runtime dependency is added.
+- The home screen uses an original night-violet identity: a custom gradient hero, letter-spaced Java Edition kicker, rounded outlined shortcuts, matching primary actions and input fields, and shared colors for the application and dialogs. The design is applied through existing Android resources in portrait and landscape without adding a UI library.
+- The home screen retains **Add account**, **Mods folder**, **Resource packs**, and **World saves** shortcuts. The app icon, account forms, common buttons and dialogs share the same custom palette. Native renderer/gameplay compatibility remains an engine concern; a reskin alone cannot make an incompatible renderer work.
 
+
+### Troubleshooting: Minecraft 26.3+ graphics backend failures
+
+If the game log contains Failed to create backend OpenGL / glGetError mismatch and Failed to create backend Vulkan / vkGetInstanceProcAddr mismatch, the Java runtime has already started but Minecraft cannot initialize either graphics backend. This is a renderer/runtime compatibility failure, not the APK's launcher UI or offline-account flow. Similar errors have been reported for Minecraft 26.3 on other Android GPUs, but that does not establish the exact cause or a working renderer for every device ([upstream report](https://github.com/AngelAuraMC/Amethyst-Android/issues/314)).
+
+1. Open **Settings → Video and renderer**, switch only one renderer at a time, fully close the game between attempts, and try a clean vanilla profile without shaders or mods. Renderer options are hardware-dependent; do not assume that a Vulkan choice will work unless the device/driver supports the required API.
+2. In the supplied log, MobileGlues initialized OpenGL ES 3.2, but Minecraft still rejected the OpenGL and Vulkan backends. That log alone does not confirm a working renderer for the Adreno 619. A successful launcher APK build or launcher-only emulator test is not proof that Minecraft 26.3 will start on that phone.
+3. The separate Fullscreen: Not a boolean: off line is a settings parse warning, not the reported backend exception. Back up the game's options.txt; if it contains fullscreen:off, change only that value to fullscreen:false.
+4. Until a compatible renderer path is verified on the device, use a Minecraft version that you have confirmed launches on that phone. Do not delete worlds or reinstall the launcher just to address this renderer exception.
 ## Build the APK
 
 1. Open the Actions tab in this GitHub repository.
@@ -46,7 +55,7 @@ The workflow fetches the exact Amethyst commit `330c6eae3164df64bdc4828e946a9e62
 - `.github/workflows/build.yml` — repeatable Android build workflow, triggered by relevant pushes to `main`, pull requests, or a manual dispatch.
 - `.github/workflows/runner-diagnostic.yml` — minimal hosted-runner diagnostic workflow.
 - `.github/scripts/customize_amethyst.py` — deterministic patch for app branding, package/authority IDs, low-memory defaults, offline account access, launcher header, account shortcut, and vector app icon.
-- `.github/scripts/test_customizer.py` — regression tests for branding, offline-account username syntax/length/duplicate-profile and boolean-logic guards, account submission and labeling, auth-selector listener/navigation safety, local game-directory access, both launcher layouts, XML well-formedness, missing-anchor failures, repeat-run idempotency, Android toolchain alignment, and CI submodule/APK safeguards.
+- `.github/scripts/test_customizer.py` — regression tests for branding, offline-account username syntax/length/duplicate-profile and boolean-logic guards, account submission and labeling, auth-selector listener/navigation safety, local game-directory access, both launcher layouts, the new shared theme and button/input backgrounds, renderer compatibility guidance, XML well-formedness, missing-anchor failures, repeat-run idempotency, Android toolchain alignment, and CI submodule/APK safeguards.
 
 ## Local build
 
