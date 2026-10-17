@@ -923,6 +923,39 @@ class ProfileTypeSelectFragment {
                 self.assertIn('app:layout_constraintTop_toBottomOf="@id/mylauncher_screenshots_button"', layout)
                 self.assertIn('app:layout_constraintTop_toBottomOf="@id/mylauncher_shaderpacks_button"', layout)
 
+    def test_shaderpacks_long_press_can_enable_disable_zips_safely(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            self.fixture(root)
+            customizer.patch_upstream(root)
+            menu = (root / "app_pojavlauncher/src/main/java/net/kdt/pojavlaunch/fragments/MainMenuFragment.java").read_text(encoding="utf-8")
+            strings = (root / "app_pojavlauncher/src/main/res/values/strings.xml").read_text(encoding="utf-8")
+            self.assertIn('<string name="main_shaderpacks_folder_hint">Shader packs. Long-press to enable or disable ZIP packs.</string>', strings)
+            self.assertIn("mMyLauncherShaderPacksButton.setContentDescription(getString(R.string.main_shaderpacks_folder_hint));", menu)
+            self.assertIn("mMyLauncherShaderPacksButton.setOnLongClickListener", menu)
+            self.assertIn('new File(getCurrentProfileDirectory(), "shaderpacks")', menu)
+            self.assertIn('normalizedName.endsWith(".zip")', menu)
+            self.assertIn('normalizedName.endsWith(".zip.disabled")', menu)
+            self.assertIn('selectedName + ".disabled"', menu)
+            self.assertIn('selectedName.substring(0, selectedName.length() - ".disabled".length())', menu)
+            self.assertIn('setPositiveButton(wasDisabled ? "Enable" : "Disable"', menu)
+            self.assertIn("destination.exists()", menu)
+            self.assertIn("!selectedPack.renameTo(destination)", menu)
+            self.assertIn("The selected shader pack is no longer available", menu)
+            self.assertIn("A file already exists with that name", menu)
+            self.assertIn("Tools.isDemoProfile(v.getContext())", menu)
+            self.assertIn("!shaderPackDirectory.isDirectory()", menu)
+            self.assertIn("new File(directory, name).isFile()", menu)
+            self.assertIn("selectedPath.startsWith(packsRoot + File.separator)", menu)
+            self.assertIn("destinationPath.startsWith(packsRoot + File.separator)", menu)
+            self.assertIn("!selectedPack.renameTo(destination)", menu)
+            self.assertLess(menu.index("mMyLauncherShaderPacksButton.setOnClickListener"), menu.index("mMyLauncherShaderPacksButton.setOnLongClickListener"))
+            handler_start = menu.index("mMyLauncherShaderPacksButton.setOnLongClickListener")
+            shader_handler = menu[handler_start:handler_start + 8000]
+            self.assertIn('new File(getCurrentProfileDirectory(), "shaderpacks")', shader_handler)
+            self.assertNotIn('new File(getCurrentProfileDirectory(), "resourcepacks")', shader_handler)
+            self.assertLess(menu.index("mMyLauncherShaderPacksButton.setOnClickListener"), handler_start)
+
     def test_is_idempotent(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
