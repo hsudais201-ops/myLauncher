@@ -382,14 +382,65 @@ def patch_upstream(upstream: Path) -> None:
             break
     if "R.drawable.mylauncher_play_button_background" not in button_text:
         raise ValueError(f"Could not find the expected MineButton background in {mine_button}")
+    text_color_line = "setTextColor(ResourcesCompat.getColor(getResources(), R.color.mylauncher_primary_text, null));"
+    if text_color_line not in button_text:
+        play_bg = re.search(
+            r'setBackground\(ResourcesCompat\.getDrawable\(getResources\(\), R\.drawable\.mylauncher_play_button_background, null\)\);',
+            button_text,
+        )
+        if not play_bg:
+            raise ValueError(f"Could not locate the primary play-button background setter in {mine_button}")
+        button_text = button_text[:play_bg.end()] + "\n\t\t" + text_color_line + button_text[play_bg.end():]
+    if "import net.kdt.pojavlaunch.R;" not in button_text:
+        package_line = re.search(r'(?m)^package [^;]+;\s*$', button_text)
+        if package_line:
+            button_text = button_text[:package_line.end()] + "\n\nimport net.kdt.pojavlaunch.R;" + button_text[package_line.end():]
     mine_button.write_text(button_text, encoding="utf-8")
 
     input_text = mine_edit_text.read_text(encoding="utf-8")
     old_input_background = 'setBackgroundColor(Color.parseColor("#131313"));'
+    input_calls = """setBackgroundResource(R.drawable.mylauncher_input_background);
+        setTextColor(ResourcesCompat.getColor(getResources(), R.color.primary_text, null));
+        setHintTextColor(ResourcesCompat.getColor(getResources(), R.color.secondary_text, null));"""
     if old_input_background in input_text:
-        input_text = input_text.replace(old_input_background, "setBackgroundResource(R.drawable.mylauncher_input_background);", 1)
-    elif "R.drawable.mylauncher_input_background" not in input_text:
+        input_text = input_text.replace(old_input_background, input_calls, 1)
+    elif "setBackgroundResource(R.drawable.mylauncher_input_background);" in input_text:
+        if "setTextColor(ResourcesCompat.getResources" in input_text:
+            raise ValueError(f"Unexpected input color setter in {mine_edit_text}")
+        if "R.color.primary_text" not in input_text:
+            input_text = input_text.replace(
+                "setBackgroundResource(R.drawable.mylauncher_input_background);",
+                "setBackgroundResource(R.drawable.mylauncher_input_background);\n        setTextColor(ResourcesCompat.getColor(getResources(), R.color.primary_text, null));",
+                1,
+            )
+        if "setHintTextColor(ResourcesCompat.getResources" in input_text:
+            raise ValueError(f"Unexpected hint color setter in {mine_edit_text}")
+        if "setHintTextColor(" not in input_text:
+            input_text = input_text.replace(
+                "setBackgroundResource(R.drawable.mylauncher_input_background);",
+                "setBackgroundResource(R.drawable.mylauncher_input_background);\n        setHintTextColor(ResourcesCompat.getColor(getResources(), R.color.secondary_text, null));",
+                1,
+            )
+    else:
         raise ValueError(f"Could not find the expected MineEditText background in {mine_edit_text}")
+    if "import androidx.core.content.res.ResourcesCompat;" not in input_text:
+        input_text = input_text.replace(
+            "import android.widget.EditText;",
+            "import android.widget.EditText;\nimport androidx.core.content.res.ResourcesCompat;",
+        )
+    if "import net.kdt.pojavlaunch.R;" not in input_text:
+        if "import android.widget.EditText;" in input_text:
+            input_text = input_text.replace(
+                "import android.widget.EditText;",
+                "import android.widget.EditText;\nimport net.kdt.pojavlaunch.R;",
+                1,
+            )
+        elif "package com.kdt.mcgui;" in input_text:
+            input_text = input_text.replace(
+                "package com.kdt.mcgui;",
+                "package com.kdt.mcgui;\n\nimport net.kdt.pojavlaunch.R;",
+                1,
+            )
     mine_edit_text.write_text(input_text, encoding="utf-8")
 
     # The MobileGlues project documents a 26.3-snapshot-3+ compatibility setting:
@@ -407,8 +458,11 @@ def patch_upstream(upstream: Path) -> None:
         raise ValueError(f"SharedPreferences anchor is missing in {launcher_preferences}")
     old_setting = '        MGConfigJson.put("enableNoError", Integer.parseInt(DEFAULT_PREF.getString("mg_renderer_setting_errorSetting", "0")));'
     new_setting = """        String errorSetting = DEFAULT_PREF.getString("mg_renderer_setting_errorSetting", "0");
-        if (MYLAUNCHER_RENDERPEARL_COMPAT) {
-            errorSetting = "1";
+        if (MYLAUNCHER_RENDERPEARL_COMPAT
+                && "opengles_mobileglues".equals(Tools.LOCAL_RENDERER)
+                && "0".equals(errorSetting)) {
+            // Value 2 means ignore shader/program errors (partial filtering).
+            errorSetting = "2";
         }
         MGConfigJson.put("enableNoError", Integer.parseInt(errorSetting));"""
     prefs_text = replace_idempotently(prefs_text, old_setting, new_setting, str(launcher_preferences))
@@ -416,23 +470,27 @@ def patch_upstream(upstream: Path) -> None:
 
     activity_text = launcher_activity.read_text(encoding="utf-8")
     launch_anchor = "        new MinecraftDownloader().start("
-    compat_block = r"""        // Minecraft 26.3+ RenderPearl compatibility: prepare MobileGlues error filtering
-        // before the downloader launches the Java runtime. The setting is launch-scoped;
-        // the user's saved preference is restored for other versions.
-        boolean useRenderPearlCompatibility = normalizedVersionId.matches("^26\\.(?:3|[4-9])(?:[.-].*|$)");
-        LauncherPreferences.MYLAUNCHER_RENDERPEARL_COMPAT = useRenderPearlCompatibility;
-        try {
-            LauncherPreferences.writeMGRendererSettings();
-        } catch (IOException e) {
-            Log.w("myLauncher", "Unable to write graphics compatibility settings", e);
-        } finally {
-            LauncherPreferences.MYLAUNCHER_RENDERPEARL_COMPAT = false;
-        }
-        if (useRenderPearlCompatibility) {
+    compat_block = r"""        // MobileGlues' default filter is adjusted only for affected Minecraft 26.x versions.
+        // Preserve an explicit user-selected filter and leave other renderers untouched.
+        boolean useRenderPearlCompatibility = normalizedVersionId.matches("(?i)^26\\.(?:3|[4-9]|[1-9][0-9]+)(?:[.-].*|$)")
+                && !normalizedVersionId.matches("(?i)^26\\.3-snapshot-1(?:$|[-+].*)");
+        boolean useDefaultRendererErrorFilter = "0".equals(
+                LauncherPreferences.DEFAULT_PREF.getString("mg_renderer_setting_errorSetting", "0"));
+        if ("opengles_mobileglues".equals(Tools.LOCAL_RENDERER)
+                && useRenderPearlCompatibility && useDefaultRendererErrorFilter) {
+            LauncherPreferences.MYLAUNCHER_RENDERPEARL_COMPAT = true;
+            try {
+                LauncherPreferences.writeMGRendererSettings();
+            } catch (IOException e) {
+                Log.w("myLauncher", "Unable to write MobileGlues compatibility settings", e);
+            } finally {
+                LauncherPreferences.MYLAUNCHER_RENDERPEARL_COMPAT = false;
+            }
             Toast.makeText(this, R.string.mylauncher_26x_renderer_compat, Toast.LENGTH_LONG).show();
         }
 
 """
+
     if "boolean useRenderPearlCompatibility = normalizedVersionId.matches(" not in activity_text:
         activity_text = replace_idempotently(
             activity_text,
@@ -445,23 +503,34 @@ def patch_upstream(upstream: Path) -> None:
     launcher_activity.write_text(activity_text, encoding="utf-8")
 
     strings_text = strings.read_text(encoding="utf-8")
-    if 'name="mylauncher_26x_renderer_compat"' not in strings_text:
-        anchor = re.search(r'<string\s+name="main_add_account"[^>]*>.*?</string>', strings_text, re.DOTALL)
-        if not anchor:
-            raise ValueError("Could not find main_add_account to add the compatibility notice")
-        addition = '\n    <string name="mylauncher_26x_renderer_compat">Graphics compatibility settings prepared for Minecraft 26.3+.</string>'
-        strings_text = strings_text[:anchor.end()] + addition + strings_text[anchor.end():]
+    for resource_name, label_text in {
+        "mylauncher_26x_renderer_compat": "MobileGlues compatibility mode enabled for Minecraft 26.3+.",
+        "mcl_setting_renderer_mobileglues": "MobileGlues (OpenGL ES) - 26.3 compatibility varies by device",
+        "mcl_setting_renderer_vulkan_kopper_zink": "Kopper Zink (Vulkan) - requires a compatible Vulkan driver",
+        "mcl_setting_renderer_vulkan_zink": "Zink (Vulkan) - compatibility and speed vary by device",
+    }.items():
+        strings_text = upsert_string(strings_text, resource_name, label_text)
     strings.write_text(strings_text, encoding="utf-8")
 
     icon = res / "drawable" / "mylauncher_icon.xml"
     if icon.is_file():
         icon_text = icon.read_text(encoding="utf-8")
-        icon_text = icon_text.replace('android:fillColor="#171B26"', 'android:fillColor="#0C1020"')
-        icon_text = icon_text.replace('android:fillColor="#7C5CFF"', 'android:fillColor="#A78BFA"')
+        icon_text = icon_text.replace('android:fillColor="#171B26"', 'android:fillColor="#0D0A14"')
+        icon_text = icon_text.replace('android:fillColor="#7C5CFF"', 'android:fillColor="#BBA2FF"')
         icon.write_text(icon_text, encoding="utf-8")
 
+    manifest_text = manifest.read_text(encoding="utf-8")
+    manifest_text = replace_idempotently(
+        manifest_text,
+        'android:theme="@style/Theme.AppCompat.DayNight.Dialog"',
+        'android:theme="@style/MyLauncherDialogTheme"',
+        str(manifest),
+    )
+    manifest.write_text(manifest_text, encoding="utf-8")
+
+
     xml_files = [
-        colors, styles, strings,
+        colors, styles, strings, manifest, card,
         res / "layout/fragment_launcher.xml",
         res / "layout-land/fragment_launcher.xml",
         res / "drawable/mylauncher_button_background.xml",
@@ -478,7 +547,7 @@ def patch_upstream(upstream: Path) -> None:
             raise ValueError(f"Generated Android XML is invalid at {path}: {exc}") from exc
 
     print("myLauncher UI/compatibility patch OK")
-    print("  original midnight-indigo theme applied to shared launcher components")
+    print("  original night-violet theme applied to shared launcher components and dialogs")
     print("  portrait/landscape home screens use the myLauncher hero panel")
     print("  Minecraft 26.3+ MobileGlues receives launch-only error-filter compatibility")
 
