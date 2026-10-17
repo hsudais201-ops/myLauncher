@@ -746,6 +746,28 @@ public final class CoreTests {
             Files.write(nestedObject, nestedPayload);
             AssetIndex nestedIndex = new AssetIndex(java.util.Collections.singletonMap(nestedAsset.getName(), nestedAsset),
                     false, true);
+
+            Path sourceLinkedGameRoot = temporary.resolve("source-linked-game");
+            Path sourceLinkedAssetsRoot = sourceLinkedGameRoot.resolve("assets");
+            Path sourceObjectsDirectory = Files.createDirectories(sourceLinkedAssetsRoot.resolve("objects"));
+            Path outsideObjectDirectory = Files.createDirectories(temporary.resolve("outside-object-cache"));
+            Path linkedObjectPrefix = sourceObjectsDirectory.resolve(nestedHash.substring(0, 2));
+            boolean sourceSymlinkSupported = true;
+            try {
+                Files.createSymbolicLink(linkedObjectPrefix, outsideObjectDirectory);
+            } catch (UnsupportedOperationException | SecurityException
+                     | java.nio.file.FileSystemException unsupported) {
+                sourceSymlinkSupported = false;
+            }
+            if (sourceSymlinkSupported) {
+                Files.write(outsideObjectDirectory.resolve(nestedHash), nestedPayload);
+                io(() -> AssetLayoutMaterializer.materialize(nestedIndex, "1.12.2",
+                        sourceLinkedAssetsRoot, sourceLinkedGameRoot, CancellationToken.NONE),
+                        "symlinked ancestor of cached asset object rejected");
+                yes(!Files.exists(sourceLinkedGameRoot.resolve("resources/jump/sentinel")),
+                        "cached asset outside the root is not copied through a symlinked object directory");
+            }
+
             Path outside = temporary.resolve("outside");
             Files.createDirectories(outside);
             Path outsideFile = outside.resolve("sentinel");
