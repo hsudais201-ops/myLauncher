@@ -44,13 +44,7 @@ public final class JavaProcessRunner {
         checkCancelled(cancellation);
 
         Path requestedExecutable = javaExecutable.toAbsolutePath().normalize();
-        Path current = requestedExecutable.getRoot();
-        for (Path segment : requestedExecutable) {
-            current = current.resolve(segment);
-            if (Files.isSymbolicLink(current)) {
-                throw new IOException("Java executable path must not contain symbolic links");
-            }
-        }
+        rejectSymbolicLinkComponents(requestedExecutable, "Java executable");
 
         Path executable;
         try {
@@ -64,7 +58,8 @@ public final class JavaProcessRunner {
         }
 
         Path directory = workingDirectory.toAbsolutePath().normalize();
-        if (Files.isSymbolicLink(directory) || !Files.isDirectory(directory, LinkOption.NOFOLLOW_LINKS)) {
+        rejectSymbolicLinkComponents(directory, "Java working directory");
+        if (!Files.isDirectory(directory, LinkOption.NOFOLLOW_LINKS)) {
             throw new IOException("Java working directory must be an existing non-symlink directory");
         }
 
@@ -123,6 +118,17 @@ public final class JavaProcessRunner {
             closeQuietly(process.getErrorStream());
             closeQuietly(process.getOutputStream());
             readers.shutdownNow();
+        }
+    }
+
+    private static void rejectSymbolicLinkComponents(Path path, String label) throws IOException {
+        Path current = path.getRoot();
+        if (current == null) throw new IOException(label + " must be an absolute path");
+        for (Path segment : path) {
+            current = current.resolve(segment);
+            if (Files.isSymbolicLink(current)) {
+                throw new IOException(label + " path must not contain symbolic links");
+            }
         }
     }
 
