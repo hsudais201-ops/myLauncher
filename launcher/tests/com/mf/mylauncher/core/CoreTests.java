@@ -1188,6 +1188,15 @@ public final class CoreTests {
                 VersionArgumentSet.empty(), null);
         eq(0, NativeLibraryPlanner.create(osNeutralNativeDetails, linux, "windows", "64").getArchiveCount(),
                 "native plan cannot select a foreign OS archive from a library with no OS rule");
+        LibraryMetadata osNeutralDesktopNative = new LibraryMetadata(
+                "org.example:os-neutral-desktop-native:1.0", null,
+                java.util.Collections.singletonMap("natives-linux-64", arm64),
+                linuxNatives, java.util.Collections.emptyList(), java.util.Collections.emptyList());
+        VersionDetails osNeutralDesktopDetails = new VersionDetails("1.21.4", "net.minecraft.client.main.Main",
+                "1.21.4", indexMetadata, client, 21, Arrays.asList(osNeutralDesktopNative),
+                VersionArgumentSet.empty(), null);
+        eq(0, NativeLibraryPlanner.create(osNeutralDesktopDetails, linux, "linux", "64").getArchiveCount(),
+                "ARM64 runtime cannot request the x86_64 legacy native token");
         bad(() -> NativeLibraryPlanner.create(details, linux, "../linux", "arm64"),
                 "unsafe native OS token rejected");
 
