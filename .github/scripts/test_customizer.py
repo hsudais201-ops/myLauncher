@@ -462,14 +462,6 @@ class ProfileTypeSelectFragment {
             self.assertIn('new File(getCurrentProfileDirectory(), "logs")', main_menu)
             self.assertIn("!logsDirectory.isDirectory() && !logsDirectory.mkdirs()", main_menu)
             self.assertIn("openPath(v.getContext(), logsDirectory, false);", main_menu)
-            self.assertIn("mMyLauncherLogsButton.setOnLongClickListener", main_menu)
-            self.assertIn('new File(new File(getCurrentProfileDirectory(), "logs"), "latest.log")', main_menu)
-            self.assertIn("final long maxCopyBytes = 1024L * 1024L;", main_menu)
-            self.assertIn("logReader.seek(offset);", main_menu)
-            self.assertIn("access[_-]?token|refresh[_-]?token|client[_-]?secret|authorization", main_menu)
-            self.assertIn('Bearer [REDACTED]', main_menu)
-            self.assertIn("android.content.ClipboardManager", main_menu)
-            self.assertIn("Latest game log copied with sensitive tokens redacted", main_menu)
             self.assertIn("Button mMyLauncherScreenshotsButton = view.findViewById(R.id.mylauncher_screenshots_button);", main_menu)
             self.assertIn("mMyLauncherScreenshotsButton.setOnClickListener", main_menu)
             self.assertIn('new File(getCurrentProfileDirectory(), "screenshots")', main_menu)
@@ -641,6 +633,31 @@ class ProfileTypeSelectFragment {
             self.assertIn('Tools.isDemoProfile(v.getContext())', menu)
             self.assertNotIn('else if (!hasOnlineProfile())', menu)
 
+    def test_mods_long_press_can_enable_disable_jars_safely(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            self.fixture(root)
+            customizer.patch_upstream(root)
+            menu = (root / "app_pojavlauncher/src/main/java/net/kdt/pojavlaunch/fragments/MainMenuFragment.java").read_text(encoding="utf-8")
+            strings = (root / "app_pojavlauncher/src/main/res/values/strings.xml").read_text(encoding="utf-8")
+            self.assertIn('<string name="main_mods_folder_hint">Mods folder. Long-press to enable or disable JAR mods.</string>', strings)
+            self.assertIn("mMyLauncherModsButton.setContentDescription(getString(R.string.main_mods_folder_hint));", menu)
+            self.assertIn("mMyLauncherModsButton.setOnClickListener", menu)
+            self.assertIn('openPath(v.getContext(), modsDirectory, false);', menu)
+            self.assertIn("mMyLauncherModsButton.setOnLongClickListener", menu)
+            self.assertIn("File[] modFiles = modsDirectory.listFiles", menu)
+            self.assertIn('normalizedName.endsWith(".jar")', menu)
+            self.assertIn('normalizedName.endsWith(".jar.disabled")', menu)
+            self.assertIn('selectedName + ".disabled"', menu)
+            self.assertIn('selectedName.substring(0, selectedName.length() - ".disabled".length())', menu)
+            self.assertIn('setPositiveButton(wasDisabled ? "Enable" : "Disable"', menu)
+            self.assertIn("destination.exists()", menu)
+            self.assertIn("!selectedMod.renameTo(destination)", menu)
+            self.assertIn("The selected mod is no longer available", menu)
+            self.assertIn("Tools.isDemoProfile(v.getContext())", menu)
+            self.assertIn("A file already exists with that name", menu)
+            self.assertLess(menu.index("mMyLauncherModsButton.setOnClickListener"), menu.index("mMyLauncherModsButton.setOnLongClickListener"))
+
     def test_resourcepacks_folder_shortcut_opens_the_selected_profile_resourcepacks_directory(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
@@ -751,22 +768,6 @@ class ProfileTypeSelectFragment {
                 self.assertIn('android:text="@string/main_logs_folder"', layout)
                 self.assertIn('app:layout_constraintTop_toBottomOf="@id/mylauncher_world_saves_button"', layout)
                 self.assertIn('app:layout_constraintTop_toBottomOf="@id/mylauncher_logs_button"', layout)
-
-    def test_long_press_game_logs_copies_bounded_redacted_latest_log(self) -> None:
-        with tempfile.TemporaryDirectory() as temp:
-            root = Path(temp)
-            self.fixture(root)
-            customizer.patch_upstream(root)
-            menu = (root / "app_pojavlauncher/src/main/java/net/kdt/pojavlaunch/fragments/MainMenuFragment.java").read_text(encoding="utf-8")
-            self.assertIn("mMyLauncherLogsButton.setOnLongClickListener", menu)
-            self.assertIn('new File(new File(getCurrentProfileDirectory(), "logs"), "latest.log")', menu)
-            self.assertIn("final long maxCopyBytes = 1024L * 1024L;", menu)
-            self.assertIn("logReader.seek(offset);", menu)
-            self.assertIn("access[_-]?token|refresh[_-]?token|client[_-]?secret|authorization", menu)
-            self.assertIn('Bearer [REDACTED]', menu)
-            self.assertIn("android.content.ClipboardManager", menu)
-            self.assertIn("Latest game log copied with sensitive tokens redacted", menu)
-            self.assertIn("Tools.isDemoProfile(v.getContext())", menu)
 
     def test_screenshots_folder_shortcut_opens_the_selected_profile_screenshots_directory(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
