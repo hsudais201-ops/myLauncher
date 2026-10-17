@@ -267,6 +267,15 @@ def patch_upstream(upstream: Path) -> None:
             "Offline username validation is incomplete; expected username syntax, "
             f"length, and duplicate-profile guards are missing: {missing_validation}"
         )
+    normalized_login_text = " ".join(login_text.split())
+    expected_username_submission = (
+        'ExtraCore.setValue(ExtraConstants.MOJANG_LOGIN_TODO, '
+        'new String[]{ mUsernameEditText.getText().toString(), "" });'
+    )
+    if expected_username_submission not in normalized_login_text:
+        raise ValueError(
+            "The upstream offline-login submission is incomplete or does not submit the validated username"
+        )
     local_login.write_text(login_text, encoding="utf-8")
 
     login_layout = upstream / "app_pojavlauncher" / "src" / "main" / "res" / "layout" / "fragment_local_login.xml"

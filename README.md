@@ -28,9 +28,19 @@ If the launcher reports `FileNotFoundException` for a path like `versions/<versi
 3. If the error continues, copy the exact version ID and the relevant error from the launcher log. Do not share Microsoft access tokens or other account secrets.
 4. When offline, use a version whose metadata, client, libraries, and assets are already installed. Creating a local profile alone does not install Minecraft files.
 - Local profiles can browse their game directory. Some upstream utilities, including the JAR installer, retain the upstream online-account requirement; this customization does not remove those separate restrictions.
-- The launcher home screen gets a lightweight myLauncher title/subtitle header plus a dedicated **Add account** shortcut in portrait and landscape. The shortcut opens the existing Microsoft/local account selector.
-- The Android launcher icon is replaced by a lightweight vector mark matching the new dark/purple identity. No UI library or significant runtime dependency is added.
+- The home screen uses an original night-violet identity: a custom gradient hero, letter-spaced Java Edition kicker, rounded outlined shortcuts, matching primary actions and input fields, and shared colors for the application and dialogs. The design is applied through existing Android resources in portrait and landscape without adding a UI library.
+- The home screen retains **Add account**, **Mods folder**, **Resource packs**, and **World saves** shortcuts. The app icon, account forms, common buttons and dialogs share the same custom palette. Native renderer/gameplay compatibility remains an engine concern; a reskin alone cannot make an incompatible renderer work.
 
+
+### Minecraft 26.x graphics backend failures
+
+If the log shows `Failed to create backend OpenGL` / `glGetError mismatch` and `Failed to create backend Vulkan` / `vkGetInstanceProcAddr mismatch`, the JVM has started but Minecraft cannot initialize its graphics backends. This is a renderer/runtime compatibility problem, not a launcher UI or offline-account error. Similar failures have been reported on other Android GPUs ([upstream report](https://github.com/AngelAuraMC/Amethyst-Android/issues/314)); that does not prove the exact cause or a working renderer for every phone.
+
+myLauncher applies a **targeted MobileGlues workaround** at the final renderer setup: it is limited to Minecraft 26.3 stable/later 26.x IDs (excluding 26.3-snapshot-1), only when MobileGlues is selected, and only while the saved error-filter setting remains at its default `Auto` value. The generated config then ignores shader/program errors (MobileGlues filter value `2`), without changing the saved preference. This may help with the documented error-filter compatibility issue, but it cannot guarantee that RenderPearl/OpenGL or Vulkan will initialize on every GPU or driver. See the [MobileGlues release notes](https://github.com/MobileGL-Dev/MobileGlues-release/releases).
+
+If it still fails, try a clean vanilla profile and switch only to a renderer your device supports, fully closing the game between attempts. A successful launcher APK build or emulator launch is not proof that Minecraft 26.x will render correctly on your physical device.
+
+The separate log warning `Fullscreen: Not a boolean: "off"` is a settings parse issue, not the backend exception above. Back up the game's `options.txt`; if it contains `fullscreen:off`, change only that value to `fullscreen:false`. Do not delete worlds or reinstall the launcher to address the renderer error.
 ## Build the APK
 
 1. Open the Actions tab in this GitHub repository.
@@ -45,13 +55,18 @@ The workflow fetches the exact Amethyst commit `330c6eae3164df64bdc4828e946a9e62
 - `.gitignore` — excludes local upstream checkouts, Python caches, and build outputs.
 - `.github/workflows/build.yml` — repeatable Android build workflow, triggered by relevant pushes to `main`, pull requests, or a manual dispatch.
 - `.github/workflows/runner-diagnostic.yml` — minimal hosted-runner diagnostic workflow.
-- `.github/scripts/customize_amethyst.py` — deterministic patch for app branding, package/authority IDs, low-memory defaults, offline account access, launcher header, account shortcut, and vector app icon.
-- `.github/scripts/test_customizer.py` — regression tests for branding, offline-account username syntax/length/duplicate-profile and boolean-logic guards, account submission and labeling, auth-selector listener/navigation safety, local game-directory access, both launcher layouts, XML well-formedness, missing-anchor failures, repeat-run idempotency, Android toolchain alignment, and CI submodule/APK safeguards.
+- `.github/scripts/customize_amethyst.py` — deterministic patch for app branding, package/authority IDs, low-memory defaults, offline account access, launcher header, folder/account shortcuts, and vector app icon.
+- `.github/scripts/customize_ui.py` — applies the night-violet shared UI theme and a version/renderer-scoped MobileGlues compatibility setting for Minecraft 26.3+.
+- `.github/scripts/test_customizer.py` — regression tests for branding, offline-account username syntax/length/duplicate-profile and boolean-logic guards, account submission and labeling, auth-selector listener/navigation safety, local game-directory access, both launcher layouts, XML well-formedness, missing-anchor failures, repeat-run idempotency, Android toolchain alignment, CI safeguards, and smoke-script argument handling.
+- `.github/scripts/test_ui_customizer.py` — regression tests for the shared UI theme, button/input backgrounds, responsive home hero, renderer-setting scope, XML well-formedness, and patcher idempotency.
 
 ## Local build
 
 From this repository's root on Linux, use Python 3, Git, JDK 21, Android SDK command-line tools, platform `android-37`, and NDK `27.3.13750724`. First run the regression suite:
 
+    python3 -m py_compile .github/scripts/customize_amethyst.py .github/scripts/test_customizer.py .github/scripts/customize_ui.py .github/scripts/test_ui_customizer.py
+    sh -n .github/scripts/prepare_emulator_kvm.sh
+    sh -n .github/scripts/emulator_smoke_test.sh
     python3 -m unittest discover -s .github/scripts -p 'test_*.py' -v
 
 Then fetch the pinned upstream source and build:
@@ -67,6 +82,7 @@ Then fetch the pinned upstream source and build:
     yes | sdkmanager --licenses
     sdkmanager --install 'platforms;android-37.0' 'ndk;27.3.13750724' --channel=3
     python3 .github/scripts/customize_amethyst.py upstream
+    python3 .github/scripts/customize_ui.py upstream
     cd upstream
     ./gradlew :jre_lwjgl3glfw:build :app_pojavlauncher:assembleDebug
 
@@ -74,7 +90,7 @@ Then fetch the pinned upstream source and build:
 
 The post-merge `main` build [#38995666191](https://github.com/hsudais201-ops/myLauncher/actions/runs/38995666191) passed on code commit `20ef3ef4739f74c63f8db52a69f143166d583358`. It passed the Python regression suite, Android SDK/NDK setup, pinned Amethyst source checkout and submodules, customization plus `git diff --check`, Gradle build, APK signature and package/minimum-SDK checks, and Android 9/API 28 headless emulator install-and-launch smoke test. The workflow uploaded the debug APK with SHA-256 checksum sidecar, build info, and emulator diagnostics.
 
-The merged **World saves** shortcut was validated in [PR #4's workflow run #38996198756](https://github.com/hsudais201-ops/myLauncher/actions/runs/38996198756), which passed regression tests, APK build/signature/package checks, and the Android 9 emulator smoke test. The post-merge main run [#38996576044](https://github.com/hsudais201-ops/myLauncher/actions/runs/38996576044) is rebuilding the merged main branch now.
+The merged **World saves** shortcut was validated in [PR #4's workflow run #38996198756](https://github.com/hsudais201-ops/myLauncher/actions/runs/38996198756), which passed regression tests, APK build/signature/package checks, and the Android 9 emulator smoke test. The post-merge main run [#38996576044](https://github.com/hsudais201-ops/myLauncher/actions/runs/38996576044) completed successfully.
 
 The cloud emulator smoke test verifies installation and that `LauncherActivity` becomes active. It does not prove that each folder button works through a physical tap, Microsoft sign-in succeeds, a Minecraft version downloads fully, a world starts, or rendering/controllers/performance work on a physical phone or Chromebook. Interactive device and gameplay acceptance tests remain necessary.
 

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib.util
+import subprocess
 import tempfile
 import unittest
 import xml.etree.ElementTree as ET
@@ -109,7 +110,7 @@ class LocalLoginFragment {
             Tools.swapFragment(requireActivity(), MainMenuFragment.class, MainMenuFragment.TAG, null);
         }
         if(!checkEditText()) return;
-        ExtraCore.setValue(ExtraConstants.MOJANG_LOGIN_TODO, new String[]{ "name", "" });
+        ExtraCore.setValue(ExtraConstants.MOJANG_LOGIN_TODO, new String[]{ mUsernameEditText.getText().toString(), "" });
     }
 
     private boolean checkEditText() {
@@ -346,6 +347,8 @@ class ProfileTypeSelectFragment {
             self.assertNotIn("if (!hasOnlineProfile())", local_login)
             self.assertNotIn("import static net.kdt.pojavlaunch.Tools.hasOnlineProfile;", local_login)
             self.assertIn("ExtraCore.setValue(ExtraConstants.MOJANG_LOGIN_TODO, new String[]{", local_login)
+            self.assertIn('mUsernameEditText.getText().toString(), ""', " ".join(local_login.split()))
+            self.assertNotIn('new String[]{ "name", "" }', local_login)
             self.assertIn('Pattern.compile("^[a-zA-Z0-9_]*$")', local_login)
             self.assertIn("text.length() < 3", local_login)
             self.assertIn("text.length() > 16", local_login)
@@ -471,6 +474,21 @@ class ProfileTypeSelectFragment {
                 local_login.write_text(login_text.replace(original, replacement, 1), encoding="utf-8")
                 with self.assertRaisesRegex(ValueError, expected_error):
                     customizer.patch_upstream(root)
+
+    def test_rejects_offline_login_placeholder_username(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            self.fixture(root)
+            local_login = root / "app_pojavlauncher/src/main/java/net/kdt/pojavlaunch/fragments/LocalLoginFragment.java"
+            login_text = local_login.read_text(encoding="utf-8")
+            good_submission = 'new String[]{ mUsernameEditText.getText().toString(), "" }'
+            self.assertIn(good_submission, login_text)
+            local_login.write_text(
+                login_text.replace(good_submission, 'new String[]{ "name", "" }', 1),
+                encoding="utf-8",
+            )
+            with self.assertRaisesRegex(ValueError, "does not submit the validated username"):
+                customizer.patch_upstream(root)
 
     def test_rejects_broken_auth_selector_listener(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
@@ -710,6 +728,19 @@ class BuildWorkflowTests(unittest.TestCase):
         self.assertIn('sha256sum "$(basename "$APK")"', self.workflow)
         self.assertIn("${{ env.APK_SHA256_PATH }}", self.workflow)
         self.assertIn("APK SHA-256:", self.workflow)
+
+
+    def test_smoke_script_reports_missing_apk_argument(self) -> None:
+        script = Path(__file__).with_name("emulator_smoke_test.sh")
+        result = subprocess.run(
+            ["sh", str(script)],
+            capture_output=True,
+            text=True,
+            timeout=10,
+            check=False,
+        )
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("Usage: emulator_smoke_test.sh <apk-path>", result.stderr)
 
 
 if __name__ == "__main__":

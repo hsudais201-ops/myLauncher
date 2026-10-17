@@ -32,6 +32,7 @@ jobs:
       - name: Validate customizer and regression suite
         run: |
           python3 -m py_compile .github/scripts/customize_amethyst.py .github/scripts/test_customizer.py
+          python3 -m py_compile .github/scripts/customize_ui.py .github/scripts/test_ui_customizer.py
           sh -n .github/scripts/prepare_emulator_kvm.sh
           sh -n .github/scripts/emulator_smoke_test.sh
           python3 -m unittest discover -s .github/scripts -p 'test_*.py' -v
@@ -41,6 +42,10 @@ jobs:
         with:
           distribution: temurin
           java-version: '21'
+
+      - name: Test isolated launcher core
+        if: ${{ hashFiles('launcher/test.sh') != '' }}
+        run: ./launcher/test.sh
 
       - name: Set up Android SDK
         uses: android-actions/setup-android@v4
@@ -87,6 +92,7 @@ jobs:
       - name: Apply and inspect myLauncher customization
         run: |
           python3 .github/scripts/customize_amethyst.py upstream
+          python3 .github/scripts/customize_ui.py upstream
           git -C upstream diff --check
 
       - name: Record upstream revision
