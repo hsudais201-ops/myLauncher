@@ -994,6 +994,15 @@ public final class CoreTests {
             io(() -> ClasspathResolver.resolve(details, linux, game), "logging configuration checksum mismatch rejected");
             Files.write(loggingPath, loggingBytes);
 
+            Path linkedRootParent = temporary.resolve("linked-game-parent");
+            try {
+                Files.createSymbolicLink(linkedRootParent, temporary);
+                io(() -> ClasspathResolver.resolve(details, linux, linkedRootParent.resolve("game")),
+                        "symlinked ancestor of classpath root rejected");
+            } catch (UnsupportedOperationException | SecurityException | java.nio.file.FileSystemException exception) {
+                // Some filesystems disable symbolic links for ordinary users.
+            }
+
             Path linkRoot = temporary.resolve("linked-game");
             Files.createDirectories(linkRoot);
             try {
@@ -1456,6 +1465,15 @@ public final class CoreTests {
                     CancellationToken.NONE, 15_000, (stream, line) -> output.add(stream + ":" + line));
             yes(result.isSuccess(), "Java process exits successfully");
             yes(result.getElapsedMillis() >= 0, "process duration reported");
+            Path linkedWorkingParent = temporary.resolve("linked-working-parent");
+            try {
+                Files.createSymbolicLink(linkedWorkingParent, temporary);
+                io(() -> runner.run(javaExecutable, linkedWorkingParent.resolve("work"),
+                        java.util.Collections.singletonList("-version"), CancellationToken.NONE, 15_000, null),
+                        "symlinked ancestor of Java working directory rejected");
+            } catch (UnsupportedOperationException | SecurityException | java.nio.file.FileSystemException exception) {
+                // Some filesystems disable symbolic links for ordinary users.
+            }
             Path linkedExecutable = temporary.resolve("linked-java");
             try {
                 Files.createSymbolicLink(linkedExecutable, javaExecutable);
