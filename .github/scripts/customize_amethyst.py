@@ -273,6 +273,33 @@ def patch_upstream(upstream: Path) -> None:
             strings_text,
         ):
             raise ValueError(f"Live log filter resource is missing or invalid: {string_name}")
+    repair_version_strings = {
+        "main_repair_version": "Verify / repair version",
+        "main_repair_version_title": "Verify / repair selected version?",
+        "main_repair_version_message": "Checks and downloads missing or corrupt files for the selected official Minecraft version. An internet connection is required. Minecraft will not launch afterward.",
+        "main_repair_version_list_loading": "The Minecraft version list is still loading. Wait a moment and try again.",
+        "main_repair_version_unlisted": "Automatic repair only supports official versions in the current version list. Use the matching installer for modded or custom versions.",
+        "main_repair_version_requires_internet": "An internet connection is required to verify or repair version files.",
+        "main_repair_version_started": "Verifying / repairing version files…",
+        "main_repair_version_success": "Version verification/download completed.",
+        "main_repair_version_failure": "Version repair failed. Check your connection and Game logs.",
+    }
+    for string_name, string_value in repair_version_strings.items():
+        if not re.search(r'<string\s+name="' + re.escape(string_name) + r'"', strings_text):
+            live_hint_match = re.search(
+                r'(?m)^([ \t]*<string\s+name="main_live_log_truncated"[^>]*>.*?</string>)[ \t]*$',
+                strings_text,
+            )
+            if not live_hint_match:
+                raise ValueError("Could not find the live-log truncation label to add version-repair resources")
+            indent = re.match(r"[ \t]*", live_hint_match.group(1)).group(0)
+            new_string = indent + '<string name="' + string_name + '">' + string_value + '</string>'
+            strings_text = strings_text[:live_hint_match.end()] + "\n" + new_string + strings_text[live_hint_match.end():]
+        if not re.search(
+            r'<string\s+name="' + re.escape(string_name) + r'"[^>]*>\s*' + re.escape(string_value) + r'\s*</string>',
+            strings_text,
+        ):
+            raise ValueError(f"Version-repair resource is missing or invalid: {string_name}")
     strings.write_text(strings_text, encoding="utf-8")
 
     # App names can be localized in values-*/strings.xml. Force the product
