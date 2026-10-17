@@ -687,6 +687,14 @@ public final class CoreTests {
                 URI.create("https://libraries.minecraft.net/org/example/core/1.0/core.jar"),
                 hash1, 100, "org/example/core/1.0/core.jar");
         LibraryRule linuxRule = new LibraryRule(true, "linux", "aarch64", "6\\..*", null);
+        yes(new LibraryRule(true, "osx", null, "^10\\\\.", null)
+                .matches("osx", "aarch64", "10.14.6", null),
+                "anchored OS-version regex matches a longer version string");
+        yes(new LibraryRule(true, "linux", ".*64.*", null, null)
+                .matches("linux", "x86_64", "6.1", null),
+                "OS-architecture rule is evaluated as a regex");
+        bad(() -> new LibraryRule(true, null, "[", null, null),
+                "invalid OS-architecture regex rejected");
         LibraryMetadata included = new LibraryMetadata("org.example:core:1.0", libraryArtifact,
                 java.util.Collections.emptyMap(), java.util.Collections.emptyMap(),
                 java.util.Collections.singletonList(linuxRule), java.util.Collections.emptyList());
