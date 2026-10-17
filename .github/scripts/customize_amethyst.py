@@ -236,6 +236,18 @@ def patch_upstream(upstream: Path) -> None:
         strings_text = strings_text[:screenshots_string_match.end()] + "\n" + shaderpacks_string + strings_text[screenshots_string_match.end():]
     if not re.search(r'<string\s+name="main_shaderpacks_folder"[^>]*>\s*Shader packs\s*</string>', strings_text):
         raise ValueError("Required main_shaderpacks_folder string is missing or invalid")
+    if not re.search(r'<string\s+name="main_shaderpacks_folder_hint"', strings_text):
+        shaderpacks_label_match = re.search(
+            r'(?m)^([ \t]*<string\s+name="main_shaderpacks_folder"[^>]*>.*?</string>)[ \t]*$',
+            strings_text,
+        )
+        if not shaderpacks_label_match:
+            raise ValueError("Could not find main_shaderpacks_folder to add the shader-pack toggle hint")
+        indent = re.match(r"[ \t]*", shaderpacks_label_match.group(1)).group(0)
+        shaderpacks_hint = indent + '<string name="main_shaderpacks_folder_hint">Shader packs. Long-press to enable or disable ZIP packs.</string>'
+        strings_text = strings_text[:shaderpacks_label_match.end()] + "\n" + shaderpacks_hint + strings_text[shaderpacks_label_match.end():]
+    if not re.search(r'<string\s+name="main_shaderpacks_folder_hint"[^>]*>\s*Shader packs\. Long-press to enable or disable ZIP packs\.\s*</string>', strings_text):
+        raise ValueError("Required main_shaderpacks_folder_hint text is missing or invalid")
     strings.write_text(strings_text, encoding="utf-8")
 
     # App names can be localized in values-*/strings.xml. Force the product
@@ -1593,6 +1605,9 @@ def patch_upstream(upstream: Path) -> None:
         if screenshots_binding not in main_menu_text:
             raise ValueError("Could not bind the shader-packs shortcut without the Screenshots shortcut")
         main_menu_text = main_menu_text.replace(screenshots_binding, screenshots_binding + "\n        " + shaderpacks_binding, 1)
+    shaderpacks_hint_binding = "mMyLauncherShaderPacksButton.setContentDescription(getString(R.string.main_shaderpacks_folder_hint));"
+    if shaderpacks_hint_binding not in main_menu_text:
+        main_menu_text = main_menu_text.replace(shaderpacks_binding, shaderpacks_binding + "\n        " + shaderpacks_hint_binding, 1)
     shaderpacks_listener = """mMyLauncherShaderPacksButton.setOnClickListener(v -> {
             if (Tools.isDemoProfile(v.getContext())) {
                 hasNoOnlineProfileDialog(getActivity(), getString(R.string.demo_unsupported), getString(R.string.change_account));
@@ -1619,6 +1634,101 @@ def patch_upstream(upstream: Path) -> None:
         or "Tools.isDemoProfile(v.getContext())" not in shaderpacks_listener
     ):
         raise ValueError("The shader-packs shortcut binding, directory creation, or handler is incomplete")
+
+    shaderpacks_manager_listener = """mMyLauncherShaderPacksButton.setOnLongClickListener(v -> {
+            if (Tools.isDemoProfile(v.getContext())) {
+                hasNoOnlineProfileDialog(getActivity(), getString(R.string.demo_unsupported), getString(R.string.change_account));
+                return true;
+            }
+            File shaderPackDirectory = new File(getCurrentProfileDirectory(), "resourcepacks");
+            if (!shaderPackDirectory.isDirectory() && !shaderPackDirectory.mkdirs()) {
+                Toast.makeText(requireContext(), "Unable to create the shader packs folder", Toast.LENGTH_LONG).show();
+                return true;
+            }
+            File[] shaderPackFiles = shaderPackDirectory.listFiles((directory, name) -> {
+                if (name == null) return false;
+                String normalizedName = name.toLowerCase(java.util.Locale.ROOT);
+                return new File(directory, name).isFile()
+                        && (normalizedName.endsWith(".zip") || normalizedName.endsWith(".zip.disabled"));
+            });
+            if (shaderPackFiles == null || shaderPackFiles.length == 0) {
+                Toast.makeText(requireContext(), "No ZIP shader packs found to enable or disable", Toast.LENGTH_LONG).show();
+                return true;
+            }
+            java.util.Arrays.sort(shaderPackFiles, (left, right) ->
+                    left.getName().compareToIgnoreCase(right.getName()));
+            String[] packChoices = new String[shaderPackFiles.length];
+            for (int i = 0; i < shaderPackFiles.length; i++) {
+                String normalizedName = shaderPackFiles[i].getName().toLowerCase(java.util.Locale.ROOT);
+                boolean disabled = normalizedName.endsWith(".zip.disabled");
+                packChoices[i] = (disabled ? "Disabled · " : "Enabled · ") + shaderPackFiles[i].getName();
+            }
+            new AlertDialog.Builder(requireContext())
+                    .setTitle("Manage shader packs — enable or disable")
+                    .setItems(packChoices, (dialog, which) -> {
+                        if (which < 0 || which >= shaderPackFiles.length) return;
+                        File selectedPack = shaderPackFiles[which];
+                        String selectedName = selectedPack.getName();
+                        String normalizedName = selectedName.toLowerCase(java.util.Locale.ROOT);
+                        boolean wasDisabled = normalizedName.endsWith(".zip.disabled");
+                        String destinationName = wasDisabled
+                                ? selectedName.substring(0, selectedName.length() - ".disabled".length())
+                                : selectedName + ".disabled";
+                        File destination = new File(shaderPackDirectory, destinationName);
+                        new AlertDialog.Builder(requireContext())
+                                .setTitle(wasDisabled ? "Enable shader pack?" : "Disable shader pack?")
+                                .setMessage((wasDisabled ? "Enable " : "Disable ") + selectedName + "?")
+                                .setNegativeButton(android.R.string.cancel, null)
+                                .setPositiveButton(wasDisabled ? "Enable" : "Disable", (confirmDialog, result) -> {
+                                    try {
+                                        String packsRoot = shaderPackDirectory.getCanonicalPath();
+                                        String selectedPath = selectedPack.getCanonicalPath();
+                                        String destinationPath = destination.getCanonicalPath();
+                                        if (!shaderPackDirectory.isDirectory()
+                                                || !selectedPack.isFile()
+                                                || !selectedPath.startsWith(packsRoot + File.separator)
+                                                || !destinationPath.startsWith(packsRoot + File.separator)) {
+                                            Toast.makeText(requireContext(), "The selected shader pack is no longer available", Toast.LENGTH_LONG).show();
+                                            return;
+                                        }
+                                        if (destination.exists()) {
+                                            Toast.makeText(requireContext(), "A file already exists with that name", Toast.LENGTH_LONG).show();
+                                            return;
+                                        }
+                                        if (!selectedPack.renameTo(destination)) {
+                                            Toast.makeText(requireContext(), "Unable to rename the shader pack file", Toast.LENGTH_LONG).show();
+                                            return;
+                                        }
+                                        Toast.makeText(requireContext(),
+                                                (wasDisabled ? "Enabled: " : "Disabled: ") + destination.getName(),
+                                                Toast.LENGTH_LONG).show();
+                                    } catch (IOException exception) {
+                                        Toast.makeText(requireContext(), "Unable to validate the resource-pack path: " + exception.getMessage(), Toast.LENGTH_LONG).show();
+                                    }
+                                })
+                                .show();
+                    })
+                    .show();
+            return true;
+        });"""
+    if shaderpacks_manager_listener not in main_menu_text:
+        main_menu_text = main_menu_text.replace(shaderpacks_listener, shaderpacks_listener + "\n\n        " + shaderpacks_manager_listener, 1)
+    if (
+        main_menu_text.count(shaderpacks_manager_listener) != 1
+        or main_menu_text.count("mMyLauncherShaderPacksButton.setOnLongClickListener") != 1
+        or "name.toLowerCase(java.util.Locale.ROOT)" not in shaderpacks_manager_listener
+        or 'normalizedName.endsWith(".zip")' not in shaderpacks_manager_listener
+        or 'normalizedName.endsWith(".zip.disabled")' not in shaderpacks_manager_listener
+        or 'selectedName + ".disabled"' not in shaderpacks_manager_listener
+        or 'selectedName.substring(0, selectedName.length() - ".disabled".length())' not in shaderpacks_manager_listener
+        or "destination.exists()" not in shaderpacks_manager_listener
+        or "!selectedPack.renameTo(destination)" not in shaderpacks_manager_listener
+        or "!selectedPath.startsWith(packsRoot + File.separator)" not in shaderpacks_manager_listener
+        or "Tools.isDemoProfile(v.getContext())" not in shaderpacks_manager_listener
+    ):
+        raise ValueError("The resource-pack enable/disable manager is incomplete or missing safety checks")
+    if shaderpacks_hint_binding not in main_menu_text or main_menu_text.count(shaderpacks_hint_binding) != 1:
+        raise ValueError("The Shader packs long-press accessibility hint is not wired exactly once")
 
     required_backup_imports = (
         "import java.io.FileInputStream;",
