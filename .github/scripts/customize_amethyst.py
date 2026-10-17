@@ -1640,7 +1640,7 @@ def patch_upstream(upstream: Path) -> None:
                 hasNoOnlineProfileDialog(getActivity(), getString(R.string.demo_unsupported), getString(R.string.change_account));
                 return true;
             }
-            File shaderPackDirectory = new File(getCurrentProfileDirectory(), "resourcepacks");
+            File shaderPackDirectory = new File(getCurrentProfileDirectory(), "shaderpacks");
             if (!shaderPackDirectory.isDirectory() && !shaderPackDirectory.mkdirs()) {
                 Toast.makeText(requireContext(), "Unable to create the shader packs folder", Toast.LENGTH_LONG).show();
                 return true;
@@ -1703,7 +1703,7 @@ def patch_upstream(upstream: Path) -> None:
                                                 (wasDisabled ? "Enabled: " : "Disabled: ") + destination.getName(),
                                                 Toast.LENGTH_LONG).show();
                                     } catch (IOException exception) {
-                                        Toast.makeText(requireContext(), "Unable to validate the resource-pack path: " + exception.getMessage(), Toast.LENGTH_LONG).show();
+                                        Toast.makeText(requireContext(), "Unable to validate the shader-pack path: " + exception.getMessage(), Toast.LENGTH_LONG).show();
                                     }
                                 })
                                 .show();
@@ -1726,7 +1726,7 @@ def patch_upstream(upstream: Path) -> None:
         or "!selectedPath.startsWith(packsRoot + File.separator)" not in shaderpacks_manager_listener
         or "Tools.isDemoProfile(v.getContext())" not in shaderpacks_manager_listener
     ):
-        raise ValueError("The resource-pack enable/disable manager is incomplete or missing safety checks")
+        raise ValueError("The shader-pack enable/disable manager is incomplete or missing safety checks")
     if shaderpacks_hint_binding not in main_menu_text or main_menu_text.count(shaderpacks_hint_binding) != 1:
         raise ValueError("The Shader packs long-press accessibility hint is not wired exactly once")
 
