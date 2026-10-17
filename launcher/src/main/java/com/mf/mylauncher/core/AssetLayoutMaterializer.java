@@ -165,6 +165,7 @@ public final class AssetLayoutMaterializer {
 
     private static boolean hasExpectedContent(Path path, AssetObjectMetadata metadata,
                                                CancellationToken cancellation) throws IOException {
+        rejectSymbolicLinkComponents(path);
         if (Files.size(path) != metadata.getSizeBytes()) return false;
         MessageDigest digest = sha1Digest();
         long total = 0;
@@ -193,6 +194,18 @@ public final class AssetLayoutMaterializer {
 
     private static void rejectSymlink(Path path) throws IOException {
         if (Files.isSymbolicLink(path)) throw new IOException("Symbolic links are not allowed in asset paths");
+    }
+
+    private static void rejectSymbolicLinkComponents(Path path) throws IOException {
+        Path absolute = path.toAbsolutePath().normalize();
+        Path current = absolute.getRoot();
+        if (current == null) throw new IOException("Asset paths must be absolute");
+        for (Path segment : absolute) {
+            current = current.resolve(segment);
+            if (Files.isSymbolicLink(current)) {
+                throw new IOException("Symbolic links are not allowed in asset paths");
+            }
+        }
     }
 
     private static MessageDigest sha1Digest() {
