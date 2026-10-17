@@ -329,18 +329,18 @@ class ProfileTypeSelectFragment {
             prefs = (root / "app_pojavlauncher/src/main/java/net/kdt/pojavlaunch/prefs/LauncherPreferences.java").read_text(encoding="utf-8")
             self.assertIn('applicationId "com.mf.mylauncher"', build)
             self.assertIn("com.mf.mylauncher.scoped.gamefolder", build)
-            self.assertIn('"Orbit Launcher (Debug)"', build)
-            self.assertIn('"app_name", "Orbit Launcher"', build)
+            self.assertIn('"VoidCraft Launcher (Debug)"', build)
+            self.assertIn('"app_name", "VoidCraft Launcher"', build)
             self.assertIn("'application_package', 'com.mf.mylauncher.debug'", build)
             self.assertIn("'application_package', 'com.mf.mylauncher'", build)
             self.assertIn("'shareProviderAuthority', 'com.mf.mylauncher.scoped.controlfolder.debug'", build)
             self.assertNotIn("org.angelauramc.amethyst", build)
             self.assertNotIn("Amethyst", strings)
-            self.assertIn("Orbit Launcher crashed", strings)
+            self.assertIn("VoidCraft Launcher crashed", strings)
             tools_java = (root / "app_pojavlauncher/src/main/java/net/kdt/pojavlaunch/Tools.java").read_text(encoding="utf-8")
-            self.assertIn('public static String APP_NAME = "Orbit Launcher";', tools_java)
+            self.assertIn('public static String APP_NAME = "VoidCraft Launcher";', tools_java)
             self.assertNotIn('public static String APP_NAME = "Amethyst";', tools_java)
-            self.assertIn("rootProject.name='Orbit Launcher'", settings)
+            self.assertIn("rootProject.name='VoidCraft Launcher'", settings)
             self.assertIn('<string name="main_mods_folder">Mods folder</string>', strings)
             self.assertIn('<string name="main_resourcepacks_folder">Resource packs</string>', strings)
             self.assertIn('<string name="main_world_saves_folder">World saves</string>', strings)
@@ -419,7 +419,8 @@ class ProfileTypeSelectFragment {
                 self.assertEqual(launcher_layout.count('android:id="@+id/mylauncher_mods_button"'), 1)
                 self.assertEqual(launcher_layout.count('android:id="@+id/mylauncher_resourcepacks_button"'), 1)
                 self.assertEqual(launcher_layout.count('android:id="@+id/mylauncher_world_saves_button"'), 1)
-                self.assertIn('android:text="Orbit Launcher"', launcher_layout)
+                self.assertIn('android:text="VoidCraft Launcher"', launcher_layout)
+                self.assertIn('android:text="Minecraft Java Edition · by MF"', launcher_layout)
                 self.assertIn('android:text="Minecraft Java Edition · built for lightweight devices"', launcher_layout)
                 self.assertIn('android:text="@string/main_add_account"', launcher_layout)
                 self.assertIn('android:drawableStart="@android:drawable/ic_menu_myplaces"', launcher_layout)
@@ -634,7 +635,7 @@ class ProfileTypeSelectFragment {
 
 
 class ApplyLogoTests(unittest.TestCase):
-    def test_applies_orbit_icon_to_manifest(self) -> None:
+    def test_applies_voidcraft_icon_to_manifest(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
             app = root / "app_pojavlauncher"
@@ -652,10 +653,10 @@ class ApplyLogoTests(unittest.TestCase):
             self.assertIsNotNone(app_node)
             assert app_node is not None
             self.assertEqual(app_node.get("{http://schemas.android.com/apk/res/android}icon"),
-                             "@drawable/orbit_launcher_logo")
+                             "@drawable/voidcraft_launcher_logo")
             self.assertEqual(app_node.get("{http://schemas.android.com/apk/res/android}roundIcon"),
-                             "@drawable/orbit_launcher_logo")
-            icon = app / "src/main/res/drawable/orbit_launcher_logo.xml"
+                             "@drawable/voidcraft_launcher_logo")
+            icon = app / "src/main/res/drawable/voidcraft_launcher_logo.xml"
             ET.parse(icon)
             icon_text = icon.read_text(encoding="utf-8")
             self.assertIn('android:strokeColor="#6EF3FF"', icon_text)
@@ -710,10 +711,10 @@ class BuildWorkflowTests(unittest.TestCase):
         )
         self.assertIn("APK did not reach LauncherActivity", self.smoke_script)
         self.assertIn("Emulator smoke test passed: APK installed and LauncherActivity resumed.", self.smoke_script)
-        self.assertIn("name: orbit-launcher-emulator-diagnostics", self.workflow)
+        self.assertIn("name: voidcraft-launcher-emulator-diagnostics", self.workflow)
         self.assertIn("upstream/mylauncher-emulator-logcat.txt", self.workflow)
         self.assertIn("if: ${{ always() && env.APK_PATH != '' }}", self.workflow)
-        self.assertIn("if: ${{ always() && hashFiles('upstream/ORBIT_LAUNCHER_BUILD_INFO.txt') != '' }}", self.workflow)
+        self.assertIn("if: ${{ always() && hashFiles('upstream/VOIDCRAFT_LAUNCHER_BUILD_INFO.txt') != '' }}", self.workflow)
         self.assertLess(
             self.workflow.index("Upload debug APK"),
             self.workflow.index("Upload upstream build notes"),
@@ -723,7 +724,7 @@ class BuildWorkflowTests(unittest.TestCase):
         self.assertIn("  push:\n    branches:\n      - main", self.workflow)
         self.assertIn("  pull_request:", self.workflow)
         self.assertIn("  workflow_dispatch:", self.workflow)
-        self.assertIn("group: orbit-launcher-build-v2-${{ github.ref }}", self.workflow)
+        self.assertIn("group: voidcraft-launcher-build-v2-${{ github.ref }}", self.workflow)
         self.assertIn("EXPECTED_UPSTREAM_COMMIT=330c6eae3164df64bdc4828e946a9e62cc5169e4", self.workflow)
         # Keep the hosted build toolchain aligned with the pinned upstream project.
         self.assertIn("java-version: '21'", self.workflow)
@@ -741,7 +742,7 @@ class BuildWorkflowTests(unittest.TestCase):
         self.assertIn('test "$MIN_SDK" -le 28', self.workflow)
         self.assertIn('name apksigner', self.workflow)
         self.assertIn('"$APKSIGNER" verify --verbose "$APK"', self.workflow)
-        self.assertIn("orbit-launcher-debug-apk", self.workflow)
+        self.assertIn("voidcraft-launcher-debug-apk", self.workflow)
         self.assertIn('sha256sum "$(basename "$APK")"', self.workflow)
         self.assertIn("${{ env.APK_SHA256_PATH }}", self.workflow)
         self.assertIn("APK SHA-256:", self.workflow)
