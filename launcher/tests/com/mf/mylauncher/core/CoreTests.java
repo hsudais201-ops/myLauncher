@@ -1178,6 +1178,16 @@ public final class CoreTests {
         unsupported(() -> plan.getArchives().clear(), "native archive list immutable");
         eq(0, NativeLibraryPlanner.create(details, linux, "windows", "64").getArchiveCount(),
                 "platform-rule-incompatible native library skipped");
+        LibraryMetadata osNeutralWindowsNative = new LibraryMetadata(
+                "org.example:os-neutral-windows-native:1.0", null,
+                java.util.Collections.singletonMap("natives-windows-64", excludedArtifact),
+                java.util.Collections.singletonMap("windows", "natives-windows-${arch}"),
+                java.util.Collections.emptyList(), java.util.Collections.emptyList());
+        VersionDetails osNeutralNativeDetails = new VersionDetails("1.21.4", "net.minecraft.client.main.Main",
+                "1.21.4", indexMetadata, client, 21, Arrays.asList(osNeutralWindowsNative),
+                VersionArgumentSet.empty(), null);
+        eq(0, NativeLibraryPlanner.create(osNeutralNativeDetails, linux, "windows", "64").getArchiveCount(),
+                "native plan cannot select a foreign OS archive from a library with no OS rule");
         bad(() -> NativeLibraryPlanner.create(details, linux, "../linux", "arm64"),
                 "unsafe native OS token rejected");
 
