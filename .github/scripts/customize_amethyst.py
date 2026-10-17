@@ -445,7 +445,7 @@ def patch_upstream(upstream: Path) -> None:
                 if prior_constraint in account_match.group(0):
                     updated_account = account_match.group(0).replace(
                         prior_constraint,
-                        'app:layout_constraintTop_toBottomOf="@id/mylauncher_resourcepacks_button"',
+                        'app:layout_constraintTop_toBottomOf="@id/mylauncher_world_saves_button"',
                         1,
                     )
                     layout_text = layout_text[:account_match.start()] + updated_account + layout_text[account_match.end():]
