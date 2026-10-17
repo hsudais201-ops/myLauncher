@@ -10,27 +10,47 @@ import java.util.Map;
 public final class VersionArgumentSet {
     private final List<ArgumentEntry> game;
     private final List<ArgumentEntry> jvm;
+    private final List<ArgumentEntry> defaultUserJvm;
 
     public VersionArgumentSet(List<ArgumentEntry> game, List<ArgumentEntry> jvm) {
+        this(game, jvm, Collections.emptyList());
+    }
+
+    /**
+     * default-user-jvm contains user-facing JVM defaults (Minecraft 26.1+), not unconditional
+     * launch flags. Callers must merge these suggestions with the user's settings and device-safe
+     * memory limit rather than blindly passing Mojang desktop defaults to Android.
+     */
+    public VersionArgumentSet(List<ArgumentEntry> game, List<ArgumentEntry> jvm,
+                              List<ArgumentEntry> defaultUserJvm) {
         this.game = immutableCopy(game, "game arguments");
         this.jvm = immutableCopy(jvm, "JVM arguments");
+        this.defaultUserJvm = immutableCopy(defaultUserJvm, "default user JVM arguments");
     }
 
     public static VersionArgumentSet empty() {
-        return new VersionArgumentSet(Collections.emptyList(), Collections.emptyList());
+        return new VersionArgumentSet(Collections.emptyList(), Collections.emptyList(), Collections.emptyList());
     }
 
     public static VersionArgumentSet fromDecodedJson(Map<?, ?> root) {
         if (root == null) throw new IllegalArgumentException("arguments must be a JSON object");
-        return new VersionArgumentSet(parseEntries(root.get("game"), "arguments.game"),
-                parseEntries(root.get("jvm"), "arguments.jvm"));
+        return new VersionArgumentSet(
+                parseEntries(root.get("game"), "arguments.game"),
+                parseEntries(root.get("jvm"), "arguments.jvm"),
+                parseEntries(root.get("default-user-jvm"), "arguments.default-user-jvm"));
     }
 
     public List<ArgumentEntry> getGame() { return game; }
     public List<ArgumentEntry> getJvm() { return jvm; }
+    public List<ArgumentEntry> getDefaultUserJvm() { return defaultUserJvm; }
 
     public List<String> resolveGameArguments(LibraryPlatform platform) { return resolve(game, platform); }
     public List<String> resolveJvmArguments(LibraryPlatform platform) { return resolve(jvm, platform); }
+
+    /** Resolves default JVM suggestions for the settings UI; does not apply them to a launch. */
+    public List<String> resolveDefaultUserJvmArguments(LibraryPlatform platform) {
+        return resolve(defaultUserJvm, platform);
+    }
 
     private static List<String> resolve(List<ArgumentEntry> entries, LibraryPlatform platform) {
         if (platform == null) throw new IllegalArgumentException("Launch platform is required");
