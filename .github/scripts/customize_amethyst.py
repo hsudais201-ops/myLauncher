@@ -115,6 +115,18 @@ def patch_upstream(upstream: Path) -> None:
         strings_text = strings_text[:resourcepacks_string_match.end()] + "\n" + saves_string + strings_text[resourcepacks_string_match.end():]
     if not re.search(r'<string\s+name="main_world_saves_folder"[^>]*>\s*World saves\s*</string>', strings_text):
         raise ValueError("Required main_world_saves_folder string is missing or invalid")
+    if not re.search(r'<string\s+name="main_world_saves_backup_hint"', strings_text):
+        world_saves_label_match = re.search(
+            r'(?m)^([ \t]*<string\s+name="main_world_saves_folder"[^>]*>.*?</string>)[ \t]*$',
+            strings_text,
+        )
+        if not world_saves_label_match:
+            raise ValueError("Could not find the World saves label to add backup help")
+        indent = re.match(r"[ \t]*", world_saves_label_match.group(1)).group(0)
+        backup_hint = indent + '<string name="main_world_saves_backup_hint">World saves. Long-press to create a ZIP backup.</string>'
+        strings_text = strings_text[:world_saves_label_match.end()] + "\n" + backup_hint + strings_text[world_saves_label_match.end():]
+    if not re.search(r'<string\s+name="main_world_saves_backup_hint"[^>]*>\s*World saves\. Long-press to create a ZIP backup\.\s*</string>', strings_text):
+        raise ValueError("World saves backup accessibility hint is missing or invalid")
     if not re.search(r'<string\s+name="main_logs_folder"', strings_text):
         world_saves_string_match = re.search(
             r'(?m)^([ \t]*<string\s+name="main_world_saves_folder"[^>]*>.*?</string>)[ \t]*$',
@@ -808,6 +820,9 @@ def patch_upstream(upstream: Path) -> None:
         if resourcepacks_binding not in main_menu_text:
             raise ValueError("Could not bind the world-saves shortcut without the resource-packs shortcut")
         main_menu_text = main_menu_text.replace(resourcepacks_binding, resourcepacks_binding + "\n        " + world_saves_binding, 1)
+    backup_hint_binding = "mMyLauncherWorldSavesButton.setContentDescription(getString(R.string.main_world_saves_backup_hint));"
+    if backup_hint_binding not in main_menu_text:
+        main_menu_text = main_menu_text.replace(world_saves_binding, world_saves_binding + "\n        " + backup_hint_binding, 1)
     world_saves_listener = """mMyLauncherWorldSavesButton.setOnClickListener(v -> {
             if (Tools.isDemoProfile(v.getContext())) {
                 hasNoOnlineProfileDialog(getActivity(), getString(R.string.demo_unsupported), getString(R.string.change_account));
@@ -833,6 +848,67 @@ def patch_upstream(upstream: Path) -> None:
         or "openPath(v.getContext(), worldSavesDirectory, false);" not in main_menu_text
     ):
         raise ValueError("The world-saves shortcut binding, directory creation, or handler is incomplete")
+
+    world_saves_backup_listener = """mMyLauncherWorldSavesButton.setOnLongClickListener(v -> {
+            if (Tools.isDemoProfile(v.getContext())) {
+                hasNoOnlineProfileDialog(getActivity(), getString(R.string.demo_unsupported), getString(R.string.change_account));
+                return true;
+            }
+            File savesDirectory = new File(getCurrentProfileDirectory(), "saves");
+            File[] worldEntries = savesDirectory.listFiles();
+            if (!savesDirectory.isDirectory() || worldEntries == null || worldEntries.length == 0) {
+                Toast.makeText(requireContext(), "No worlds are available to back up", Toast.LENGTH_LONG).show();
+                return true;
+            }
+            File backupsDirectory = new File(getCurrentProfileDirectory(), "backups");
+            if (!backupsDirectory.isDirectory() && !backupsDirectory.mkdirs()) {
+                Toast.makeText(requireContext(), "Unable to create the backups folder", Toast.LENGTH_LONG).show();
+                return true;
+            }
+            String backupName = "worlds-" + System.currentTimeMillis() + ".zip";
+            File backupFile = new File(backupsDirectory, backupName);
+            File tempBackupFile = new File(backupsDirectory, backupName + ".tmp");
+            if (backupFile.exists() || tempBackupFile.exists()) {
+                Toast.makeText(requireContext(), "A backup with that name already exists; try again", Toast.LENGTH_LONG).show();
+                return true;
+            }
+            final android.app.Activity backupActivity = getActivity();
+            if (backupActivity == null) return true;
+            new Thread(() -> {
+                try (FileOutputStream fileOut = new FileOutputStream(tempBackupFile);
+                     ZipOutputStream zipOut = new ZipOutputStream(fileOut)) {
+                    zipWorldSaves(savesDirectory, savesDirectory.getCanonicalPath(), zipOut, new HashSet<String>());
+                    zipOut.finish();
+                } catch (IOException exception) {
+                    if (tempBackupFile.exists()) tempBackupFile.delete();
+                    backupActivity.runOnUiThread(() -> Toast.makeText(backupActivity,
+                            "World backup failed: " + exception.getMessage(), Toast.LENGTH_LONG).show());
+                    return;
+                }
+                if (!tempBackupFile.renameTo(backupFile)) {
+                    tempBackupFile.delete();
+                    backupActivity.runOnUiThread(() -> Toast.makeText(backupActivity,
+                            "World backup failed: unable to finalize the ZIP file", Toast.LENGTH_LONG).show());
+                    return;
+                }
+                backupActivity.runOnUiThread(() -> Toast.makeText(backupActivity,
+                        "World backup saved: " + backupFile.getName(), Toast.LENGTH_LONG).show());
+            }, "VoidCraftWorldBackup").start();
+            return true;
+        });"""
+    if world_saves_backup_listener not in main_menu_text:
+        main_menu_text = main_menu_text.replace(world_saves_listener, world_saves_listener + "\n\n        " + world_saves_backup_listener, 1)
+    if (
+        main_menu_text.count(world_saves_backup_listener) != 1
+        or "mMyLauncherWorldSavesButton.setContentDescription(getString(R.string.main_world_saves_backup_hint));" not in main_menu_text
+        or 'new File(getCurrentProfileDirectory(), "backups")' not in main_menu_text
+        or 'new File(backupsDirectory, backupName + ".tmp")' not in main_menu_text
+        or 'zipWorldSaves(savesDirectory, savesDirectory.getCanonicalPath(), zipOut, new HashSet<String>())' not in main_menu_text
+        or '!tempBackupFile.renameTo(backupFile)' not in main_menu_text
+        or "new Thread(() ->" not in main_menu_text
+        or "Tools.isDemoProfile(v.getContext())" not in world_saves_backup_listener
+    ):
+        raise ValueError("World backup action is incomplete or lacks safety and error handling")
 
     logs_binding = "Button mMyLauncherLogsButton = view.findViewById(R.id.mylauncher_logs_button);"
     if logs_binding not in main_menu_text:
@@ -864,6 +940,88 @@ def patch_upstream(upstream: Path) -> None:
         or "openPath(v.getContext(), logsDirectory, false);" not in main_menu_text
     ):
         raise ValueError("The game-logs shortcut binding, directory creation, or handler is incomplete")
+
+    required_backup_imports = (
+        "import java.io.FileInputStream;",
+        "import java.io.FileOutputStream;",
+        "import java.io.IOException;",
+        "import java.util.HashSet;",
+        "import java.util.Set;",
+        "import java.util.zip.ZipEntry;",
+        "import java.util.zip.ZipOutputStream;",
+    )
+    if "import java.io.File;" not in main_menu_text:
+        raise ValueError("World backup needs the existing java.io.File import")
+    if "import java.io.FileInputStream;" not in main_menu_text:
+        main_menu_text = main_menu_text.replace(
+            "import java.io.File;\n",
+            "import java.io.File;\nimport java.io.FileInputStream;\nimport java.io.FileOutputStream;\nimport java.io.IOException;\n",
+            1,
+        )
+    if "import java.util.HashSet;" not in main_menu_text:
+        main_menu_text = main_menu_text.replace("import java.io.FileInputStream;", "import java.util.HashSet;\nimport java.util.Set;\nimport java.io.FileInputStream;", 1)
+    if "import java.util.zip.ZipEntry;" not in main_menu_text:
+        main_menu_text = main_menu_text.replace("import java.util.Set;", "import java.util.zip.ZipEntry;\nimport java.util.zip.ZipOutputStream;\nimport java.util.Set;", 1)
+    missing_backup_imports = [value for value in required_backup_imports if value not in main_menu_text]
+    if missing_backup_imports:
+        raise ValueError(f"World backup imports are incomplete: {missing_backup_imports}")
+
+    backup_helper = """    /**
+     * Adds world saves to a ZIP without following paths outside the selected saves directory.
+     * Repeated canonical paths are skipped to prevent symbolic-link cycles and duplicate entries.
+     */
+    private static void zipWorldSaves(File current, String rootCanonicalPath, ZipOutputStream output,
+                                      Set<String> visitedPaths) throws IOException {
+        String canonicalPath = current.getCanonicalPath();
+        if (!canonicalPath.equals(rootCanonicalPath)
+                && !canonicalPath.startsWith(rootCanonicalPath + File.separator)) {
+            throw new IOException("A world-save path escapes the saves directory");
+        }
+        if (!visitedPaths.add(canonicalPath)) return;
+
+        String relativePath = canonicalPath.equals(rootCanonicalPath)
+                ? ""
+                : canonicalPath.substring(rootCanonicalPath.length() + 1).replace(File.separatorChar, '/');
+        if (current.isDirectory()) {
+            if (!relativePath.isEmpty()) {
+                output.putNextEntry(new ZipEntry(relativePath + "/"));
+                output.closeEntry();
+            }
+            File[] children = current.listFiles();
+            if (children == null) {
+                throw new IOException("Unable to read world-save directory: " + current.getName());
+            }
+            for (File child : children) {
+                zipWorldSaves(child, rootCanonicalPath, output, visitedPaths);
+            }
+            return;
+        }
+        if (!current.isFile() || relativePath.isEmpty()) {
+            throw new IOException("Unsupported world-save entry: " + current.getName());
+        }
+
+        output.putNextEntry(new ZipEntry(relativePath));
+        try (FileInputStream input = new FileInputStream(current)) {
+            byte[] buffer = new byte[16384];
+            int count;
+            while ((count = input.read(buffer)) != -1) {
+                output.write(buffer, 0, count);
+            }
+        }
+        output.closeEntry();
+    }
+"""
+    if "private static void zipWorldSaves(" not in main_menu_text:
+        class_end = main_menu_text.rfind("\n}")
+        if class_end < 0:
+            raise ValueError("Could not find the end of MainMenuFragment to add the world backup helper")
+        main_menu_text = main_menu_text[:class_end] + "\n\n" + backup_helper + main_menu_text[class_end:]
+    elif (
+        "A world-save path escapes the saves directory" not in main_menu_text
+        or "output.putNextEntry(new ZipEntry(relativePath))" not in main_menu_text
+        or "new byte[16384]" not in main_menu_text
+    ):
+        raise ValueError("Existing world backup helper is incomplete")
 
     main_menu.write_text(main_menu_text, encoding="utf-8")
 
