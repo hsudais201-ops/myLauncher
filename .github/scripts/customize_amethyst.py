@@ -1962,14 +1962,6 @@ def patch_upstream(upstream: Path) -> None:
             raise ValueError("Could not locate LoggerView output-disable cleanup")
         logger_view_text = logger_view_text.replace(old_toggle_clear, new_toggle_clear, 1)
 
-    old_log_listener = r"""        mLogListener = text -> {
-            if(mLogTextView.getVisibility() != VISIBLE) return;
-            post(() -> {
-                mLogTextView.append(text + '\n');
-                if(mScrollView.isKeepFocusing()) mScrollView.fullScroll(View.FOCUS_DOWN);
-            });
-
-        };"""
     new_log_listener = r"""        mLogListener = text -> {
             if(mLogTextView.getVisibility() != VISIBLE) return;
             post(() -> {
@@ -1985,9 +1977,14 @@ def patch_upstream(upstream: Path) -> None:
             });
         };"""
     if "droppedOldestLine" not in logger_view_text:
-        if logger_view_text.count(old_log_listener) != 1:
-            raise ValueError("Could not locate the existing LoggerView live log listener")
-        logger_view_text = logger_view_text.replace(old_log_listener, new_log_listener, 1)
+        listener_start = logger_view_text.find("        mLogListener = text -> {")
+        if listener_start < 0:
+            raise ValueError("Could not locate the start of the LoggerView live log listener")
+        listener_end = logger_view_text.find("\n        };", listener_start)
+        if listener_end < 0:
+            raise ValueError("Could not locate the end of the LoggerView live log listener")
+        listener_end += len("\n        };")
+        logger_view_text = logger_view_text[:listener_start] + new_log_listener + logger_view_text[listener_end:]
 
     if "private void refreshLogText()" not in logger_view_text:
         closing_brace = logger_view_text.rfind("}")
