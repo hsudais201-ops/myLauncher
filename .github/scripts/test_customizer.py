@@ -515,6 +515,8 @@ class BuildWorkflowTests(unittest.TestCase):
         self.assertIn('adb install -r "$APK_PATH"', self.workflow)
         self.assertIn("com.mf.mylauncher.debug/net.kdt.pojavlaunch.LauncherActivity", self.workflow)
         self.assertIn("APK did not reach LauncherActivity", self.workflow)
+        self.assertIn("            set -eu", self.workflow)
+        self.assertNotIn("            set -euo pipefail", self.workflow)
         self.assertIn("if: ${{ always() && env.APK_PATH != '' }}", self.workflow)
         self.assertIn("if: ${{ always() && hashFiles('upstream/MYLAUNCHER_BUILD_INFO.txt') != '' }}", self.workflow)
         self.assertLess(
