@@ -72,11 +72,13 @@ public final class VersionDetailsMapper {
         if (rawClient == null) return null;
         Map<?, ?> client = requiredMap(rawClient, "logging.client");
         Map<?, ?> file = requiredMap(client.get("file"), "logging.client.file");
+        String argument = requiredString(client.get("argument"), "logging.client.argument");
         return new LoggingConfigurationMetadata(
                 requiredString(file.get("id"), "logging.client.file.id"),
                 parseUri(requiredString(file.get("url"), "logging.client.file.url"), "logging.client.file.url"),
                 requiredString(file.get("sha1"), "logging.client.file.sha1"),
-                requiredLong(file.get("size"), "logging.client.file.size"));
+                requiredLong(file.get("size"), "logging.client.file.size"),
+                argument);
     }
 
     private static AssetIndexMetadata parseAssetIndex(Map<?, ?> value) {
