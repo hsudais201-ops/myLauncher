@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Apply and validate the Orbit Launcher Android application icon."""
+"""Apply and validate the VoidCraft Launcher Android application icon."""
 from pathlib import Path
 import sys
 import xml.etree.ElementTree as ET
@@ -30,17 +30,17 @@ def main(root: Path) -> None:
     app_node = manifest_root.find("application")
     if app_node is None:
         raise ValueError("Android manifest has no application element")
-    app_node.set(ANDROID + "icon", "@drawable/orbit_launcher_logo")
-    app_node.set(ANDROID + "roundIcon", "@drawable/orbit_launcher_logo")
+    app_node.set(ANDROID + "icon", "@drawable/voidcraft_launcher_logo")
+    app_node.set(ANDROID + "roundIcon", "@drawable/voidcraft_launcher_logo")
     tree.write(manifest, encoding="utf-8", xml_declaration=True)
 
     drawable = app / "src/main/res/drawable"
     drawable.mkdir(parents=True, exist_ok=True)
-    icon = drawable / "orbit_launcher_logo.xml"
+    icon = drawable / "voidcraft_launcher_logo.xml"
     icon.write_text(VECTOR, encoding="utf-8")
     ET.parse(icon)
     ET.parse(manifest)
-    print("Applied and validated Orbit Launcher vector icon.")
+    print("Applied and validated VoidCraft Launcher vector icon.")
 
 if __name__ == "__main__":
     if len(sys.argv) != 2:
