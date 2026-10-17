@@ -944,8 +944,11 @@ class ProfileTypeSelectFragment {
             self.assertIn("The selected shader pack is no longer available", menu)
             self.assertIn("A file already exists with that name", menu)
             self.assertIn("Tools.isDemoProfile(v.getContext())", menu)
-            self.assertNotIn('new File(getCurrentProfileDirectory(), "resourcepacks")', menu[menu.index("shaderpacks_manager_listener ="):] if "shaderpacks_manager_listener =" in menu else "")
-            self.assertLess(menu.index("mMyLauncherShaderPacksButton.setOnClickListener"), menu.index("mMyLauncherShaderPacksButton.setOnLongClickListener"))
+            handler_start = menu.index("mMyLauncherShaderPacksButton.setOnLongClickListener")
+            shader_handler = menu[handler_start:handler_start + 8000]
+            self.assertIn('new File(getCurrentProfileDirectory(), "shaderpacks")', shader_handler)
+            self.assertNotIn('new File(getCurrentProfileDirectory(), "resourcepacks")', shader_handler)
+            self.assertLess(menu.index("mMyLauncherShaderPacksButton.setOnClickListener"), handler_start)
 
     def test_is_idempotent(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
