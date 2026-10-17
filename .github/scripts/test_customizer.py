@@ -805,6 +805,7 @@ class ProfileTypeSelectFragment {
             self.assertIn("Long.compare(right.lastModified(), left.lastModified())", menu)
             self.assertIn("final long maxShareBytes = 2L * 1024L * 1024L;", menu)
             self.assertIn("reportReader.seek(offset);", menu)
+            self.assertIn(r'reportText = "[Earlier crash report content omitted; sharing final 2 MiB only.]\n" + reportText;', menu)
             self.assertIn("access[_-]?token|refresh[_-]?token|client[_-]?secret|authorization", menu)
             self.assertIn('Bearer [REDACTED]', menu)
             self.assertIn("Intent.ACTION_SEND", menu)
