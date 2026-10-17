@@ -1009,7 +1009,7 @@ class ProfileTypeSelectFragment {
             self.assertIn("Latest game log copied with sensitive tokens redacted", menu)
             self.assertIn("Tools.isDemoProfile(v.getContext())", menu)
             self.assertIn('<string name="main_log_diagnose_action">Diagnose latest log</string>', strings)
-            self.assertIn('<string name="main_log_diagnosis_title">Latest game log diagnosis</string>', strings)
+            self.assertIn('<string name="main_log_diagnosis_title">Possible cause from latest log</string>', strings)
             self.assertIn("available device RAM", strings)
             self.assertNotIn("device's available RAM", strings)
             for resource_name in (
