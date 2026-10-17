@@ -149,7 +149,7 @@ public final class LibraryMetadata {
         return ("linux".equals(value) || "osx".equals(value) || "windows".equals(value)) ? value : null;
     }
 
-    static String normalizeClassifierArch(String value) {
+    private static String normalizeClassifierArch(String value) {
         if ("arm64".equals(value) || "aarch64".equals(value) || "aarch_64".equals(value)
                 || "arm64-v8a".equals(value)) return "arm64";
         if ("x86_64".equals(value) || "amd64".equals(value) || "x64".equals(value)) return "x86_64";
