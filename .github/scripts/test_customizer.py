@@ -472,6 +472,11 @@ class ProfileTypeSelectFragment {
             self.assertIn('new File(getCurrentProfileDirectory(), "crash-reports")', main_menu)
             self.assertIn("!crashReportsDirectory.isDirectory() && !crashReportsDirectory.mkdirs()", main_menu)
             self.assertIn("openPath(v.getContext(), crashReportsDirectory, false);", main_menu)
+            self.assertIn("Button mMyLauncherConfigButton = view.findViewById(R.id.mylauncher_config_button);", main_menu)
+            self.assertIn("mMyLauncherConfigButton.setOnClickListener", main_menu)
+            self.assertIn('new File(getCurrentProfileDirectory(), "config")', main_menu)
+            self.assertIn("!configDirectory.isDirectory() && !configDirectory.mkdirs()", main_menu)
+            self.assertIn("openPath(v.getContext(), configDirectory, false);", main_menu)
             activity = (root / "app_pojavlauncher/src/main/java/net/kdt/pojavlaunch/LauncherActivity.java").read_text(encoding="utf-8")
             self.assertIn("ExtraCore.addExtraListener(ExtraConstants.SELECT_AUTH_METHOD, mSelectAuthMethod);", activity)
             self.assertIn("Tools.swapFragment(this, SelectAuthFragment.class, SelectAuthFragment.TAG, null);", activity)
@@ -512,6 +517,7 @@ class ProfileTypeSelectFragment {
                 self.assertEqual(launcher_layout.count('android:id="@+id/mylauncher_logs_button"'), 1)
                 self.assertEqual(launcher_layout.count('android:id="@+id/mylauncher_screenshots_button"'), 1)
                 self.assertEqual(launcher_layout.count('android:id="@+id/mylauncher_crash_reports_button"'), 1)
+                self.assertEqual(launcher_layout.count('android:id="@+id/mylauncher_config_button"'), 1)
                 self.assertIn('android:text="VoidCraft Launcher"', launcher_layout)
                 self.assertIn('android:text="Minecraft Java Edition · by MF"', launcher_layout)
                 self.assertIn('android:text="@string/main_add_account"', launcher_layout)
@@ -534,6 +540,9 @@ class ProfileTypeSelectFragment {
                 self.assertIn('android:drawableStart="@android:drawable/ic_menu_info_details"', launcher_layout)
                 self.assertIn('app:layout_constraintTop_toBottomOf="@id/mylauncher_screenshots_button"', launcher_layout)
                 self.assertIn('app:layout_constraintTop_toBottomOf="@id/mylauncher_crash_reports_button"', launcher_layout)
+                self.assertIn('android:text="@string/main_config_folder"', launcher_layout)
+                self.assertIn('android:drawableStart="@android:drawable/ic_menu_preferences"', launcher_layout)
+                self.assertIn('app:layout_constraintTop_toBottomOf="@id/mylauncher_config_button"', launcher_layout)
                 self.assertIn('app:layout_constraintTop_toTopOf="@id/news_button"', launcher_layout)
                 self.assertIn('app:layout_constraintTop_toBottomOf="@id/mylauncher_hero_subtitle"', launcher_layout)
 
@@ -676,6 +685,27 @@ class ProfileTypeSelectFragment {
             self.assertIn('openPath(v.getContext(), resourcePackDirectory, false);', menu)
             self.assertIn('Tools.isDemoProfile(v.getContext())', menu)
 
+    def test_resourcepacks_long_press_can_enable_disable_zips_safely(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            self.fixture(root)
+            customizer.patch_upstream(root)
+            menu = (root / "app_pojavlauncher/src/main/java/net/kdt/pojavlaunch/fragments/MainMenuFragment.java").read_text(encoding="utf-8")
+            self.assertIn("mMyLauncherResourcePacksButton.setOnLongClickListener", menu)
+            self.assertIn('new File(getCurrentProfileDirectory(), "resourcepacks")', menu)
+            self.assertIn('normalizedName.endsWith(".zip")', menu)
+            self.assertIn('normalizedName.endsWith(".zip.disabled")', menu)
+            self.assertIn('selectedName + ".disabled"', menu)
+            self.assertIn('selectedName.substring(0, selectedName.length() - ".disabled".length())', menu)
+            self.assertIn('setPositiveButton(wasDisabled ? "Enable" : "Disable"', menu)
+            self.assertIn("destination.exists()", menu)
+            self.assertIn("!selectedPack.renameTo(destination)", menu)
+            self.assertIn("The selected resource pack is no longer available", menu)
+            self.assertIn('Tools.isDemoProfile(v.getContext())', menu)
+            self.assertIn("A file already exists with that name", menu)
+            self.assertIn("mMyLauncherResourcePacksButton.setContentDescription(getString(R.string.main_resourcepacks_folder_hint));", menu)
+            self.assertLess(menu.index("mMyLauncherResourcePacksButton.setOnClickListener"), menu.index("mMyLauncherResourcePacksButton.setOnLongClickListener"))
+
     def test_world_saves_folder_shortcut_opens_the_selected_profile_saves_directory(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
@@ -769,6 +799,22 @@ class ProfileTypeSelectFragment {
                 self.assertIn('app:layout_constraintTop_toBottomOf="@id/mylauncher_world_saves_button"', layout)
                 self.assertIn('app:layout_constraintTop_toBottomOf="@id/mylauncher_logs_button"', layout)
 
+    def test_long_press_game_logs_copies_bounded_redacted_latest_log(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            self.fixture(root)
+            customizer.patch_upstream(root)
+            menu = (root / "app_pojavlauncher/src/main/java/net/kdt/pojavlaunch/fragments/MainMenuFragment.java").read_text(encoding="utf-8")
+            self.assertIn("mMyLauncherLogsButton.setOnLongClickListener", menu)
+            self.assertIn('new File(new File(getCurrentProfileDirectory(), "logs"), "latest.log")', menu)
+            self.assertIn("final long maxCopyBytes = 1024L * 1024L;", menu)
+            self.assertIn("logReader.seek(offset);", menu)
+            self.assertIn("access[_-]?token|refresh[_-]?token|client[_-]?secret|authorization", menu)
+            self.assertIn('Bearer [REDACTED]', menu)
+            self.assertIn("android.content.ClipboardManager", menu)
+            self.assertIn("Latest game log copied with sensitive tokens redacted", menu)
+            self.assertIn("Tools.isDemoProfile(v.getContext())", menu)
+
     def test_screenshots_folder_shortcut_opens_the_selected_profile_screenshots_directory(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
@@ -808,6 +854,47 @@ class ProfileTypeSelectFragment {
                 self.assertIn('android:text="@string/main_crash_reports_folder"', layout)
                 self.assertIn('app:layout_constraintTop_toBottomOf="@id/mylauncher_screenshots_button"', layout)
                 self.assertIn('app:layout_constraintTop_toBottomOf="@id/mylauncher_crash_reports_button"', layout)
+
+    def test_long_press_crash_reports_shares_bounded_redacted_latest_report(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            self.fixture(root)
+            customizer.patch_upstream(root)
+            menu = (root / "app_pojavlauncher/src/main/java/net/kdt/pojavlaunch/fragments/MainMenuFragment.java").read_text(encoding="utf-8")
+            self.assertIn("mMyLauncherCrashReportsButton.setOnLongClickListener", menu)
+            self.assertIn('new File(getCurrentProfileDirectory(), "crash-reports")', menu)
+            self.assertIn('normalizedName.endsWith(".txt") || normalizedName.endsWith(".log")', menu)
+            self.assertIn("Long.compare(right.lastModified(), left.lastModified())", menu)
+            self.assertIn("final long maxShareBytes = 2L * 1024L * 1024L;", menu)
+            self.assertIn("reportReader.seek(offset);", menu)
+            self.assertIn(r'reportText = "[Earlier crash report content omitted; sharing final 2 MiB only.]\n" + reportText;', menu)
+            self.assertIn("access[_-]?token|refresh[_-]?token|client[_-]?secret|authorization", menu)
+            self.assertIn('Bearer [REDACTED]', menu)
+            self.assertIn("Intent.ACTION_SEND", menu)
+            self.assertIn("Intent.EXTRA_TEXT", menu)
+            self.assertIn("review before sending", menu)
+            self.assertIn("Tools.isDemoProfile(v.getContext())", menu)
+
+    def test_config_folder_shortcut_opens_the_selected_profile_config_directory(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            self.fixture(root)
+            customizer.patch_upstream(root)
+            menu = (root / "app_pojavlauncher/src/main/java/net/kdt/pojavlaunch/fragments/MainMenuFragment.java").read_text(encoding="utf-8")
+            strings = (root / "app_pojavlauncher/src/main/res/values/strings.xml").read_text(encoding="utf-8")
+            self.assertIn('<string name="main_config_folder">Config folder</string>', strings)
+            self.assertIn("Button mMyLauncherConfigButton = view.findViewById(R.id.mylauncher_config_button);", menu)
+            self.assertIn("mMyLauncherConfigButton.setOnClickListener", menu)
+            self.assertIn('new File(getCurrentProfileDirectory(), "config")', menu)
+            self.assertIn('if (!configDirectory.isDirectory() && !configDirectory.mkdirs())', menu)
+            self.assertIn('openPath(v.getContext(), configDirectory, false);', menu)
+            self.assertIn("Tools.isDemoProfile(v.getContext())", menu)
+            for relative in ("src/main/res/layout/fragment_launcher.xml", "src/main/res/layout-land/fragment_launcher.xml"):
+                layout = (root / "app_pojavlauncher" / relative).read_text(encoding="utf-8")
+                self.assertEqual(layout.count('android:id="@+id/mylauncher_config_button"'), 1)
+                self.assertIn('android:text="@string/main_config_folder"', layout)
+                self.assertIn('app:layout_constraintTop_toBottomOf="@id/mylauncher_crash_reports_button"', layout)
+                self.assertIn('app:layout_constraintTop_toBottomOf="@id/mylauncher_config_button"', layout)
 
     def test_is_idempotent(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
