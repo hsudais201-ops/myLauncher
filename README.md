@@ -26,6 +26,8 @@ See [FEATURE_ROADMAP.md](FEATURE_ROADMAP.md) for the complete 23-section feature
 If the launcher reports `FileNotFoundException` for a path like `versions/<version>/<version>.json` or says the version metadata is missing, the selected installation is incomplete or its metadata could not be read.
 
 1. Connect to a working internet connection, return to VoidCraft Launcher, select the same Minecraft version, and press **Play** again. The launcher should be able to download the missing public version files without requiring Microsoft sign-in just because you use a local profile.
+
+For an explicit check without launching the game, select the profile and press **Verify / repair version** on the launcher home screen. It uses the existing downloader to verify/download files for official versions present in the current version list, requires internet access, and reports success or failure. Modded/custom versions that are not in that list must be repaired with their matching loader tools.
 2. Keep the launcher open until downloads finish. Do not create an empty `.json` file manually; it is not valid version metadata.
 3. If the error continues, copy the exact version ID and the relevant error from the launcher log. Do not share Microsoft access tokens or other account secrets.
 4. When offline, use a version whose metadata, client, libraries, and assets are already installed. Creating a local profile alone does not install Minecraft files.
