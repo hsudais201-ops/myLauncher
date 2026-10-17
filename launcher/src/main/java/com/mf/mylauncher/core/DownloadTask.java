@@ -66,9 +66,10 @@ public final class DownloadTask {
 
     public String getDestinationKey() { return destination.name() + ":" + relativePath; }
 
+    /** Same physical transfer even when one caller classifies it as a native archive and another as a library. */
     public boolean hasSamePayload(DownloadTask other) {
         return other != null && source.equals(other.source) && sizeBytes == other.sizeBytes
-                && sha1.equals(other.sha1) && kind == other.kind && destination == other.destination
+                && sha1.equals(other.sha1) && destination == other.destination
                 && relativePath.equals(other.relativePath);
     }
 }
