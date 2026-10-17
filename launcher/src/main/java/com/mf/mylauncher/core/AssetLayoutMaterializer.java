@@ -65,7 +65,7 @@ public final class AssetLayoutMaterializer {
             }
             if (index.isMapToResources()) {
                 Path destination = safeResolve(normalizedGame, "resources/" + asset.getResourceRelativePath());
-                boolean reused = copyVerifiedIfNeeded(object, destination, asset);
+                boolean reused = copyVerifiedIfNeeded(object, destination, asset, cancellation);
                 if (reused) cached++;
                 else {
                     written++;
