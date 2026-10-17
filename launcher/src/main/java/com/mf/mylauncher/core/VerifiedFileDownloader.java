@@ -291,11 +291,22 @@ public final class VerifiedFileDownloader {
     /** Rechecks a cached file against metadata without opening a network connection. */
     public static boolean isVerifiedFile(Path path, long expectedSize, String expectedSha1) throws IOException {
         validateExpectedMetadata(expectedSize, expectedSha1);
-        if (path == null || Files.isSymbolicLink(path)
-                || !Files.isRegularFile(path, LinkOption.NOFOLLOW_LINKS)) {
+        if (path == null || hasSymbolicLinkComponent(path)
+                || !Files.isRegularFile(path.toAbsolutePath().normalize(), LinkOption.NOFOLLOW_LINKS)) {
             return false;
         }
-        return isVerified(path, expectedSize, expectedSha1);
+        return isVerified(path.toAbsolutePath().normalize(), expectedSize, expectedSha1);
+    }
+
+    private static boolean hasSymbolicLinkComponent(Path path) {
+        Path absolute = path.toAbsolutePath().normalize();
+        Path current = absolute.getRoot();
+        if (current == null) return true;
+        for (Path segment : absolute) {
+            current = current.resolve(segment);
+            if (Files.isSymbolicLink(current)) return true;
+        }
+        return false;
     }
 
     private static boolean isVerified(Path path, long expectedSize, String expectedSha1) throws IOException {
