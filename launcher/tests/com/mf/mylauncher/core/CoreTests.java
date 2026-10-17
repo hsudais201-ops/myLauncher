@@ -1037,6 +1037,18 @@ public final class CoreTests {
                     .librariesDirectory(game.resolve("libraries")).nativesDirectory(nativesDirectory)
                     .classpath(result.getClasspath()).loggingConfigPath(result.getLoggingConfigurationPath())
                     .platform(linux).build();
+            List<String> loggingCommand = LaunchCommandBuilder.build(coordinatorDetails, launchContext);
+            eq("-Dlog4j.configurationFile=" + result.getLoggingConfigurationPath(),
+                    loggingCommand.stream().filter(value -> value.startsWith("-Dlog4j.configurationFile="))
+                            .findFirst().orElse(""),
+                    "logging configuration argument is injected into JVM argv when metadata keeps it outside arguments.jvm");
+            LaunchContext missingLoggingPath = new LaunchContext.Builder("Steve_123",
+                    "12345678-1234-1234-1234-1234567890ab", "test-access-token")
+                    .gameDirectory(game).assetsRoot(game.resolve("assets"))
+                    .librariesDirectory(game.resolve("libraries")).nativesDirectory(nativesDirectory)
+                    .classpath(result.getClasspath()).platform(linux).build();
+            bad(() -> LaunchCommandBuilder.build(coordinatorDetails, missingLoggingPath),
+                    "launch command fails clearly if logging metadata requires a missing configuration path");
             LaunchCoordinator.LaunchResult launchResult = new LaunchCoordinator().launch(
                     coordinatorDetails, launchContext, hostJava, CancellationToken.NONE, 15_000, null);
             yes(!launchResult.isSuccess(),
