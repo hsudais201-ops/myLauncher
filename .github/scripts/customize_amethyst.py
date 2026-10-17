@@ -778,6 +778,51 @@ def patch_upstream(upstream: Path) -> None:
         raise ValueError("Offline account selection is gated or an account sign-in handler is incomplete")
     auth_selector.write_text(auth_text, encoding="utf-8")
 
+    # Keep modded-profile ownership checks, but make the blocked flow actionable:
+    # users with a Minecraft Java license can go straight to Microsoft sign-in.
+    profile_type = upstream / "app_pojavlauncher" / "src" / "main" / "java" / "net" / "kdt" / "pojavlaunch" / "fragments" / "ProfileTypeSelectFragment.java"
+    if not profile_type.is_file():
+        raise FileNotFoundError(f"Expected profile-type selector is missing: {profile_type}")
+    profile_text = profile_type.read_text(encoding="utf-8")
+    profile_text = replace_idempotently(
+        profile_text,
+        "import static net.kdt.pojavlaunch.Tools.hasNoOnlineProfileDialog;\\n",
+        "import androidx.appcompat.app.AlertDialog;\\n",
+        str(profile_type),
+    )
+    old_profile_gate = """    private void tryInstall(Class<? extends Fragment> fragmentClass, String tag){
+        if(!hasOnlineProfile()){
+            hasNoOnlineProfileDialog(requireActivity());
+        } else {
+            Tools.swapFragment(requireActivity(), fragmentClass, tag, null);
+        }
+    }"""
+    new_profile_gate = """    private void tryInstall(Class<? extends Fragment> fragmentClass, String tag) {
+        if (!hasOnlineProfile()) {
+            new AlertDialog.Builder(requireActivity())
+                    .setTitle(R.string.no_minecraft_account_found)
+                    .setMessage(R.string.feature_requires_java_account)
+                    .setPositiveButton(R.string.login_online_login_label, (dialog, which) ->
+                            Tools.swapFragment(requireActivity(), MicrosoftLoginFragment.class, MicrosoftLoginFragment.TAG, null))
+                    .setNegativeButton(android.R.string.cancel, null)
+                    .show();
+            return;
+        }
+        Tools.swapFragment(requireActivity(), fragmentClass, tag, null);
+    }"""
+    profile_text = replace_idempotently(
+        profile_text, old_profile_gate, new_profile_gate, str(profile_type)
+    )
+    if (
+        "hasNoOnlineProfileDialog" in profile_text
+        or "if (!hasOnlineProfile())" not in profile_text
+        or ".setPositiveButton(R.string.login_online_login_label" not in profile_text
+        or "MicrosoftLoginFragment.class" not in profile_text
+        or "Tools.swapFragment(requireActivity(), fragmentClass, tag, null);" not in profile_text
+    ):
+        raise ValueError("Profile installer must retain the ownership gate and offer Microsoft sign-in")
+    profile_type.write_text(profile_text, encoding="utf-8")
+
     launcher_preferences = upstream / "app_pojavlauncher" / "src" / "main" / "java" / "net" / "kdt" / "pojavlaunch" / "prefs" / "LauncherPreferences.java"
     if not launcher_preferences.is_file():
         raise FileNotFoundError(f"Expected upstream file is missing: {launcher_preferences}")
