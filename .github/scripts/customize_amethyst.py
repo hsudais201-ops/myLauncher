@@ -1023,6 +1023,17 @@ def patch_upstream(upstream: Path) -> None:
     if not main_menu.is_file():
         raise FileNotFoundError(f"Expected main menu fragment is missing: {main_menu}")
     main_menu_text = main_menu.read_text(encoding="utf-8")
+    repair_version_imports = (
+        "import net.kdt.pojavlaunch.JMinecraftVersionList;",
+        "import net.kdt.pojavlaunch.tasks.AsyncMinecraftDownloader;",
+        "import net.kdt.pojavlaunch.tasks.MinecraftDownloader;",
+    )
+    for import_line in repair_version_imports:
+        if import_line not in main_menu_text:
+            import_anchor = "import net.kdt.pojavlaunch.CustomControlsActivity;\n"
+            if import_anchor not in main_menu_text:
+                raise ValueError("Could not find MainMenuFragment import anchor for version repair")
+            main_menu_text = main_menu_text.replace(import_anchor, import_anchor + import_line + "\n", 1)
     # The game-directory browser is local file access and should also work for local profiles.
     # Preserve the demo-profile warning, but remove the unrelated online-account gate.
     directory_gate = """            } else if (!hasOnlineProfile()) { // Otherwise display the generic pop-up to log in
@@ -1691,6 +1702,9 @@ def patch_upstream(upstream: Path) -> None:
     shaderpacks_hint_binding = "mMyLauncherShaderPacksButton.setContentDescription(getString(R.string.main_shaderpacks_folder_hint));"
     if shaderpacks_hint_binding not in main_menu_text:
         main_menu_text = main_menu_text.replace(shaderpacks_binding, shaderpacks_binding + "\n        " + shaderpacks_hint_binding, 1)
+    repair_version_binding = "Button mMyLauncherRepairVersionButton = view.findViewById(R.id.mylauncher_repair_version_button);"
+    if repair_version_binding not in main_menu_text:
+        main_menu_text = main_menu_text.replace(shaderpacks_binding, shaderpacks_binding + "\n        " + repair_version_binding, 1)
     shaderpacks_listener = """mMyLauncherShaderPacksButton.setOnClickListener(v -> {
             if (Tools.isDemoProfile(v.getContext())) {
                 hasNoOnlineProfileDialog(getActivity(), getString(R.string.demo_unsupported), getString(R.string.change_account));
@@ -1813,6 +1827,97 @@ def patch_upstream(upstream: Path) -> None:
         raise ValueError("The shader-pack enable/disable manager is incomplete or missing safety checks")
     if shaderpacks_hint_binding not in main_menu_text or main_menu_text.count(shaderpacks_hint_binding) != 1:
         raise ValueError("The Shader packs long-press accessibility hint is not wired exactly once")
+
+    repair_version_listener = """mMyLauncherRepairVersionButton.setOnClickListener(v -> {
+            if (Tools.isDemoProfile(v.getContext())) {
+                hasNoOnlineProfileDialog(getActivity(), getString(R.string.demo_unsupported), getString(R.string.change_account));
+                return;
+            }
+            if (!Tools.isOnline(v.getContext())) {
+                Toast.makeText(requireContext(), R.string.main_repair_version_requires_internet, Toast.LENGTH_LONG).show();
+                return;
+            }
+            if (ProgressKeeper.getTaskCount() > 0) {
+                Toast.makeText(requireContext(), R.string.tasks_ongoing, Toast.LENGTH_LONG).show();
+                return;
+            }
+
+            MinecraftProfile selectedProfile;
+            try {
+                LauncherProfiles.load();
+                selectedProfile = LauncherProfiles.getCurrentProfile();
+            } catch (RuntimeException exception) {
+                Toast.makeText(requireContext(), R.string.main_repair_version_unlisted, Toast.LENGTH_LONG).show();
+                return;
+            }
+            if (selectedProfile == null || !Tools.isValidString(selectedProfile.lastVersionId)) {
+                Toast.makeText(requireContext(), R.string.main_repair_version_unlisted, Toast.LENGTH_LONG).show();
+                return;
+            }
+            JMinecraftVersionList versionList = (JMinecraftVersionList) ExtraCore.getValue(ExtraConstants.RELEASE_TABLE);
+            if (versionList == null || versionList.versions == null) {
+                Toast.makeText(requireContext(), R.string.main_repair_version_list_loading, Toast.LENGTH_LONG).show();
+                return;
+            }
+            String normalizedVersionId = AsyncMinecraftDownloader.normalizeVersionId(selectedProfile.lastVersionId);
+            JMinecraftVersionList.Version selectedVersion = AsyncMinecraftDownloader.getListedVersion(normalizedVersionId);
+            if (selectedVersion == null) {
+                Toast.makeText(requireContext(), R.string.main_repair_version_unlisted, Toast.LENGTH_LONG).show();
+                return;
+            }
+
+            new AlertDialog.Builder(requireContext())
+                    .setTitle(R.string.main_repair_version_title)
+                    .setMessage(R.string.main_repair_version_message)
+                    .setNegativeButton(android.R.string.cancel, null)
+                    .setPositiveButton(R.string.main_repair_version, (dialog, which) -> {
+                        if (!isAdded()) return;
+                        if (!Tools.isOnline(requireContext())) {
+                            Toast.makeText(requireContext(), R.string.main_repair_version_requires_internet, Toast.LENGTH_LONG).show();
+                            return;
+                        }
+                        if (ProgressKeeper.getTaskCount() > 0) {
+                            Toast.makeText(requireContext(), R.string.tasks_ongoing, Toast.LENGTH_LONG).show();
+                            return;
+                        }
+                        Toast.makeText(requireContext(), R.string.main_repair_version_started, Toast.LENGTH_SHORT).show();
+                        new MinecraftDownloader().start(requireActivity(), selectedVersion, normalizedVersionId,
+                                new AsyncMinecraftDownloader.DoneListener() {
+                                    @Override
+                                    public void onDownloadDone() {
+                                        runOnUiThread(() -> {
+                                            if (!isAdded()) return;
+                                            Toast.makeText(requireContext(), R.string.main_repair_version_success, Toast.LENGTH_LONG).show();
+                                        });
+                                    }
+
+                                    @Override
+                                    public void onDownloadFailed(Throwable throwable) {
+                                        runOnUiThread(() -> {
+                                            if (!isAdded()) return;
+                                            Toast.makeText(requireContext(), R.string.main_repair_version_failure, Toast.LENGTH_LONG).show();
+                                        });
+                                    }
+                                });
+                    })
+                    .show();
+        });"""
+    if repair_version_listener not in main_menu_text:
+        main_menu_text = main_menu_text.replace(shaderpacks_manager_listener,
+                shaderpacks_manager_listener + "\\n\\n        " + repair_version_listener, 1)
+    if (
+        main_menu_text.count(repair_version_binding) != 1
+        or main_menu_text.count(repair_version_listener) != 1
+        or "Tools.isOnline(v.getContext())" not in repair_version_listener
+        or "ProgressKeeper.getTaskCount() > 0" not in repair_version_listener
+        or "AsyncMinecraftDownloader.normalizeVersionId(selectedProfile.lastVersionId)" not in repair_version_listener
+        or "AsyncMinecraftDownloader.getListedVersion(normalizedVersionId)" not in repair_version_listener
+        or "new MinecraftDownloader().start(requireActivity(), selectedVersion, normalizedVersionId" not in repair_version_listener
+        or "onDownloadDone()" not in repair_version_listener
+        or "onDownloadFailed(Throwable throwable)" not in repair_version_listener
+        or "ExtraConstants.LAUNCH_GAME" in repair_version_listener
+    ):
+        raise ValueError("The selected-version repair action is missing validation, confirmation, callbacks or a no-launch guarantee")
 
     required_backup_imports = (
         "import java.io.FileInputStream;",
