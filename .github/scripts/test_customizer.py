@@ -1347,11 +1347,13 @@ class BuildWorkflowTests(unittest.TestCase):
         self.assertIn('timeout 180s adb install -r "$APK_PATH"', self.smoke_script)
         self.assertIn("android.permission.READ_EXTERNAL_STORAGE", self.smoke_script)
         self.assertIn("android.permission.WRITE_EXTERNAL_STORAGE", self.smoke_script)
-        self.assertIn("timeout 30s adb shell monkey -p com.mf.mylauncher.debug 1", self.smoke_script)
+        self.assertIn("com.mf.mylauncher.debug/net.kdt.pojavlaunch.TestStorageActivity", self.smoke_script)
         self.assertLess(
             self.smoke_script.index("android.permission.WRITE_EXTERNAL_STORAGE"),
-            self.smoke_script.index("adb shell monkey -p com.mf.mylauncher.debug 1"),
+            self.smoke_script.index("net.kdt.pojavlaunch.TestStorageActivity"),
         )
+        self.assertIn("test -s upstream/mylauncher-emulator-screenshot.png", self.smoke_script)
+        self.assertIn("upstream/mylauncher-emulator-screenshot.png", self.workflow)
         self.assertIn("APK did not reach LauncherActivity", self.smoke_script)
         self.assertIn("Emulator smoke test passed: APK installed and LauncherActivity resumed.", self.smoke_script)
         self.assertIn("name: voidcraft-launcher-emulator-diagnostics", self.workflow)

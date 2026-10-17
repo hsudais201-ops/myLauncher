@@ -191,6 +191,7 @@ jobs:
           path: |
             upstream/mylauncher-emulator-logcat.txt
             upstream/mylauncher-activities.txt
+            upstream/mylauncher-emulator-screenshot.png
           if-no-files-found: ignore
           retention-days: 7
 # Rebuild requested 2026-10-17: run the full tests, APK build, signing verification, and emulator smoke test.
