@@ -273,6 +273,33 @@ def patch_upstream(upstream: Path) -> None:
             strings_text,
         ):
             raise ValueError(f"Live log filter resource is missing or invalid: {string_name}")
+    repair_version_strings = {
+        "main_repair_version": "Verify / repair version",
+        "main_repair_version_title": "Verify / repair selected version?",
+        "main_repair_version_message": "Checks and downloads missing or corrupt files for the selected official Minecraft version. An internet connection is required. Minecraft will not launch afterward.",
+        "main_repair_version_list_loading": "The Minecraft version list is still loading. Wait a moment and try again.",
+        "main_repair_version_unlisted": "Automatic repair only supports official versions in the current version list. Use the matching installer for modded or custom versions.",
+        "main_repair_version_requires_internet": "An internet connection is required to verify or repair version files.",
+        "main_repair_version_started": "Verifying / repairing version files…",
+        "main_repair_version_success": "Version verification/download completed.",
+        "main_repair_version_failure": "Version repair failed. Check your connection and Game logs.",
+    }
+    for string_name, string_value in repair_version_strings.items():
+        if not re.search(r'<string\s+name="' + re.escape(string_name) + r'"', strings_text):
+            live_hint_match = re.search(
+                r'(?m)^([ \t]*<string\s+name="main_live_log_truncated"[^>]*>.*?</string>)[ \t]*$',
+                strings_text,
+            )
+            if not live_hint_match:
+                raise ValueError("Could not find the live-log truncation label to add version-repair resources")
+            indent = re.match(r"[ \t]*", live_hint_match.group(1)).group(0)
+            new_string = indent + '<string name="' + string_name + '">' + string_value + '</string>'
+            strings_text = strings_text[:live_hint_match.end()] + "\n" + new_string + strings_text[live_hint_match.end():]
+        if not re.search(
+            r'<string\s+name="' + re.escape(string_name) + r'"[^>]*>\s*' + re.escape(string_value) + r'\s*</string>',
+            strings_text,
+        ):
+            raise ValueError(f"Version-repair resource is missing or invalid: {string_name}")
     strings.write_text(strings_text, encoding="utf-8")
 
     # App names can be localized in values-*/strings.xml. Force the product
@@ -735,6 +762,23 @@ def patch_upstream(upstream: Path) -> None:
             block = config_match.group(1) + "\n" + shaderpacks_button
             layout_text = layout_text[:config_match.start(1)] + block + layout_text[config_match.end(1):]
 
+        if "mylauncher_repair_version_button" not in layout_text:
+            repair_version_button = """            <com.kdt.mcgui.LauncherMenuButton
+                android:id="@+id/mylauncher_repair_version_button"
+                style="@style/LauncherMenuButton.Universal"
+                android:layout_width="match_parent"
+                android:drawableStart="@android:drawable/ic_popup_sync"
+                android:text="@string/main_repair_version"
+                app:layout_constraintTop_toBottomOf="@id/mylauncher_shaderpacks_button" />
+
+"""
+            shaderpacks_pattern = re.compile(r'(<com\.kdt\.mcgui\.LauncherMenuButton\s+android:id="@\+id/mylauncher_shaderpacks_button".*?/>\s*)', re.DOTALL)
+            shaderpacks_match = shaderpacks_pattern.search(layout_text)
+            if not shaderpacks_match:
+                raise ValueError(f"Could not find mylauncher_shaderpacks_button to add version repair in {layout_path}")
+            block = shaderpacks_match.group(1) + "\n" + repair_version_button
+            layout_text = layout_text[:shaderpacks_match.start(1)] + block + layout_text[shaderpacks_match.end(1):]
+
         if "mylauncher_account_button" not in layout_text:
             account_button = """            <com.kdt.mcgui.LauncherMenuButton
                 android:id="@+id/mylauncher_account_button"
@@ -742,25 +786,25 @@ def patch_upstream(upstream: Path) -> None:
                 android:layout_width="match_parent"
                 android:drawableStart="@android:drawable/ic_menu_myplaces"
                 android:text="@string/main_add_account"
-                app:layout_constraintTop_toBottomOf="@id/mylauncher_shaderpacks_button" />
+                app:layout_constraintTop_toBottomOf="@id/mylauncher_repair_version_button" />
 
 """
-            shaderpacks_pattern = re.compile(r'(<com\.kdt\.mcgui\.LauncherMenuButton\s+android:id="@\+id/mylauncher_shaderpacks_button".*?/>\s*)', re.DOTALL)
-            shaderpacks_match = shaderpacks_pattern.search(layout_text)
-            if not shaderpacks_match:
-                raise ValueError(f"Could not find mylauncher_shaderpacks_button in {layout_path}")
-            block = shaderpacks_match.group(1) + "\n" + account_button
-            layout_text = layout_text[:shaderpacks_match.start(1)] + block + layout_text[shaderpacks_match.end(1):]
+            repair_version_pattern = re.compile(r'(<com\.kdt\.mcgui\.LauncherMenuButton\s+android:id="@\+id/mylauncher_repair_version_button".*?/>\s*)', re.DOTALL)
+            repair_version_match = repair_version_pattern.search(layout_text)
+            if not repair_version_match:
+                raise ValueError(f"Could not find mylauncher_repair_version_button in {layout_path}")
+            block = repair_version_match.group(1) + "\n" + account_button
+            layout_text = layout_text[:repair_version_match.start(1)] + block + layout_text[repair_version_match.end(1):]
 
         account_pattern = re.compile(r'<com\.kdt\.mcgui\.LauncherMenuButton\s+android:id="@\+id/mylauncher_account_button".*?/>', re.DOTALL)
         account_match = account_pattern.search(layout_text)
         if account_match:
-            for prior_anchor in ("open_files_button", "mylauncher_mods_button", "mylauncher_resourcepacks_button", "mylauncher_world_saves_button", "mylauncher_logs_button", "mylauncher_screenshots_button", "mylauncher_crash_reports_button", "mylauncher_config_button"):
+            for prior_anchor in ("open_files_button", "mylauncher_mods_button", "mylauncher_resourcepacks_button", "mylauncher_world_saves_button", "mylauncher_logs_button", "mylauncher_screenshots_button", "mylauncher_crash_reports_button", "mylauncher_config_button", "mylauncher_shaderpacks_button"):
                 prior_constraint = 'app:layout_constraintTop_toBottomOf="@id/' + prior_anchor + '"'
                 if prior_constraint in account_match.group(0):
                     updated_account = account_match.group(0).replace(
                         prior_constraint,
-                        'app:layout_constraintTop_toBottomOf="@id/mylauncher_shaderpacks_button"',
+                        'app:layout_constraintTop_toBottomOf="@id/mylauncher_repair_version_button"',
                         1,
                     )
                     layout_text = layout_text[:account_match.start()] + updated_account + layout_text[account_match.end():]
@@ -804,6 +848,11 @@ def patch_upstream(upstream: Path) -> None:
         )
         shaderpacks_match = re.search(
             r'<com\.kdt\.mcgui\.LauncherMenuButton\s+android:id="@\+id/mylauncher_shaderpacks_button".*?/>',
+            layout_text,
+            flags=re.DOTALL,
+        )
+        repair_version_match = re.search(
+            r'<com\.kdt\.mcgui\.LauncherMenuButton\s+android:id="@\+id/mylauncher_repair_version_button".*?/>',
             layout_text,
             flags=re.DOTALL,
         )
@@ -865,13 +914,20 @@ def patch_upstream(upstream: Path) -> None:
             or 'android:drawableStart="@android:drawable/ic_menu_gallery"' not in shaderpacks_match.group(0)
             or 'android:text="@string/main_shaderpacks_folder"' not in shaderpacks_match.group(0)
             or 'app:layout_constraintTop_toBottomOf="@id/mylauncher_config_button"' not in shaderpacks_match.group(0)
+            or not repair_version_match
+            or repair_version_match.group(0).count('android:id="@+id/mylauncher_repair_version_button"') != 1
+            or 'style="@style/LauncherMenuButton.Universal"' not in repair_version_match.group(0)
+            or 'android:layout_width="match_parent"' not in repair_version_match.group(0)
+            or 'android:drawableStart="@android:drawable/ic_popup_sync"' not in repair_version_match.group(0)
+            or 'android:text="@string/main_repair_version"' not in repair_version_match.group(0)
+            or 'app:layout_constraintTop_toBottomOf="@id/mylauncher_shaderpacks_button"' not in repair_version_match.group(0)
             or not account_match
             or account_match.group(0).count('android:id="@+id/mylauncher_account_button"') != 1
             or 'style="@style/LauncherMenuButton.Universal"' not in account_match.group(0)
             or 'android:layout_width="match_parent"' not in account_match.group(0)
             or 'android:drawableStart="@android:drawable/ic_menu_myplaces"' not in account_match.group(0)
             or 'android:text="@string/main_add_account"' not in account_match.group(0)
-            or 'app:layout_constraintTop_toBottomOf="@id/mylauncher_shaderpacks_button"' not in account_match.group(0)
+            or 'app:layout_constraintTop_toBottomOf="@id/mylauncher_repair_version_button"' not in account_match.group(0)
             or open_files_index < 0
             or open_files_index > mods_match.start()
             or mods_match.start() > resourcepacks_match.start()
@@ -881,9 +937,10 @@ def patch_upstream(upstream: Path) -> None:
             or screenshots_match.start() > crash_reports_match.start()
             or crash_reports_match.start() > config_match.start()
             or config_match.start() > shaderpacks_match.start()
-            or shaderpacks_match.start() > account_match.start()
+            or shaderpacks_match.start() > repair_version_match.start()
+            or repair_version_match.start() > account_match.start()
         ):
-            raise ValueError(f"myLauncher mods/resource-packs/world-saves/logs/screenshots/crash-reports/config/shader-packs/account shortcuts are incomplete in {layout_path}")
+            raise ValueError(f"myLauncher mods/resource-packs/world-saves/logs/screenshots/crash-reports/config/shader-packs/repair-version/account shortcuts are incomplete in {layout_path}")
 
         title_match = re.search(
             r'<TextView\s+android:id="@\+id/mylauncher_hero_title".*?/>',
@@ -905,6 +962,7 @@ def patch_upstream(upstream: Path) -> None:
             or layout_text.count('android:id="@+id/mylauncher_crash_reports_button"') != 1
             or layout_text.count('android:id="@+id/mylauncher_config_button"') != 1
             or layout_text.count('android:id="@+id/mylauncher_shaderpacks_button"') != 1
+            or layout_text.count('android:id="@+id/mylauncher_repair_version_button"') != 1
             or layout_text.count('android:id="@+id/news_button"') != 1
             or layout_text.count('android:id="@+id/discord_button"') != 1
             or layout_text.count('android:id="@+id/social_divider"') != 1
@@ -965,6 +1023,17 @@ def patch_upstream(upstream: Path) -> None:
     if not main_menu.is_file():
         raise FileNotFoundError(f"Expected main menu fragment is missing: {main_menu}")
     main_menu_text = main_menu.read_text(encoding="utf-8")
+    repair_version_imports = (
+        "import net.kdt.pojavlaunch.JMinecraftVersionList;",
+        "import net.kdt.pojavlaunch.tasks.AsyncMinecraftDownloader;",
+        "import net.kdt.pojavlaunch.tasks.MinecraftDownloader;",
+    )
+    for import_line in repair_version_imports:
+        if import_line not in main_menu_text:
+            import_anchor = "import net.kdt.pojavlaunch.extra.ExtraCore;\n"
+            if import_anchor not in main_menu_text:
+                raise ValueError("Could not find MainMenuFragment import anchor for version repair")
+            main_menu_text = main_menu_text.replace(import_anchor, import_anchor + import_line + "\n", 1)
     # The game-directory browser is local file access and should also work for local profiles.
     # Preserve the demo-profile warning, but remove the unrelated online-account gate.
     directory_gate = """            } else if (!hasOnlineProfile()) { // Otherwise display the generic pop-up to log in
@@ -1657,6 +1726,9 @@ def patch_upstream(upstream: Path) -> None:
     shaderpacks_hint_binding = "mMyLauncherShaderPacksButton.setContentDescription(getString(R.string.main_shaderpacks_folder_hint));"
     if shaderpacks_hint_binding not in main_menu_text:
         main_menu_text = main_menu_text.replace(shaderpacks_binding, shaderpacks_binding + "\n        " + shaderpacks_hint_binding, 1)
+    repair_version_binding = "Button mMyLauncherRepairVersionButton = view.findViewById(R.id.mylauncher_repair_version_button);"
+    if repair_version_binding not in main_menu_text:
+        main_menu_text = main_menu_text.replace(shaderpacks_binding, shaderpacks_binding + "\n        " + repair_version_binding, 1)
     shaderpacks_listener = """mMyLauncherShaderPacksButton.setOnClickListener(v -> {
             if (Tools.isDemoProfile(v.getContext())) {
                 hasNoOnlineProfileDialog(getActivity(), getString(R.string.demo_unsupported), getString(R.string.change_account));
@@ -1779,6 +1851,98 @@ def patch_upstream(upstream: Path) -> None:
         raise ValueError("The shader-pack enable/disable manager is incomplete or missing safety checks")
     if shaderpacks_hint_binding not in main_menu_text or main_menu_text.count(shaderpacks_hint_binding) != 1:
         raise ValueError("The Shader packs long-press accessibility hint is not wired exactly once")
+
+    repair_version_listener = """mMyLauncherRepairVersionButton.setOnClickListener(v -> {
+            if (Tools.isDemoProfile(v.getContext())) {
+                hasNoOnlineProfileDialog(getActivity(), getString(R.string.demo_unsupported), getString(R.string.change_account));
+                return;
+            }
+            if (!Tools.isOnline(v.getContext())) {
+                Toast.makeText(requireContext(), R.string.main_repair_version_requires_internet, Toast.LENGTH_LONG).show();
+                return;
+            }
+            if (ProgressKeeper.getTaskCount() > 0) {
+                Toast.makeText(requireContext(), R.string.tasks_ongoing, Toast.LENGTH_LONG).show();
+                return;
+            }
+
+            MinecraftProfile selectedProfile;
+            try {
+                LauncherProfiles.load();
+                selectedProfile = LauncherProfiles.getCurrentProfile();
+            } catch (RuntimeException exception) {
+                Toast.makeText(requireContext(), R.string.main_repair_version_unlisted, Toast.LENGTH_LONG).show();
+                return;
+            }
+            if (selectedProfile == null || !Tools.isValidString(selectedProfile.lastVersionId)) {
+                Toast.makeText(requireContext(), R.string.main_repair_version_unlisted, Toast.LENGTH_LONG).show();
+                return;
+            }
+            JMinecraftVersionList versionList = (JMinecraftVersionList) ExtraCore.getValue(ExtraConstants.RELEASE_TABLE);
+            if (versionList == null || versionList.versions == null) {
+                Toast.makeText(requireContext(), R.string.main_repair_version_list_loading, Toast.LENGTH_LONG).show();
+                return;
+            }
+            String normalizedVersionId = AsyncMinecraftDownloader.normalizeVersionId(selectedProfile.lastVersionId);
+            JMinecraftVersionList.Version selectedVersion = AsyncMinecraftDownloader.getListedVersion(normalizedVersionId);
+            if (selectedVersion == null) {
+                Toast.makeText(requireContext(), R.string.main_repair_version_unlisted, Toast.LENGTH_LONG).show();
+                return;
+            }
+
+            new AlertDialog.Builder(requireContext())
+                    .setTitle(R.string.main_repair_version_title)
+                    .setMessage(R.string.main_repair_version_message)
+                    .setNegativeButton(android.R.string.cancel, null)
+                    .setPositiveButton(R.string.main_repair_version, (dialog, which) -> {
+                        if (!isAdded()) return;
+                        if (!Tools.isOnline(requireContext())) {
+                            Toast.makeText(requireContext(), R.string.main_repair_version_requires_internet, Toast.LENGTH_LONG).show();
+                            return;
+                        }
+                        if (ProgressKeeper.getTaskCount() > 0) {
+                            Toast.makeText(requireContext(), R.string.tasks_ongoing, Toast.LENGTH_LONG).show();
+                            return;
+                        }
+                        Toast.makeText(requireContext(), R.string.main_repair_version_started, Toast.LENGTH_SHORT).show();
+                        new MinecraftDownloader().start(requireActivity(), selectedVersion, normalizedVersionId,
+                                new AsyncMinecraftDownloader.DoneListener() {
+                                    @Override
+                                    public void onDownloadDone() {
+                                        runOnUiThread(() -> {
+                                            if (!isAdded()) return;
+                                            Toast.makeText(requireContext(), R.string.main_repair_version_success, Toast.LENGTH_LONG).show();
+                                        });
+                                    }
+
+                                    @Override
+                                    public void onDownloadFailed(Throwable throwable) {
+                                        runOnUiThread(() -> {
+                                            if (!isAdded()) return;
+                                            Toast.makeText(requireContext(), R.string.main_repair_version_failure, Toast.LENGTH_LONG).show();
+                                        });
+                                    }
+                                });
+                    })
+                    .show();
+        });"""
+    if repair_version_listener not in main_menu_text:
+        main_menu_text = main_menu_text.replace(shaderpacks_manager_listener,
+                shaderpacks_manager_listener + "\n\n        " + repair_version_listener, 1)
+    if (
+        main_menu_text.count(repair_version_binding) != 1
+        or main_menu_text.count(repair_version_listener) != 1
+        or "Tools.isOnline(v.getContext())" not in repair_version_listener
+        or "ProgressKeeper.getTaskCount() > 0" not in repair_version_listener
+        or "AsyncMinecraftDownloader.normalizeVersionId(selectedProfile.lastVersionId)" not in repair_version_listener
+        or "AsyncMinecraftDownloader.getListedVersion(normalizedVersionId)" not in repair_version_listener
+        or "new MinecraftDownloader().start(requireActivity(), selectedVersion, normalizedVersionId" not in repair_version_listener
+        or "onDownloadDone()" not in repair_version_listener
+        or "onDownloadFailed(Throwable throwable)" not in repair_version_listener
+        or "ExtraConstants.LAUNCH_GAME" in repair_version_listener
+        or r"\n\n        mMyLauncherRepairVersionButton.setOnClickListener" in main_menu_text
+    ):
+        raise ValueError("The selected-version repair action is missing validation, confirmation, callbacks or a no-launch guarantee")
 
     required_backup_imports = (
         "import java.io.FileInputStream;",
