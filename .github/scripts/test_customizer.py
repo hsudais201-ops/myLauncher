@@ -219,7 +219,9 @@ public class LoggerView extends ConstraintLayout {
     void start() {
         if(isLocalProfile || !isOnline) {
             File providedJsonFile = new File(Tools.DIR_HOME_VERSION + "/" + realVersion + "/" + realVersion + ".json");
-            Tools.read(providedJsonFile.getAbsolutePath());
+            JMinecraftVersionList.Version providedJson = Tools.GLOBAL_GSON.fromJson(Tools.read(providedJsonFile.getAbsolutePath()), JMinecraftVersionList.Version.class);
+            File vanillaJsonFile = new File(Tools.DIR_HOME_VERSION + "/" + providedJson.inheritsFrom + "/" + providedJson.inheritsFrom + ".json");
+            versionMessage = providedJson.inheritsFrom != null ? providedJson.inheritsFrom : versionMessage;
             String tryagain = !isOnline ? "Please ensure you have an internet connection" : "Please try again on your Microsoft Account";
             Tools.showErrorRemote(versionMessage + " is not currently installed. "+ tryagain, e);
         } else {
@@ -253,7 +255,7 @@ class LocalLoginFragment {
             Tools.swapFragment(requireActivity(), MainMenuFragment.class, MainMenuFragment.TAG, null);
         }
         if(!checkEditText()) return;
-        ExtraCore.setValue(ExtraConstants.MOJANG_LOGIN_TODO, new String[]{ "name", "" });
+        ExtraCore.setValue(ExtraConstants.MOJANG_LOGIN_TODO, new String[]{ mUsernameEditText.getText().toString(), "" });
     }
 
     private boolean checkEditText() {
@@ -467,10 +469,40 @@ class ProfileTypeSelectFragment {
             self.assertIn("!providedJsonFile.isFile()", downloader)
             self.assertIn("!providedJsonFile.canRead()", downloader)
             self.assertIn("providedJsonFile.length() == 0", downloader)
+            self.assertIn("providedJson.inheritsFrom != null", downloader)
+            self.assertIn("!vanillaJsonFile.isFile()", downloader)
+            self.assertIn("!vanillaJsonFile.canRead()", downloader)
+            self.assertIn("vanillaJsonFile.length() == 0", downloader)
+            self.assertIn("Base Minecraft version ", downloader)
             self.assertIn("Connect to the internet and select Play again to download it.", downloader)
             self.assertIn("version metadata is missing/corrupt.", downloader)
             self.assertIn('String tryagain = "Connect to the internet and try again.";', downloader)
             self.assertNotIn("Please try again on your Microsoft Account", downloader)
+
+    def test_rejects_missing_inherited_json_patch_anchor(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            self.fixture(root)
+            downloader_path = root / "app_pojavlauncher/src/main/java/net/kdt/pojavlaunch/tasks/MinecraftDownloader.java"
+            downloader_text = downloader_path.read_text(encoding="utf-8")
+            anchor = "versionMessage = providedJson.inheritsFrom != null ? providedJson.inheritsFrom : versionMessage;"
+            self.assertIn(anchor, downloader_text)
+            downloader_path.write_text(downloader_text.replace(anchor, "versionMessage = versionMessage;", 1), encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "Could not add missing/unreadable/empty inherited Minecraft version JSON guard"):
+                customizer.patch_upstream(root)
+
+    def test_rejects_hardcoded_offline_username_submission(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            self.fixture(root)
+            local_login_path = root / "app_pojavlauncher/src/main/java/net/kdt/pojavlaunch/fragments/LocalLoginFragment.java"
+            login_text = local_login_path.read_text(encoding="utf-8")
+            expected = 'ExtraCore.setValue(ExtraConstants.MOJANG_LOGIN_TODO, new String[]{ mUsernameEditText.getText().toString(), "" });'
+            self.assertIn(expected, login_text)
+            hardcoded = 'ExtraCore.setValue(ExtraConstants.MOJANG_LOGIN_TODO, new String[]{ "name", "" });'
+            local_login_path.write_text(login_text.replace(expected, hardcoded, 1), encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "does not submit the validated username"):
+                customizer.patch_upstream(root)
 
     def test_verify_repair_version_action_checks_official_version_and_does_not_launch(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
@@ -548,10 +580,12 @@ class ProfileTypeSelectFragment {
             login_layout = (root / "app_pojavlauncher/src/main/res/layout/fragment_local_login.xml").read_text(encoding="utf-8")
             self.assertNotIn("if (!hasOnlineProfile())", local_login)
             self.assertNotIn("import static net.kdt.pojavlaunch.Tools.hasOnlineProfile;", local_login)
-            self.assertIn("ExtraCore.setValue(ExtraConstants.MOJANG_LOGIN_TODO, new String[]{", local_login)
+            self.assertIn('ExtraCore.setValue(ExtraConstants.MOJANG_LOGIN_TODO, new String[]{ mUsernameEditText.getText().toString(), "" });', " ".join(local_login.split()))
             self.assertIn('Pattern.compile("^[a-zA-Z0-9_]*$")', local_login)
             self.assertIn("text.length() < 3", local_login)
             self.assertIn("text.length() > 16", local_login)
+            self.assertIn("!matcher.matches()", local_login)
+            self.assertNotIn("!matcher.find()", local_login)
             self.assertIn('new File(Tools.DIR_ACCOUNT_NEW + "/" + text + ".json").exists()', local_login)
             self.assertIn('android:inputType="textPersonName"', login_layout)
             self.assertIn('android:text="@string/main_add_account"', login_layout)

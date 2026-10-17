@@ -23,7 +23,7 @@ See [FEATURE_ROADMAP.md](FEATURE_ROADMAP.md) for the complete 23-section feature
 
 ### Troubleshooting: missing Minecraft version metadata
 
-If the launcher reports `FileNotFoundException` for a path like `versions/<version>/<version>.json` or says the version metadata is missing, the selected installation is incomplete or its metadata could not be read.
+If the launcher reports `FileNotFoundException` for a path like `versions/<version>/<version>.json` or says the version metadata is missing, the selected installation is incomplete or its metadata could not be read. Modded versions that inherit from a vanilla version also require that parent version's JSON metadata; the launcher now identifies a missing or unreadable base manifest before trying to continue.
 
 1. Connect to a working internet connection, return to VoidCraft Launcher, select the same Minecraft version, and press **Play** again. The launcher should be able to download the missing public version files without requiring Microsoft sign-in just because you use a local profile.
 
