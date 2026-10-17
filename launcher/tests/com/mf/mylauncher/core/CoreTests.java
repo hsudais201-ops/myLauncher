@@ -334,6 +334,36 @@ public final class CoreTests {
                 "default-user-jvm versionRange excludes older OS versions");
         eq(1, modernArgumentSet.getDefaultUserJvm().size(), "default-user-jvm entries are retained separately from required JVM args");
 
+        LibraryPlatform quickPlayPlatform = new LibraryPlatform("linux", "x86_64", "6.1.0",
+                java.util.Collections.singletonMap("has_quick_plays_support", true));
+        VersionArgumentSet quickPlayArguments = new VersionArgumentSet(
+                java.util.Collections.singletonList(new VersionArgumentSet.ArgumentEntry(
+                        Arrays.asList("--quickPlayPath", "${quickPlayPath}"),
+                        java.util.Collections.singletonList(new LibraryRule(true, null, null, null,
+                                java.util.Collections.singletonMap("has_quick_plays_support", true))))),
+                java.util.Collections.emptyList());
+        VersionDetails quickPlayDetails = new VersionDetails(details.getId(), details.getMainClass(),
+                details.getAssetsId(), details.getAssetIndex(), details.getClientDownload(),
+                details.getJavaMajorVersion(), details.getLibraries(), quickPlayArguments, null);
+        LaunchContext quickPlayContext = new LaunchContext.Builder(context.getUsername(), context.getUuid(),
+                context.getAccessToken())
+                .gameDirectory(context.getGameDirectoryPath()).assetsRoot(context.getAssetsRootPath())
+                .librariesDirectory(context.getLibrariesDirectoryPath()).nativesDirectory(context.getNativesDirectoryPath())
+                .classpath(context.getClasspath()).loggingConfigPath(context.getLoggingConfigPath())
+                .heapMiB(context.getMinHeapMiB(), context.getMaxHeapMiB()).platform(quickPlayPlatform)
+                .quickPlayPath(java.nio.file.Paths.get("/tmp/mylauncher/game/quick-play.json")).build();
+        List<String> quickPlayCommand = LaunchCommandBuilder.build(quickPlayDetails, quickPlayContext);
+        eq("/tmp/mylauncher/game/quick-play.json",
+                quickPlayCommand.get(quickPlayCommand.indexOf("--quickPlayPath") + 1),
+                "Minecraft 26.1 quickPlayPath placeholder expands to its configured file");
+        LaunchContext.Builder missingQuickPlayPath = new LaunchContext.Builder(context.getUsername(),
+                context.getUuid(), context.getAccessToken())
+                .gameDirectory(context.getGameDirectoryPath()).assetsRoot(context.getAssetsRootPath())
+                .librariesDirectory(context.getLibrariesDirectoryPath()).nativesDirectory(context.getNativesDirectoryPath())
+                .classpath(context.getClasspath()).platform(quickPlayPlatform);
+        bad(missingQuickPlayPath::build,
+                "launch context rejects quick-play support without a required quickPlayPath");
+
         bad(() -> VersionArgumentSet.fromDecodedJson(java.util.Collections.singletonMap("game", "not-an-array")),
                 "malformed modern arguments shape rejected");
         bad(() -> LaunchCommandBuilder.build(details, null), "null launch context rejected");
