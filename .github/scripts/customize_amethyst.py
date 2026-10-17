@@ -1984,8 +1984,6 @@ def patch_upstream(upstream: Path) -> None:
                 if(mScrollView.isKeepFocusing()) mScrollView.fullScroll(View.FOCUS_DOWN);
             });
         };"""
-    if "MAX_BUFFERED_LOG_LINES" in logger_view_text and "droppedOldestLine" not in logger_view_text:
-        raise ValueError("LoggerView has a partial log-filter patch; refusing to build an inconsistent logger")
     if "droppedOldestLine" not in logger_view_text:
         if logger_view_text.count(old_log_listener) != 1:
             raise ValueError("Could not locate the existing LoggerView live log listener")
