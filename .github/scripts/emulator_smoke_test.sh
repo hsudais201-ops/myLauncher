@@ -14,9 +14,9 @@ timeout 180s adb install -r "$APK_PATH"
 timeout 15s adb shell pm grant com.mf.mylauncher.debug android.permission.READ_EXTERNAL_STORAGE
 timeout 15s adb shell pm grant com.mf.mylauncher.debug android.permission.WRITE_EXTERNAL_STORAGE
 timeout 15s adb shell am force-stop com.mf.mylauncher.debug || true
-# Use Android's launcher intent instead of monkey, which can hang after dispatch
-# on some hosted emulator images even though it has already injected the tap.
-timeout 20s adb shell am start -a android.intent.action.MAIN -c android.intent.category.LAUNCHER -p com.mf.mylauncher.debug
+# TestStorageActivity is the manifest's exported launcher entry point. It
+# handles storage access and then opens LauncherActivity.
+timeout 20s adb shell am start -n com.mf.mylauncher.debug/net.kdt.pojavlaunch.TestStorageActivity
 
 for i in $(seq 1 45); do
     if timeout 10s adb shell dumpsys activity activities | tr -d '\r' | grep -Fq 'com.mf.mylauncher.debug/net.kdt.pojavlaunch.LauncherActivity'; then
