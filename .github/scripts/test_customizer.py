@@ -283,15 +283,16 @@ public class LoggerView extends ConstraintLayout {
         mLogTextView.setEllipsize(null);
         mLogTextView.setVisibility(GONE);
         mLogToggle = findViewById(R.id.content_log_toggle_log);
-        mLogToggle.setOnCheckedChangeListener((compoundButton, isChecked) -> {
-            mLogTextView.setVisibility(isChecked ? VISIBLE : GONE);
-            if(isChecked) {
-                Logger.addLogListener(mLogListener);
-            }else{
-                mLogTextView.setText("");
-                Logger.removeLogListener(mLogListener);
-            }
-        });
+        mLogToggle.setOnCheckedChangeListener(
+                (compoundButton, isChecked) -> {
+                    mLogTextView.setVisibility(isChecked ? VISIBLE : GONE);
+                    if(isChecked) {
+                        Logger.addLogListener(mLogListener);
+                    }else{
+                        mLogTextView.setText("");
+                        Logger.removeLogListener(mLogListener);
+                    }
+                });
         mLogToggle.setChecked(false);
         ImageButton cancelButton = findViewById(R.id.log_view_cancel);
         cancelButton.setOnClickListener(view -> LoggerView.this.setVisibility(GONE));
