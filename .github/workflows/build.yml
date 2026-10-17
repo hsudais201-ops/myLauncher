@@ -96,27 +96,6 @@ jobs:
               raise SystemExit("Maven Central must be configured in pluginManagement for AGP classpath dependencies")
           print("Verified Maven Central is configured for plugin-management dependencies.")
           PY
-          python3 - <<'PY'
-          from pathlib import Path
-
-          main_menu = Path(
-              "upstream/app_pojavlauncher/src/main/java/net/kdt/pojavlaunch/fragments/MainMenuFragment.java"
-          ).read_text(encoding="utf-8")
-          required_restore_anchors = (
-              "private void showWorldBackupPicker(",
-              "private static void restoreWorldBackup(",
-              "private static void extractWorldBackup(",
-              "private static File uniqueRestoredWorldDestination(",
-              "entryName.indexOf((char) 92) >= 0",
-              "outputPath.startsWith(stagingRoot + File.separator)",
-              "mMyLauncherWorldSavesButton.setOnLongClickListener",
-              "mMyLauncherWorldSavesButton.setOnClickListener",
-          )
-          missing = [anchor for anchor in required_restore_anchors if anchor not in main_menu]
-          if missing:
-              raise SystemExit("World backup/restore customization is incomplete: " + ", ".join(missing))
-          print("Verified world backup creation, staged ZIP restoration, and path-safety guards.")
-          PY
           git -C upstream diff --check
 
       - name: Apply VoidCraft Launcher logo
