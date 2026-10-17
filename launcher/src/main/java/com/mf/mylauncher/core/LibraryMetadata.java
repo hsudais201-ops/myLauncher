@@ -105,7 +105,7 @@ public final class LibraryMetadata {
         if (!optional.isPresent()) return false;
         String classifier = optional.get();
         return hasExplicitNativeClassifier()
-                || classifier.matches("(?:linux|windows|osx|macos)-(?:aarch_64|x86_64|arm64|arm32|arm32hf|arm32v6|arm32v7|x86|i386|i486|i586|i686)");
+                || classifier.matches("(?:linux|windows|osx|macos)-(?:aarch_64|x86_64|arm64(?:-v8a)?|arm32(?:-v7a|hf|v6|v7)?|x86|i386|i486|i586|i686)");
     }
 
     /** Selects only native-archive classifiers that target the requested OS and CPU architecture. */
@@ -156,7 +156,8 @@ public final class LibraryMetadata {
         if ("x86".equals(value) || "i386".equals(value) || "i486".equals(value)
                 || "i586".equals(value) || "i686".equals(value)) return "x86";
         if ("arm".equals(value) || "arm32".equals(value) || "armhf".equals(value)
-                || "arm32hf".equals(value) || "arm32v6".equals(value) || "arm32v7".equals(value)) return "arm32";
+                || "arm32hf".equals(value) || "arm32v6".equals(value) || "arm32v7".equals(value)
+                || "arm32-v7a".equals(value)) return "arm32";
         return null;
     }
     public Map<String, DownloadArtifact> getClassifiers() { return classifiers; }
