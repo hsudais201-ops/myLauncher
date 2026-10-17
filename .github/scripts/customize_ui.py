@@ -249,7 +249,7 @@ def patch_upstream(upstream: Path) -> None:
         raise ValueError(f"SharedPreferences anchor is missing in {launcher_preferences}")
     old_setting = '        MGConfigJson.put("enableNoError", Integer.parseInt(DEFAULT_PREF.getString("mg_renderer_setting_errorSetting", "0")));'
     new_setting = """        String errorSetting = DEFAULT_PREF.getString("mg_renderer_setting_errorSetting", "0");
-        if (MYLAUNCHER_RENDERPEARL_COMPAT && "opengles_mobileglues".equals(Tools.LOCAL_RENDERER)) {
+        if (MYLAUNCHER_RENDERPEARL_COMPAT) {
             errorSetting = "1";
         }
         MGConfigJson.put("enableNoError", Integer.parseInt(errorSetting));"""
@@ -258,22 +258,20 @@ def patch_upstream(upstream: Path) -> None:
 
     activity_text = launcher_activity.read_text(encoding="utf-8")
     launch_anchor = "        new MinecraftDownloader().start("
-    compat_block = r"""        // Minecraft 26.3+ RenderPearl compatibility: MobileGlues documents that
-        // its error-filtering option must ignore shader/program errors for these versions.
-        // Write a launch-scoped config and leave the saved preference untouched.
+    compat_block = r"""        // Minecraft 26.3+ RenderPearl compatibility: prepare MobileGlues error filtering
+        // before the downloader launches the Java runtime. The setting is launch-scoped;
+        // the user's saved preference is restored for other versions.
         boolean useRenderPearlCompatibility = normalizedVersionId.matches("^26\\.(?:3|[4-9])(?:[.-].*|$)");
-        if ("opengles_mobileglues".equals(Tools.LOCAL_RENDERER)) {
-            LauncherPreferences.MYLAUNCHER_RENDERPEARL_COMPAT = useRenderPearlCompatibility;
-            try {
-                LauncherPreferences.writeMGRendererSettings();
-            } catch (IOException e) {
-                Log.w("myLauncher", "Unable to write MobileGlues compatibility settings", e);
-            } finally {
-                LauncherPreferences.MYLAUNCHER_RENDERPEARL_COMPAT = false;
-            }
-            if (useRenderPearlCompatibility) {
-                Toast.makeText(this, R.string.mylauncher_26x_renderer_compat, Toast.LENGTH_LONG).show();
-            }
+        LauncherPreferences.MYLAUNCHER_RENDERPEARL_COMPAT = useRenderPearlCompatibility;
+        try {
+            LauncherPreferences.writeMGRendererSettings();
+        } catch (IOException e) {
+            Log.w("myLauncher", "Unable to write graphics compatibility settings", e);
+        } finally {
+            LauncherPreferences.MYLAUNCHER_RENDERPEARL_COMPAT = false;
+        }
+        if (useRenderPearlCompatibility) {
+            Toast.makeText(this, R.string.mylauncher_26x_renderer_compat, Toast.LENGTH_LONG).show();
         }
 
 """
@@ -293,7 +291,7 @@ def patch_upstream(upstream: Path) -> None:
         anchor = re.search(r'<string\s+name="main_add_account"[^>]*>.*?</string>', strings_text, re.DOTALL)
         if not anchor:
             raise ValueError("Could not find main_add_account to add the compatibility notice")
-        addition = '\n    <string name="mylauncher_26x_renderer_compat">MobileGlues compatibility mode enabled for Minecraft 26.3+.</string>'
+        addition = '\n    <string name="mylauncher_26x_renderer_compat">Graphics compatibility settings prepared for Minecraft 26.3+.</string>'
         strings_text = strings_text[:anchor.end()] + addition + strings_text[anchor.end():]
     strings.write_text(strings_text, encoding="utf-8")
 
