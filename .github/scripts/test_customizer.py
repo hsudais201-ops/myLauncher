@@ -654,10 +654,33 @@ class ProfileTypeSelectFragment {
                 self.assertIn('android:text="@string/main_resourcepacks_folder"', layout)
                 self.assertIn('app:layout_constraintTop_toBottomOf="@id/mylauncher_mods_button"', layout)
             self.assertIn('<string name="main_resourcepacks_folder">Resource packs</string>', strings)
+            self.assertIn('<string name="main_resourcepacks_folder_hint">Resource packs. Long-press to enable or disable ZIP packs.</string>', strings)
             self.assertIn('new File(getCurrentProfileDirectory(), "resourcepacks")', menu)
             self.assertIn('if (!resourcePackDirectory.isDirectory() && !resourcePackDirectory.mkdirs())', menu)
             self.assertIn('openPath(v.getContext(), resourcePackDirectory, false);', menu)
             self.assertIn('Tools.isDemoProfile(v.getContext())', menu)
+            self.assertIn("mMyLauncherResourcePacksButton.setContentDescription(getString(R.string.main_resourcepacks_folder_hint));", menu)
+
+    def test_resourcepacks_long_press_can_enable_disable_zips_safely(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            self.fixture(root)
+            customizer.patch_upstream(root)
+            menu = (root / "app_pojavlauncher/src/main/java/net/kdt/pojavlaunch/fragments/MainMenuFragment.java").read_text(encoding="utf-8")
+            self.assertIn("mMyLauncherResourcePacksButton.setOnLongClickListener", menu)
+            self.assertIn('new File(getCurrentProfileDirectory(), "resourcepacks")', menu)
+            self.assertIn('normalizedName.endsWith(".zip")', menu)
+            self.assertIn('normalizedName.endsWith(".zip.disabled")', menu)
+            self.assertIn('selectedName + ".disabled"', menu)
+            self.assertIn('selectedName.substring(0, selectedName.length() - ".disabled".length())', menu)
+            self.assertIn('setPositiveButton(wasDisabled ? "Enable" : "Disable"', menu)
+            self.assertIn("destination.exists()", menu)
+            self.assertIn("!selectedPack.renameTo(destination)", menu)
+            self.assertIn("The selected resource pack is no longer available", menu)
+            self.assertIn('Tools.isDemoProfile(v.getContext())', menu)
+            self.assertIn("A file already exists with that name", menu)
+            self.assertIn("mMyLauncherResourcePacksButton.setContentDescription(getString(R.string.main_resourcepacks_folder_hint));", menu)
+            self.assertLess(menu.index("mMyLauncherResourcePacksButton.setOnClickListener"), menu.index("mMyLauncherResourcePacksButton.setOnLongClickListener"))
 
     def test_world_saves_folder_shortcut_opens_the_selected_profile_saves_directory(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
