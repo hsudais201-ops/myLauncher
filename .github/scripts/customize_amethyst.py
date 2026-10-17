@@ -31,7 +31,9 @@ def patch_upstream(upstream: Path) -> None:
     strings = upstream / "app_pojavlauncher" / "src" / "main" / "res" / "values" / "strings.xml"
     colors = upstream / "app_pojavlauncher" / "src" / "main" / "res" / "values" / "colors.xml"
     settings = upstream / "settings.gradle"
-    for path in (gradle, strings, colors, settings):
+    logger_view = upstream / "app_pojavlauncher" / "src" / "main" / "java" / "com" / "kdt" / "LoggerView.java"
+    logger_layout = upstream / "app_pojavlauncher" / "src" / "main" / "res" / "layout" / "view_logger.xml"
+    for path in (gradle, strings, colors, settings, logger_view, logger_layout):
         if not path.is_file():
             raise FileNotFoundError(f"Expected upstream file is missing: {path}")
 
@@ -1897,6 +1899,180 @@ def patch_upstream(upstream: Path) -> None:
 
     main_menu.write_text(main_menu_text, encoding="utf-8")
 
+
+    # Add bounded, case-insensitive filtering to the existing live LoggerView.
+    logger_view_text = logger_view.read_text(encoding="utf-8")
+    if "import android.text.TextWatcher;" not in logger_view_text:
+        logger_view_text = logger_view_text.replace(
+            "import android.graphics.Typeface;\n",
+            "import android.graphics.Typeface;\nimport android.text.Editable;\nimport android.text.TextWatcher;\n",
+            1,
+        )
+    if "import android.widget.EditText;" not in logger_view_text:
+        logger_view_text = logger_view_text.replace(
+            "import android.widget.ImageButton;\n",
+            "import android.widget.EditText;\nimport android.widget.ImageButton;\n",
+            1,
+        )
+    if "import java.util.ArrayList;" not in logger_view_text:
+        logger_view_text = logger_view_text.replace(
+            "import net.kdt.pojavlaunch.R;\n",
+            "import net.kdt.pojavlaunch.R;\n\nimport java.util.ArrayList;\nimport java.util.Locale;\n",
+            1,
+        )
+    if "private EditText mLogSearch;" not in logger_view_text:
+        logger_view_text = logger_view_text.replace(
+            "    private TextView mLogTextView;\n",
+            "    private TextView mLogTextView;\n"
+            "    private EditText mLogSearch;\n"
+            "    private final ArrayList<String> mLogLines = new ArrayList<>();\n"
+            "    private String mLogFilter = \"\";\n"
+            "    private static final int MAX_BUFFERED_LOG_LINES = 5000;\n",
+            1,
+        )
+    search_init_anchor = "        mLogTextView = findViewById(R.id.content_log_view);\n"
+    search_init = """        mLogSearch = findViewById(R.id.content_log_search);
+        mLogSearch.addTextChangedListener(new TextWatcher() {
+            @Override
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) { }
+
+            @Override
+            public void onTextChanged(CharSequence s, int start, int before, int count) { }
+
+            @Override
+            public void afterTextChanged(Editable editable) {
+                mLogFilter = editable.toString().trim().toLowerCase(Locale.ROOT);
+                refreshLogText();
+            }
+        });
+"""
+    if "mLogSearch.addTextChangedListener" not in logger_view_text:
+        if logger_view_text.count(search_init_anchor) != 1:
+            raise ValueError("Could not locate the LoggerView text-view initialization for log search")
+        logger_view_text = logger_view_text.replace(search_init_anchor, search_init_anchor + search_init, 1)
+
+    old_toggle_clear = """                        mLogTextView.setText("");
+                        Logger.removeLogListener(mLogListener);"""
+    new_toggle_clear = """                        mLogLines.clear();
+                        mLogTextView.setText("");
+                        mLogSearch.setText("");
+                        Logger.removeLogListener(mLogListener);"""
+    if "mLogLines.clear();" not in logger_view_text:
+        if logger_view_text.count(old_toggle_clear) != 1:
+            raise ValueError("Could not locate LoggerView output-disable cleanup")
+        logger_view_text = logger_view_text.replace(old_toggle_clear, new_toggle_clear, 1)
+
+    old_log_listener = r"""        mLogListener = text -> {
+            if(mLogTextView.getVisibility() != VISIBLE) return;
+            post(() -> {
+                mLogTextView.append(text + '\n');
+                if(mScrollView.isKeepFocusing()) mScrollView.fullScroll(View.FOCUS_DOWN);
+            });
+
+        };"""
+    new_log_listener = r"""        mLogListener = text -> {
+            if(mLogTextView.getVisibility() != VISIBLE) return;
+            post(() -> {
+                mLogLines.add(text);
+                boolean droppedOldestLine = mLogLines.size() > MAX_BUFFERED_LOG_LINES;
+                if (droppedOldestLine) mLogLines.remove(0);
+                if (mLogFilter.isEmpty() && !droppedOldestLine) {
+                    mLogTextView.append(text + '\n');
+                } else {
+                    refreshLogText();
+                }
+                if(mScrollView.isKeepFocusing()) mScrollView.fullScroll(View.FOCUS_DOWN);
+            });
+        };"""
+    if "MAX_BUFFERED_LOG_LINES" in logger_view_text and "droppedOldestLine" not in logger_view_text:
+        raise ValueError("LoggerView has a partial log-filter patch; refusing to build an inconsistent logger")
+    if "droppedOldestLine" not in logger_view_text:
+        if logger_view_text.count(old_log_listener) != 1:
+            raise ValueError("Could not locate the existing LoggerView live log listener")
+        logger_view_text = logger_view_text.replace(old_log_listener, new_log_listener, 1)
+
+    if "private void refreshLogText()" not in logger_view_text:
+        closing_brace = logger_view_text.rfind("}")
+        if closing_brace < 0:
+            raise ValueError("Could not locate the end of LoggerView.java")
+        refresh_method = r"""
+    private void refreshLogText() {
+        if (mLogTextView == null) return;
+        StringBuilder filteredText = new StringBuilder();
+        for (String line : mLogLines) {
+            if (mLogFilter.isEmpty() || line.toLowerCase(Locale.ROOT).contains(mLogFilter)) {
+                filteredText.append(line).append('\n');
+            }
+        }
+        mLogTextView.setText(filteredText.toString());
+        if (mScrollView != null && mScrollView.isKeepFocusing()) {
+            mScrollView.fullScroll(View.FOCUS_DOWN);
+        }
+    }
+"""
+        logger_view_text = logger_view_text[:closing_brace] + refresh_method + logger_view_text[closing_brace:]
+
+    if (
+        logger_view_text.count("mLogSearch.addTextChangedListener") != 1
+        or logger_view_text.count("private void refreshLogText()") != 1
+        or "MAX_BUFFERED_LOG_LINES = 5000" not in logger_view_text
+        or "line.toLowerCase(Locale.ROOT).contains(mLogFilter)" not in logger_view_text
+        or "droppedOldestLine" not in logger_view_text
+        or "mLogLines.clear();" not in logger_view_text
+    ):
+        raise ValueError("The live LoggerView search/filter, bounded buffer, or cleanup is incomplete")
+    logger_view.write_text(logger_view_text, encoding="utf-8")
+
+    # Place the search box below the logger toolbar and above the scrolling output.
+    logger_layout_text = logger_layout.read_text(encoding="utf-8")
+    search_box = """    <EditText
+        android:id="@+id/content_log_search"
+        android:layout_width="match_parent"
+        android:layout_height="48dp"
+        android:layout_marginHorizontal="12dp"
+        android:backgroundTint="#888888"
+        android:hint="@string/log_view_search_hint"
+        android:imeOptions="actionSearch"
+        android:inputType="text"
+        android:singleLine="true"
+        android:textColor="@android:color/white"
+        android:textColorHint="#BBBBBB"
+        app:layout_constraintTop_toBottomOf="@+id/top_log_view" />
+
+"""
+    if 'android:id="@+id/content_log_search"' not in logger_layout_text:
+        scroll_anchor = '    <com.kdt.DefocusableScrollView\n'
+        if logger_layout_text.count(scroll_anchor) != 1:
+            raise ValueError("Could not locate the LoggerView scroll area to insert log search")
+        logger_layout_text = logger_layout_text.replace(scroll_anchor, search_box + scroll_anchor, 1)
+    logger_layout_text = replace_idempotently(
+        logger_layout_text,
+        'app:layout_constraintTop_toBottomOf="@+id/top_log_view">',
+        'app:layout_constraintTop_toBottomOf="@+id/content_log_search">',
+        str(logger_layout),
+    )
+    if (
+        logger_layout_text.count('android:id="@+id/content_log_search"') != 1
+        or 'android:hint="@string/log_view_search_hint"' not in logger_layout_text
+        or 'app:layout_constraintTop_toBottomOf="@+id/content_log_search">' not in logger_layout_text
+    ):
+        raise ValueError("The LoggerView search box or scroll positioning is incomplete")
+    logger_layout.write_text(logger_layout_text, encoding="utf-8")
+
+    logger_strings = strings.read_text(encoding="utf-8")
+    if 'name="log_view_search_hint"' not in logger_strings:
+        closing_resources = re.search(r"</resources>\\s*$", logger_strings)
+        if not closing_resources:
+            raise ValueError(f"Could not add the log search label to {strings}: missing </resources>")
+        new_string = '    <string name="log_view_search_hint">Search log lines</string>\\n'
+        logger_strings = logger_strings[:closing_resources.start()] + new_string + logger_strings[closing_resources.start():]
+    if not re.search(
+        r'<string\\s+name="log_view_search_hint"[^>]*>\\s*Search log lines\\s*</string>',
+        logger_strings,
+    ):
+        raise ValueError("The log search hint resource is missing or invalid")
+    strings.write_text(logger_strings, encoding="utf-8")
+
     # Replace the upstream launcher artwork with a small vector mark that scales cleanly.
     manifest = upstream / "app_pojavlauncher" / "src" / "main" / "AndroidManifest.xml"
     if not manifest.is_file():
@@ -2035,6 +2211,7 @@ def patch_upstream(upstream: Path) -> None:
         login_layout,
         upstream / "app_pojavlauncher" / "src" / "main" / "res" / "layout" / "fragment_launcher.xml",
         upstream / "app_pojavlauncher" / "src" / "main" / "res" / "layout-land" / "fragment_launcher.xml",
+        logger_layout,
         manifest,
         icon,
         *localized_string_files,
