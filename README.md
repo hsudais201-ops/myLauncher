@@ -48,7 +48,12 @@ The workflow fetches the exact Amethyst commit `330c6eae3164df64bdc4828e946a9e62
 - `.gitignore` — excludes local upstream checkouts, Python caches, and build outputs.
 - `.github/workflows/build.yml` — repeatable Android build workflow, triggered by relevant pushes to `main`, pull requests, or a manual dispatch.
 - `.github/workflows/runner-diagnostic.yml` — minimal hosted-runner diagnostic workflow.
-- `.github/scripts/customize_amethyst.py` — deterministic patch for app branding, package/authority IDs, low-memory defaults, offline account access, launcher header, account shortcut, and vector app icon.
+- `.github/scripts/customize_amethyst.py` — deterministic patch for app branding, package/authority IDs, low-memory defaults, offline account access, launcher header, and folder/account shortcuts.
+- `.github/scripts/apply_logo.py` — applies and validates the final Android vector app icon used by CI.
+- `.github/scripts/emulator_smoke_test.sh` — installs the built APK in the hosted emulator, launches it, checks for the launcher activity, and captures diagnostics on failure.
+- `.github/scripts/prepare_emulator_kvm.sh` — checks and enables the hosted runner's KVM device for accelerated emulator startup.
+- `assets/branding/mylauncher-logo.svg` — high-resolution SVG brand artwork for non-Android uses and reference.
+- `FEATURE_ROADMAP.md` — separates source-confirmed engine capabilities from planned features and outstanding acceptance tests.
 - `.github/scripts/test_customizer.py` — regression tests for branding, offline-account username syntax/length/duplicate-profile and boolean-logic guards, account submission and labeling, auth-selector listener/navigation safety, local game-directory access, both launcher layouts, XML well-formedness, missing-anchor failures, repeat-run idempotency, Android toolchain alignment, and CI submodule/APK safeguards.
 
 ## Local build
@@ -70,14 +75,15 @@ Then fetch the pinned upstream source and build:
     yes | sdkmanager --licenses
     sdkmanager --install 'platforms;android-37.0' 'ndk;27.3.13750724' --channel=3
     python3 .github/scripts/customize_amethyst.py upstream
+    python3 .github/scripts/apply_logo.py upstream
     cd upstream
     ./gradlew :jre_lwjgl3glfw:build :app_pojavlauncher:assembleDebug
 
 ## Verification and limitations
 
-The post-merge `main` build [#38995666191](https://github.com/hsudais201-ops/myLauncher/actions/runs/38995666191) passed on code commit `20ef3ef4739f74c63f8db52a69f143166d583358`. It passed the Python regression suite, Android SDK/NDK setup, pinned Amethyst source checkout and submodules, customization plus `git diff --check`, Gradle build, APK signature and package/minimum-SDK checks, and Android 9/API 28 headless emulator install-and-launch smoke test. The workflow uploaded the debug APK with SHA-256 checksum sidecar, build info, and emulator diagnostics.
+The latest completed baseline `main` build at the start of this audit was [run #39035093349](https://github.com/hsudais201-ops/myLauncher/actions/runs/39035093349) on commit `3c0b4359c92445ae7ddcc7eacb2858110adf899a`. It passed the repository regression suite, pinned Amethyst checkout/submodules, Gradle APK build, APK signature/package/minimum-SDK checks, and Android 9/API 28 emulator install-and-launch smoke test. The workflow uploaded the debug APK with a SHA-256 checksum sidecar, build information, and emulator diagnostics.
 
-The merged **World saves** shortcut was validated in [PR #4's workflow run #38996198756](https://github.com/hsudais201-ops/myLauncher/actions/runs/38996198756), which passed regression tests, APK build/signature/package checks, and the Android 9 emulator smoke test. The post-merge main run [#38996576044](https://github.com/hsudais201-ops/myLauncher/actions/runs/38996576044) is rebuilding the merged main branch now.
+The **World saves** shortcut was also validated in [PR #4 workflow run #38996198756](https://github.com/hsudais201-ops/myLauncher/actions/runs/38996198756) before merge. This audit branch additionally hardens offline username validation and corrects the local-build instructions; its own CI result must be checked before merging.
 
 The cloud emulator smoke test verifies installation and that `LauncherActivity` becomes active. It does not prove that each folder button works through a physical tap, Microsoft sign-in succeeds, a Minecraft version downloads fully, a world starts, or rendering/controllers/performance work on a physical phone or Chromebook. Interactive device and gameplay acceptance tests remain necessary.
 
@@ -102,7 +108,8 @@ After a debug APK is available on the target Android 9 device:
 2. Create a unique username with 3–16 letters, digits, or underscores and confirm it appears in the account spinner.
 3. Select a lightweight Minecraft version (for example 1.8.9); while connected to the internet, let the launcher download it if needed, then start the game and test a single-player world.
 4. Return to the launcher and verify that **Open game directory** works with only the local profile.
-5. Verify the Microsoft account button still opens Microsoft sign-in. Tap **Mods folder** and **Resource packs** and confirm each opens the selected profile's `mods/` and `resourcepacks/` directories. These actions have source/regression and launcher-start CI coverage, but their taps still require interactive acceptance testing. An actual device test is still required for memory pressure, rendering, and gameplay stability.
+5. Verify the Microsoft account button still opens Microsoft sign-in. Tap **Mods folder**, **Resource packs**, and **World saves** and confirm they open the selected profile's `mods/`, `resourcepacks/`, and `saves/` directories. These actions have source/regression and launcher-start CI coverage, but their taps still require interactive acceptance testing. An actual device test is still required for memory pressure, rendering, and gameplay stability.
+6. Test a current version separately: select Minecraft Java Edition 26.3 while connected, allow the metadata/game files and Java 25 runtime to download, and confirm the game reaches its main menu before opening a world. The automated emulator smoke test does not test this path. Keep a backup of any important worlds and capture the launcher log if the game fails.
 
 ## Upstream and licensing
 

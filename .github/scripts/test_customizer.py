@@ -94,7 +94,12 @@ class CustomizeAmethystTests(unittest.TestCase):
     void start() {
         if(isLocalProfile || !isOnline) {
             File providedJsonFile = new File(Tools.DIR_HOME_VERSION + "/" + realVersion + "/" + realVersion + ".json");
-            Tools.read(providedJsonFile.getAbsolutePath());
+            JMinecraftVersionList.Version providedJson = Tools.GLOBAL_GSON.fromJson(Tools.read(providedJsonFile.getAbsolutePath()), JMinecraftVersionList.Version.class);
+            File vanillaJsonFile = new File(Tools.DIR_HOME_VERSION + "/" + providedJson.inheritsFrom + "/" + providedJson.inheritsFrom + ".json");
+            versionMessage = providedJson.inheritsFrom != null ? providedJson.inheritsFrom : versionMessage;
+            if (providedJsonFile.length() == 0 || vanillaJsonFile.exists() && vanillaJsonFile.length() == 0) {
+                throw new RuntimeException("Minecraft " + versionMessage + " is needed by " + realVersion);
+            }
             String tryagain = !isOnline ? "Please ensure you have an internet connection" : "Please try again on your Microsoft Account";
             Tools.showErrorRemote(versionMessage + " is not currently installed. "+ tryagain, e);
         } else {
@@ -128,7 +133,7 @@ class LocalLoginFragment {
             Tools.swapFragment(requireActivity(), MainMenuFragment.class, MainMenuFragment.TAG, null);
         }
         if(!checkEditText()) return;
-        ExtraCore.setValue(ExtraConstants.MOJANG_LOGIN_TODO, new String[]{ "name", "" });
+        ExtraCore.setValue(ExtraConstants.MOJANG_LOGIN_TODO, new String[]{ mUsernameEditText.getText().toString(), "" });
     }
 
     private boolean checkEditText() {
@@ -326,10 +331,26 @@ class ProfileTypeSelectFragment {
             self.assertIn("!providedJsonFile.isFile()", downloader)
             self.assertIn("!providedJsonFile.canRead()", downloader)
             self.assertIn("providedJsonFile.length() == 0", downloader)
+            self.assertIn("!vanillaJsonFile.isFile()", downloader)
+            self.assertIn("!vanillaJsonFile.canRead()", downloader)
+            self.assertIn("vanillaJsonFile.length() == 0", downloader)
+            self.assertIn("Base Minecraft version ", downloader)
             self.assertIn("Connect to the internet and select Play again to download it.", downloader)
             self.assertIn("version metadata is missing/corrupt.", downloader)
             self.assertIn('String tryagain = "Connect to the internet and try again.";', downloader)
             self.assertNotIn("Please try again on your Microsoft Account", downloader)
+
+    def test_rejects_missing_inherited_json_patch_anchor(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            self.fixture(root)
+            downloader_path = root / "app_pojavlauncher/src/main/java/net/kdt/pojavlaunch/tasks/MinecraftDownloader.java"
+            downloader_text = downloader_path.read_text(encoding="utf-8")
+            anchor = "versionMessage = providedJson.inheritsFrom != null ? providedJson.inheritsFrom : versionMessage;"
+            self.assertIn(anchor, downloader_text)
+            downloader_path.write_text(downloader_text.replace(anchor, "versionMessage = versionMessage;", 1), encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "Could not add missing/unreadable/empty inherited Minecraft version JSON guard"):
+                customizer.patch_upstream(root)
 
     def test_patches_branding_and_ids(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
@@ -372,10 +393,12 @@ class ProfileTypeSelectFragment {
             login_layout = (root / "app_pojavlauncher/src/main/res/layout/fragment_local_login.xml").read_text(encoding="utf-8")
             self.assertNotIn("if (!hasOnlineProfile())", local_login)
             self.assertNotIn("import static net.kdt.pojavlaunch.Tools.hasOnlineProfile;", local_login)
-            self.assertIn("ExtraCore.setValue(ExtraConstants.MOJANG_LOGIN_TODO, new String[]{", local_login)
+            self.assertIn('ExtraCore.setValue(ExtraConstants.MOJANG_LOGIN_TODO, new String[]{ mUsernameEditText.getText().toString(), "" });', local_login)
             self.assertIn('Pattern.compile("^[a-zA-Z0-9_]*$")', local_login)
             self.assertIn("text.length() < 3", local_login)
             self.assertIn("text.length() > 16", local_login)
+            self.assertIn("!matcher.matches()", local_login)
+            self.assertNotIn("!matcher.find()", local_login)
             self.assertIn('new File(Tools.DIR_ACCOUNT_NEW + "/" + text + ".json").exists()', local_login)
             self.assertIn('android:inputType="textPersonName"', login_layout)
             self.assertIn('android:text="@string/main_add_account"', login_layout)
@@ -458,6 +481,19 @@ class ProfileTypeSelectFragment {
                 self.assertIn('app:layout_constraintTop_toTopOf="@id/news_button"', launcher_layout)
                 self.assertIn('app:layout_constraintTop_toBottomOf="@id/mylauncher_hero_subtitle"', launcher_layout)
 
+
+    def test_rejects_hardcoded_offline_username_submission(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            self.fixture(root)
+            local_login = root / "app_pojavlauncher/src/main/java/net/kdt/pojavlaunch/fragments/LocalLoginFragment.java"
+            login_text = local_login.read_text(encoding="utf-8")
+            expected = 'ExtraCore.setValue(ExtraConstants.MOJANG_LOGIN_TODO, new String[]{ mUsernameEditText.getText().toString(), "" });'
+            self.assertIn(expected, login_text)
+            hardcoded = 'ExtraCore.setValue(ExtraConstants.MOJANG_LOGIN_TODO, new String[]{ "name", "" });'
+            local_login.write_text(login_text.replace(expected, hardcoded, 1), encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "does not submit the validated username"):
+                customizer.patch_upstream(root)
 
     def test_rejects_incomplete_offline_username_validation(self) -> None:
         invalidations = (
@@ -732,8 +768,12 @@ class BuildWorkflowTests(unittest.TestCase):
             self.smoke_script.index("android.permission.WRITE_EXTERNAL_STORAGE"),
             self.smoke_script.index("adb shell monkey -p com.mf.mylauncher.debug 1"),
         )
-        self.assertIn("APK did not reach LauncherActivity", self.smoke_script)
-        self.assertIn("Emulator smoke test passed: APK installed and LauncherActivity resumed.", self.smoke_script)
+        self.assertIn("ACTIVITY_PATTERN='(mResumedActivity|topResumedActivity)", self.smoke_script)
+        self.assertIn('grep -Eq "$ACTIVITY_PATTERN"', self.smoke_script)
+        self.assertIn("APK did not keep LauncherActivity resumed", self.smoke_script)
+        self.assertIn("Emulator smoke test passed: APK installed and LauncherActivity remained resumed.", self.smoke_script)
+        # Avoid a false-positive caused by matching a stopped activity in the task history.
+        self.assertNotIn("grep -Fq 'com.mf.mylauncher.debug/net.kdt.pojavlaunch.LauncherActivity'", self.smoke_script)
         self.assertIn("name: voidcraft-launcher-emulator-diagnostics", self.workflow)
         self.assertIn("upstream/mylauncher-emulator-logcat.txt", self.workflow)
         self.assertIn("if: ${{ always() && env.APK_PATH != '' }}", self.workflow)
