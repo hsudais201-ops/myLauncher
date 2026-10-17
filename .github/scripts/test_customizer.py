@@ -944,6 +944,12 @@ class ProfileTypeSelectFragment {
             self.assertIn("The selected shader pack is no longer available", menu)
             self.assertIn("A file already exists with that name", menu)
             self.assertIn("Tools.isDemoProfile(v.getContext())", menu)
+            self.assertIn("!shaderPackDirectory.isDirectory()", menu)
+            self.assertIn("new File(directory, name).isFile()", menu)
+            self.assertIn("selectedPath.startsWith(packsRoot + File.separator)", menu)
+            self.assertIn("destinationPath.startsWith(packsRoot + File.separator)", menu)
+            self.assertIn("!selectedPack.renameTo(destination)", menu)
+            self.assertLess(menu.index("mMyLauncherShaderPacksButton.setOnClickListener"), menu.index("mMyLauncherShaderPacksButton.setOnLongClickListener"))
             handler_start = menu.index("mMyLauncherShaderPacksButton.setOnLongClickListener")
             shader_handler = menu[handler_start:handler_start + 8000]
             self.assertIn('new File(getCurrentProfileDirectory(), "shaderpacks")', shader_handler)
