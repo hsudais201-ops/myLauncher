@@ -5,6 +5,9 @@ import sys
 import xml.etree.ElementTree as ET
 
 ANDROID = "{http://schemas.android.com/apk/res/android}"
+TOOLS = "{http://schemas.android.com/tools}"
+ET.register_namespace("android", ANDROID[1:-1])
+ET.register_namespace("tools", TOOLS[1:-1])
 
 VECTOR = """<?xml version="1.0" encoding="utf-8"?>
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
