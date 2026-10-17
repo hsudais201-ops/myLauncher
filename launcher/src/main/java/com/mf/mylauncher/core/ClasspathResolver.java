@@ -94,7 +94,16 @@ public final class ClasspathResolver {
     }
 
     private static void requireDirectory(Path path, String label) throws IOException {
-        if (Files.isSymbolicLink(path) || !Files.isDirectory(path, LinkOption.NOFOLLOW_LINKS)) {
+        Path absolute = path.toAbsolutePath().normalize();
+        Path current = absolute.getRoot();
+        if (current == null) throw new IOException(label + " must be an absolute path");
+        for (Path segment : absolute) {
+            current = current.resolve(segment);
+            if (Files.isSymbolicLink(current)) {
+                throw new IOException(label + " path must not contain symbolic links");
+            }
+        }
+        if (!Files.isDirectory(absolute, LinkOption.NOFOLLOW_LINKS)) {
             throw new IOException(label + " must be an existing non-symlink directory");
         }
     }
