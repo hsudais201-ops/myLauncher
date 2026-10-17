@@ -52,8 +52,8 @@ class LauncherPreferences {
 
             self.assertIn("LauncherPreferences.writeMGRendererSettings(versionId);", activity)
             self.assertIn("writeMGRendererSettings(String versionId)", preferences)
-            self.assertIn('^26\\.3(?:$|[-+].*)', preferences)
-            self.assertIn('^26\\.3-snapshot-1(?:$|[-+].*)', preferences)
+            self.assertIn(r'^26\\.3(?:$|[-+].*)', preferences)
+            self.assertIn(r'^26\\.3-snapshot-1(?:$|[-+].*)', preferences)
             self.assertIn("isRenderPearlWorkaroundTarget(versionId) && errorSetting == 0", preferences)
             self.assertIn("errorSetting = 2;", preferences)
             self.assertIn('MGConfigJson.put("enableNoError", errorSetting);', preferences)
