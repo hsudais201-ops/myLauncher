@@ -1111,6 +1111,56 @@ public final class CoreTests {
                 task.getKind() == DownloadTask.Kind.NATIVE
                         && task.getRelativePath().equals(archive.getRelativeLibraryPath())),
                 "native archive path connected to install task");
+
+        LibraryRule modernLinuxRule = new LibraryRule(true, "linux", null, null, null);
+        DownloadArtifact epollArm64 = new DownloadArtifact(
+                URI.create("https://libraries.minecraft.net/io/netty/netty-transport-native-epoll/4.2.7.Final/"
+                        + "netty-transport-native-epoll-4.2.7.Final-linux-aarch_64.jar"),
+                hash1, 151, "io/netty/netty-transport-native-epoll/4.2.7.Final/"
+                        + "netty-transport-native-epoll-4.2.7.Final-linux-aarch_64.jar");
+        DownloadArtifact epollX64 = new DownloadArtifact(
+                URI.create("https://libraries.minecraft.net/io/netty/netty-transport-native-epoll/4.2.7.Final/"
+                        + "netty-transport-native-epoll-4.2.7.Final-linux-x86_64.jar"),
+                hash2, 152, "io/netty/netty-transport-native-epoll/4.2.7.Final/"
+                        + "netty-transport-native-epoll-4.2.7.Final-linux-x86_64.jar");
+        DownloadArtifact lwjglDesktop = new DownloadArtifact(
+                URI.create("https://libraries.minecraft.net/org/lwjgl/lwjgl-glfw/3.4.1/"
+                        + "lwjgl-glfw-3.4.1-natives-linux.jar"),
+                hash2, 153, "org/lwjgl/lwjgl-glfw/3.4.1/lwjgl-glfw-3.4.1-natives-linux.jar");
+        LibraryMetadata epollArm64Library = new LibraryMetadata(
+                "io.netty:netty-transport-native-epoll:4.2.7.Final:linux-aarch_64",
+                epollArm64, java.util.Collections.emptyMap(), java.util.Collections.emptyMap(),
+                java.util.Collections.singletonList(modernLinuxRule), java.util.Collections.emptyList());
+        LibraryMetadata epollX64Library = new LibraryMetadata(
+                "io.netty:netty-transport-native-epoll:4.2.7.Final:linux-x86_64",
+                epollX64, java.util.Collections.emptyMap(), java.util.Collections.emptyMap(),
+                java.util.Collections.singletonList(modernLinuxRule), java.util.Collections.emptyList());
+        LibraryMetadata lwjglDesktopLibrary = new LibraryMetadata(
+                "org.lwjgl:lwjgl-glfw:3.4.1:natives-linux",
+                lwjglDesktop, java.util.Collections.emptyMap(), java.util.Collections.emptyMap(),
+                java.util.Collections.singletonList(modernLinuxRule), java.util.Collections.emptyList());
+        VersionDetails modernDetails = new VersionDetails("26.1.2", "net.minecraft.client.main.Main", "30",
+                indexMetadata, client, 25,
+                Arrays.asList(epollArm64Library, epollX64Library, lwjglDesktopLibrary),
+                VersionArgumentSet.empty(), null);
+        yes(epollArm64Library.isCompatibleWithPlatform(linux),
+                "new Linux aarch_64 classifier maps to an ARM64 platform");
+        yes(!epollX64Library.isCompatibleWithPlatform(linux),
+                "new Linux x86_64 classifier is excluded from ARM64 platform");
+        yes(!lwjglDesktopLibrary.isCompatibleWithPlatform(linux),
+                "unqualified natives-linux classifier is treated as desktop x86_64");
+        NativeLibraryPlan modernPlan = NativeLibraryPlanner.create(modernDetails, linux, "linux", "arm64");
+        eq(1, modernPlan.getArchiveCount(),
+                "modern classifier planner selects only the explicit ARM64 native archive");
+        eq("libraries/" + epollArm64.getPath(), modernPlan.getArchives().get(0).getRelativeLibraryPath(),
+                "modern native classifier artifact path is retained");
+        InstallationPlan modernInstallPlan = InstallationPlanner.create(modernDetails, noAssets, linux, modernPlan);
+        eq(2, modernInstallPlan.getTaskCount(),
+                "modern native artifact is scheduled once alongside the client download");
+        eq(1, modernInstallPlan.count(DownloadTask.Kind.NATIVE),
+                "modern native archive keeps the native extraction task category");
+        eq(0, modernInstallPlan.count(DownloadTask.Kind.LIBRARY),
+                "same modern native payload is not double-scheduled as a library");
         VersionDetails otherVersion = new VersionDetails("1.20.6", "net.minecraft.client.main.Main",
                 "1.21.4", indexMetadata, client, 21,
                 Arrays.asList(nativeOne), VersionArgumentSet.empty(), null);
