@@ -834,7 +834,7 @@ def patch_upstream(upstream: Path) -> None:
             or 'android:layout_width="match_parent"' not in account_match.group(0)
             or 'android:drawableStart="@android:drawable/ic_menu_myplaces"' not in account_match.group(0)
             or 'android:text="@string/main_add_account"' not in account_match.group(0)
-            or 'app:layout_constraintTop_toBottomOf="@id/mylauncher_config_button"' not in account_match.group(0)
+            or 'app:layout_constraintTop_toBottomOf="@id/mylauncher_shaderpacks_button"' not in account_match.group(0)
             or open_files_index < 0
             or open_files_index > mods_match.start()
             or mods_match.start() > resourcepacks_match.start()
