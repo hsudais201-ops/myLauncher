@@ -72,21 +72,23 @@ Then fetch the pinned upstream source and build:
 
 ## Verification and limitations
 
-The latest full feature-branch validation is [GitHub Actions run #38995241453](https://github.com/hsudais201-ops/myLauncher/actions/runs/38995241453) for [PR #3](https://github.com/hsudais201-ops/myLauncher/pull/3), which added the Resource packs shortcut. It passed the Python regression suite, Android SDK/NDK setup, pinned Amethyst source checkout and submodules, customization plus `git diff --check`, Gradle build, APK signature and package/minimum-SDK checks, and the Android 9/API 28 headless emulator install-and-launch smoke test. The APK artifact includes a SHA-256 checksum sidecar; build information and emulator diagnostics were uploaded. The feature has been merged to `main`; post-merge verification is running in [run #38995666191](https://github.com/hsudais201-ops/myLauncher/actions/runs/38995666191).
+The post-merge `main` build [#38995666191](https://github.com/hsudais201-ops/myLauncher/actions/runs/38995666191) passed on code commit `20ef3ef4739f74c63f8db52a69f143166d583358`. It passed the Python regression suite, Android SDK/NDK setup, pinned Amethyst source checkout and submodules, customization plus `git diff --check`, Gradle build, APK signature and package/minimum-SDK checks, and Android 9/API 28 headless emulator install-and-launch smoke test. The workflow uploaded the debug APK with SHA-256 checksum sidecar, build info, and emulator diagnostics.
 
-The current smoke test verifies that the debug APK installs and that `LauncherActivity` becomes active in a cloud Android 9 emulator. It does not prove that the Resource packs button works through a real tap, that Microsoft sign-in succeeds, that a Minecraft version downloads fully, that the game enters a world, or that rendering/controllers/performance work on a physical phone or Chromebook. These still require interactive device/gameplay acceptance tests.
+That verified `main` build includes both the **Mods folder** and **Resource packs** shortcuts. The later **World saves** shortcut is proposed in [PR #4](https://github.com/hsudais201-ops/myLauncher/pull/4) and is not merged yet; its CI result must pass before it is listed as shipped.
 
-The launcher now has profile-specific **Mods folder** and **Resource packs** shortcuts in portrait and landscape layouts. They open each selected profile's `mods/` and `resourcepacks/` directories, creating a directory when it does not exist; these shortcuts provide manual file access, not full mod/resource-pack installation, activation, conflict detection, or compatibility checking.
+The cloud emulator smoke test verifies installation and that `LauncherActivity` becomes active. It does not prove that each folder button works through a physical tap, Microsoft sign-in succeeds, a Minecraft version downloads fully, a world starts, or rendering/controllers/performance work on a physical phone or Chromebook. Interactive device and gameplay acceptance tests remain necessary.
 
-The source patcher is regression-tested and the APK from the verified feature-branch run is signature-verified by CI. The project still builds the upstream Amethyst engine pinned at `330c6eae3164df64bdc4828e946a9e62cc5169e4`; myLauncher is a customization of that engine, not a replacement Java VM or game engine. Review [FEATURE_ROADMAP.md](FEATURE_ROADMAP.md) for which other feature groups remain inherited from upstream, partial, or planned.
+The shipped folder shortcuts open each selected profile's `mods/` and `resourcepacks/` directories and create them if missing. They provide manual file access, not full mod/resource-pack installation, activation, conflict detection, or compatibility checking. The proposed World saves shortcut would similarly open `saves/` for manual world file access, not implement automated backup, restore, or cloud sync.
+
+The source patcher is regression-tested and the current `main` APK is signature-verified by CI. The project still builds upstream Amethyst pinned at `330c6eae3164df64bdc4828e946a9e62cc5169e4`; myLauncher customizes that runtime rather than replacing its Java VM or game engine. Review [FEATURE_ROADMAP.md](FEATURE_ROADMAP.md) to distinguish inherited engine features, myLauncher-specific changes, and planned features.
 
 ### Missing-version metadata recovery
 
-If the launcher shows `FileNotFoundException` for `versions/<version>/<version>.json`, or reports that version metadata is missing, unreadable, or empty, treat that Minecraft installation as incomplete.
+If the launcher shows `FileNotFoundException` for a path such as `versions/<version>/<version>.json` or reports missing, unreadable, or empty metadata, treat that Minecraft installation as incomplete.
 
-1. Connect to a working internet connection, return to myLauncher, choose the same version, and press **Play** again. When online, the launcher is patched to download public version files even if the selected profile is local/offline.
-2. Leave the launcher open while downloads finish. Do not create an empty JSON file manually.
-3. If the error repeats, record the selected version ID and the relevant launcher log lines. Do not share Microsoft tokens or other account secrets.
+1. Connect to a working internet connection, return to myLauncher, select the same version, and press **Play** again. Connected local/offline profiles can download public version files without adding a Microsoft account.
+2. Leave the launcher open until the downloads finish. Do not create an empty JSON file manually.
+3. If the error repeats, record the selected version ID and relevant launcher log lines. Do not share Microsoft tokens or other account secrets.
 4. Without internet, use a version whose metadata, client, libraries, and assets are already installed. Creating a local profile alone does not install Minecraft.
 
 ## Manual device smoke test
