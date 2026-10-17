@@ -862,8 +862,8 @@ def patch_upstream(upstream: Path) -> None:
         icon,
     ))
 
-    print("myLauncher patch OK")
-    print("  app label: myLauncher")
+    print("Orbit Launcher patch OK")
+    print("  app label: Orbit Launcher")
     print("  application ID: com.mf.mylauncher (debug adds .debug)")
     print("  storage/share authorities: customized")
     print("  low-memory defaults: 296/448/512 MB RAM tiers and ~480 px short-edge target for <=2 GB")
@@ -876,7 +876,7 @@ def main(argv: list[str]) -> int:
     try:
         patch_upstream(Path(argv[1]).resolve())
     except (OSError, ValueError) as exc:
-        print(f"myLauncher patch FAILED: {exc}", file=sys.stderr)
+        print(f"Orbit Launcher patch FAILED: {exc}", file=sys.stderr)
         return 1
     return 0
 
