@@ -922,8 +922,9 @@ def patch_upstream(upstream: Path) -> None:
     if (
         main_menu_text.count(world_saves_binding) != 1
         or main_menu_text.count(world_saves_listener) != 1
-        or 'new File(getCurrentProfileDirectory(), "saves")' not in main_menu_text
-        or "!worldSavesDirectory.isDirectory() && !worldSavesDirectory.mkdirs()" not in main_menu_text
+        or "File profileDirectory = getCurrentProfileDirectory();" not in world_saves_listener
+        or 'new File(profileDirectory, "saves")' not in world_saves_listener
+        or "!worldSavesDirectory.isDirectory() && !worldSavesDirectory.mkdirs()" not in world_saves_listener
         or "openPath(v.getContext(), worldSavesDirectory, false);" not in main_menu_text
     ):
         raise ValueError("The world-saves shortcut binding, directory creation, or handler is incomplete")
