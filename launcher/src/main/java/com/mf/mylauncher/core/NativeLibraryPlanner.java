@@ -27,12 +27,21 @@ public final class NativeLibraryPlanner {
         for (LibraryMetadata library : details.getLibraries()) {
             if (!library.isAllowedOn(rulePlatform.getOsName(), rulePlatform.getArchitecture(),
                     rulePlatform.getOsVersion(), rulePlatform.getFeatures())) continue;
-            if (!library.getNatives().containsKey(nativeOsName)) continue;
-
-            Optional<DownloadArtifact> selected = library.findNativeArtifact(nativeOsName, architectureToken);
-            if (!selected.isPresent()) {
-                throw new IllegalArgumentException("Native classifier declared for " + library.getName()
-                        + " on " + nativeOsName + " does not exist for architecture token " + architectureToken);
+            Optional<DownloadArtifact> selected;
+            if (library.getNatives().containsKey(nativeOsName)) {
+                selected = library.findNativeArtifact(nativeOsName, architectureToken);
+                if (!selected.isPresent()) {
+                    throw new IllegalArgumentException("Native classifier declared for " + library.getName()
+                            + " on " + nativeOsName + " does not exist for architecture token " + architectureToken);
+                }
+            } else if (library.hasExplicitNativeClassifier()) {
+                if (!library.isExplicitNativeClassifierCompatible(nativeOsName, architectureToken)) continue;
+                selected = library.getArtifact();
+                if (!selected.isPresent()) {
+                    throw new IllegalArgumentException("Explicit native classifier has no artifact for " + library.getName());
+                }
+            } else {
+                continue;
             }
             DownloadArtifact artifact = selected.get();
             if (!artifact.hasPath()) {
