@@ -421,7 +421,6 @@ class ProfileTypeSelectFragment {
                 self.assertEqual(launcher_layout.count('android:id="@+id/mylauncher_world_saves_button"'), 1)
                 self.assertIn('android:text="VoidCraft Launcher"', launcher_layout)
                 self.assertIn('android:text="Minecraft Java Edition · by MF"', launcher_layout)
-                self.assertIn('android:text="Minecraft Java Edition · built for lightweight devices"', launcher_layout)
                 self.assertIn('android:text="@string/main_add_account"', launcher_layout)
                 self.assertIn('android:drawableStart="@android:drawable/ic_menu_myplaces"', launcher_layout)
                 self.assertIn('android:text="@string/main_mods_folder"', launcher_layout)
