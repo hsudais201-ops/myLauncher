@@ -94,7 +94,12 @@ class CustomizeAmethystTests(unittest.TestCase):
     void start() {
         if(isLocalProfile || !isOnline) {
             File providedJsonFile = new File(Tools.DIR_HOME_VERSION + "/" + realVersion + "/" + realVersion + ".json");
-            Tools.read(providedJsonFile.getAbsolutePath());
+            JMinecraftVersionList.Version providedJson = Tools.GLOBAL_GSON.fromJson(Tools.read(providedJsonFile.getAbsolutePath()), JMinecraftVersionList.Version.class);
+            File vanillaJsonFile = new File(Tools.DIR_HOME_VERSION + "/" + providedJson.inheritsFrom + "/" + providedJson.inheritsFrom + ".json");
+            versionMessage = providedJson.inheritsFrom != null ? providedJson.inheritsFrom : versionMessage;
+            if (providedJsonFile.length() == 0 || vanillaJsonFile.exists() && vanillaJsonFile.length() == 0) {
+                throw new RuntimeException("Minecraft " + versionMessage + " is needed by " + realVersion);
+            }
             String tryagain = !isOnline ? "Please ensure you have an internet connection" : "Please try again on your Microsoft Account";
             Tools.showErrorRemote(versionMessage + " is not currently installed. "+ tryagain, e);
         } else {
@@ -326,10 +331,26 @@ class ProfileTypeSelectFragment {
             self.assertIn("!providedJsonFile.isFile()", downloader)
             self.assertIn("!providedJsonFile.canRead()", downloader)
             self.assertIn("providedJsonFile.length() == 0", downloader)
+            self.assertIn("!vanillaJsonFile.isFile()", downloader)
+            self.assertIn("!vanillaJsonFile.canRead()", downloader)
+            self.assertIn("vanillaJsonFile.length() == 0", downloader)
+            self.assertIn("Base Minecraft version ", downloader)
             self.assertIn("Connect to the internet and select Play again to download it.", downloader)
             self.assertIn("version metadata is missing/corrupt.", downloader)
             self.assertIn('String tryagain = "Connect to the internet and try again.";', downloader)
             self.assertNotIn("Please try again on your Microsoft Account", downloader)
+
+    def test_rejects_missing_inherited_json_patch_anchor(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            self.fixture(root)
+            downloader_path = root / "app_pojavlauncher/src/main/java/net/kdt/pojavlaunch/tasks/MinecraftDownloader.java"
+            downloader_text = downloader_path.read_text(encoding="utf-8")
+            anchor = "versionMessage = providedJson.inheritsFrom != null ? providedJson.inheritsFrom : versionMessage;"
+            self.assertIn(anchor, downloader_text)
+            downloader_path.write_text(downloader_text.replace(anchor, "versionMessage = versionMessage;", 1), encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "Could not add missing/unreadable/empty inherited Minecraft version JSON guard"):
+                customizer.patch_upstream(root)
 
     def test_patches_branding_and_ids(self) -> None:
         with tempfile.TemporaryDirectory() as temp:

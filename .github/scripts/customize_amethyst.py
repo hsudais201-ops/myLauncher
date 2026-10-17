@@ -233,6 +233,51 @@ def patch_upstream(upstream: Path) -> None:
         if guard_count != 1 or json_guard_marker not in downloader_text:
             raise ValueError("Could not add missing/unreadable/empty Minecraft version JSON guard")
 
+    # A modded version may inherit the vanilla version's metadata. A modded JSON
+    # alone is not enough for an offline launch if its required parent JSON is missing.
+    inherited_json_guard_marker = (
+        "providedJson.inheritsFrom != null && (!vanillaJsonFile.isFile() "
+        "|| !vanillaJsonFile.canRead() || vanillaJsonFile.length() == 0)"
+    )
+    normalized_downloader_text = " ".join(downloader_text.split())
+    if inherited_json_guard_marker not in normalized_downloader_text:
+        inherits_line = re.compile(
+            r"(?m)^([ \\t]*)versionMessage = providedJson\\.inheritsFrom != null \\? providedJson\\.inheritsFrom : versionMessage;[ \\t]*$"
+        )
+
+        def add_inherited_json_guard(match: re.Match[str]) -> str:
+            indent = match.group(1)
+            guard_lines = (
+                "if (providedJson.inheritsFrom != null &&",
+                "    (!vanillaJsonFile.isFile() || !vanillaJsonFile.canRead() || vanillaJsonFile.length() == 0)) {",
+                "    throw new FileNotFoundException(",
+                '        "Base Minecraft version " + providedJson.inheritsFrom + " required by " + realVersion +',
+                '        " is missing or its metadata is unreadable/empty. " +',
+                '        "Connect to the internet and select Play again to download it."',
+                "    );",
+                "}",
+            )
+            return match.group(0) + "\\n" + "\\n".join(indent + line for line in guard_lines)
+
+        downloader_text, inherited_guard_count = inherits_line.subn(
+            add_inherited_json_guard, downloader_text, count=1
+        )
+        normalized_downloader_text = " ".join(downloader_text.split())
+        if inherited_guard_count != 1 or inherited_json_guard_marker not in normalized_downloader_text:
+            raise ValueError("Could not add missing/unreadable/empty inherited Minecraft version JSON guard")
+
+    inherited_guard_anchors = (
+        inherited_json_guard_marker,
+        "new FileNotFoundException(",
+        '"Base Minecraft version " + providedJson.inheritsFrom + " required by " + realVersion +',
+        "Connect to the internet and select Play again to download it.",
+    )
+    missing_inherited_guards = [
+        anchor for anchor in inherited_guard_anchors if anchor not in normalized_downloader_text
+    ]
+    if missing_inherited_guards:
+        raise ValueError(f"Inherited Minecraft version JSON guard is incomplete: {missing_inherited_guards}")
+
     downloader_text = replace_idempotently(
         downloader_text,
         'String tryagain = !isOnline ? "Please ensure you have an internet connection" : "Please try again on your Microsoft Account";',
