@@ -43,7 +43,10 @@ public final class NativeLibraryPlanner {
                             + " on " + nativeOsName + " does not exist for architecture token " + architectureToken);
                 }
             } else if (library.hasExplicitNativeClassifier()) {
-                if (!library.isExplicitNativeClassifierCompatible(nativeOsName, architectureToken)) continue;
+                // The classifier encodes a real CPU architecture (x86_64/arm64), whereas
+                // architectureToken may be the legacy Mojang placeholder such as "64".
+                if (!library.isExplicitNativeClassifierCompatible(nativeOsName,
+                        rulePlatform.getArchitecture())) continue;
                 selected = library.getArtifact();
                 if (!selected.isPresent()) {
                     throw new IllegalArgumentException("Explicit native classifier has no artifact for " + library.getName());
