@@ -91,6 +91,18 @@ def patch_upstream(upstream: Path) -> None:
         strings_text = strings_text[:account_string.end()] + "\n" + mods_string + strings_text[account_string.end():]
     if not re.search(r'<string\s+name="main_mods_folder"[^>]*>\s*Mods folder\s*</string>', strings_text):
         raise ValueError("Required main_mods_folder string is missing or invalid")
+    if not re.search(r'<string\s+name="main_resourcepacks_folder"', strings_text):
+        mods_string_match = re.search(
+            r'(?m)^([ \t]*<string\s+name="main_mods_folder"[^>]*>.*?</string>)[ \t]*$',
+            strings_text,
+        )
+        if not mods_string_match:
+            raise ValueError("Could not find main_mods_folder to add the resource-packs label")
+        indent = re.match(r"[ \t]*", mods_string_match.group(1)).group(0)
+        resourcepacks_string = indent + '<string name="main_resourcepacks_folder">Resource packs</string>'
+        strings_text = strings_text[:mods_string_match.end()] + "\n" + resourcepacks_string + strings_text[mods_string_match.end():]
+    if not re.search(r'<string\s+name="main_resourcepacks_folder"[^>]*>\s*Resource packs\s*</string>', strings_text):
+        raise ValueError("Required main_resourcepacks_folder string is missing or invalid")
     strings.write_text(strings_text, encoding="utf-8")
 
     colors_text = colors.read_text(encoding="utf-8")
@@ -362,13 +374,13 @@ def patch_upstream(upstream: Path) -> None:
             block = open_files_match.group(1) + "\n" + mods_button
             layout_text = layout_text[:open_files_match.start(1)] + block + layout_text[open_files_match.end(1):]
 
-        if "mylauncher_account_button" not in layout_text:
-            account_button = """            <com.kdt.mcgui.LauncherMenuButton
-                android:id="@+id/mylauncher_account_button"
+        if "mylauncher_resourcepacks_button" not in layout_text:
+            resourcepacks_button = """            <com.kdt.mcgui.LauncherMenuButton
+                android:id="@+id/mylauncher_resourcepacks_button"
                 style="@style/LauncherMenuButton.Universal"
                 android:layout_width="match_parent"
-                android:drawableStart="@android:drawable/ic_menu_myplaces"
-                android:text="@string/main_add_account"
+                android:drawableStart="@android:drawable/ic_menu_gallery"
+                android:text="@string/main_resourcepacks_folder"
                 app:layout_constraintTop_toBottomOf="@id/mylauncher_mods_button" />
 
 """
@@ -376,21 +388,48 @@ def patch_upstream(upstream: Path) -> None:
             mods_match = mods_pattern.search(layout_text)
             if not mods_match:
                 raise ValueError(f"Could not find mylauncher_mods_button in {layout_path}")
-            block = mods_match.group(1) + "\n" + account_button
+            block = mods_match.group(1) + "\n" + resourcepacks_button
             layout_text = layout_text[:mods_match.start(1)] + block + layout_text[mods_match.end(1):]
+
+        if "mylauncher_account_button" not in layout_text:
+            account_button = """            <com.kdt.mcgui.LauncherMenuButton
+                android:id="@+id/mylauncher_account_button"
+                style="@style/LauncherMenuButton.Universal"
+                android:layout_width="match_parent"
+                android:drawableStart="@android:drawable/ic_menu_myplaces"
+                android:text="@string/main_add_account"
+                app:layout_constraintTop_toBottomOf="@id/mylauncher_resourcepacks_button" />
+
+"""
+            resourcepacks_pattern = re.compile(r'(<com\.kdt\.mcgui\.LauncherMenuButton\s+android:id="@\+id/mylauncher_resourcepacks_button".*?/>\s*)', re.DOTALL)
+            resourcepacks_match = resourcepacks_pattern.search(layout_text)
+            if not resourcepacks_match:
+                raise ValueError(f"Could not find mylauncher_resourcepacks_button in {layout_path}")
+            block = resourcepacks_match.group(1) + "\n" + account_button
+            layout_text = layout_text[:resourcepacks_match.start(1)] + block + layout_text[resourcepacks_match.end(1):]
 
         account_pattern = re.compile(r'<com\.kdt\.mcgui\.LauncherMenuButton\s+android:id="@\+id/mylauncher_account_button".*?/>', re.DOTALL)
         account_match = account_pattern.search(layout_text)
-        if account_match and 'app:layout_constraintTop_toBottomOf="@id/open_files_button"' in account_match.group(0):
-            updated_account = account_match.group(0).replace(
-                'app:layout_constraintTop_toBottomOf="@id/open_files_button"',
-                'app:layout_constraintTop_toBottomOf="@id/mylauncher_mods_button"',
-                1,
-            )
-            layout_text = layout_text[:account_match.start()] + updated_account + layout_text[account_match.end():]
-            account_match = account_pattern.search(layout_text)
+        if account_match:
+            for prior_anchor in ("open_files_button", "mylauncher_mods_button"):
+                prior_constraint = 'app:layout_constraintTop_toBottomOf="@id/' + prior_anchor + '"'
+                if prior_constraint in account_match.group(0):
+                    updated_account = account_match.group(0).replace(
+                        prior_constraint,
+                        'app:layout_constraintTop_toBottomOf="@id/mylauncher_resourcepacks_button"',
+                        1,
+                    )
+                    layout_text = layout_text[:account_match.start()] + updated_account + layout_text[account_match.end():]
+                    account_match = account_pattern.search(layout_text)
+                    break
+
         mods_match = re.search(
             r'<com\.kdt\.mcgui\.LauncherMenuButton\s+android:id="@\+id/mylauncher_mods_button".*?/>',
+            layout_text,
+            flags=re.DOTALL,
+        )
+        resourcepacks_match = re.search(
+            r'<com\.kdt\.mcgui\.LauncherMenuButton\s+android:id="@\+id/mylauncher_resourcepacks_button".*?/>',
             layout_text,
             flags=re.DOTALL,
         )
@@ -403,18 +442,26 @@ def patch_upstream(upstream: Path) -> None:
             or 'android:drawableStart="@android:drawable/ic_menu_manage"' not in mods_match.group(0)
             or 'android:text="@string/main_mods_folder"' not in mods_match.group(0)
             or 'app:layout_constraintTop_toBottomOf="@id/open_files_button"' not in mods_match.group(0)
+            or not resourcepacks_match
+            or resourcepacks_match.group(0).count('android:id="@+id/mylauncher_resourcepacks_button"') != 1
+            or 'style="@style/LauncherMenuButton.Universal"' not in resourcepacks_match.group(0)
+            or 'android:layout_width="match_parent"' not in resourcepacks_match.group(0)
+            or 'android:drawableStart="@android:drawable/ic_menu_gallery"' not in resourcepacks_match.group(0)
+            or 'android:text="@string/main_resourcepacks_folder"' not in resourcepacks_match.group(0)
+            or 'app:layout_constraintTop_toBottomOf="@id/mylauncher_mods_button"' not in resourcepacks_match.group(0)
             or not account_match
             or account_match.group(0).count('android:id="@+id/mylauncher_account_button"') != 1
             or 'style="@style/LauncherMenuButton.Universal"' not in account_match.group(0)
             or 'android:layout_width="match_parent"' not in account_match.group(0)
             or 'android:drawableStart="@android:drawable/ic_menu_myplaces"' not in account_match.group(0)
             or 'android:text="@string/main_add_account"' not in account_match.group(0)
-            or 'app:layout_constraintTop_toBottomOf="@id/mylauncher_mods_button"' not in account_match.group(0)
+            or 'app:layout_constraintTop_toBottomOf="@id/mylauncher_resourcepacks_button"' not in account_match.group(0)
             or open_files_index < 0
             or open_files_index > mods_match.start()
-            or mods_match.start() > account_match.start()
+            or mods_match.start() > resourcepacks_match.start()
+            or resourcepacks_match.start() > account_match.start()
         ):
-            raise ValueError(f"myLauncher mods-folder or account shortcut is incomplete in {layout_path}")
+            raise ValueError(f"myLauncher mods/resource-packs/account shortcuts are incomplete in {layout_path}")
 
         title_match = re.search(
             r'<TextView\s+android:id="@\+id/mylauncher_hero_title".*?/>',
@@ -565,6 +612,37 @@ def patch_upstream(upstream: Path) -> None:
         or "import static net.kdt.pojavlaunch.Tools.openPath;" not in main_menu_text
     ):
         raise ValueError("The mods-folder shortcut binding, directory creation, or handler is incomplete")
+
+    resourcepacks_binding = "Button mMyLauncherResourcePacksButton = view.findViewById(R.id.mylauncher_resourcepacks_button);"
+    if resourcepacks_binding not in main_menu_text:
+        if mods_binding not in main_menu_text:
+            raise ValueError("Could not bind the resource-packs shortcut without the mods shortcut")
+        main_menu_text = main_menu_text.replace(mods_binding, mods_binding + "\n        " + resourcepacks_binding, 1)
+    resourcepacks_listener = """mMyLauncherResourcePacksButton.setOnClickListener(v -> {
+            if (Tools.isDemoProfile(v.getContext())) {
+                hasNoOnlineProfileDialog(getActivity(), getString(R.string.demo_unsupported), getString(R.string.change_account));
+                return;
+            }
+            File resourcePackDirectory = new File(getCurrentProfileDirectory(), "resourcepacks");
+            if (!resourcePackDirectory.isDirectory() && !resourcePackDirectory.mkdirs()) {
+                Toast.makeText(requireContext(), "Unable to create the resource packs folder", Toast.LENGTH_LONG).show();
+                return;
+            }
+            openPath(v.getContext(), resourcePackDirectory, false);
+        });"""
+    if resourcepacks_listener not in main_menu_text:
+        listener_anchor = "mVersionSpinner = view.findViewById(R.id.mc_version_spinner);"
+        if listener_anchor not in main_menu_text:
+            raise ValueError("Could not find the listener insertion point for the resource-packs shortcut")
+        main_menu_text = main_menu_text.replace(listener_anchor, "        " + resourcepacks_listener + "\n        " + listener_anchor, 1)
+    if (
+        main_menu_text.count(resourcepacks_binding) != 1
+        or main_menu_text.count(resourcepacks_listener) != 1
+        or 'new File(getCurrentProfileDirectory(), "resourcepacks")' not in main_menu_text
+        or "!resourcePackDirectory.isDirectory() && !resourcePackDirectory.mkdirs()" not in main_menu_text
+        or "openPath(v.getContext(), resourcePackDirectory, false);" not in main_menu_text
+    ):
+        raise ValueError("The resource-packs shortcut binding, directory creation, or handler is incomplete")
 
     main_menu.write_text(main_menu_text, encoding="utf-8")
 
