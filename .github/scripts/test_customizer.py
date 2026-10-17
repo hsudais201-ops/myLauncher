@@ -973,12 +973,13 @@ class ProfileTypeSelectFragment {
                 self.assertEqual(layout_text.count('android:id="@+id/' + view_id + '"'), 1)
             self.assertIn('app:layout_constraintTop_toBottomOf="@+id/log_filter_row"', layout_text)
 
-    def test_long_press_game_logs_offers_copy_and_bounded_redacted_share(self) -> None:
+    def test_long_press_game_logs_offers_copy_share_and_safe_diagnosis(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
             self.fixture(root)
             customizer.patch_upstream(root)
             menu = (root / "app_pojavlauncher/src/main/java/net/kdt/pojavlaunch/fragments/MainMenuFragment.java").read_text(encoding="utf-8")
+            strings = (root / "app_pojavlauncher/src/main/res/values/strings.xml").read_text(encoding="utf-8")
             self.assertIn("mMyLauncherLogsButton.setOnLongClickListener", menu)
             self.assertIn('new File(new File(getCurrentProfileDirectory(), "logs"), "latest.log")', menu)
             self.assertIn("final long maxLogBytes = 1024L * 1024L;", menu)
@@ -987,13 +988,30 @@ class ProfileTypeSelectFragment {
             self.assertIn('Bearer [REDACTED]', menu)
             self.assertIn("android.content.ClipboardManager", menu)
             self.assertIn('new android.app.AlertDialog.Builder(requireContext())', menu)
-            self.assertIn('setItems(new String[]{"Copy latest log", "Share latest log"}', menu)
+            self.assertIn('setItems(new String[]{"Copy latest log", "Share latest log", getString(R.string.main_log_diagnose_action)}', menu)
+            self.assertIn("toLowerCase(java.util.Locale.ROOT)", menu)
+            self.assertIn("R.string.main_log_diagnosis_memory", menu)
+            self.assertIn("R.string.main_log_diagnosis_renderer", menu)
+            self.assertIn("R.string.main_log_diagnosis_missing_files", menu)
+            self.assertIn("R.string.main_log_diagnosis_mod", menu)
+            self.assertIn("R.string.main_log_diagnosis_network", menu)
+            self.assertIn("R.string.main_log_diagnosis_storage", menu)
+            self.assertIn("setMessage(diagnosisResource)", menu)
             self.assertIn("Intent.ACTION_SEND", menu)
             self.assertIn("Intent.EXTRA_SUBJECT", menu)
             self.assertIn("Intent.EXTRA_TEXT", menu)
             self.assertIn("review before sending", menu)
             self.assertIn("Latest game log copied with sensitive tokens redacted", menu)
             self.assertIn("Tools.isDemoProfile(v.getContext())", menu)
+            self.assertIn('<string name="main_log_diagnose_action">Diagnose latest log</string>', strings)
+            self.assertIn('<string name="main_log_diagnosis_title">Latest game log diagnosis</string>', strings)
+            for resource_name in (
+                "main_log_diagnosis_unknown", "main_log_diagnosis_storage",
+                "main_log_diagnosis_memory", "main_log_diagnosis_java",
+                "main_log_diagnosis_renderer", "main_log_diagnosis_missing_files",
+                "main_log_diagnosis_mod", "main_log_diagnosis_network",
+            ):
+                self.assertRegex(strings, r'<string\s+name="' + resource_name + r'">[^<]+</string>')
 
     def test_screenshots_folder_shortcut_opens_the_selected_profile_screenshots_directory(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
