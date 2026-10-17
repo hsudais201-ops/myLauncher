@@ -177,7 +177,7 @@ def patch_upstream(upstream: Path) -> None:
     }.items():
         styles_text = set_style_item(styles_text, "LauncherMenuButton", item, value)
     styles_text = set_style_item(styles_text, "LauncherMenuButton.Universal", "android:layout_height", "58dp")
-    if not re.search(r'<style\s+name="MyLauncherDialogTheme"\b', styles_text):
+    if not re.search(r'<style\s+name="MyLauncherDialogTheme"', styles_text):
         end = re.search(r'</resources\s*>', styles_text)
         if not end:
             raise ValueError(f"Could not find </resources> in {styles}")
