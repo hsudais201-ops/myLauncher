@@ -560,6 +560,9 @@ def patch_upstream(upstream: Path) -> None:
         or 'new File(getCurrentProfileDirectory(), "mods")' not in main_menu_text
         or "!modsDirectory.isDirectory() && !modsDirectory.mkdirs()" not in main_menu_text
         or "openPath(v.getContext(), modsDirectory, false);" not in main_menu_text
+        or "import java.io.File;" not in main_menu_text
+        or "import android.widget.Toast;" not in main_menu_text
+        or "import static net.kdt.pojavlaunch.Tools.openPath;" not in main_menu_text
     ):
         raise ValueError("The mods-folder shortcut binding, directory creation, or handler is incomplete")
 
