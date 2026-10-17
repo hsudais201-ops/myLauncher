@@ -34,4 +34,11 @@ done
 timeout 20s adb shell dumpsys activity activities > upstream/mylauncher-activities.txt || true
 timeout 20s adb logcat -d -t 5000 > upstream/mylauncher-emulator-logcat.txt || true
 grep -Fq 'com.mf.mylauncher.debug/net.kdt.pojavlaunch.LauncherActivity' upstream/mylauncher-activities.txt
+
+# Capture an actual Android emulator screen after LauncherActivity is resumed.
+sleep 2
+timeout 20s adb shell screencap -p /sdcard/voidcraft-launcher-smoke.png
+timeout 20s adb pull /sdcard/voidcraft-launcher-smoke.png upstream/mylauncher-emulator-screenshot.png
+test -s upstream/mylauncher-emulator-screenshot.png
+echo "Emulator screenshot saved: upstream/mylauncher-emulator-screenshot.png"
 echo "Emulator smoke test passed: APK installed and LauncherActivity resumed."
