@@ -34,7 +34,7 @@ If the launcher reports `FileNotFoundException` for a path like `versions/<versi
 - The app name is normalized across localized Android string resources, and the in-app **About** text identifies the VoidCraft Launcher custom build and MF while retaining upstream and third-party license credits.
 - The Game logs shortcut opens the selected profile's `logs/` directory, creating it if needed, so logs are easier to find during troubleshooting.
 - The Screenshots shortcut opens the selected profile's `screenshots/` directory, creating it if needed, so screenshots can be browsed and copied without navigating through the entire game directory.
-- Long-press **World saves** to create a timestamped ZIP backup in that profile's `backups/` directory. Compression runs off the UI thread, incomplete ZIPs are discarded, and canonical-path checks reject save entries that escape `saves/`. Restoring a backup is still a manual extraction into `saves/`.
+- Tap **World saves** to open the saves folder or choose a ZIP backup to restore. Restore first extracts into a temporary directory, rejects unsafe or duplicate ZIP paths, and limits extraction to the smaller of 20 GB or the available storage budget while keeping free-space reserve. Restored worlds are moved into `saves/` without overwriting existing names (conflicts receive a `(restored)` suffix). Long-press **World saves** to create a timestamped ZIP backup in the profile's `backups/` directory. Backup and restore run off the UI thread and discard temporary files on failure.
 - The Android launcher icon is replaced by a lightweight vector mark matching the new dark/purple identity. No UI library or significant runtime dependency is added.
 
 ## Build the APK
@@ -84,7 +84,7 @@ The merged **World saves** shortcut was validated in [PR #4's workflow run #3899
 
 The cloud emulator smoke test verifies installation and that `LauncherActivity` becomes active. It does not prove that each folder button works through a physical tap, Microsoft sign-in succeeds, a Minecraft version downloads fully, a world starts, or rendering/controllers/performance work on a physical phone or Chromebook. Interactive device and gameplay acceptance tests remain necessary.
 
-The shipped folder shortcuts open each selected profile's `mods/`, `resourcepacks/`, and `saves/` directories and create them if missing. They provide manual file access, not full mod/resource-pack installation, activation, conflict detection, compatibility checking, automated world backup, restore, or cloud sync.
+The shipped folder shortcuts open each selected profile's `mods/`, `resourcepacks/`, and `saves/` directories and create them if missing. World saves also supports timestamped ZIP backups and guarded restore of a chosen backup. These features do not yet provide full mod/resource-pack installation, activation, conflict detection, compatibility checking, scheduled/cloud backups, or cloud sync.
 
 The source patcher is regression-tested and the current `main` APK is signature-verified by CI. The project still builds upstream Amethyst pinned at `330c6eae3164df64bdc4828e946a9e62cc5169e4`; VoidCraft Launcher customizes that runtime rather than replacing its Java VM or game engine. Review [FEATURE_ROADMAP.md](FEATURE_ROADMAP.md) to distinguish inherited engine features, VoidCraft Launcher-specific changes, and planned features.
 
