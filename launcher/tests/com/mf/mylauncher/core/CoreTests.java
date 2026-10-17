@@ -687,7 +687,7 @@ public final class CoreTests {
                 URI.create("https://libraries.minecraft.net/org/example/core/1.0/core.jar"),
                 hash1, 100, "org/example/core/1.0/core.jar");
         LibraryRule linuxRule = new LibraryRule(true, "linux", "aarch64", "6\\..*", null);
-        yes(new LibraryRule(true, "osx", null, "^10\\\\.", null)
+        yes(new LibraryRule(true, "osx", null, "^10\\.", null)
                 .matches("osx", "aarch64", "10.14.6", null),
                 "anchored OS-version regex matches a longer version string");
         yes(new LibraryRule(true, "linux", ".*64.*", null, null)
