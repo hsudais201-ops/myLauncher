@@ -57,56 +57,6 @@ class CustomizeAmethystTests(unittest.TestCase):
             '<color name="secondary_text">#B2B2B2</color></resources>\n',
             encoding="utf-8",
         )
-
-        (app / "src/main/res/values/styles.xml").write_text(
-            """<resources>
-<style name="AppTheme" parent="@style/Theme.AppCompat.NoActionBar">
-    <item name="android:statusBarColor">@color/background_status_bar</item>
-    <item name="android:navigationBarColor">@color/background_app</item>
-</style>
-<style name="LauncherMenuButton" parent="Widget.AppCompat.Button">
-    <item name="android:background">?android:attr/selectableItemBackground</item>
-</style>
-<style name="LauncherMenuButton.Universal" parent="LauncherMenuButton">
-    <item name="android:layout_height">66dp</item>
-</style>
-</resources>
-""",
-            encoding="utf-8",
-        )
-        (app / "src/main/res/drawable").mkdir(parents=True, exist_ok=True)
-        (app / "src/main/res/drawable/background_card.xml").write_text(
-            """<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
-    <corners android:radius="8dp" />
-    <padding android:bottom="2dp" android:left="2dp" android:right="2dp" android:top="2dp" />
-    <solid android:color="#242424" />
-</shape>
-""",
-            encoding="utf-8",
-        )
-        mcgui = app / "src/main/java/com/kdt/mcgui"
-        mcgui.mkdir(parents=True, exist_ok=True)
-        (mcgui / "MineButton.java").write_text(
-            """import androidx.core.content.res.ResourcesCompat;
-class MineButton {
-    void init() {
-        setBackground(ResourcesCompat.getDrawable(getResources(), R.drawable.mine_button_background, null));
-    }
-}
-""",
-            encoding="utf-8",
-        )
-        (mcgui / "MineEditText.java").write_text(
-            """import android.graphics.*;
-import android.widget.EditText;
-class MineEditText {
-    void init() {
-        setBackgroundColor(Color.parseColor("#131313"));
-    }
-}
-""",
-            encoding="utf-8",
-        )
         (root / "settings.gradle").write_text("rootProject.name='Amethyst'\n", encoding="utf-8")
 
         tools_java = app / "src/main/java/net/kdt/pojavlaunch/Tools.java"
@@ -388,8 +338,6 @@ class ProfileTypeSelectFragment {
             self.assertIn('<string name="main_mods_folder">Mods folder</string>', strings)
             self.assertIn('<string name="main_resourcepacks_folder">Resource packs</string>', strings)
             self.assertIn('<string name="main_world_saves_folder">World saves</string>', strings)
-            self.assertIn('<string name="mcl_setting_renderer_mobileglues">MobileGlues (OpenGL ES) - 26.3 compatibility varies by device</string>', strings)
-            self.assertIn('<string name="mcl_setting_renderer_vulkan_kopper_zink">Kopper Zink (Vulkan) - requires a compatible Vulkan driver</string>', strings)
             self.assertIn("if (deviceRam <= 2048) return 512;", prefs)
             self.assertIn("int targetSide = Tools.getTotalDeviceMemory(context) <= 2048 ? 480 : (isDevicePowerful ? 1080 : 720);", prefs)
             self.assertNotIn("int targetSide = isDevicePowerful ? 1080 :", prefs)
@@ -439,21 +387,7 @@ class ProfileTypeSelectFragment {
             self.assertIn('android:roundIcon="@drawable/mylauncher_icon"', manifest)
             self.assertIn('android:label="@string/app_name"', manifest)
             self.assertNotIn("org.angelauramc.amethyst", manifest)
-            self.assertIn('android:fillColor="#BBA2FF"', icon)
-            self.assertIn('android:fillColor="#0D0A14"', icon)
-            colors_text = (root / "app_pojavlauncher/src/main/res/values/colors.xml").read_text(encoding="utf-8")
-            styles_text = (root / "app_pojavlauncher/src/main/res/values/styles.xml").read_text(encoding="utf-8")
-            button_text = (root / "app_pojavlauncher/src/main/java/com/kdt/mcgui/MineButton.java").read_text(encoding="utf-8")
-            edit_text = (root / "app_pojavlauncher/src/main/java/com/kdt/mcgui/MineEditText.java").read_text(encoding="utf-8")
-            self.assertIn('<color name="mylauncher_surface_elevated">#211A2E</color>', colors_text)
-            self.assertIn('<item name="colorAccent">@color/mylauncher_accent</item>', styles_text)
-            self.assertIn('<item name="android:background">@drawable/mylauncher_button_background</item>', styles_text)
-            self.assertIn('name="MyLauncherDialogTheme"', styles_text)
-            self.assertIn('R.drawable.mylauncher_primary_button_background', button_text)
-            self.assertIn('R.color.mylauncher_primary_text', button_text)
-            self.assertIn('R.drawable.mylauncher_input_background', edit_text)
-            self.assertIn('setHintTextColor', edit_text)
-            self.assertNotIn('Color.parseColor("#131313")', edit_text)
+            self.assertIn('android:fillColor="#7C5CFF"', icon)
             # All transformed resources must remain well-formed XML.
             for xml_path in (
                 root / "app_pojavlauncher/src/main/res/layout/fragment_launcher.xml",
@@ -463,12 +397,6 @@ class ProfileTypeSelectFragment {
                 root / "app_pojavlauncher/src/main/res/drawable/mylauncher_icon.xml",
                 root / "app_pojavlauncher/src/main/res/values/strings.xml",
                 root / "app_pojavlauncher/src/main/res/values/colors.xml",
-                root / "app_pojavlauncher/src/main/res/values/styles.xml",
-                root / "app_pojavlauncher/src/main/res/drawable/background_card.xml",
-                root / "app_pojavlauncher/src/main/res/drawable/mylauncher_button_background.xml",
-                root / "app_pojavlauncher/src/main/res/drawable/mylauncher_primary_button_background.xml",
-                root / "app_pojavlauncher/src/main/res/drawable/mylauncher_input_background.xml",
-                root / "app_pojavlauncher/src/main/res/drawable/mylauncher_hero_background.xml",
             ):
                 with self.subTest(xml=str(xml_path.relative_to(root))):
                     ET.parse(xml_path)
@@ -479,18 +407,14 @@ class ProfileTypeSelectFragment {
             for relative in ("src/main/res/layout/fragment_launcher.xml", "src/main/res/layout-land/fragment_launcher.xml"):
                 launcher_layout = (root / "app_pojavlauncher" / relative).read_text(encoding="utf-8")
                 self.assertTrue(all(line == line.rstrip() for line in launcher_layout.splitlines()), relative)
-                self.assertEqual(launcher_layout.count('android:id="@+id/mylauncher_hero_background"'), 1)
-                self.assertEqual(launcher_layout.count('android:id="@+id/mylauncher_hero_kicker"'), 1)
                 self.assertEqual(launcher_layout.count('android:id="@+id/mylauncher_hero_title"'), 1)
                 self.assertEqual(launcher_layout.count('android:id="@+id/mylauncher_hero_subtitle"'), 1)
-                self.assertIn('android:background="@drawable/mylauncher_hero_background"', launcher_layout)
-                self.assertIn('android:text="MYLAUNCHER  /  JAVA EDITION"', launcher_layout)
                 self.assertEqual(launcher_layout.count('android:id="@+id/mylauncher_account_button"'), 1)
                 self.assertEqual(launcher_layout.count('android:id="@+id/mylauncher_mods_button"'), 1)
                 self.assertEqual(launcher_layout.count('android:id="@+id/mylauncher_resourcepacks_button"'), 1)
                 self.assertEqual(launcher_layout.count('android:id="@+id/mylauncher_world_saves_button"'), 1)
                 self.assertIn('android:text="myLauncher"', launcher_layout)
-                self.assertIn('android:text="Your Java worlds, reimagined for mobile."', launcher_layout)
+                self.assertIn('android:text="Minecraft Java Edition · built for lightweight devices"', launcher_layout)
                 self.assertIn('android:text="@string/main_add_account"', launcher_layout)
                 self.assertIn('android:drawableStart="@android:drawable/ic_menu_myplaces"', launcher_layout)
                 self.assertIn('android:text="@string/main_mods_folder"', launcher_layout)
