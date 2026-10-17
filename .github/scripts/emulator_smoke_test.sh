@@ -14,7 +14,18 @@ timeout 180s adb install -r "$APK_PATH"
 timeout 15s adb shell pm grant com.mf.mylauncher.debug android.permission.READ_EXTERNAL_STORAGE
 timeout 15s adb shell pm grant com.mf.mylauncher.debug android.permission.WRITE_EXTERNAL_STORAGE
 timeout 15s adb shell am force-stop com.mf.mylauncher.debug || true
-timeout 30s adb shell monkey -p com.mf.mylauncher.debug 1
+# Some emulator images leave monkey running after it dispatches the launcher tap.
+# Only tolerate a timeout here; the activity assertion below remains the launch gate.
+if timeout 30s adb shell monkey -p com.mf.mylauncher.debug 1; then
+    :
+else
+    monkey_status=$?
+    if [ "$monkey_status" -eq 124 ]; then
+        echo "Monkey timed out after dispatch; continuing to verify LauncherActivity."
+    else
+        exit "$monkey_status"
+    fi
+fi
 
 for i in $(seq 1 45); do
     if timeout 10s adb shell dumpsys activity activities | tr -d '\r' | grep -Fq 'com.mf.mylauncher.debug/net.kdt.pojavlaunch.LauncherActivity'; then
@@ -34,4 +45,11 @@ done
 timeout 20s adb shell dumpsys activity activities > upstream/mylauncher-activities.txt || true
 timeout 20s adb logcat -d -t 5000 > upstream/mylauncher-emulator-logcat.txt || true
 grep -Fq 'com.mf.mylauncher.debug/net.kdt.pojavlaunch.LauncherActivity' upstream/mylauncher-activities.txt
+# Capture the Android emulator screen after LauncherActivity becomes available.
+sleep 2
+timeout 20s adb shell screencap -p /sdcard/voidcraft-launcher-smoke.png
+timeout 20s adb pull /sdcard/voidcraft-launcher-smoke.png upstream/mylauncher-emulator-screenshot.png
+test -s upstream/mylauncher-emulator-screenshot.png
+timeout 10s adb shell rm -f /sdcard/voidcraft-launcher-smoke.png || true
+echo "Emulator screenshot saved: upstream/mylauncher-emulator-screenshot.png"
 echo "Emulator smoke test passed: APK installed and LauncherActivity resumed."
