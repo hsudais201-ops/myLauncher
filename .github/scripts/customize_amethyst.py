@@ -224,6 +224,18 @@ def patch_upstream(upstream: Path) -> None:
     if not re.search(r'<string\s+name="main_config_folder"[^>]*>\s*Config folder\s*</string>', strings_text):
         raise ValueError("Required main_config_folder string is missing or invalid")
 
+    if not re.search(r'<string\s+name="main_shaderpacks_folder"', strings_text):
+        screenshots_string_match = re.search(
+            r'(?m)^([ \t]*<string\s+name="main_screenshots_folder"[^>]*>.*?</string>)[ \t]*$',
+            strings_text,
+        )
+        if not screenshots_string_match:
+            raise ValueError("Could not find main_screenshots_folder to add the shader-packs label")
+        indent = re.match(r"[ \t]*", screenshots_string_match.group(1)).group(0)
+        shaderpacks_string = indent + '<string name="main_shaderpacks_folder">Shader packs</string>'
+        strings_text = strings_text[:screenshots_string_match.end()] + "\n" + shaderpacks_string + strings_text[screenshots_string_match.end():]
+    if not re.search(r'<string\s+name="main_shaderpacks_folder"[^>]*>\s*Shader packs\s*</string>', strings_text):
+        raise ValueError("Required main_shaderpacks_folder string is missing or invalid")
     strings.write_text(strings_text, encoding="utf-8")
 
     # App names can be localized in values-*/strings.xml. Force the product
@@ -669,6 +681,23 @@ def patch_upstream(upstream: Path) -> None:
             block = crash_reports_match.group(1) + "\n" + config_button
             layout_text = layout_text[:crash_reports_match.start(1)] + block + layout_text[crash_reports_match.end(1):]
 
+        if "mylauncher_shaderpacks_button" not in layout_text:
+            shaderpacks_button = """            <com.kdt.mcgui.LauncherMenuButton
+                android:id="@+id/mylauncher_shaderpacks_button"
+                style="@style/LauncherMenuButton.Universal"
+                android:layout_width="match_parent"
+                android:drawableStart="@android:drawable/ic_menu_gallery"
+                android:text="@string/main_shaderpacks_folder"
+                app:layout_constraintTop_toBottomOf="@id/mylauncher_config_button" />
+
+"""
+            config_pattern = re.compile(r'(<com\.kdt\.mcgui\.LauncherMenuButton\s+android:id="@\+id/mylauncher_config_button".*?/>\s*)', re.DOTALL)
+            config_match = config_pattern.search(layout_text)
+            if not config_match:
+                raise ValueError(f"Could not find mylauncher_config_button to add shader-packs shortcut in {layout_path}")
+            block = config_match.group(1) + "\n" + shaderpacks_button
+            layout_text = layout_text[:config_match.start(1)] + block + layout_text[config_match.end(1):]
+
         if "mylauncher_account_button" not in layout_text:
             account_button = """            <com.kdt.mcgui.LauncherMenuButton
                 android:id="@+id/mylauncher_account_button"
@@ -676,25 +705,25 @@ def patch_upstream(upstream: Path) -> None:
                 android:layout_width="match_parent"
                 android:drawableStart="@android:drawable/ic_menu_myplaces"
                 android:text="@string/main_add_account"
-                app:layout_constraintTop_toBottomOf="@id/mylauncher_config_button" />
+                app:layout_constraintTop_toBottomOf="@id/mylauncher_shaderpacks_button" />
 
 """
-            config_pattern = re.compile(r'(<com\.kdt\.mcgui\.LauncherMenuButton\s+android:id="@\+id/mylauncher_config_button".*?/>\s*)', re.DOTALL)
-            config_match = config_pattern.search(layout_text)
-            if not config_match:
-                raise ValueError(f"Could not find mylauncher_config_button in {layout_path}")
-            block = config_match.group(1) + "\n" + account_button
-            layout_text = layout_text[:config_match.start(1)] + block + layout_text[config_match.end(1):]
+            shaderpacks_pattern = re.compile(r'(<com\.kdt\.mcgui\.LauncherMenuButton\s+android:id="@\+id/mylauncher_shaderpacks_button".*?/>\s*)', re.DOTALL)
+            shaderpacks_match = shaderpacks_pattern.search(layout_text)
+            if not shaderpacks_match:
+                raise ValueError(f"Could not find mylauncher_shaderpacks_button in {layout_path}")
+            block = shaderpacks_match.group(1) + "\n" + account_button
+            layout_text = layout_text[:shaderpacks_match.start(1)] + block + layout_text[shaderpacks_match.end(1):]
 
         account_pattern = re.compile(r'<com\.kdt\.mcgui\.LauncherMenuButton\s+android:id="@\+id/mylauncher_account_button".*?/>', re.DOTALL)
         account_match = account_pattern.search(layout_text)
         if account_match:
-            for prior_anchor in ("open_files_button", "mylauncher_mods_button", "mylauncher_resourcepacks_button", "mylauncher_world_saves_button", "mylauncher_logs_button", "mylauncher_screenshots_button", "mylauncher_crash_reports_button"):
+            for prior_anchor in ("open_files_button", "mylauncher_mods_button", "mylauncher_resourcepacks_button", "mylauncher_world_saves_button", "mylauncher_logs_button", "mylauncher_screenshots_button", "mylauncher_crash_reports_button", "mylauncher_config_button"):
                 prior_constraint = 'app:layout_constraintTop_toBottomOf="@id/' + prior_anchor + '"'
                 if prior_constraint in account_match.group(0):
                     updated_account = account_match.group(0).replace(
                         prior_constraint,
-                        'app:layout_constraintTop_toBottomOf="@id/mylauncher_config_button"',
+                        'app:layout_constraintTop_toBottomOf="@id/mylauncher_shaderpacks_button"',
                         1,
                     )
                     layout_text = layout_text[:account_match.start()] + updated_account + layout_text[account_match.end():]
@@ -733,6 +762,11 @@ def patch_upstream(upstream: Path) -> None:
         )
         config_match = re.search(
             r'<com\.kdt\.mcgui\.LauncherMenuButton\s+android:id="@\+id/mylauncher_config_button".*?/>',
+            layout_text,
+            flags=re.DOTALL,
+        )
+        shaderpacks_match = re.search(
+            r'<com\.kdt\.mcgui\.LauncherMenuButton\s+android:id="@\+id/mylauncher_shaderpacks_button".*?/>',
             layout_text,
             flags=re.DOTALL,
         )
@@ -787,13 +821,20 @@ def patch_upstream(upstream: Path) -> None:
             or 'android:drawableStart="@android:drawable/ic_menu_preferences"' not in config_match.group(0)
             or 'android:text="@string/main_config_folder"' not in config_match.group(0)
             or 'app:layout_constraintTop_toBottomOf="@id/mylauncher_crash_reports_button"' not in config_match.group(0)
+            or not shaderpacks_match
+            or shaderpacks_match.group(0).count('android:id="@+id/mylauncher_shaderpacks_button"') != 1
+            or 'style="@style/LauncherMenuButton.Universal"' not in shaderpacks_match.group(0)
+            or 'android:layout_width="match_parent"' not in shaderpacks_match.group(0)
+            or 'android:drawableStart="@android:drawable/ic_menu_gallery"' not in shaderpacks_match.group(0)
+            or 'android:text="@string/main_shaderpacks_folder"' not in shaderpacks_match.group(0)
+            or 'app:layout_constraintTop_toBottomOf="@id/mylauncher_config_button"' not in shaderpacks_match.group(0)
             or not account_match
             or account_match.group(0).count('android:id="@+id/mylauncher_account_button"') != 1
             or 'style="@style/LauncherMenuButton.Universal"' not in account_match.group(0)
             or 'android:layout_width="match_parent"' not in account_match.group(0)
             or 'android:drawableStart="@android:drawable/ic_menu_myplaces"' not in account_match.group(0)
             or 'android:text="@string/main_add_account"' not in account_match.group(0)
-            or 'app:layout_constraintTop_toBottomOf="@id/mylauncher_config_button"' not in account_match.group(0)
+            or 'app:layout_constraintTop_toBottomOf="@id/mylauncher_shaderpacks_button"' not in account_match.group(0)
             or open_files_index < 0
             or open_files_index > mods_match.start()
             or mods_match.start() > resourcepacks_match.start()
@@ -802,9 +843,10 @@ def patch_upstream(upstream: Path) -> None:
             or logs_match.start() > screenshots_match.start()
             or screenshots_match.start() > crash_reports_match.start()
             or crash_reports_match.start() > config_match.start()
-            or config_match.start() > account_match.start()
+            or config_match.start() > shaderpacks_match.start()
+            or shaderpacks_match.start() > account_match.start()
         ):
-            raise ValueError(f"myLauncher mods/resource-packs/world-saves/logs/screenshots/crash-reports/config/account shortcuts are incomplete in {layout_path}")
+            raise ValueError(f"myLauncher mods/resource-packs/world-saves/logs/screenshots/crash-reports/config/shader-packs/account shortcuts are incomplete in {layout_path}")
 
         title_match = re.search(
             r'<TextView\s+android:id="@\+id/mylauncher_hero_title".*?/>',
@@ -825,6 +867,7 @@ def patch_upstream(upstream: Path) -> None:
             or layout_text.count('android:id="@+id/mylauncher_screenshots_button"') != 1
             or layout_text.count('android:id="@+id/mylauncher_crash_reports_button"') != 1
             or layout_text.count('android:id="@+id/mylauncher_config_button"') != 1
+            or layout_text.count('android:id="@+id/mylauncher_shaderpacks_button"') != 1
             or layout_text.count('android:id="@+id/news_button"') != 1
             or layout_text.count('android:id="@+id/discord_button"') != 1
             or layout_text.count('android:id="@+id/social_divider"') != 1
@@ -1544,6 +1587,38 @@ def patch_upstream(upstream: Path) -> None:
         or "Tools.isDemoProfile(v.getContext())" not in config_listener
     ):
         raise ValueError("The Config-folder shortcut binding, directory creation, or handler is incomplete")
+
+    shaderpacks_binding = "Button mMyLauncherShaderPacksButton = view.findViewById(R.id.mylauncher_shaderpacks_button);"
+    if shaderpacks_binding not in main_menu_text:
+        if screenshots_binding not in main_menu_text:
+            raise ValueError("Could not bind the shader-packs shortcut without the Screenshots shortcut")
+        main_menu_text = main_menu_text.replace(screenshots_binding, screenshots_binding + "\n        " + shaderpacks_binding, 1)
+    shaderpacks_listener = """mMyLauncherShaderPacksButton.setOnClickListener(v -> {
+            if (Tools.isDemoProfile(v.getContext())) {
+                hasNoOnlineProfileDialog(getActivity(), getString(R.string.demo_unsupported), getString(R.string.change_account));
+                return;
+            }
+            File shaderPacksDirectory = new File(getCurrentProfileDirectory(), "shaderpacks");
+            if (!shaderPacksDirectory.isDirectory() && !shaderPacksDirectory.mkdirs()) {
+                Toast.makeText(requireContext(), "Unable to create the shader packs folder", Toast.LENGTH_LONG).show();
+                return;
+            }
+            openPath(v.getContext(), shaderPacksDirectory, false);
+        });"""
+    if shaderpacks_listener not in main_menu_text:
+        listener_anchor = "mVersionSpinner = view.findViewById(R.id.mc_version_spinner);"
+        if listener_anchor not in main_menu_text:
+            raise ValueError("Could not find the listener insertion point for the shader-packs shortcut")
+        main_menu_text = main_menu_text.replace(listener_anchor, "        " + shaderpacks_listener + "\n        " + listener_anchor, 1)
+    if (
+        main_menu_text.count(shaderpacks_binding) != 1
+        or main_menu_text.count(shaderpacks_listener) != 1
+        or 'new File(getCurrentProfileDirectory(), "shaderpacks")' not in main_menu_text
+        or "!shaderPacksDirectory.isDirectory() && !shaderPacksDirectory.mkdirs()" not in main_menu_text
+        or "openPath(v.getContext(), shaderPacksDirectory, false);" not in main_menu_text
+        or "Tools.isDemoProfile(v.getContext())" not in shaderpacks_listener
+    ):
+        raise ValueError("The shader-packs shortcut binding, directory creation, or handler is incomplete")
 
     required_backup_imports = (
         "import java.io.FileInputStream;",

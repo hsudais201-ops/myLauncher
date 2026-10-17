@@ -477,6 +477,11 @@ class ProfileTypeSelectFragment {
             self.assertIn('new File(getCurrentProfileDirectory(), "config")', main_menu)
             self.assertIn("!configDirectory.isDirectory() && !configDirectory.mkdirs()", main_menu)
             self.assertIn("openPath(v.getContext(), configDirectory, false);", main_menu)
+            self.assertIn("Button mMyLauncherShaderPacksButton = view.findViewById(R.id.mylauncher_shaderpacks_button);", main_menu)
+            self.assertIn("mMyLauncherShaderPacksButton.setOnClickListener", main_menu)
+            self.assertIn('new File(getCurrentProfileDirectory(), "shaderpacks")', main_menu)
+            self.assertIn("!shaderPacksDirectory.isDirectory() && !shaderPacksDirectory.mkdirs()", main_menu)
+            self.assertIn("openPath(v.getContext(), shaderPacksDirectory, false);", main_menu)
             activity = (root / "app_pojavlauncher/src/main/java/net/kdt/pojavlaunch/LauncherActivity.java").read_text(encoding="utf-8")
             self.assertIn("ExtraCore.addExtraListener(ExtraConstants.SELECT_AUTH_METHOD, mSelectAuthMethod);", activity)
             self.assertIn("Tools.swapFragment(this, SelectAuthFragment.class, SelectAuthFragment.TAG, null);", activity)
@@ -518,6 +523,7 @@ class ProfileTypeSelectFragment {
                 self.assertEqual(launcher_layout.count('android:id="@+id/mylauncher_screenshots_button"'), 1)
                 self.assertEqual(launcher_layout.count('android:id="@+id/mylauncher_crash_reports_button"'), 1)
                 self.assertEqual(launcher_layout.count('android:id="@+id/mylauncher_config_button"'), 1)
+                self.assertEqual(launcher_layout.count('android:id="@+id/mylauncher_shaderpacks_button"'), 1)
                 self.assertIn('android:text="VoidCraft Launcher"', launcher_layout)
                 self.assertIn('android:text="Minecraft Java Edition · by MF"', launcher_layout)
                 self.assertIn('android:text="@string/main_add_account"', launcher_layout)
@@ -543,6 +549,8 @@ class ProfileTypeSelectFragment {
                 self.assertIn('android:text="@string/main_config_folder"', launcher_layout)
                 self.assertIn('android:drawableStart="@android:drawable/ic_menu_preferences"', launcher_layout)
                 self.assertIn('app:layout_constraintTop_toBottomOf="@id/mylauncher_config_button"', launcher_layout)
+                self.assertIn('android:text="@string/main_shaderpacks_folder"', launcher_layout)
+                self.assertIn('app:layout_constraintTop_toBottomOf="@id/mylauncher_shaderpacks_button"', launcher_layout)
                 self.assertIn('app:layout_constraintTop_toTopOf="@id/news_button"', launcher_layout)
                 self.assertIn('app:layout_constraintTop_toBottomOf="@id/mylauncher_hero_subtitle"', launcher_layout)
 
@@ -895,6 +903,25 @@ class ProfileTypeSelectFragment {
                 self.assertIn('android:text="@string/main_config_folder"', layout)
                 self.assertIn('app:layout_constraintTop_toBottomOf="@id/mylauncher_crash_reports_button"', layout)
                 self.assertIn('app:layout_constraintTop_toBottomOf="@id/mylauncher_config_button"', layout)
+
+    def test_shaderpacks_folder_shortcut_opens_the_selected_profile_shaderpacks_directory(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            self.fixture(root)
+            customizer.patch_upstream(root)
+            menu = (root / "app_pojavlauncher/src/main/java/net/kdt/pojavlaunch/fragments/MainMenuFragment.java").read_text(encoding="utf-8")
+            strings = (root / "app_pojavlauncher/src/main/res/values/strings.xml").read_text(encoding="utf-8")
+            self.assertIn('<string name="main_shaderpacks_folder">Shader packs</string>', strings)
+            self.assertIn("Tools.isDemoProfile(v.getContext())", menu)
+            self.assertIn('new File(getCurrentProfileDirectory(), "shaderpacks")', menu)
+            self.assertIn('if (!shaderPacksDirectory.isDirectory() && !shaderPacksDirectory.mkdirs())', menu)
+            self.assertIn('openPath(v.getContext(), shaderPacksDirectory, false);', menu)
+            for relative in ("src/main/res/layout/fragment_launcher.xml", "src/main/res/layout-land/fragment_launcher.xml"):
+                layout = (root / "app_pojavlauncher" / relative).read_text(encoding="utf-8")
+                self.assertEqual(layout.count('android:id="@+id/mylauncher_shaderpacks_button"'), 1)
+                self.assertIn('android:text="@string/main_shaderpacks_folder"', layout)
+                self.assertIn('app:layout_constraintTop_toBottomOf="@id/mylauncher_screenshots_button"', layout)
+                self.assertIn('app:layout_constraintTop_toBottomOf="@id/mylauncher_shaderpacks_button"', layout)
 
     def test_is_idempotent(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
