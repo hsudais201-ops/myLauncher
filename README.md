@@ -30,8 +30,9 @@ If the launcher reports `FileNotFoundException` for a path like `versions/<versi
 3. If the error continues, copy the exact version ID and the relevant error from the launcher log. Do not share Microsoft access tokens or other account secrets.
 4. When offline, use a version whose metadata, client, libraries, and assets are already installed. Creating a local profile alone does not install Minecraft files.
 - Local profiles can browse their game directory. Some upstream utilities, including the JAR installer, retain the upstream online-account requirement; this customization does not remove those separate restrictions.
-- The launcher home screen gets a lightweight VoidCraft Launcher title/subtitle header plus a dedicated **Add account** shortcut in portrait and landscape. The shortcut opens the existing Microsoft/local account selector.
+- The launcher home screen gets a lightweight VoidCraft Launcher title/subtitle header plus a dedicated **Add account** shortcut in portrait and landscape. The shortcut opens the existing Microsoft/local account selector. Profile shortcuts expose Mods, Resource packs, World saves, and Game logs.
 - The app name is normalized across localized Android string resources, and the in-app **About** text identifies the VoidCraft Launcher custom build and MF while retaining upstream and third-party license credits.
+- The Game logs shortcut opens the selected profile's `logs/` directory, creating it if needed, so logs are easier to find during troubleshooting.
 - The Android launcher icon is replaced by a lightweight vector mark matching the new dark/purple identity. No UI library or significant runtime dependency is added.
 
 ## Build the APK
@@ -48,8 +49,8 @@ The workflow fetches the exact Amethyst commit `330c6eae3164df64bdc4828e946a9e62
 - `.gitignore` — excludes local upstream checkouts, Python caches, and build outputs.
 - `.github/workflows/build.yml` — repeatable Android build workflow, triggered by relevant pushes to `main`, pull requests, or a manual dispatch.
 - `.github/workflows/runner-diagnostic.yml` — minimal hosted-runner diagnostic workflow.
-- `.github/scripts/customize_amethyst.py` — deterministic patch for app branding, package/authority IDs, low-memory defaults, offline account access, launcher header, account shortcut, and vector app icon.
-- `.github/scripts/test_customizer.py` — regression tests for branding, offline-account username syntax/length/duplicate-profile and boolean-logic guards, account submission and labeling, auth-selector listener/navigation safety, local game-directory access, both launcher layouts, XML well-formedness, missing-anchor failures, repeat-run idempotency, Android toolchain alignment, and CI submodule/APK safeguards.
+- `.github/scripts/customize_amethyst.py` — deterministic patch for app branding, package/authority IDs, low-memory defaults, offline account access, launcher header, account and profile-folder shortcuts, and vector app icon.
+- `.github/scripts/test_customizer.py` — regression tests for branding, offline-account username syntax/length/duplicate-profile and boolean-logic guards, account submission and labeling, auth-selector listener/navigation safety, local game-directory access, both launcher layouts, the Game logs shortcut, XML well-formedness, missing-anchor failures, repeat-run idempotency, Android toolchain alignment, and CI submodule/APK safeguards.
 
 ## Local build
 
