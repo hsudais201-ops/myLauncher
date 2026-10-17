@@ -210,6 +210,18 @@ def patch_upstream(upstream: Path) -> None:
         strings_text = strings_text[:crash_reports_string_match.end()] + "\n" + config_string + strings_text[crash_reports_string_match.end():]
     if not re.search(r'<string\s+name="main_config_folder"[^>]*>\s*Config folder\s*</string>', strings_text):
         raise ValueError("Required main_config_folder string is missing or invalid")
+    if not re.search(r'<string\s+name="main_config_folder"', strings_text):
+        crash_reports_string_match = re.search(
+            r'(?m)^([ \t]*<string\s+name="main_crash_reports_folder"[^>]*>.*?</string>)[ \t]*$',
+            strings_text,
+        )
+        if not crash_reports_string_match:
+            raise ValueError("Could not find main_crash_reports_folder to add the Config-folder label")
+        indent = re.match(r"[ \t]*", crash_reports_string_match.group(1)).group(0)
+        config_string = indent + '<string name="main_config_folder">Config folder</string>'
+        strings_text = strings_text[:crash_reports_string_match.end()] + "\n" + config_string + strings_text[crash_reports_string_match.end():]
+    if not re.search(r'<string\s+name="main_config_folder"[^>]*>\s*Config folder\s*</string>', strings_text):
+        raise ValueError("Required main_config_folder string is missing or invalid")
     strings.write_text(strings_text, encoding="utf-8")
 
     # App names can be localized in values-*/strings.xml. Force the product
@@ -637,6 +649,23 @@ def patch_upstream(upstream: Path) -> None:
                 raise ValueError(f"Could not find mylauncher_screenshots_button to add crash-reports shortcut in {layout_path}")
             block = screenshots_match.group(1) + "\n" + crash_reports_button
             layout_text = layout_text[:screenshots_match.start(1)] + block + layout_text[screenshots_match.end(1):]
+
+        if "mylauncher_config_button" not in layout_text:
+            config_button = """            <com.kdt.mcgui.LauncherMenuButton
+                android:id="@+id/mylauncher_config_button"
+                style="@style/LauncherMenuButton.Universal"
+                android:layout_width="match_parent"
+                android:drawableStart="@android:drawable/ic_menu_preferences"
+                android:text="@string/main_config_folder"
+                app:layout_constraintTop_toBottomOf="@id/mylauncher_crash_reports_button" />
+
+"""
+            crash_reports_pattern = re.compile(r'(<com\.kdt\.mcgui\.LauncherMenuButton\s+android:id="@\+id/mylauncher_crash_reports_button".*?/>\s*)', re.DOTALL)
+            crash_reports_match = crash_reports_pattern.search(layout_text)
+            if not crash_reports_match:
+                raise ValueError(f"Could not find mylauncher_crash_reports_button to add Config folder in {layout_path}")
+            block = crash_reports_match.group(1) + "\n" + config_button
+            layout_text = layout_text[:crash_reports_match.start(1)] + block + layout_text[crash_reports_match.end(1):]
 
         if "mylauncher_config_button" not in layout_text:
             config_button = """            <com.kdt.mcgui.LauncherMenuButton
