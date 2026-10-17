@@ -103,6 +103,18 @@ def patch_upstream(upstream: Path) -> None:
         strings_text = strings_text[:mods_string_match.end()] + "\n" + resourcepacks_string + strings_text[mods_string_match.end():]
     if not re.search(r'<string\s+name="main_resourcepacks_folder"[^>]*>\s*Resource packs\s*</string>', strings_text):
         raise ValueError("Required main_resourcepacks_folder string is missing or invalid")
+    if not re.search(r'<string\s+name="main_world_saves_folder"', strings_text):
+        resourcepacks_string_match = re.search(
+            r'(?m)^([ \t]*<string\s+name="main_resourcepacks_folder"[^>]*>.*?</string>)[ \t]*$',
+            strings_text,
+        )
+        if not resourcepacks_string_match:
+            raise ValueError("Could not find main_resourcepacks_folder to add the world-saves label")
+        indent = re.match(r"[ \t]*", resourcepacks_string_match.group(1)).group(0)
+        saves_string = indent + '<string name="main_world_saves_folder">World saves</string>'
+        strings_text = strings_text[:resourcepacks_string_match.end()] + "\n" + saves_string + strings_text[resourcepacks_string_match.end():]
+    if not re.search(r'<string\s+name="main_world_saves_folder"[^>]*>\s*World saves\s*</string>', strings_text):
+        raise ValueError("Required main_world_saves_folder string is missing or invalid")
     strings.write_text(strings_text, encoding="utf-8")
 
     colors_text = colors.read_text(encoding="utf-8")
@@ -391,6 +403,23 @@ def patch_upstream(upstream: Path) -> None:
             block = mods_match.group(1) + "\n" + resourcepacks_button
             layout_text = layout_text[:mods_match.start(1)] + block + layout_text[mods_match.end(1):]
 
+        if "mylauncher_world_saves_button" not in layout_text:
+            world_saves_button = """            <com.kdt.mcgui.LauncherMenuButton
+                android:id="@+id/mylauncher_world_saves_button"
+                style="@style/LauncherMenuButton.Universal"
+                android:layout_width="match_parent"
+                android:drawableStart="@android:drawable/ic_menu_save"
+                android:text="@string/main_world_saves_folder"
+                app:layout_constraintTop_toBottomOf="@id/mylauncher_resourcepacks_button" />
+
+"""
+            resourcepacks_pattern = re.compile(r'(<com\.kdt\.mcgui\.LauncherMenuButton\s+android:id="@\+id/mylauncher_resourcepacks_button".*?/>\s*)', re.DOTALL)
+            resourcepacks_match = resourcepacks_pattern.search(layout_text)
+            if not resourcepacks_match:
+                raise ValueError(f"Could not find mylauncher_resourcepacks_button in {layout_path}")
+            block = resourcepacks_match.group(1) + "\n" + world_saves_button
+            layout_text = layout_text[:resourcepacks_match.start(1)] + block + layout_text[resourcepacks_match.end(1):]
+
         if "mylauncher_account_button" not in layout_text:
             account_button = """            <com.kdt.mcgui.LauncherMenuButton
                 android:id="@+id/mylauncher_account_button"
@@ -398,7 +427,7 @@ def patch_upstream(upstream: Path) -> None:
                 android:layout_width="match_parent"
                 android:drawableStart="@android:drawable/ic_menu_myplaces"
                 android:text="@string/main_add_account"
-                app:layout_constraintTop_toBottomOf="@id/mylauncher_resourcepacks_button" />
+                app:layout_constraintTop_toBottomOf="@id/mylauncher_world_saves_button" />
 
 """
             resourcepacks_pattern = re.compile(r'(<com\.kdt\.mcgui\.LauncherMenuButton\s+android:id="@\+id/mylauncher_resourcepacks_button".*?/>\s*)', re.DOTALL)
@@ -411,7 +440,7 @@ def patch_upstream(upstream: Path) -> None:
         account_pattern = re.compile(r'<com\.kdt\.mcgui\.LauncherMenuButton\s+android:id="@\+id/mylauncher_account_button".*?/>', re.DOTALL)
         account_match = account_pattern.search(layout_text)
         if account_match:
-            for prior_anchor in ("open_files_button", "mylauncher_mods_button"):
+            for prior_anchor in ("open_files_button", "mylauncher_mods_button", "mylauncher_resourcepacks_button"):
                 prior_constraint = 'app:layout_constraintTop_toBottomOf="@id/' + prior_anchor + '"'
                 if prior_constraint in account_match.group(0):
                     updated_account = account_match.group(0).replace(
@@ -433,6 +462,11 @@ def patch_upstream(upstream: Path) -> None:
             layout_text,
             flags=re.DOTALL,
         )
+        world_saves_match = re.search(
+            r'<com\.kdt\.mcgui\.LauncherMenuButton\s+android:id="@\+id/mylauncher_world_saves_button".*?/>',
+            layout_text,
+            flags=re.DOTALL,
+        )
         open_files_index = layout_text.find('android:id="@+id/open_files_button"')
         if (
             not mods_match
@@ -449,17 +483,25 @@ def patch_upstream(upstream: Path) -> None:
             or 'android:drawableStart="@android:drawable/ic_menu_gallery"' not in resourcepacks_match.group(0)
             or 'android:text="@string/main_resourcepacks_folder"' not in resourcepacks_match.group(0)
             or 'app:layout_constraintTop_toBottomOf="@id/mylauncher_mods_button"' not in resourcepacks_match.group(0)
+            or not world_saves_match
+            or world_saves_match.group(0).count('android:id="@+id/mylauncher_world_saves_button"') != 1
+            or 'style="@style/LauncherMenuButton.Universal"' not in world_saves_match.group(0)
+            or 'android:layout_width="match_parent"' not in world_saves_match.group(0)
+            or 'android:drawableStart="@android:drawable/ic_menu_save"' not in world_saves_match.group(0)
+            or 'android:text="@string/main_world_saves_folder"' not in world_saves_match.group(0)
+            or 'app:layout_constraintTop_toBottomOf="@id/mylauncher_resourcepacks_button"' not in world_saves_match.group(0)
             or not account_match
             or account_match.group(0).count('android:id="@+id/mylauncher_account_button"') != 1
             or 'style="@style/LauncherMenuButton.Universal"' not in account_match.group(0)
             or 'android:layout_width="match_parent"' not in account_match.group(0)
             or 'android:drawableStart="@android:drawable/ic_menu_myplaces"' not in account_match.group(0)
             or 'android:text="@string/main_add_account"' not in account_match.group(0)
-            or 'app:layout_constraintTop_toBottomOf="@id/mylauncher_resourcepacks_button"' not in account_match.group(0)
+            or 'app:layout_constraintTop_toBottomOf="@id/mylauncher_world_saves_button"' not in account_match.group(0)
             or open_files_index < 0
             or open_files_index > mods_match.start()
             or mods_match.start() > resourcepacks_match.start()
-            or resourcepacks_match.start() > account_match.start()
+            or resourcepacks_match.start() > world_saves_match.start()
+            or world_saves_match.start() > account_match.start()
         ):
             raise ValueError(f"myLauncher mods/resource-packs/account shortcuts are incomplete in {layout_path}")
 
@@ -477,6 +519,7 @@ def patch_upstream(upstream: Path) -> None:
             layout_text.count('android:id="@+id/mylauncher_hero_title"') != 1
             or layout_text.count('android:id="@+id/mylauncher_hero_subtitle"') != 1
             or layout_text.count('android:id="@+id/mylauncher_account_button"') != 1
+            or layout_text.count('android:id="@+id/mylauncher_world_saves_button"') != 1
             or layout_text.count('android:id="@+id/news_button"') != 1
             or layout_text.count('android:id="@+id/discord_button"') != 1
             or layout_text.count('android:id="@+id/social_divider"') != 1
@@ -643,6 +686,37 @@ def patch_upstream(upstream: Path) -> None:
         or "openPath(v.getContext(), resourcePackDirectory, false);" not in main_menu_text
     ):
         raise ValueError("The resource-packs shortcut binding, directory creation, or handler is incomplete")
+
+    world_saves_binding = "Button mMyLauncherWorldSavesButton = view.findViewById(R.id.mylauncher_world_saves_button);"
+    if world_saves_binding not in main_menu_text:
+        if resourcepacks_binding not in main_menu_text:
+            raise ValueError("Could not bind the world-saves shortcut without the resource-packs shortcut")
+        main_menu_text = main_menu_text.replace(resourcepacks_binding, resourcepacks_binding + "\n        " + world_saves_binding, 1)
+    world_saves_listener = """mMyLauncherWorldSavesButton.setOnClickListener(v -> {
+            if (Tools.isDemoProfile(v.getContext())) {
+                hasNoOnlineProfileDialog(getActivity(), getString(R.string.demo_unsupported), getString(R.string.change_account));
+                return;
+            }
+            File worldSavesDirectory = new File(getCurrentProfileDirectory(), "saves");
+            if (!worldSavesDirectory.isDirectory() && !worldSavesDirectory.mkdirs()) {
+                Toast.makeText(requireContext(), "Unable to create the world saves folder", Toast.LENGTH_LONG).show();
+                return;
+            }
+            openPath(v.getContext(), worldSavesDirectory, false);
+        });"""
+    if world_saves_listener not in main_menu_text:
+        listener_anchor = "mVersionSpinner = view.findViewById(R.id.mc_version_spinner);"
+        if listener_anchor not in main_menu_text:
+            raise ValueError("Could not find the listener insertion point for the world-saves shortcut")
+        main_menu_text = main_menu_text.replace(listener_anchor, "        " + world_saves_listener + "\n        " + listener_anchor, 1)
+    if (
+        main_menu_text.count(world_saves_binding) != 1
+        or main_menu_text.count(world_saves_listener) != 1
+        or 'new File(getCurrentProfileDirectory(), "saves")' not in main_menu_text
+        or "!worldSavesDirectory.isDirectory() && !worldSavesDirectory.mkdirs()" not in main_menu_text
+        or "openPath(v.getContext(), worldSavesDirectory, false);" not in main_menu_text
+    ):
+        raise ValueError("The world-saves shortcut binding, directory creation, or handler is incomplete")
 
     main_menu.write_text(main_menu_text, encoding="utf-8")
 
