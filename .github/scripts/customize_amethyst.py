@@ -786,8 +786,8 @@ def patch_upstream(upstream: Path) -> None:
     profile_text = profile_type.read_text(encoding="utf-8")
     profile_text = replace_idempotently(
         profile_text,
-        "import static net.kdt.pojavlaunch.Tools.hasNoOnlineProfileDialog;\\n",
-        "import androidx.appcompat.app.AlertDialog;\\n",
+        "import static net.kdt.pojavlaunch.Tools.hasNoOnlineProfileDialog;",
+        "import androidx.appcompat.app.AlertDialog;",
         str(profile_type),
     )
     old_profile_gate = """    private void tryInstall(Class<? extends Fragment> fragmentClass, String tag){
