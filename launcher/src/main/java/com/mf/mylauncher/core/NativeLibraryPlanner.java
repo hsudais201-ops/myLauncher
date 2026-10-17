@@ -23,6 +23,13 @@ public final class NativeLibraryPlanner {
         validateToken(nativeOsName, "Native OS name");
         validateToken(architectureToken, "Native architecture token");
 
+        // The JVM platform used for metadata rules and the requested native target must agree.
+        // Otherwise an OS-neutral library rule could accidentally select another OS's native JAR.
+        if (!sameOperatingSystem(rulePlatform.getOsName(), nativeOsName)) {
+            return new NativeLibraryPlan(details.getId(), nativeOsName, architectureToken,
+                    java.util.Collections.emptyList());
+        }
+
         Map<String, NativeLibraryArchive> byPath = new LinkedHashMap<>();
         for (LibraryMetadata library : details.getLibraries()) {
             if (!library.isAllowedOn(rulePlatform.getOsName(), rulePlatform.getArchitecture(),
@@ -59,6 +66,12 @@ public final class NativeLibraryPlanner {
         }
         return new NativeLibraryPlan(details.getId(), nativeOsName, architectureToken,
                 new ArrayList<>(byPath.values()));
+    }
+
+    private static boolean sameOperatingSystem(String ruleOsName, String nativeOsName) {
+        return ruleOsName.equals(nativeOsName)
+                || ("osx".equals(ruleOsName) && "macos".equals(nativeOsName))
+                || ("macos".equals(ruleOsName) && "osx".equals(nativeOsName));
     }
 
     private static void validateToken(String value, String label) {
