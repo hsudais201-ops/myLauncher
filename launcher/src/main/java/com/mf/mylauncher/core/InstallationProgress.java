@@ -42,6 +42,11 @@ public final class InstallationProgress {
     public int getPercent() {
         if (stage == Stage.COMPLETED) return 100;
         if (totalBytes == 0) return totalTasks == 0 ? 0 : (int) ((completedTasks * 100L) / totalTasks);
-        return (int) Math.min(100L, (completedBytes * 100L) / totalBytes);
+        // Multiplying an untrusted manifest-derived byte count by 100 can overflow long.
+        long percentage = java.math.BigInteger.valueOf(completedBytes)
+                .multiply(java.math.BigInteger.valueOf(100L))
+                .divide(java.math.BigInteger.valueOf(totalBytes))
+                .longValue();
+        return (int) Math.min(100L, percentage);
     }
 }
