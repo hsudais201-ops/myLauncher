@@ -65,7 +65,8 @@ The workflow fetches the exact Amethyst commit `330c6eae3164df64bdc4828e946a9e62
 From this repository's root on Linux, use Python 3, Git, JDK 21, Android SDK command-line tools, platform `android-37`, and NDK `27.3.13750724`. First run the regression suite:
 
     python3 -m py_compile .github/scripts/customize_amethyst.py .github/scripts/test_customizer.py .github/scripts/customize_ui.py .github/scripts/test_ui_customizer.py
-    sh -n .github/scripts/prepare_emulator_kvm.sh .github/scripts/emulator_smoke_test.sh
+    sh -n .github/scripts/prepare_emulator_kvm.sh
+    sh -n .github/scripts/emulator_smoke_test.sh
     python3 -m unittest discover -s .github/scripts -p 'test_*.py' -v
 
 Then fetch the pinned upstream source and build:
