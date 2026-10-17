@@ -607,7 +607,7 @@ def patch_upstream(upstream: Path) -> None:
                 app:layout_constraintTop_toBottomOf="@id/mylauncher_screenshots_button" />
 
 """
-            screenshots_pattern = re.compile(r'(<com\\.kdt\\.mcgui\\.LauncherMenuButton\\s+android:id="@\+id/mylauncher_screenshots_button".*?/>\s*)', re.DOTALL)
+            screenshots_pattern = re.compile(r'(<com\.kdt\.mcgui\.LauncherMenuButton\s+android:id="@\+id/mylauncher_screenshots_button".*?/>\s*)', re.DOTALL)
             screenshots_match = screenshots_pattern.search(layout_text)
             if not screenshots_match:
                 raise ValueError(f"Could not find mylauncher_screenshots_button to add shader-packs shortcut in {layout_path}")
@@ -672,7 +672,7 @@ def patch_upstream(upstream: Path) -> None:
             flags=re.DOTALL,
         )
         shaderpacks_match = re.search(
-            r'<com\\.kdt\\.mcgui\\.LauncherMenuButton\\s+android:id="@\\+id/mylauncher_shaderpacks_button".*?/>',
+            r'<com\.kdt\.mcgui\.LauncherMenuButton\s+android:id="@\+id/mylauncher_shaderpacks_button".*?/>',
             layout_text,
             flags=re.DOTALL,
         )
