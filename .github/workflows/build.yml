@@ -183,5 +183,6 @@ jobs:
           path: |
             upstream/mylauncher-emulator-logcat.txt
             upstream/mylauncher-activities.txt
+            upstream/mylauncher-emulator-startup.png
           if-no-files-found: ignore
           retention-days: 7
