@@ -1336,6 +1336,15 @@ public final class CoreTests {
                 "linux-arm64-v8a coordinate is filtered out on x86_64");
         yes(!lwjglDesktopLibrary.isCompatibleWithPlatform(linux),
                 "unqualified natives-linux classifier is treated as desktop x86_64");
+        LibraryPlatform desktopX64Platform = new LibraryPlatform("linux", "x86_64", "6.1.0",
+                java.util.Collections.emptyMap());
+        NativeLibraryPlan modernDesktopPlan = NativeLibraryPlanner.create(
+                modernDetails, desktopX64Platform, "linux", "64");
+        eq(1, modernDesktopPlan.getArchiveCount(),
+                "explicit natives-linux archive is selected for x86_64 even when legacy architecture token is 64");
+        eq("libraries/" + lwjglDesktop.getPath(),
+                modernDesktopPlan.getArchives().get(0).getRelativeLibraryPath(),
+                "desktop native archive keeps its expected library-cache path");
         yes(!epollArm64Library.hasExplicitNativeClassifier(),
                 "Netty's linux-aarch_64 classifier remains a classpath library with embedded native resources");
         NativeLibraryPlan modernPlan = NativeLibraryPlanner.create(modernDetails, linux, "linux", "arm64");
