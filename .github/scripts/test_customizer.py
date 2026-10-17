@@ -816,6 +816,8 @@ class BuildWorkflowTests(unittest.TestCase):
         self.assertIn("yes | sdkmanager --licenses", self.workflow)
         self.assertIn("sdkmanager --install 'platforms;android-37.0' 'ndk;27.3.13750724' --channel=3", self.workflow)
         self.assertIn("./gradlew --no-daemon :jre_lwjgl3glfw:build :app_pojavlauncher:assembleDebug --stacktrace", self.workflow)
+        self.assertIn('plugin_management = settings.split("dependencyResolutionManagement", 1)[0]', self.workflow)
+        self.assertIn("Maven Central must be configured in pluginManagement for AGP classpath dependencies", self.workflow)
         self.assertIn("python3 -m py_compile .github/scripts/customize_amethyst.py .github/scripts/apply_logo.py .github/scripts/test_customizer.py", self.workflow)
         self.assertIn("sh -n .github/scripts/prepare_emulator_kvm.sh", self.workflow)
         self.assertIn("sh -n .github/scripts/emulator_smoke_test.sh", self.workflow)
