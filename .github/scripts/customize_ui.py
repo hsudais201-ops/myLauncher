@@ -274,12 +274,15 @@ def patch_upstream(upstream: Path) -> None:
         }
 
 """
-    activity_text = replace_idempotently(
-        activity_text,
-        launch_anchor,
-        compat_block + launch_anchor,
-        str(launcher_activity),
-    )
+    if "boolean useRenderPearlCompatibility = normalizedVersionId.matches(" not in activity_text:
+        activity_text = replace_idempotently(
+            activity_text,
+            launch_anchor,
+            compat_block + launch_anchor,
+            str(launcher_activity),
+        )
+    elif "LauncherPreferences.writeMGRendererSettings();" not in activity_text or launch_anchor not in activity_text:
+        raise ValueError(f"Incomplete RenderPearl compatibility patch in {launcher_activity}")
     launcher_activity.write_text(activity_text, encoding="utf-8")
 
     strings_text = strings.read_text(encoding="utf-8")
