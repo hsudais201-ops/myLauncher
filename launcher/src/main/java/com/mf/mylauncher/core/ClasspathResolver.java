@@ -36,6 +36,7 @@ public final class ClasspathResolver {
         for (LibraryMetadata library : details.getLibraries()) {
             if (!library.isAllowedOn(platform.getOsName(), platform.getArchitecture(),
                     platform.getOsVersion(), platform.getFeatures())) continue;
+            if (!library.isCompatibleWithPlatform(platform)) continue;
             Optional<DownloadArtifact> optionalArtifact = library.getArtifact();
             if (!optionalArtifact.isPresent()) {
                 // Native-only classifiers are extracted/resolved separately; they are not classpath JARs.
