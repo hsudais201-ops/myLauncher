@@ -72,11 +72,13 @@ Then fetch the pinned upstream source and build:
 
 ## Verification and limitations
 
-The latest successful pipeline is [GitHub Actions run #38992817171](https://github.com/hsudais201-ops/myLauncher/actions/runs/38992817171) on main commit `f0c2fb795e04efe40287a286c06a7ede4b126547`. It passed the Python regression suite, Android SDK/NDK setup, pinned Amethyst source checkout and submodules, customization plus `git diff --check`, Gradle build, APK signature and package/minimum-SDK checks, and the Android 9/API 28 headless emulator install-and-launch smoke test. The `myLauncher-debug-apk` artifact includes the debug APK and its SHA-256 checksum sidecar; build information and emulator diagnostics were uploaded too.
+The latest full feature-branch validation is [GitHub Actions run #38995241453](https://github.com/hsudais201-ops/myLauncher/actions/runs/38995241453) for [PR #3](https://github.com/hsudais201-ops/myLauncher/pull/3), which added the Resource packs shortcut. It passed the Python regression suite, Android SDK/NDK setup, pinned Amethyst source checkout and submodules, customization plus `git diff --check`, Gradle build, APK signature and package/minimum-SDK checks, and the Android 9/API 28 headless emulator install-and-launch smoke test. The APK artifact includes a SHA-256 checksum sidecar; build information and emulator diagnostics were uploaded. The feature has been merged to `main`; post-merge verification is running in [run #38995666191](https://github.com/hsudais201-ops/myLauncher/actions/runs/38995666191).
 
-The current smoke test verifies that the debug APK installs and that `LauncherActivity` becomes active in a cloud Android 9 emulator. It does not prove that Microsoft sign-in succeeds, that a Minecraft version downloads fully, that the game enters a world, or that rendering/controllers/performance work on a physical phone or Chromebook. These still require interactive device/gameplay acceptance tests.
+The current smoke test verifies that the debug APK installs and that `LauncherActivity` becomes active in a cloud Android 9 emulator. It does not prove that the Resource packs button works through a real tap, that Microsoft sign-in succeeds, that a Minecraft version downloads fully, that the game enters a world, or that rendering/controllers/performance work on a physical phone or Chromebook. These still require interactive device/gameplay acceptance tests.
 
-The source patcher is regression-tested and the APK from the successful run is signature-verified by CI. The project still builds the upstream Amethyst engine pinned at `330c6eae3164df64bdc4828e946a9e62cc5169e4`; myLauncher is a customization of that engine, not a replacement Java VM or game engine. Review [FEATURE_ROADMAP.md](FEATURE_ROADMAP.md) for which other feature groups remain inherited from upstream, partial, or planned.
+The launcher now has profile-specific **Mods folder** and **Resource packs** shortcuts in portrait and landscape layouts. They open each selected profile's `mods/` and `resourcepacks/` directories, creating a directory when it does not exist; these shortcuts provide manual file access, not full mod/resource-pack installation, activation, conflict detection, or compatibility checking.
+
+The source patcher is regression-tested and the APK from the verified feature-branch run is signature-verified by CI. The project still builds the upstream Amethyst engine pinned at `330c6eae3164df64bdc4828e946a9e62cc5169e4`; myLauncher is a customization of that engine, not a replacement Java VM or game engine. Review [FEATURE_ROADMAP.md](FEATURE_ROADMAP.md) for which other feature groups remain inherited from upstream, partial, or planned.
 
 ### Missing-version metadata recovery
 
@@ -95,7 +97,7 @@ After a debug APK is available on the target Android 9 device:
 2. Create a unique username with 3–16 letters, digits, or underscores and confirm it appears in the account spinner.
 3. Select a lightweight Minecraft version (for example 1.8.9); while connected to the internet, let the launcher download it if needed, then start the game and test a single-player world.
 4. Return to the launcher and verify that **Open game directory** works with only the local profile.
-5. Verify the Microsoft account button still opens Microsoft sign-in. Tap **Mods folder** and confirm the launcher opens the selected profile's `mods/` directory. An actual device test is still required for memory pressure, rendering, and gameplay stability.
+5. Verify the Microsoft account button still opens Microsoft sign-in. Tap **Mods folder** and **Resource packs** and confirm each opens the selected profile's `mods/` and `resourcepacks/` directories. These actions have source/regression and launcher-start CI coverage, but their taps still require interactive acceptance testing. An actual device test is still required for memory pressure, rendering, and gameplay stability.
 
 ## Upstream and licensing
 
