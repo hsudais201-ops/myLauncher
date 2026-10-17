@@ -49,7 +49,10 @@ The workflow fetches the exact Amethyst commit `330c6eae3164df64bdc4828e946a9e62
 - `.github/workflows/runner-diagnostic.yml` — minimal hosted-runner diagnostic workflow.
 - `.github/scripts/customize_amethyst.py` — deterministic patch for app branding, package/authority IDs, low-memory defaults, offline account access, launcher header, and folder/account shortcuts.
 - `.github/scripts/apply_logo.py` — applies and validates the final Android vector app icon used by CI.
+- `.github/scripts/emulator_smoke_test.sh` — installs the built APK in the hosted emulator, launches it, checks for the launcher activity, and captures diagnostics on failure.
+- `.github/scripts/prepare_emulator_kvm.sh` — checks and enables the hosted runner's KVM device for accelerated emulator startup.
 - `assets/branding/mylauncher-logo.svg` — high-resolution SVG brand artwork for non-Android uses and reference.
+- `FEATURE_ROADMAP.md` — separates source-confirmed engine capabilities from planned features and outstanding acceptance tests.
 - `.github/scripts/test_customizer.py` — regression tests for branding, offline-account username syntax/length/duplicate-profile and boolean-logic guards, account submission and labeling, auth-selector listener/navigation safety, local game-directory access, both launcher layouts, XML well-formedness, missing-anchor failures, repeat-run idempotency, Android toolchain alignment, and CI submodule/APK safeguards.
 
 ## Local build
