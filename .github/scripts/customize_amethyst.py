@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Apply deterministic Orbit Launcher branding/package patches to Amethyst-Android."""
+"""Apply deterministic VoidCraft Launcher branding/package patches to Amethyst-Android."""
 from __future__ import annotations
 
 import re
@@ -39,7 +39,7 @@ def patch_upstream(upstream: Path) -> None:
     build_text = replace_idempotently(
         build_text, "org.angelauramc.amethyst", "com.mf.mylauncher", str(gradle)
     )
-    build_text = replace_idempotently(build_text, "Amethyst", "Orbit Launcher", str(gradle))
+    build_text = replace_idempotently(build_text, "Amethyst", "VoidCraft Launcher", str(gradle))
     min_sdk = re.search(r"\bminSdkVersion\s+(\d+)\b", build_text)
     if not min_sdk:
         raise ValueError("Could not verify minSdkVersion; refusing an unverified Android 9 build")
@@ -53,19 +53,19 @@ def patch_upstream(upstream: Path) -> None:
 
     strings_text = strings.read_text(encoding="utf-8")
     strings_text = strings_text.replace("org.angelauramc.amethyst", "com.mf.mylauncher")
-    strings_text = replace_idempotently(strings_text, "Amethyst", "Orbit Launcher", str(strings))
+    strings_text = replace_idempotently(strings_text, "Amethyst", "VoidCraft Launcher", str(strings))
     if not re.search(
-        r'<string\s+name="app_name"[^>]*>\s*Orbit Launcher\s*</string>',
+        r'<string\s+name="app_name"[^>]*>\s*VoidCraft Launcher\s*</string>',
         strings_text,
         flags=re.DOTALL,
     ):
-        raise ValueError("The patched strings.xml is missing app_name=Orbit Launcher")
+        raise ValueError("The patched strings.xml is missing app_name=VoidCraft Launcher")
     # Upstream defines app_short_name through Gradle resValue, not strings.xml.
     required_gradle_values = (
-        '"app_name", "Orbit Launcher (Debug)"',
-        '"app_name", "Orbit Launcher"',
-        '"app_short_name", "Orbit Launcher (Debug)"',
-        '"app_short_name", "Orbit Launcher"',
+        '"app_name", "VoidCraft Launcher (Debug)"',
+        '"app_name", "VoidCraft Launcher"',
+        '"app_short_name", "VoidCraft Launcher (Debug)"',
+        '"app_short_name", "VoidCraft Launcher"',
         "'application_package', 'com.mf.mylauncher.debug'",
         "'application_package', 'com.mf.mylauncher'",
         "'storageProviderAuthorities', 'com.mf.mylauncher.scoped.gamefolder.debug'",
@@ -123,8 +123,8 @@ def patch_upstream(upstream: Path) -> None:
             raise ValueError(f"Required header color {color_name!r} is missing from colors.xml")
 
     settings_text = settings.read_text(encoding="utf-8")
-    settings_text = replace_idempotently(settings_text, "Amethyst", "Orbit Launcher", str(settings))
-    if not re.search(r"rootProject\.name\s*=\s*['\"]Orbit Launcher['\"]", settings_text):
+    settings_text = replace_idempotently(settings_text, "Amethyst", "VoidCraft Launcher", str(settings))
+    if not re.search(r"rootProject\.name\s*=\s*['\"]VoidCraft Launcher['\"]", settings_text):
         raise ValueError("Gradle rootProject.name was not customized")
     settings.write_text(settings_text, encoding="utf-8")
 
@@ -135,7 +135,7 @@ def patch_upstream(upstream: Path) -> None:
     tools_text = replace_idempotently(
         tools_text,
         'public static String APP_NAME = "Amethyst";',
-        'public static String APP_NAME = "Orbit Launcher";',
+        'public static String APP_NAME = "VoidCraft Launcher";',
         str(tools_java),
     )
     if 'public static String APP_NAME = "Amethyst";' in tools_text:
@@ -297,7 +297,7 @@ def patch_upstream(upstream: Path) -> None:
                 android:layout_marginStart="20dp"
                 android:layout_marginTop="18dp"
                 android:layout_marginEnd="20dp"
-                android:text="Orbit Launcher"
+                android:text="VoidCraft Launcher"
                 android:textColor="@color/primary_text"
                 android:textSize="26sp"
                 android:textStyle="bold"
@@ -313,7 +313,7 @@ def patch_upstream(upstream: Path) -> None:
                 android:layout_marginTop="2dp"
                 android:layout_marginEnd="20dp"
                 android:layout_marginBottom="12dp"
-                android:text="Minecraft Java Edition · built for lightweight devices"
+                android:text="Minecraft Java Edition · by MF"
                 android:textColor="@color/secondary_text"
                 android:textSize="12sp"
                 app:layout_constraintTop_toBottomOf="@id/mylauncher_hero_title"
@@ -526,10 +526,11 @@ def patch_upstream(upstream: Path) -> None:
             or not title_match
             or not subtitle_match
             or 'android:layout_width="0dp"' not in title_match.group(0)
-            or 'android:text="Orbit Launcher"' not in title_match.group(0)
+            or 'android:text="VoidCraft Launcher"' not in title_match.group(0)
             or 'android:layout_width="0dp"' not in subtitle_match.group(0)
             or 'android:text="Minecraft Java Edition · built for lightweight devices"' not in subtitle_match.group(0)
             or 'app:layout_constraintTop_toBottomOf="@id/mylauncher_hero_title"' not in subtitle_match.group(0)
+            or 'android:text="Minecraft Java Edition · by MF"' not in subtitle_match.group(0)
         ):
             raise ValueError(f"myLauncher header or folder/account shortcut is missing, duplicated, or incomplete in {layout_path}")
         # Generated XML must pass git diff --check; captured upstream whitespace
@@ -862,8 +863,8 @@ def patch_upstream(upstream: Path) -> None:
         icon,
     ))
 
-    print("Orbit Launcher patch OK")
-    print("  app label: Orbit Launcher")
+    print("VoidCraft Launcher patch OK")
+    print("  app label: VoidCraft Launcher")
     print("  application ID: com.mf.mylauncher (debug adds .debug)")
     print("  storage/share authorities: customized")
     print("  low-memory defaults: 296/448/512 MB RAM tiers and ~480 px short-edge target for <=2 GB")
@@ -876,7 +877,7 @@ def main(argv: list[str]) -> int:
     try:
         patch_upstream(Path(argv[1]).resolve())
     except (OSError, ValueError) as exc:
-        print(f"Orbit Launcher patch FAILED: {exc}", file=sys.stderr)
+        print(f"VoidCraft Launcher patch FAILED: {exc}", file=sys.stderr)
         return 1
     return 0
 
