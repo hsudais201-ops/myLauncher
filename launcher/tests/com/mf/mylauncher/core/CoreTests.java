@@ -1386,6 +1386,16 @@ public final class CoreTests {
                     CancellationToken.NONE, 15_000, (stream, line) -> output.add(stream + ":" + line));
             yes(result.isSuccess(), "Java process exits successfully");
             yes(result.getElapsedMillis() >= 0, "process duration reported");
+            Path linkedExecutable = temporary.resolve("linked-java");
+            try {
+                Files.createSymbolicLink(linkedExecutable, javaExecutable);
+                io(() -> runner.run(linkedExecutable, working, java.util.Collections.singletonList("-version"),
+                        CancellationToken.NONE, 15_000, null),
+                        "symlinked Java executable rejected before process start");
+            } catch (UnsupportedOperationException | SecurityException
+                     | java.nio.file.FileSystemException exception) {
+                // Some filesystems disable symlink creation for ordinary users.
+            }
             yes(result.getStderrLineCount() > 0, "Java stderr is drained");
             yes(!output.isEmpty() && output.get(0).contains("STDERR"), "process output listener receives stream identity");
 
