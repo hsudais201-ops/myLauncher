@@ -25,7 +25,8 @@ public final class NativeLibraryPlanner {
 
         // The JVM platform used for metadata rules and the requested native target must agree.
         // Otherwise an OS-neutral library rule could accidentally select another OS's native JAR.
-        if (!sameOperatingSystem(rulePlatform.getOsName(), nativeOsName)) {
+        if (!sameOperatingSystem(rulePlatform.getOsName(), nativeOsName)
+                || !sameArchitecture(rulePlatform.getArchitecture(), architectureToken)) {
             return new NativeLibraryPlan(details.getId(), nativeOsName, architectureToken,
                     java.util.Collections.emptyList());
         }
@@ -72,6 +73,44 @@ public final class NativeLibraryPlanner {
         return ruleOsName.equals(nativeOsName)
                 || ("osx".equals(ruleOsName) && "macos".equals(nativeOsName))
                 || ("macos".equals(ruleOsName) && "osx".equals(nativeOsName));
+    }
+
+    private static boolean sameArchitecture(String platformArch, String nativeToken) {
+        String platform = normalizeArchitecture(platformArch);
+        String target = normalizeArchitecture(nativeToken);
+        return platform != null && platform.equals(target);
+    }
+
+    private static String normalizeArchitecture(String value) {
+        if (value == null) return null;
+        switch (value.toLowerCase(java.util.Locale.ROOT)) {
+            case "aarch64":
+            case "aarch_64":
+            case "arm64":
+            case "arm64-v8a":
+                return "arm64";
+            case "x86_64":
+            case "amd64":
+            case "x64":
+            case "64":
+                return "x86_64";
+            case "x86":
+            case "i386":
+            case "i486":
+            case "i586":
+            case "i686":
+            case "32":
+                return "x86";
+            case "arm":
+            case "arm32":
+            case "armhf":
+            case "arm32hf":
+            case "arm32v6":
+            case "arm32v7":
+                return "arm32";
+            default:
+                return null;
+        }
     }
 
     private static void validateToken(String value, String label) {
