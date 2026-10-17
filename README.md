@@ -83,6 +83,7 @@ Then fetch the pinned upstream source and build:
     yes | sdkmanager --licenses
     sdkmanager --install 'platforms;android-37.0' 'ndk;27.3.13750724' --channel=3
     python3 .github/scripts/customize_amethyst.py upstream
+    python3 .github/scripts/patch_renderpearl_workaround.py upstream
     cd upstream
     ./gradlew :jre_lwjgl3glfw:build :app_pojavlauncher:assembleDebug
 
