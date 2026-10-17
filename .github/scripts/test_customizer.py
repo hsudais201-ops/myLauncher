@@ -511,10 +511,16 @@ class BuildWorkflowTests(unittest.TestCase):
 
     def test_workflow_installs_and_launches_apk_in_headless_emulator(self) -> None:
         self.assertIn("uses: reactivecircus/android-emulator-runner@v2", self.workflow)
-        self.assertIn("api-level: 35", self.workflow)
+        self.assertIn("api-level: 28", self.workflow)
         self.assertIn('adb install -r "$APK_PATH"', self.workflow)
         self.assertIn("com.mf.mylauncher.debug/net.kdt.pojavlaunch.LauncherActivity", self.workflow)
         self.assertIn("APK did not reach LauncherActivity", self.workflow)
+        self.assertIn("if: ${{ always() && env.APK_PATH != '' }}", self.workflow)
+        self.assertIn("if: ${{ always() && hashFiles('upstream/MYLAUNCHER_BUILD_INFO.txt') != '' }}", self.workflow)
+        self.assertLess(
+            self.workflow.index("Upload debug APK"),
+            self.workflow.index("Upload upstream build notes"),
+        )
 
     def test_workflow_checks_source_pin_and_android_9_apk(self) -> None:
         self.assertIn("  push:\n    branches:\n      - main", self.workflow)
