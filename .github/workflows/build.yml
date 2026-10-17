@@ -129,7 +129,8 @@ jobs:
       - name: Install and launch APK in a headless Android emulator
         uses: reactivecircus/android-emulator-runner@v2
         with:
-          api-level: 35
+          # API 28 is the documented minimum device target and boots a smaller image than API 35.
+          api-level: 28
           target: google_apis
           arch: x86_64
           profile: pixel_5
@@ -160,6 +161,7 @@ jobs:
             echo "Emulator smoke test passed: APK installed and LauncherActivity resumed."
 
       - name: Upload debug APK
+        if: ${{ always() && env.APK_PATH != '' }}
         uses: actions/upload-artifact@v4
         with:
           name: myLauncher-debug-apk
@@ -170,6 +172,7 @@ jobs:
           retention-days: 14
 
       - name: Upload upstream build notes
+        if: ${{ always() && hashFiles('upstream/MYLAUNCHER_BUILD_INFO.txt') != '' }}
         uses: actions/upload-artifact@v4
         with:
           name: myLauncher-build-info
