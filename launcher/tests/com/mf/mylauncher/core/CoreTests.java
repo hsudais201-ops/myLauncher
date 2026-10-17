@@ -142,6 +142,26 @@ public final class CoreTests {
         yes(!details.getLoggingConfiguration().isPresent(), "logging metadata remains optional for older versions");
 
         @SuppressWarnings("unchecked")
+        Map<String, Object> rangedJson = (Map<String, Object>) JsonParser.parse(json);
+        @SuppressWarnings("unchecked")
+        List<Object> rangedLibraries = (List<Object>) rangedJson.get("libraries");
+        @SuppressWarnings("unchecked")
+        Map<String, Object> rangedCoreLibrary = (Map<String, Object>) rangedLibraries.get(0);
+        @SuppressWarnings("unchecked")
+        List<Object> rangedRules = (List<Object>) rangedCoreLibrary.get("rules");
+        @SuppressWarnings("unchecked")
+        Map<String, Object> rangedAllowRule = (Map<String, Object>) rangedRules.get(0);
+        @SuppressWarnings("unchecked")
+        Map<String, Object> rangedOs = (Map<String, Object>) rangedAllowRule.get("os");
+        rangedOs.remove("version");
+        rangedOs.put("versionRange", java.util.Collections.singletonMap("min", "10.0.17134"));
+        VersionDetails rangeDetails = VersionDetailsMapper.fromDecodedJson(rangedJson, "1.21.4");
+        yes(rangeDetails.getLibraries().get(0).isAllowedOn("linux", "aarch64", "10.0.17134",
+                java.util.Collections.emptyMap()), "modern versionRange min is decoded and inclusive");
+        yes(!rangeDetails.getLibraries().get(0).isAllowedOn("linux", "aarch64", "10.0.17133",
+                java.util.Collections.emptyMap()), "modern versionRange excludes lower OS versions");
+
+        @SuppressWarnings("unchecked")
         Map<String, Object> withLogging = (Map<String, Object>) JsonParser.parse(json);
         Map<String, Object> loggingFile = new LinkedHashMap<>();
         loggingFile.put("id", "client-1.12.xml");
@@ -289,6 +309,29 @@ public final class CoreTests {
                 "legacy minecraftArguments tokenization and expansion works");
         bad(() -> LaunchCommandBuilder.tokenizeLegacyArguments("--username \"unterminated"),
                 "unclosed legacy argument quote rejected");
+        Map<String, Object> rangeRuleOs = new LinkedHashMap<>();
+        rangeRuleOs.put("name", "windows");
+        rangeRuleOs.put("versionRange", java.util.Collections.singletonMap("min", "10.0.17134"));
+        Map<String, Object> rangeRule = new LinkedHashMap<>();
+        rangeRule.put("action", "allow");
+        rangeRule.put("os", rangeRuleOs);
+        Map<String, Object> defaultJvmEntry = new LinkedHashMap<>();
+        defaultJvmEntry.put("value", java.util.Collections.singletonList("-XX:+UseZGC"));
+        defaultJvmEntry.put("rules", java.util.Collections.singletonList(rangeRule));
+        Map<String, Object> modernArguments = new LinkedHashMap<>();
+        modernArguments.put("default-user-jvm", java.util.Collections.singletonList(defaultJvmEntry));
+        VersionArgumentSet modernArgumentSet = VersionArgumentSet.fromDecodedJson(modernArguments);
+        LibraryPlatform recentWindows = new LibraryPlatform("windows", "amd64", "10.0.19045",
+                java.util.Collections.emptyMap());
+        LibraryPlatform olderWindows = new LibraryPlatform("windows", "amd64", "10.0.17133",
+                java.util.Collections.emptyMap());
+        eq(java.util.Collections.singletonList("-XX:+UseZGC"),
+                modernArgumentSet.resolveDefaultUserJvmArguments(recentWindows),
+                "26.1 default-user-jvm and OS versionRange are parsed");
+        eq(java.util.Collections.emptyList(), modernArgumentSet.resolveDefaultUserJvmArguments(olderWindows),
+                "default-user-jvm versionRange excludes older OS versions");
+        eq(1, modernArgumentSet.getDefaultUserJvm().size(), "default-user-jvm entries are retained separately from required JVM args");
+
         bad(() -> VersionArgumentSet.fromDecodedJson(java.util.Collections.singletonMap("game", "not-an-array")),
                 "malformed modern arguments shape rejected");
         bad(() -> LaunchCommandBuilder.build(details, null), "null launch context rejected");
@@ -687,6 +730,22 @@ public final class CoreTests {
                 URI.create("https://libraries.minecraft.net/org/example/core/1.0/core.jar"),
                 hash1, 100, "org/example/core/1.0/core.jar");
         LibraryRule linuxRule = new LibraryRule(true, "linux", "aarch64", "6\\..*", null);
+        yes(new LibraryRule(true, "windows", null, null, "10.0.17134", null, null)
+                .matches("windows", "amd64", "10.0.17134", null),
+                "OS versionRange lower bound is inclusive");
+        yes(!new LibraryRule(true, "windows", null, null, null, "10.0.17134", null)
+                .matches("windows", "amd64", "10.0.17134", null),
+                "OS versionRange upper bound is exclusive");
+        yes(new LibraryRule(true, null, null, null,
+                java.util.Collections.singletonMap("has_custom_resolution", false))
+                .matches("linux", "aarch64", "5.10.0", java.util.Collections.emptyMap()),
+                "omitted launcher feature defaults to false");
+        yes(!new LibraryRule(true, null, null, null,
+                java.util.Collections.singletonMap("is_demo_user", true))
+                .matches("linux", "aarch64", "5.10.0", java.util.Collections.emptyMap()),
+                "omitted launcher feature does not satisfy true");
+        bad(() -> new LibraryRule(true, "windows", null, null, "10.0.19045", "10.0.17134", null),
+                "descending OS versionRange rejected");
         yes(new LibraryRule(true, "osx", null, "^10\\.", null)
                 .matches("osx", "aarch64", "10.14.6", null),
                 "anchored OS-version regex matches a longer version string");
