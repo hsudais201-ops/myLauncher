@@ -10,7 +10,7 @@ myLauncher is an Android launcher project for Minecraft: Java Edition. The proje
 
 ## Isolated Java core
 
-The product-owned code in `launcher/src/main/java/` contains validated version metadata, safe verified downloads, installation planning, asset materialization, native archive extraction, verified classpath resolution, launch-argument generation, runtime checks and process supervision. It has dependency-free regression tests and is not yet wired into Amethyst's existing launch screen; Amethyst currently remains the actual game-launch engine.
+The product-owned code in `launcher/src/main/java/` contains validated version metadata (including Minecraft 26.1+ `default-user-jvm` recommendations and OS `versionRange` rules), safe verified downloads, installation planning, asset materialization, native archive extraction, verified classpath resolution, launch-argument generation, runtime checks and process supervision. Disabled launcher features default to false when no value is supplied. `default-user-jvm` entries are exposed as settings suggestions and are intentionally not forced into launches, because desktop defaults such as a 4 GiB heap are unsafe for some Android devices. The core has dependency-free regression tests, but it is not yet wired into Amethyst's existing launch screen; Amethyst remains the actual game-launch engine.
 
 Run the core checks with a JDK:
 
