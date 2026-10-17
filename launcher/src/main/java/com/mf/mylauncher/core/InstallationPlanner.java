@@ -54,6 +54,9 @@ public final class InstallationPlanner {
             if (!library.isAllowedOn(platform.getOsName(), platform.getArchitecture(),
                     platform.getOsVersion(), platform.getFeatures())) continue;
             if (!library.isCompatibleWithPlatform(platform)) continue;
+            // Explicit natives-* coordinates are archives only: they are downloaded when a native
+            // target plan is supplied and must be extracted, not treated as ordinary classpath JARs.
+            if (library.hasExplicitNativeClassifier()) continue;
             Optional<DownloadArtifact> artifact = library.getArtifact();
             if (!artifact.isPresent()) {
                 // Native-only classifiers need Android runtime-specific selection/extraction and are not plain JAR tasks.
