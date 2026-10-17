@@ -804,9 +804,9 @@ public final class CoreTests {
                 "omitted launcher feature does not satisfy true");
         bad(() -> new LibraryRule(true, "windows", null, null, "10.0.19045", "10.0.17134", null),
                 "descending OS versionRange rejected");
-        yes(new LibraryRule(true, "osx", null, "^10\\..*", null)
+        yes(new LibraryRule(true, "osx", null, "^10\\.", null)
                 .matches("osx", "aarch64", "10.14.6", null),
-                "anchored OS-version regex matches a longer version string");
+                "prefix-only legacy OS-version regex matches a longer version string");
         yes(!new LibraryRule(true, "osx", null, "^10\\..*", null)
                 .matches("osx", "aarch64", "110.14.6", null),
                 "OS-version regex does not match a partial prefix of another version");
