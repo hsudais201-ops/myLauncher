@@ -705,6 +705,10 @@ class ProfileTypeSelectFragment {
             self.assertIn("new Thread(() ->", menu)
             self.assertIn("deleteRestoreTree(stagingDirectory)", menu)
             self.assertIn("Existing worlds will not be overwritten", strings)
+            self.assertIn('<string name="main_world_backup_confirm_title">Restore world backup?</string>', strings)
+            self.assertIn('<string name="main_world_backup_picker_title">Choose a world backup</string>', strings)
+            self.assertIn('archivePath.startsWith(backupRoot + File.separator)', menu)
+            self.assertIn('outputFile.exists()', menu)
 
     def test_logs_folder_shortcut_opens_the_selected_profile_logs_directory(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
