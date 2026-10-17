@@ -63,6 +63,19 @@ class CustomizeAmethystTests(unittest.TestCase):
             '<color name="secondary_text">#B2B2B2</color></resources>\n',
             encoding="utf-8",
         )
+        (app / "src/main/res/values-fr").mkdir(parents=True, exist_ok=True)
+        (app / "src/main/res/values-fr/strings.xml").write_text(
+            '<resources><string name="app_name">Amethyst</string>'
+            '<string name="error_fatal">Amethyst a planté</string></resources>\n',
+            encoding="utf-8",
+        )
+        about_asset = app / "src/main/assets/about_en.txt"
+        about_asset.parent.mkdir(parents=True, exist_ok=True)
+        about_asset.write_text(
+            '%s (Minecraft Java Launcher for Android), version %s by Tran Khanh Duy (based on "Boardwalk" app)<br>\n'
+            '* License:<br>\n • GNU GPLv3<br>\n • Third party components and their licenses<br>\n',
+            encoding="utf-8",
+        )
         (root / "settings.gradle").write_text("rootProject.name='Amethyst'\n", encoding="utf-8")
 
         tools_java = app / "src/main/java/net/kdt/pojavlaunch/Tools.java"
@@ -337,6 +350,14 @@ class ProfileTypeSelectFragment {
             self.assertNotIn("org.angelauramc.amethyst", build)
             self.assertNotIn("Amethyst", strings)
             self.assertIn("VoidCraft Launcher crashed", strings)
+            localized_strings = (root / "app_pojavlauncher/src/main/res/values-fr/strings.xml").read_text(encoding="utf-8")
+            self.assertIn('<string name="app_name">VoidCraft Launcher</string>', localized_strings)
+            self.assertNotIn("Amethyst", localized_strings)
+            about_text = (root / "app_pojavlauncher/src/main/assets/about_en.txt").read_text(encoding="utf-8")
+            self.assertIn("VoidCraft Launcher is customized and maintained by MF.", about_text)
+            self.assertIn("Original upstream credits: Tran Khanh Duy and contributors", about_text)
+            self.assertIn("* License:", about_text)
+            self.assertIn("Third party components and their licenses", about_text)
             tools_java = (root / "app_pojavlauncher/src/main/java/net/kdt/pojavlaunch/Tools.java").read_text(encoding="utf-8")
             self.assertIn('public static String APP_NAME = "VoidCraft Launcher";', tools_java)
             self.assertNotIn('public static String APP_NAME = "Amethyst";', tools_java)
@@ -415,6 +436,8 @@ class ProfileTypeSelectFragment {
                 self.assertTrue(all(line == line.rstrip() for line in launcher_layout.splitlines()), relative)
                 self.assertEqual(launcher_layout.count('android:id="@+id/mylauncher_hero_title"'), 1)
                 self.assertEqual(launcher_layout.count('android:id="@+id/mylauncher_hero_subtitle"'), 1)
+                self.assertIn('android:text="VoidCraft Launcher"', launcher_layout)
+                self.assertIn('android:text="Minecraft Java Edition · by MF"', launcher_layout)
                 self.assertEqual(launcher_layout.count('android:id="@+id/mylauncher_account_button"'), 1)
                 self.assertEqual(launcher_layout.count('android:id="@+id/mylauncher_mods_button"'), 1)
                 self.assertEqual(launcher_layout.count('android:id="@+id/mylauncher_resourcepacks_button"'), 1)
