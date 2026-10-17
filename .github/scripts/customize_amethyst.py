@@ -17,6 +17,209 @@ def replace_idempotently(text: str, old: str, new: str, label: str) -> str:
     raise ValueError(f"Could not find expected token in {label}: {old!r} or {new!r}")
 
 
+
+
+def upsert_xml_value(text: str, tag: str, name: str, value: str, label: str) -> str:
+    """Replace or add one named XML resource without duplication."""
+    pattern = re.compile(
+        r'(<'+re.escape(tag)+r'\s+name="'+re.escape(name)+r'"[^>]*>)(.*?)(</'+re.escape(tag)+r'>)',
+        flags=re.DOTALL,
+    )
+    text, count = pattern.subn(lambda m: m.group(1) + value + m.group(3), text, count=1)
+    if count:
+        return text
+    if re.search(r'<'+re.escape(tag)+r'\s+name="'+re.escape(name)+r'"', text):
+        raise ValueError(f"Unsupported resource declaration for {name!r} in {label}")
+    closing = re.search(r'</resources\s*>', text)
+    if not closing:
+        raise ValueError(f"Could not find </resources> in {label}")
+    return text[:closing.start()] + f'    <{tag} name="{name}">{value}</{tag}>\n' + text[closing.start():]
+
+
+def set_style_item(text: str, style_name: str, item_name: str, value: str, label: str) -> str:
+    """Set one theme/style item idempotently."""
+    style_pattern = re.compile(
+        r'(<style\s+name="'+re.escape(style_name)+r'"[^>]*>)(.*?)(</style>)',
+        flags=re.DOTALL,
+    )
+    match = style_pattern.search(text)
+    if not match:
+        raise ValueError(f"Expected style {style_name!r} is missing from {label}")
+    body = match.group(2)
+    item_pattern = re.compile(
+        r'(<item\s+name="'+re.escape(item_name)+r'"\s*>)(.*?)(</item>)',
+        flags=re.DOTALL,
+    )
+    body, count = item_pattern.subn(lambda m: m.group(1) + value + m.group(3), body, count=1)
+    if not count:
+        if re.search(r'<item\s+name="'+re.escape(item_name)+r'"', body):
+            raise ValueError(f"Unsupported style item {item_name!r} in {style_name!r}")
+        body = body.rstrip() + f'\n        <item name="{item_name}">{value}</item>\n    '
+    return text[:match.start()] + match.group(1) + body + match.group(3) + text[match.end():]
+
+
+def patch_visual_theme(upstream: Path) -> None:
+    """Apply myLauncher's original night-violet visual system to shared Android UI components."""
+    app = upstream / "app_pojavlauncher"
+    res = app / "src" / "main" / "res"
+    colors, styles = res / "values" / "colors.xml", res / "values" / "styles.xml"
+    card = res / "drawable" / "background_card.xml"
+    mine_button = app / "src" / "main" / "java" / "com" / "kdt" / "mcgui" / "MineButton.java"
+    mine_edit_text = app / "src" / "main" / "java" / "com" / "kdt" / "mcgui" / "MineEditText.java"
+    for path in (colors, styles, card, mine_button, mine_edit_text):
+        if not path.is_file():
+            raise FileNotFoundError(f"Expected shared UI source is missing: {path}")
+
+    palette = {
+        "background_app": "#0D0A14",
+        "background_status_bar": "#100C19",
+        "background_bottom_bar": "#15101F",
+        "background_overlay": "#362747",
+        "minebutton_color": "#8D6BFF",
+        "primary_text": "#F7F2FF",
+        "secondary_text": "#B7AACD",
+        "mylauncher_surface": "#15111F",
+        "mylauncher_surface_elevated": "#211A2E",
+        "mylauncher_accent": "#BBA2FF",
+        "mylauncher_accent_deep": "#7650D8",
+        "mylauncher_border": "#433452",
+        "mylauncher_ripple": "#66BBA2FF",
+        "mylauncher_input_background": "#100C19",
+        "mylauncher_primary_text": "#FFFFFF",
+        "mylauncher_hero_top": "#2C2043",
+        "mylauncher_hero_bottom": "#171120",
+    }
+    color_text = colors.read_text(encoding="utf-8")
+    for name, value in palette.items():
+        color_text = upsert_xml_value(color_text, "color", name, value, str(colors))
+    colors.write_text(color_text, encoding="utf-8")
+
+    style_text = styles.read_text(encoding="utf-8")
+    for item, value in {
+        "colorAccent": "@color/mylauncher_accent",
+        "android:colorAccent": "@color/mylauncher_accent",
+        "colorControlActivated": "@color/mylauncher_accent",
+        "android:colorControlActivated": "@color/mylauncher_accent",
+        "colorControlHighlight": "@color/mylauncher_ripple",
+        "android:colorControlHighlight": "@color/mylauncher_ripple",
+        "colorButtonNormal": "@color/mylauncher_surface_elevated",
+        "android:windowBackground": "@color/background_app",
+        "android:textColorPrimary": "@color/primary_text",
+        "android:textColorSecondary": "@color/secondary_text",
+        "android:statusBarColor": "@color/background_status_bar",
+        "android:navigationBarColor": "@color/background_app",
+        "android:windowLightStatusBar": "false",
+        "android:windowLightNavigationBar": "false",
+    }.items():
+        style_text = set_style_item(style_text, "AppTheme", item, value, str(styles))
+    for item, value in {
+        "android:background": "@drawable/mylauncher_button_background",
+        "android:textColor": "@color/primary_text",
+        "android:textAllCaps": "false",
+        "android:fontFamily": "sans-serif-medium",
+        "android:minHeight": "48dp",
+        "android:letterSpacing": "0.01",
+    }.items():
+        style_text = set_style_item(style_text, "LauncherMenuButton", item, value, str(styles))
+    style_text = set_style_item(style_text, "LauncherMenuButton.Universal", "android:layout_height", "58dp", str(styles))
+    if not re.search(r'<style\s+name="MyLauncherDialogTheme"\b', style_text):
+        end = re.search(r'</resources\s*>', style_text)
+        if not end:
+            raise ValueError(f"Could not find </resources> in {styles}")
+        style_text = style_text[:end.start()] + """
+    <style name="MyLauncherDialogTheme" parent="Theme.AppCompat.DayNight.Dialog">
+        <item name="colorAccent">@color/mylauncher_accent</item>
+        <item name="android:colorAccent">@color/mylauncher_accent</item>
+        <item name="android:windowBackground">@color/mylauncher_surface_elevated</item>
+        <item name="android:textColorPrimary">@color/primary_text</item>
+        <item name="android:textColorSecondary">@color/secondary_text</item>
+        <item name="android:windowMinWidthMajor">87%</item>
+        <item name="android:windowMinWidthMinor">87%</item>
+    </style>
+""" + style_text[end.start():]
+    styles.write_text(style_text, encoding="utf-8")
+
+    card_text = card.read_text(encoding="utf-8")
+    card_text = re.sub(r'<corners\s+android:radius="[^"]+"\s*/>', '<corners android:radius="18dp" />', card_text, count=1)
+    card_text = re.sub(r'<solid\s+android:color="[^"]+"\s*/>', '<solid android:color="@color/mylauncher_surface_elevated" />', card_text, count=1)
+    if '<stroke ' not in card_text:
+        solid = re.search(r'^[ \t]*<solid[^>]*/>', card_text, flags=re.MULTILINE)
+        if not solid:
+            raise ValueError(f"Could not find the card solid fill in {card}")
+        card_text = card_text[:solid.end()] + '\n    <stroke android:width="1dp" android:color="@color/mylauncher_border" />' + card_text[solid.end():]
+    card.write_text(card_text, encoding="utf-8")
+
+    drawable_contents = {
+        "mylauncher_button_background.xml": """<?xml version="1.0" encoding="utf-8"?>
+<ripple xmlns:android="http://schemas.android.com/apk/res/android" android:color="@color/mylauncher_ripple">
+    <item><shape android:shape="rectangle">
+        <corners android:radius="14dp" />
+        <solid android:color="@color/mylauncher_surface_elevated" />
+        <stroke android:width="1dp" android:color="@color/mylauncher_border" />
+    </shape></item>
+</ripple>
+""",
+        "mylauncher_primary_button_background.xml": """<?xml version="1.0" encoding="utf-8"?>
+<ripple xmlns:android="http://schemas.android.com/apk/res/android" android:color="@color/mylauncher_ripple">
+    <item><shape android:shape="rectangle">
+        <corners android:radius="14dp" />
+        <gradient android:angle="0" android:startColor="#9D83FF" android:endColor="@color/mylauncher_accent_deep" />
+        <stroke android:width="1dp" android:color="#CBBEFF" />
+    </shape></item>
+</ripple>
+""",
+        "mylauncher_input_background.xml": """<?xml version="1.0" encoding="utf-8"?>
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <corners android:radius="12dp" />
+    <solid android:color="@color/mylauncher_input_background" />
+    <stroke android:width="1dp" android:color="@color/mylauncher_border" />
+    <padding android:left="12dp" android:top="4dp" android:right="12dp" android:bottom="4dp" />
+</shape>
+""",
+        "mylauncher_hero_background.xml": """<?xml version="1.0" encoding="utf-8"?>
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <corners android:radius="22dp" />
+    <gradient android:angle="270" android:startColor="@color/mylauncher_hero_top" android:endColor="@color/mylauncher_hero_bottom" />
+    <stroke android:width="1dp" android:color="@color/mylauncher_border" />
+</shape>
+""",
+    }
+    drawable_dir = res / "drawable"
+    drawable_dir.mkdir(parents=True, exist_ok=True)
+    for name, content in drawable_contents.items():
+        (drawable_dir / name).write_text(content, encoding="utf-8")
+
+    button_text = mine_button.read_text(encoding="utf-8")
+    button_text = replace_idempotently(button_text, "R.drawable.mine_button_background", "R.drawable.mylauncher_primary_button_background", str(mine_button))
+    text_color_line = "setTextColor(ResourcesCompat.getColor(getResources(), R.color.mylauncher_primary_text, null));"
+    if text_color_line not in button_text:
+        anchor = "setBackground(ResourcesCompat.getDrawable(getResources(), R.drawable.mylauncher_primary_button_background, null));"
+        if anchor not in button_text:
+            raise ValueError(f"Could not find MineButton background setter in {mine_button}")
+        button_text = button_text.replace(anchor, anchor + "\n\t\t" + text_color_line, 1)
+    if "import androidx.core.content.res.ResourcesCompat;" not in button_text or "R.color.mylauncher_primary_text" not in button_text:
+        raise ValueError(f"MineButton theme colors are incomplete in {mine_button}")
+    mine_button.write_text(button_text, encoding="utf-8")
+
+    edit_text = mine_edit_text.read_text(encoding="utf-8")
+    old_background = 'setBackgroundColor(Color.parseColor("#131313"));'
+    new_background = "setBackground(ResourcesCompat.getDrawable(getResources(), R.drawable.mylauncher_input_background, null));\n\t\tsetTextColor(ResourcesCompat.getColor(getResources(), R.color.primary_text, null));\n\t\tsetHintTextColor(ResourcesCompat.getColor(getResources(), R.color.secondary_text, null));"
+    if old_background in edit_text:
+        edit_text = edit_text.replace(old_background, new_background, 1)
+    elif new_background not in edit_text:
+        raise ValueError(f"Could not find expected MineEditText background in {mine_edit_text}")
+    if "import androidx.core.content.res.ResourcesCompat;" not in edit_text:
+        edit_text = edit_text.replace("import android.widget.EditText;", "import android.widget.EditText;\nimport androidx.core.content.res.ResourcesCompat;")
+    if "import net.kdt.pojavlaunch.R;" not in edit_text:
+        if "import android.widget.EditText;" in edit_text:
+            edit_text = edit_text.replace("import android.widget.EditText;", "import android.widget.EditText;\nimport net.kdt.pojavlaunch.R;", 1)
+        else:
+            edit_text = re.sub(r'(?m)^public class MineEditText', "import net.kdt.pojavlaunch.R;\n\npublic class MineEditText", edit_text, count=1)
+    if "R.drawable.mylauncher_input_background" not in edit_text or "setHintTextColor" not in edit_text:
+        raise ValueError(f"MineEditText theme colors are incomplete in {mine_edit_text}")
+    mine_edit_text.write_text(edit_text, encoding="utf-8")
+
+
 def validate_xml_files(paths: tuple[Path, ...]) -> None:
     """Fail early when a generated Android resource is not well-formed XML."""
     for path in paths:
@@ -121,6 +324,7 @@ def patch_upstream(upstream: Path) -> None:
     for color_name in ("primary_text", "secondary_text"):
         if not re.search(r'<color\s+name="' + color_name + r'"', colors_text):
             raise ValueError(f"Required header color {color_name!r} is missing from colors.xml")
+    patch_visual_theme(upstream)
 
     settings_text = settings.read_text(encoding="utf-8")
     settings_text = replace_idempotently(settings_text, "Amethyst", "myLauncher", str(settings))
@@ -289,36 +493,64 @@ def patch_upstream(upstream: Path) -> None:
         raise ValueError("Offline account form must use a username field and an Add account action")
     login_layout.write_text(login_layout_text, encoding="utf-8")
 
-    # Add a responsive branded header without introducing heavyweight UI dependencies.
-    header = """            <TextView
-                android:id="@+id/mylauncher_hero_title"
+    # Use an original myLauncher hero with a restrained night-violet identity.
+    header = """            <View
+                android:id="@+id/mylauncher_hero_background"
                 android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="20dp"
-                android:layout_marginTop="18dp"
-                android:layout_marginEnd="20dp"
-                android:text="myLauncher"
-                android:textColor="@color/primary_text"
-                android:textSize="26sp"
-                android:textStyle="bold"
+                android:layout_height="116dp"
+                android:layout_marginStart="12dp"
+                android:layout_marginTop="10dp"
+                android:layout_marginEnd="12dp"
+                android:background="@drawable/mylauncher_hero_background"
                 app:layout_constraintTop_toTopOf="parent"
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintEnd_toEndOf="parent" />
 
             <TextView
+                android:id="@+id/mylauncher_hero_kicker"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="18dp"
+                android:layout_marginTop="17dp"
+                android:layout_marginEnd="18dp"
+                android:fontFamily="sans-serif-medium"
+                android:letterSpacing="0.12"
+                android:text="MYLAUNCHER  /  JAVA EDITION"
+                android:textColor="@color/mylauncher_accent"
+                android:textSize="10sp"
+                app:layout_constraintTop_toTopOf="@id/mylauncher_hero_background"
+                app:layout_constraintStart_toStartOf="@id/mylauncher_hero_background"
+                app:layout_constraintEnd_toEndOf="@id/mylauncher_hero_background" />
+
+            <TextView
+                android:id="@+id/mylauncher_hero_title"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="18dp"
+                android:layout_marginTop="33dp"
+                android:layout_marginEnd="18dp"
+                android:fontFamily="sans-serif"
+                android:text="myLauncher"
+                android:textColor="@color/primary_text"
+                android:textSize="27sp"
+                android:textStyle="bold"
+                app:layout_constraintTop_toTopOf="@id/mylauncher_hero_background"
+                app:layout_constraintStart_toStartOf="@id/mylauncher_hero_background"
+                app:layout_constraintEnd_toEndOf="@id/mylauncher_hero_background" />
+
+            <TextView
                 android:id="@+id/mylauncher_hero_subtitle"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="20dp"
-                android:layout_marginTop="2dp"
-                android:layout_marginEnd="20dp"
-                android:layout_marginBottom="12dp"
-                android:text="Minecraft Java Edition · built for lightweight devices"
+                android:layout_marginStart="19dp"
+                android:layout_marginTop="1dp"
+                android:layout_marginEnd="18dp"
+                android:text="Your Java worlds, reimagined for mobile."
                 android:textColor="@color/secondary_text"
                 android:textSize="12sp"
                 app:layout_constraintTop_toBottomOf="@id/mylauncher_hero_title"
-                app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintEnd_toEndOf="parent" />
+                app:layout_constraintStart_toStartOf="@id/mylauncher_hero_background"
+                app:layout_constraintEnd_toEndOf="@id/mylauncher_hero_background" />
 
 """
     for relative_layout in (
@@ -745,8 +977,9 @@ def patch_upstream(upstream: Path) -> None:
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-    <path android:fillColor="#171B26" android:pathData="M0,0h108v108h-108z" />
-    <path android:fillColor="#7C5CFF" android:pathData="M18,28H32L54,54L76,28H90V80H76V50L54,76L32,50V80H18Z" />
+    <path android:fillColor="#0D0A14" android:pathData="M0,0h108v108h-108z" />
+    <path android:fillColor="#BBA2FF" android:pathData="M18,28H32L54,54L76,28H90V80H76V50L54,76L32,50V80H18Z" />
+    <path android:fillColor="#7650D8" android:pathData="M18,80H32V94H18Z M76,80H90V94H76Z" />
 </vector>
 """, encoding="utf-8")
 
@@ -857,6 +1090,12 @@ def patch_upstream(upstream: Path) -> None:
         upstream / "app_pojavlauncher" / "src" / "main" / "res" / "layout-land" / "fragment_launcher.xml",
         manifest,
         icon,
+        upstream / "app_pojavlauncher" / "src" / "main" / "res" / "values" / "styles.xml",
+        upstream / "app_pojavlauncher" / "src" / "main" / "res" / "drawable" / "background_card.xml",
+        upstream / "app_pojavlauncher" / "src" / "main" / "res" / "drawable" / "mylauncher_button_background.xml",
+        upstream / "app_pojavlauncher" / "src" / "main" / "res" / "drawable" / "mylauncher_primary_button_background.xml",
+        upstream / "app_pojavlauncher" / "src" / "main" / "res" / "drawable" / "mylauncher_input_background.xml",
+        upstream / "app_pojavlauncher" / "src" / "main" / "res" / "drawable" / "mylauncher_hero_background.xml",
     ))
 
     print("myLauncher patch OK")
