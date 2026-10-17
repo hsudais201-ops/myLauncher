@@ -91,6 +91,18 @@ def patch_upstream(upstream: Path) -> None:
         strings_text = strings_text[:account_string.end()] + "\n" + mods_string + strings_text[account_string.end():]
     if not re.search(r'<string\s+name="main_mods_folder"[^>]*>\s*Mods folder\s*</string>', strings_text):
         raise ValueError("Required main_mods_folder string is missing or invalid")
+    if not re.search(r'<string\s+name="main_mods_folder_hint"', strings_text):
+        mods_label_match = re.search(
+            r'(?m)^([ \t]*<string\s+name="main_mods_folder"[^>]*>.*?</string>)[ \t]*$',
+            strings_text,
+        )
+        if not mods_label_match:
+            raise ValueError("Could not find main_mods_folder to add the mod-manager accessibility hint")
+        indent = re.match(r"[ \t]*", mods_label_match.group(1)).group(0)
+        mods_hint = indent + '<string name="main_mods_folder_hint">Mods folder. Long-press to enable or disable JAR mods.</string>'
+        strings_text = strings_text[:mods_label_match.end()] + "\n" + mods_hint + strings_text[mods_label_match.end():]
+    if not re.search(r'<string\s+name="main_mods_folder_hint"[^>]*>\s*Mods folder\. Long-press to enable or disable JAR mods\.\s*</string>', strings_text):
+        raise ValueError("Required main_mods_folder_hint accessibility text is missing or invalid")
     if not re.search(r'<string\s+name="main_resourcepacks_folder"', strings_text):
         mods_string_match = re.search(
             r'(?m)^([ \t]*<string\s+name="main_mods_folder"[^>]*>.*?</string>)[ \t]*$',
@@ -864,6 +876,9 @@ def patch_upstream(upstream: Path) -> None:
         if account_binding not in main_menu_text:
             raise ValueError("Could not bind the mods-folder shortcut without the account shortcut")
         main_menu_text = main_menu_text.replace(account_binding, account_binding + "\n        " + mods_binding, 1)
+    mods_hint_binding = "mMyLauncherModsButton.setContentDescription(getString(R.string.main_mods_folder_hint));"
+    if mods_hint_binding not in main_menu_text:
+        main_menu_text = main_menu_text.replace(mods_binding, mods_binding + "\n        " + mods_hint_binding, 1)
     mods_listener = """mMyLauncherModsButton.setOnClickListener(v -> {
             if (Tools.isDemoProfile(v.getContext())) {
                 hasNoOnlineProfileDialog(getActivity(), getString(R.string.demo_unsupported), getString(R.string.change_account));
@@ -883,6 +898,7 @@ def patch_upstream(upstream: Path) -> None:
         main_menu_text = main_menu_text.replace(listener_anchor, "        " + mods_listener + "\n        " + listener_anchor, 1)
     if (
         main_menu_text.count(mods_binding) != 1
+        or main_menu_text.count(mods_hint_binding) != 1
         or main_menu_text.count(mods_listener) != 1
         or 'new File(getCurrentProfileDirectory(), "mods")' not in main_menu_text
         or "!modsDirectory.isDirectory() && !modsDirectory.mkdirs()" not in main_menu_text
@@ -892,6 +908,102 @@ def patch_upstream(upstream: Path) -> None:
         or "import static net.kdt.pojavlaunch.Tools.openPath;" not in main_menu_text
     ):
         raise ValueError("The mods-folder shortcut binding, directory creation, or handler is incomplete")
+
+    mods_manager_listener = """mMyLauncherModsButton.setOnLongClickListener(v -> {
+            if (Tools.isDemoProfile(v.getContext())) {
+                hasNoOnlineProfileDialog(getActivity(), getString(R.string.demo_unsupported), getString(R.string.change_account));
+                return true;
+            }
+            File modsDirectory = new File(getCurrentProfileDirectory(), "mods");
+            if (!modsDirectory.isDirectory() && !modsDirectory.mkdirs()) {
+                Toast.makeText(requireContext(), "Unable to create the mods folder", Toast.LENGTH_LONG).show();
+                return true;
+            }
+            File[] modFiles = modsDirectory.listFiles((directory, name) -> {
+                if (name == null) return false;
+                String normalizedName = name.toLowerCase(java.util.Locale.ROOT);
+                return new File(directory, name).isFile()
+                        && (normalizedName.endsWith(".jar") || normalizedName.endsWith(".jar.disabled"));
+            });
+            if (modFiles == null || modFiles.length == 0) {
+                Toast.makeText(requireContext(), "No JAR mods found to enable or disable", Toast.LENGTH_LONG).show();
+                return true;
+            }
+            java.util.Arrays.sort(modFiles, (left, right) ->
+                    left.getName().compareToIgnoreCase(right.getName()));
+            String[] modChoices = new String[modFiles.length];
+            for (int i = 0; i < modFiles.length; i++) {
+                String normalizedName = modFiles[i].getName().toLowerCase(java.util.Locale.ROOT);
+                boolean disabled = normalizedName.endsWith(".jar.disabled");
+                modChoices[i] = (disabled ? "Disabled · " : "Enabled · ") + modFiles[i].getName();
+            }
+            new AlertDialog.Builder(requireContext())
+                    .setTitle("Manage mods — enable or disable")
+                    .setItems(modChoices, (dialog, which) -> {
+                        if (which < 0 || which >= modFiles.length) return;
+                        File selectedMod = modFiles[which];
+                        String selectedName = selectedMod.getName();
+                        String normalizedName = selectedName.toLowerCase(java.util.Locale.ROOT);
+                        boolean wasDisabled = normalizedName.endsWith(".jar.disabled");
+                        String destinationName = wasDisabled
+                                ? selectedName.substring(0, selectedName.length() - ".disabled".length())
+                                : selectedName + ".disabled";
+                        File destination = new File(modsDirectory, destinationName);
+                        new AlertDialog.Builder(requireContext())
+                                .setTitle(wasDisabled ? "Enable mod?" : "Disable mod?")
+                                .setMessage((wasDisabled ? "Enable " : "Disable ") + selectedName + "?")
+                                .setNegativeButton(android.R.string.cancel, null)
+                                .setPositiveButton(wasDisabled ? "Enable" : "Disable", (confirmDialog, result) -> {
+                                    try {
+                                        String modsRoot = modsDirectory.getCanonicalPath();
+                                        String selectedPath = selectedMod.getCanonicalPath();
+                                        String destinationPath = destination.getCanonicalPath();
+                                        if (!modsDirectory.isDirectory()
+                                                || !selectedMod.isFile()
+                                                || !selectedPath.startsWith(modsRoot + File.separator)
+                                                || !destinationPath.startsWith(modsRoot + File.separator)) {
+                                            Toast.makeText(requireContext(), "The selected mod is no longer available", Toast.LENGTH_LONG).show();
+                                            return;
+                                        }
+                                        if (destination.exists()) {
+                                            Toast.makeText(requireContext(), "A file already exists with that name", Toast.LENGTH_LONG).show();
+                                            return;
+                                        }
+                                        if (!selectedMod.renameTo(destination)) {
+                                            Toast.makeText(requireContext(), "Unable to rename the mod file", Toast.LENGTH_LONG).show();
+                                            return;
+                                        }
+                                        Toast.makeText(requireContext(),
+                                                (wasDisabled ? "Enabled: " : "Disabled: ") + destination.getName(),
+                                                Toast.LENGTH_LONG).show();
+                                    } catch (IOException exception) {
+                                        Toast.makeText(requireContext(), "Unable to validate the mod path: " + exception.getMessage(), Toast.LENGTH_LONG).show();
+                                    }
+                                })
+                                .show();
+                    })
+                    .show();
+            return true;
+        });"""
+    if mods_manager_listener not in main_menu_text:
+        main_menu_text = main_menu_text.replace(mods_listener, mods_listener + "\n\n        " + mods_manager_listener, 1)
+    if (
+        main_menu_text.count(mods_manager_listener) != 1
+        or main_menu_text.count("mMyLauncherModsButton.setOnLongClickListener") != 1
+        or "name.toLowerCase(java.util.Locale.ROOT)" not in mods_manager_listener
+        or 'normalizedName.endsWith(".jar")' not in mods_manager_listener
+        or 'normalizedName.endsWith(".jar.disabled")' not in mods_manager_listener
+        or 'selectedName + ".disabled"' not in mods_manager_listener
+        or 'selectedName.substring(0, selectedName.length() - ".disabled".length())' not in mods_manager_listener
+        or "setPositiveButton(wasDisabled ? \"Enable\" : \"Disable\"" not in mods_manager_listener
+        or "destination.exists()" not in mods_manager_listener
+        or "!selectedMod.renameTo(destination)" not in mods_manager_listener
+        or "!selectedPath.startsWith(modsRoot + File.separator)" not in mods_manager_listener
+        or "Tools.isDemoProfile(v.getContext())" not in mods_manager_listener
+    ):
+        raise ValueError("The mod enable/disable manager is incomplete or missing safety checks")
+    if mods_hint_binding not in main_menu_text or main_menu_text.count(mods_hint_binding) != 1:
+        raise ValueError("The Mods long-press accessibility hint is not wired exactly once")
 
     resourcepacks_binding = "Button mMyLauncherResourcePacksButton = view.findViewById(R.id.mylauncher_resourcepacks_button);"
     if resourcepacks_binding not in main_menu_text:
