@@ -56,6 +56,19 @@ class UiCustomizerTests(unittest.TestCase):
 </resources>
 """, encoding="utf-8")
 
+        (res / "drawable/background_card.xml").write_text("""<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <corners android:radius="8dp" />
+    <padding android:bottom="2dp" android:left="2dp" android:right="2dp" android:top="2dp" />
+    <solid android:color="#242424" />
+</shape>
+""", encoding="utf-8")
+        (app / "src/main/AndroidManifest.xml").write_text("""<manifest xmlns:android="http://schemas.android.com/apk/res/android" package="net.kdt.pojavlaunch">
+    <application android:theme="@style/AppTheme">
+        <activity android:name=".FatalErrorActivity" android:theme="@style/Theme.AppCompat.DayNight.Dialog" />
+    </application>
+</manifest>
+""", encoding="utf-8")
+
         for relative in ("layout/fragment_launcher.xml", "layout-land/fragment_launcher.xml"):
             (res / relative).write_text("""<androidx.constraintlayout.widget.ConstraintLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
@@ -83,11 +96,11 @@ class UiCustomizerTests(unittest.TestCase):
 """, encoding="utf-8")
 
         (app / "src/main/java/com/kdt/mcgui/MineButton.java").write_text(
-            'class MineButton { void init() { setBackground(ResourcesCompat.getDrawable(getResources(), R.drawable.mine_button_background, null)); } }\n',
+            'package com.kdt.mcgui;\nimport androidx.core.content.res.ResourcesCompat;\nclass MineButton { void init() { setBackground(ResourcesCompat.getDrawable(getResources(), R.drawable.mine_button_background, null)); } }\n',
             encoding="utf-8",
         )
         (app / "src/main/java/com/kdt/mcgui/MineEditText.java").write_text(
-            'class MineEditText { void init() { setBackgroundColor(Color.parseColor("#131313")); } }\n',
+            'package com.kdt.mcgui;\nimport android.widget.EditText;\nclass MineEditText { void init() { setBackgroundColor(Color.parseColor("#131313")); } }\n',
             encoding="utf-8",
         )
         (app / "src/main/java/net/kdt/pojavlaunch/prefs/LauncherPreferences.java").write_text("""package net.kdt.pojavlaunch.prefs;
@@ -120,11 +133,18 @@ class LauncherActivity {
             styles = (res / "values/styles.xml").read_text(encoding="utf-8")
             play = (root / "app_pojavlauncher/src/main/java/com/kdt/mcgui/MineButton.java").read_text(encoding="utf-8")
             edit = (root / "app_pojavlauncher/src/main/java/com/kdt/mcgui/MineEditText.java").read_text(encoding="utf-8")
-            self.assertIn("#0C1020", colors)
+            self.assertIn("#0D0A14", colors)
             self.assertIn("@color/mylauncher_accent", styles)
             self.assertIn("@drawable/mylauncher_button_background", styles)
+            self.assertIn("MyLauncherDialogTheme", styles)
+            manifest = (root / "app_pojavlauncher/src/main/AndroidManifest.xml").read_text(encoding="utf-8")
+            self.assertIn('android:theme="@style/MyLauncherDialogTheme"', manifest)
             self.assertIn("R.drawable.mylauncher_play_button_background", play)
             self.assertIn("R.drawable.mylauncher_input_background", edit)
+            self.assertIn("import net.kdt.pojavlaunch.R;", edit)
+            self.assertIn("setTextColor(ResourcesCompat.getColor", edit)
+            self.assertIn("setHintTextColor(ResourcesCompat.getColor", edit)
+            self.assertIn("setTextColor(ResourcesCompat.getColor", play)
             for filename in (
                 "mylauncher_button_background.xml",
                 "mylauncher_play_button_background.xml",
@@ -140,13 +160,20 @@ class LauncherActivity {
             customizer.patch_upstream(root)
             activity = (root / "app_pojavlauncher/src/main/java/net/kdt/pojavlaunch/LauncherActivity.java").read_text(encoding="utf-8")
             prefs = (root / "app_pojavlauncher/src/main/java/net/kdt/pojavlaunch/prefs/LauncherPreferences.java").read_text(encoding="utf-8")
-            self.assertIn('normalizedVersionId.matches("^26\\\\.(?:3|[4-9])(?:[.-].*|$)")', activity)
+            self.assertIn('normalizedVersionId.matches("(?i)^26\\\\.(?:3|[4-9]|[1-9][0-9]+)(?:[.-].*|$)")', activity)
+            self.assertIn('normalizedVersionId.matches("(?i)^26\\\\.3-snapshot-1(?:$|[-+].*)")', activity)
             self.assertIn("LauncherPreferences.writeMGRendererSettings();", activity)
-            self.assertNotIn('"opengles_mobileglues".equals(Tools.LOCAL_RENDERER)', activity)
+            self.assertIn('"opengles_mobileglues".equals(Tools.LOCAL_RENDERER)', activity)
+            self.assertIn("useDefaultRendererErrorFilter", activity)
             self.assertIn("LauncherPreferences.MYLAUNCHER_RENDERPEARL_COMPAT = false;", activity)
-            self.assertIn('errorSetting = "1";', prefs)
+            self.assertIn('errorSetting = "2";', prefs)
+            self.assertIn('&& "0".equals(errorSetting)', prefs)
+            self.assertIn('"0".equals(\n                LauncherPreferences.DEFAULT_PREF.getString("mg_renderer_setting_errorSetting", "0"))', activity)
             self.assertIn('DEFAULT_PREF.getString("mg_renderer_setting_errorSetting", "0")', prefs)
-            self.assertIn("mylauncher_26x_renderer_compat", (root / "app_pojavlauncher/src/main/res/values/strings.xml").read_text(encoding="utf-8"))
+            strings = (root / "app_pojavlauncher/src/main/res/values/strings.xml").read_text(encoding="utf-8")
+            self.assertIn("mylauncher_26x_renderer_compat", strings)
+            self.assertIn("26.3 compatibility varies by device", strings)
+            self.assertIn("requires a compatible Vulkan driver", strings)
 
     def test_home_panel_is_present_in_both_orientations(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
@@ -157,6 +184,10 @@ class LauncherActivity {
             for relative in ("layout/fragment_launcher.xml", "layout-land/fragment_launcher.xml"):
                 text = (res / relative).read_text(encoding="utf-8")
                 self.assertEqual(text.count('android:id="@+id/mylauncher_hero_surface"'), 1)
+                self.assertEqual(text.count('android:id="@+id/mylauncher_hero_kicker"'), 1)
+                self.assertIn('android:text="MYLAUNCHER  /  JAVA EDITION"', text)
+                self.assertIn('android:text="Your Java worlds, reimagined for mobile."', text)
+                self.assertIn('android:layout_marginTop="33dp"', text)
                 self.assertIn("@drawable/mylauncher_hero_background", text)
                 self.assertIn('app:layout_constraintTop_toBottomOf="@id/mylauncher_hero_surface"', text)
 
@@ -166,12 +197,13 @@ class LauncherActivity {
             self.fixture(root)
             customizer.patch_upstream(root)
             res = root / "app_pojavlauncher/src/main/res"
-            xml_paths = list((res / "values").glob("*.xml")) + list((res / "layout").glob("*.xml")) + list((res / "layout-land").glob("*.xml")) + list((res / "drawable").glob("*.xml"))
+            xml_paths = list((res / "values").glob("*.xml")) + list((res / "layout").glob("*.xml")) + list((res / "layout-land").glob("*.xml")) + list((res / "drawable").glob("*.xml")) + [root / "app_pojavlauncher/src/main/AndroidManifest.xml"]
             source_paths = [
                 root / "app_pojavlauncher/src/main/java/com/kdt/mcgui/MineButton.java",
                 root / "app_pojavlauncher/src/main/java/com/kdt/mcgui/MineEditText.java",
                 root / "app_pojavlauncher/src/main/java/net/kdt/pojavlaunch/LauncherActivity.java",
                 root / "app_pojavlauncher/src/main/java/net/kdt/pojavlaunch/prefs/LauncherPreferences.java",
+                root / "app_pojavlauncher/src/main/AndroidManifest.xml",
             ]
             paths = xml_paths + source_paths
             before = {p: p.read_text(encoding="utf-8") for p in paths}
