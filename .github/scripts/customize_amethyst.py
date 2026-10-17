@@ -127,6 +127,18 @@ def patch_upstream(upstream: Path) -> None:
         strings_text = strings_text[:world_saves_string_match.end()] + "\n" + logs_string + strings_text[world_saves_string_match.end():]
     if not re.search(r'<string\s+name="main_logs_folder"[^>]*>\s*Game logs\s*</string>', strings_text):
         raise ValueError("Required main_logs_folder string is missing or invalid")
+    if not re.search(r'<string\s+name="main_screenshots_folder"', strings_text):
+        logs_string_match = re.search(
+            r'(?m)^([ \t]*<string\s+name="main_logs_folder"[^>]*>.*?</string>)[ \t]*$',
+            strings_text,
+        )
+        if not logs_string_match:
+            raise ValueError("Could not find main_logs_folder to add the screenshots label")
+        indent = re.match(r"[ \t]*", logs_string_match.group(1)).group(0)
+        screenshots_string = indent + '<string name="main_screenshots_folder">Screenshots</string>'
+        strings_text = strings_text[:logs_string_match.end()] + "\n" + screenshots_string + strings_text[logs_string_match.end():]
+    if not re.search(r'<string\s+name="main_screenshots_folder"[^>]*>\s*Screenshots\s*</string>', strings_text):
+        raise ValueError("Required main_screenshots_folder string is missing or invalid")
     strings.write_text(strings_text, encoding="utf-8")
 
     # App names can be localized in values-*/strings.xml. Force the product
@@ -521,6 +533,23 @@ def patch_upstream(upstream: Path) -> None:
             block = world_saves_match.group(1) + "\n" + logs_button
             layout_text = layout_text[:world_saves_match.start(1)] + block + layout_text[world_saves_match.end(1):]
 
+        if "mylauncher_screenshots_button" not in layout_text:
+            screenshots_button = """            <com.kdt.mcgui.LauncherMenuButton
+                android:id="@+id/mylauncher_screenshots_button"
+                style="@style/LauncherMenuButton.Universal"
+                android:layout_width="match_parent"
+                android:drawableStart="@android:drawable/ic_menu_gallery"
+                android:text="@string/main_screenshots_folder"
+                app:layout_constraintTop_toBottomOf="@id/mylauncher_logs_button" />
+
+"""
+            logs_pattern = re.compile(r'(<com\.kdt\.mcgui\.LauncherMenuButton\s+android:id="@\+id/mylauncher_logs_button".*?/>\s*)', re.DOTALL)
+            logs_match = logs_pattern.search(layout_text)
+            if not logs_match:
+                raise ValueError(f"Could not find mylauncher_logs_button to add screenshots shortcut in {layout_path}")
+            block = logs_match.group(1) + "\n" + screenshots_button
+            layout_text = layout_text[:logs_match.start(1)] + block + layout_text[logs_match.end(1):]
+
         if "mylauncher_account_button" not in layout_text:
             account_button = """            <com.kdt.mcgui.LauncherMenuButton
                 android:id="@+id/mylauncher_account_button"
@@ -528,25 +557,25 @@ def patch_upstream(upstream: Path) -> None:
                 android:layout_width="match_parent"
                 android:drawableStart="@android:drawable/ic_menu_myplaces"
                 android:text="@string/main_add_account"
-                app:layout_constraintTop_toBottomOf="@id/mylauncher_logs_button" />
+                app:layout_constraintTop_toBottomOf="@id/mylauncher_screenshots_button" />
 
 """
-            logs_pattern = re.compile(r'(<com\.kdt\.mcgui\.LauncherMenuButton\s+android:id="@\+id/mylauncher_logs_button".*?/>\s*)', re.DOTALL)
-            logs_match = logs_pattern.search(layout_text)
-            if not logs_match:
-                raise ValueError(f"Could not find mylauncher_logs_button in {layout_path}")
-            block = logs_match.group(1) + "\n" + account_button
-            layout_text = layout_text[:logs_match.start(1)] + block + layout_text[logs_match.end(1):]
+            screenshots_pattern = re.compile(r'(<com\.kdt\.mcgui\.LauncherMenuButton\s+android:id="@\+id/mylauncher_screenshots_button".*?/>\s*)', re.DOTALL)
+            screenshots_match = screenshots_pattern.search(layout_text)
+            if not screenshots_match:
+                raise ValueError(f"Could not find mylauncher_screenshots_button in {layout_path}")
+            block = screenshots_match.group(1) + "\n" + account_button
+            layout_text = layout_text[:screenshots_match.start(1)] + block + layout_text[screenshots_match.end(1):]
 
         account_pattern = re.compile(r'<com\.kdt\.mcgui\.LauncherMenuButton\s+android:id="@\+id/mylauncher_account_button".*?/>', re.DOTALL)
         account_match = account_pattern.search(layout_text)
         if account_match:
-            for prior_anchor in ("open_files_button", "mylauncher_mods_button", "mylauncher_resourcepacks_button", "mylauncher_world_saves_button"):
+            for prior_anchor in ("open_files_button", "mylauncher_mods_button", "mylauncher_resourcepacks_button", "mylauncher_world_saves_button", "mylauncher_logs_button"):
                 prior_constraint = 'app:layout_constraintTop_toBottomOf="@id/' + prior_anchor + '"'
                 if prior_constraint in account_match.group(0):
                     updated_account = account_match.group(0).replace(
                         prior_constraint,
-                        'app:layout_constraintTop_toBottomOf="@id/mylauncher_logs_button"',
+                        'app:layout_constraintTop_toBottomOf="@id/mylauncher_screenshots_button"',
                         1,
                     )
                     layout_text = layout_text[:account_match.start()] + updated_account + layout_text[account_match.end():]
@@ -570,6 +599,11 @@ def patch_upstream(upstream: Path) -> None:
         )
         logs_match = re.search(
             r'<com\.kdt\.mcgui\.LauncherMenuButton\s+android:id="@\+id/mylauncher_logs_button".*?/>',
+            layout_text,
+            flags=re.DOTALL,
+        )
+        screenshots_match = re.search(
+            r'<com\.kdt\.mcgui\.LauncherMenuButton\s+android:id="@\+id/mylauncher_screenshots_button".*?/>',
             layout_text,
             flags=re.DOTALL,
         )
@@ -603,21 +637,29 @@ def patch_upstream(upstream: Path) -> None:
             or 'android:drawableStart="@android:drawable/ic_menu_view"' not in logs_match.group(0)
             or 'android:text="@string/main_logs_folder"' not in logs_match.group(0)
             or 'app:layout_constraintTop_toBottomOf="@id/mylauncher_world_saves_button"' not in logs_match.group(0)
+            or not screenshots_match
+            or screenshots_match.group(0).count('android:id="@+id/mylauncher_screenshots_button"') != 1
+            or 'style="@style/LauncherMenuButton.Universal"' not in screenshots_match.group(0)
+            or 'android:layout_width="match_parent"' not in screenshots_match.group(0)
+            or 'android:drawableStart="@android:drawable/ic_menu_gallery"' not in screenshots_match.group(0)
+            or 'android:text="@string/main_screenshots_folder"' not in screenshots_match.group(0)
+            or 'app:layout_constraintTop_toBottomOf="@id/mylauncher_logs_button"' not in screenshots_match.group(0)
             or not account_match
             or account_match.group(0).count('android:id="@+id/mylauncher_account_button"') != 1
             or 'style="@style/LauncherMenuButton.Universal"' not in account_match.group(0)
             or 'android:layout_width="match_parent"' not in account_match.group(0)
             or 'android:drawableStart="@android:drawable/ic_menu_myplaces"' not in account_match.group(0)
             or 'android:text="@string/main_add_account"' not in account_match.group(0)
-            or 'app:layout_constraintTop_toBottomOf="@id/mylauncher_logs_button"' not in account_match.group(0)
+            or 'app:layout_constraintTop_toBottomOf="@id/mylauncher_screenshots_button"' not in account_match.group(0)
             or open_files_index < 0
             or open_files_index > mods_match.start()
             or mods_match.start() > resourcepacks_match.start()
             or resourcepacks_match.start() > world_saves_match.start()
             or world_saves_match.start() > logs_match.start()
-            or logs_match.start() > account_match.start()
+            or logs_match.start() > screenshots_match.start()
+            or screenshots_match.start() > account_match.start()
         ):
-            raise ValueError(f"myLauncher mods/resource-packs/world-saves/logs/account shortcuts are incomplete in {layout_path}")
+            raise ValueError(f"myLauncher mods/resource-packs/world-saves/logs/screenshots/account shortcuts are incomplete in {layout_path}")
 
         title_match = re.search(
             r'<TextView\s+android:id="@\+id/mylauncher_hero_title".*?/>',
@@ -635,6 +677,7 @@ def patch_upstream(upstream: Path) -> None:
             or layout_text.count('android:id="@+id/mylauncher_account_button"') != 1
             or layout_text.count('android:id="@+id/mylauncher_world_saves_button"') != 1
             or layout_text.count('android:id="@+id/mylauncher_logs_button"') != 1
+            or layout_text.count('android:id="@+id/mylauncher_screenshots_button"') != 1
             or layout_text.count('android:id="@+id/news_button"') != 1
             or layout_text.count('android:id="@+id/discord_button"') != 1
             or layout_text.count('android:id="@+id/social_divider"') != 1
@@ -864,6 +907,37 @@ def patch_upstream(upstream: Path) -> None:
         or "openPath(v.getContext(), logsDirectory, false);" not in main_menu_text
     ):
         raise ValueError("The game-logs shortcut binding, directory creation, or handler is incomplete")
+
+    screenshots_binding = "Button mMyLauncherScreenshotsButton = view.findViewById(R.id.mylauncher_screenshots_button);"
+    if screenshots_binding not in main_menu_text:
+        if logs_binding not in main_menu_text:
+            raise ValueError("Could not bind the screenshots shortcut without the game-logs shortcut")
+        main_menu_text = main_menu_text.replace(logs_binding, logs_binding + "\n        " + screenshots_binding, 1)
+    screenshots_listener = """mMyLauncherScreenshotsButton.setOnClickListener(v -> {
+            if (Tools.isDemoProfile(v.getContext())) {
+                hasNoOnlineProfileDialog(getActivity(), getString(R.string.demo_unsupported), getString(R.string.change_account));
+                return;
+            }
+            File screenshotsDirectory = new File(getCurrentProfileDirectory(), "screenshots");
+            if (!screenshotsDirectory.isDirectory() && !screenshotsDirectory.mkdirs()) {
+                Toast.makeText(requireContext(), "Unable to create the screenshots folder", Toast.LENGTH_LONG).show();
+                return;
+            }
+            openPath(v.getContext(), screenshotsDirectory, false);
+        });"""
+    if screenshots_listener not in main_menu_text:
+        listener_anchor = "mVersionSpinner = view.findViewById(R.id.mc_version_spinner);"
+        if listener_anchor not in main_menu_text:
+            raise ValueError("Could not find the listener insertion point for the screenshots shortcut")
+        main_menu_text = main_menu_text.replace(listener_anchor, "        " + screenshots_listener + "\n        " + listener_anchor, 1)
+    if (
+        main_menu_text.count(screenshots_binding) != 1
+        or main_menu_text.count(screenshots_listener) != 1
+        or 'new File(getCurrentProfileDirectory(), "screenshots")' not in main_menu_text
+        or "!screenshotsDirectory.isDirectory() && !screenshotsDirectory.mkdirs()" not in main_menu_text
+        or "openPath(v.getContext(), screenshotsDirectory, false);" not in main_menu_text
+    ):
+        raise ValueError("The screenshots shortcut binding, directory creation, or handler is incomplete")
 
     main_menu.write_text(main_menu_text, encoding="utf-8")
 
