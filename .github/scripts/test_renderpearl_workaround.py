@@ -102,5 +102,21 @@ class LauncherPreferences {
                 patcher.patch_upstream(Path(temp))
 
 
+class RenderPearlWorkflowTests(unittest.TestCase):
+    def test_android_workflow_compiles_and_applies_the_patch(self) -> None:
+        workflow_path = Path(__file__).parents[1] / "workflows" / "build.yml"
+        workflow = workflow_path.read_text(encoding="utf-8")
+        self.assertIn("patch_renderpearl_workaround.py .", workflow)
+        self.assertIn("python3 .github/scripts/patch_renderpearl_workaround.py upstream", workflow)
+        self.assertLess(
+            workflow.index("Apply and inspect VoidCraft Launcher customization"),
+            workflow.index("Apply RenderPearl MobileGlues compatibility workaround"),
+        )
+        self.assertLess(
+            workflow.index("Apply RenderPearl MobileGlues compatibility workaround"),
+            workflow.index("Apply VoidCraft Launcher logo"),
+        )
+
+
 if __name__ == "__main__":
     unittest.main()
