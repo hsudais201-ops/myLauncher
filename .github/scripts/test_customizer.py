@@ -305,6 +305,7 @@ class SelectAuthFragment {
             self.assertIn('public static String APP_NAME = "myLauncher";', tools_java)
             self.assertNotIn('public static String APP_NAME = "Amethyst";', tools_java)
             self.assertIn("rootProject.name='myLauncher'", settings)
+            self.assertIn('<string name="main_mods_folder">Mods folder</string>', strings)
             self.assertIn("if (deviceRam <= 2048) return 512;", prefs)
             self.assertIn("int targetSide = Tools.getTotalDeviceMemory(context) <= 2048 ? 480 : (isDevicePowerful ? 1080 : 720);", prefs)
             self.assertNotIn("int targetSide = isDevicePowerful ? 1080 :", prefs)
@@ -327,6 +328,11 @@ class SelectAuthFragment {
             self.assertIn("Tools.isDemoProfile(v.getContext())", main_menu)
             self.assertIn("else openPath(v.getContext(), getCurrentProfileDirectory(), false);", main_menu)
             self.assertNotIn("else if (!hasOnlineProfile())", main_menu)
+            self.assertIn("Button mMyLauncherModsButton = view.findViewById(R.id.mylauncher_mods_button);", main_menu)
+            self.assertIn("mMyLauncherModsButton.setOnClickListener", main_menu)
+            self.assertIn('new File(getCurrentProfileDirectory(), "mods")', main_menu)
+            self.assertIn("!modsDirectory.isDirectory() && !modsDirectory.mkdirs()", main_menu)
+            self.assertIn("openPath(v.getContext(), modsDirectory, false);", main_menu)
             activity = (root / "app_pojavlauncher/src/main/java/net/kdt/pojavlaunch/LauncherActivity.java").read_text(encoding="utf-8")
             self.assertIn("ExtraCore.addExtraListener(ExtraConstants.SELECT_AUTH_METHOD, mSelectAuthMethod);", activity)
             self.assertIn("Tools.swapFragment(this, SelectAuthFragment.class, SelectAuthFragment.TAG, null);", activity)
@@ -359,11 +365,15 @@ class SelectAuthFragment {
                 self.assertEqual(launcher_layout.count('android:id="@+id/mylauncher_hero_title"'), 1)
                 self.assertEqual(launcher_layout.count('android:id="@+id/mylauncher_hero_subtitle"'), 1)
                 self.assertEqual(launcher_layout.count('android:id="@+id/mylauncher_account_button"'), 1)
+                self.assertEqual(launcher_layout.count('android:id="@+id/mylauncher_mods_button"'), 1)
                 self.assertIn('android:text="myLauncher"', launcher_layout)
                 self.assertIn('android:text="Minecraft Java Edition · built for lightweight devices"', launcher_layout)
                 self.assertIn('android:text="@string/main_add_account"', launcher_layout)
                 self.assertIn('android:drawableStart="@android:drawable/ic_menu_myplaces"', launcher_layout)
+                self.assertIn('android:text="@string/main_mods_folder"', launcher_layout)
+                self.assertIn('android:drawableStart="@android:drawable/ic_menu_manage"', launcher_layout)
                 self.assertIn('app:layout_constraintTop_toBottomOf="@id/open_files_button"', launcher_layout)
+                self.assertIn('app:layout_constraintTop_toBottomOf="@id/mylauncher_mods_button"', launcher_layout)
                 self.assertIn('app:layout_constraintTop_toTopOf="@id/news_button"', launcher_layout)
                 self.assertIn('app:layout_constraintTop_toBottomOf="@id/mylauncher_hero_subtitle"', launcher_layout)
 
@@ -424,6 +434,25 @@ class SelectAuthFragment {
             )
             with self.assertRaisesRegex(ValueError, "SELECT_AUTH_METHOD listener"):
                 customizer.patch_upstream(root)
+
+    def test_mods_folder_shortcut_opens_the_selected_profile_mods_directory(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            self.fixture(root)
+            customizer.patch_upstream(root)
+            menu = (root / "app_pojavlauncher/src/main/java/net/kdt/pojavlaunch/fragments/MainMenuFragment.java").read_text(encoding="utf-8")
+            strings = (root / "app_pojavlauncher/src/main/res/values/strings.xml").read_text(encoding="utf-8")
+            for relative in ("src/main/res/layout/fragment_launcher.xml", "src/main/res/layout-land/fragment_launcher.xml"):
+                layout = (root / "app_pojavlauncher" / relative).read_text(encoding="utf-8")
+                self.assertIn('android:id="@+id/mylauncher_mods_button"', layout)
+                self.assertIn('app:layout_constraintTop_toBottomOf="@id/open_files_button"', layout)
+                self.assertIn('app:layout_constraintTop_toBottomOf="@id/mylauncher_mods_button"', layout)
+            self.assertIn('<string name="main_mods_folder">Mods folder</string>', strings)
+            self.assertIn('new File(getCurrentProfileDirectory(), "mods")', menu)
+            self.assertIn('if (!modsDirectory.isDirectory() && !modsDirectory.mkdirs())', menu)
+            self.assertIn('openPath(v.getContext(), modsDirectory, false);', menu)
+            self.assertIn('Tools.isDemoProfile(v.getContext())', menu)
+            self.assertNotIn('else if (!hasOnlineProfile())', menu)
 
     def test_is_idempotent(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
