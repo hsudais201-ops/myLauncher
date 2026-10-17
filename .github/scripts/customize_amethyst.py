@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Apply deterministic myLauncher branding/package patches to Amethyst-Android."""
+"""Apply deterministic Orbit Launcher branding/package patches to Amethyst-Android."""
 from __future__ import annotations
 
 import re
@@ -39,7 +39,7 @@ def patch_upstream(upstream: Path) -> None:
     build_text = replace_idempotently(
         build_text, "org.angelauramc.amethyst", "com.mf.mylauncher", str(gradle)
     )
-    build_text = replace_idempotently(build_text, "Amethyst", "myLauncher", str(gradle))
+    build_text = replace_idempotently(build_text, "Amethyst", "Orbit Launcher", str(gradle))
     min_sdk = re.search(r"\bminSdkVersion\s+(\d+)\b", build_text)
     if not min_sdk:
         raise ValueError("Could not verify minSdkVersion; refusing an unverified Android 9 build")
@@ -53,19 +53,19 @@ def patch_upstream(upstream: Path) -> None:
 
     strings_text = strings.read_text(encoding="utf-8")
     strings_text = strings_text.replace("org.angelauramc.amethyst", "com.mf.mylauncher")
-    strings_text = replace_idempotently(strings_text, "Amethyst", "myLauncher", str(strings))
+    strings_text = replace_idempotently(strings_text, "Amethyst", "Orbit Launcher", str(strings))
     if not re.search(
-        r'<string\s+name="app_name"[^>]*>\s*myLauncher\s*</string>',
+        r'<string\s+name="app_name"[^>]*>\s*Orbit Launcher\s*</string>',
         strings_text,
         flags=re.DOTALL,
     ):
-        raise ValueError("The patched strings.xml is missing app_name=myLauncher")
+        raise ValueError("The patched strings.xml is missing app_name=Orbit Launcher")
     # Upstream defines app_short_name through Gradle resValue, not strings.xml.
     required_gradle_values = (
-        '"app_name", "myLauncher (Debug)"',
-        '"app_name", "myLauncher"',
-        '"app_short_name", "myLauncher (Debug)"',
-        '"app_short_name", "myLauncher"',
+        '"app_name", "Orbit Launcher (Debug)"',
+        '"app_name", "Orbit Launcher"',
+        '"app_short_name", "Orbit Launcher (Debug)"',
+        '"app_short_name", "Orbit Launcher"',
         "'application_package', 'com.mf.mylauncher.debug'",
         "'application_package', 'com.mf.mylauncher'",
         "'storageProviderAuthorities', 'com.mf.mylauncher.scoped.gamefolder.debug'",
@@ -123,8 +123,8 @@ def patch_upstream(upstream: Path) -> None:
             raise ValueError(f"Required header color {color_name!r} is missing from colors.xml")
 
     settings_text = settings.read_text(encoding="utf-8")
-    settings_text = replace_idempotently(settings_text, "Amethyst", "myLauncher", str(settings))
-    if not re.search(r"rootProject\.name\s*=\s*['\"]myLauncher['\"]", settings_text):
+    settings_text = replace_idempotently(settings_text, "Amethyst", "Orbit Launcher", str(settings))
+    if not re.search(r"rootProject\.name\s*=\s*['\"]Orbit Launcher['\"]", settings_text):
         raise ValueError("Gradle rootProject.name was not customized")
     settings.write_text(settings_text, encoding="utf-8")
 
@@ -135,7 +135,7 @@ def patch_upstream(upstream: Path) -> None:
     tools_text = replace_idempotently(
         tools_text,
         'public static String APP_NAME = "Amethyst";',
-        'public static String APP_NAME = "myLauncher";',
+        'public static String APP_NAME = "Orbit Launcher";',
         str(tools_java),
     )
     if 'public static String APP_NAME = "Amethyst";' in tools_text:
@@ -297,7 +297,7 @@ def patch_upstream(upstream: Path) -> None:
                 android:layout_marginStart="20dp"
                 android:layout_marginTop="18dp"
                 android:layout_marginEnd="20dp"
-                android:text="myLauncher"
+                android:text="Orbit Launcher"
                 android:textColor="@color/primary_text"
                 android:textSize="26sp"
                 android:textStyle="bold"
@@ -526,7 +526,7 @@ def patch_upstream(upstream: Path) -> None:
             or not title_match
             or not subtitle_match
             or 'android:layout_width="0dp"' not in title_match.group(0)
-            or 'android:text="myLauncher"' not in title_match.group(0)
+            or 'android:text="Orbit Launcher"' not in title_match.group(0)
             or 'android:layout_width="0dp"' not in subtitle_match.group(0)
             or 'android:text="Minecraft Java Edition · built for lightweight devices"' not in subtitle_match.group(0)
             or 'app:layout_constraintTop_toBottomOf="@id/mylauncher_hero_title"' not in subtitle_match.group(0)
@@ -745,8 +745,11 @@ def patch_upstream(upstream: Path) -> None:
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-    <path android:fillColor="#171B26" android:pathData="M0,0h108v108h-108z" />
-    <path android:fillColor="#7C5CFF" android:pathData="M18,28H32L54,54L76,28H90V80H76V50L54,76L32,50V80H18Z" />
+    <path android:fillColor="#10152F" android:pathData="M0,0h108v108h-108z" />
+    <path android:fillColor="#171D3F" android:strokeColor="#6EF3FF" android:strokeWidth="3" android:pathData="M54,17 C33.6,17 17,33.6 17,54 C17,74.4 33.6,91 54,91 C74.4,91 91,74.4 91,54 C91,33.6 74.4,17 54,17 Z" />
+    <path android:fillColor="#00000000" android:strokeColor="#7B61FF" android:strokeWidth="4" android:pathData="M20,37 C40,16 71,27 89,51" />
+    <path android:fillColor="#6EF3FF" android:pathData="M54,43 C60.1,43 65,47.9 65,54 C65,60.1 60.1,65 54,65 C47.9,65 43,60.1 43,54 C43,47.9 47.9,43 54,43 Z" />
+    <path android:fillColor="#A8FFCB" android:pathData="M83,25 C83,22 85,20 88,20 C91,20 93,22 93,25 C93,28 91,30 88,30 C85,30 83,28 83,25 Z" />
 </vector>
 """, encoding="utf-8")
 

@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
-"""Apply the original myLauncher icon to the Android app before building."""
+"""Apply and validate the Orbit Launcher Android application icon."""
 from pathlib import Path
-import re
 import sys
 import xml.etree.ElementTree as ET
 
@@ -14,9 +13,10 @@ VECTOR = """<?xml version="1.0" encoding="utf-8"?>
     android:viewportWidth="108"
     android:viewportHeight="108">
     <path android:fillColor="#10152F" android:pathData="M0,0h108v108h-108z" />
-    <path android:fillColor="#171D3F" android:strokeColor="#6EF3FF" android:strokeWidth="1.5" android:strokeLineJoin="round" android:pathData="M54,13 L79,27.5 L79,56.5 L54,71 L29,56.5 L29,27.5 Z" />
-    <path android:fillColor="#6EF3FF" android:pathData="M36,53 V31 L46,43 L54,35 L62,43 L72,31 V53 H64 V44 L54,56 L44,44 V53 Z" />
-    <path android:fillColor="#A8FFCB" android:pathData="M77,20a2.5,2.5 0,1 0,5 0a2.5,2.5 0,1 0,-5 0" />
+    <path android:fillColor="#171D3F" android:strokeColor="#6EF3FF" android:strokeWidth="3" android:pathData="M54,17 C33.6,17 17,33.6 17,54 C17,74.4 33.6,91 54,91 C74.4,91 91,74.4 91,54 C91,33.6 74.4,17 54,17 Z" />
+    <path android:fillColor="#00000000" android:strokeColor="#7B61FF" android:strokeWidth="4" android:pathData="M20,37 C40,16 71,27 89,51" />
+    <path android:fillColor="#6EF3FF" android:pathData="M54,43 C60.1,43 65,47.9 65,54 C65,60.1 60.1,65 54,65 C47.9,65 43,60.1 43,54 C43,47.9 47.9,43 54,43 Z" />
+    <path android:fillColor="#A8FFCB" android:pathData="M83,25 C83,22 85,20 88,20 C91,20 93,22 93,25 C93,28 91,30 88,30 C85,30 83,28 83,25 Z" />
 </vector>
 """
 
@@ -26,21 +26,21 @@ def main(root: Path) -> None:
     if not manifest.is_file():
         raise FileNotFoundError(f"Android manifest not found: {manifest}")
     tree = ET.parse(manifest)
-    node = tree.getroot()
-    app_node = node.find("application")
+    manifest_root = tree.getroot()
+    app_node = manifest_root.find("application")
     if app_node is None:
         raise ValueError("Android manifest has no application element")
-    app_node.set(ANDROID + "icon", "@drawable/mylauncher_logo")
-    app_node.set(ANDROID + "roundIcon", "@drawable/mylauncher_logo")
+    app_node.set(ANDROID + "icon", "@drawable/orbit_launcher_logo")
+    app_node.set(ANDROID + "roundIcon", "@drawable/orbit_launcher_logo")
     tree.write(manifest, encoding="utf-8", xml_declaration=True)
 
     drawable = app / "src/main/res/drawable"
     drawable.mkdir(parents=True, exist_ok=True)
-    icon = drawable / "mylauncher_logo.xml"
+    icon = drawable / "orbit_launcher_logo.xml"
     icon.write_text(VECTOR, encoding="utf-8")
     ET.parse(icon)
     ET.parse(manifest)
-    print("Applied and validated myLauncher custom launcher icon.")
+    print("Applied and validated Orbit Launcher vector icon.")
 
 if __name__ == "__main__":
     if len(sys.argv) != 2:

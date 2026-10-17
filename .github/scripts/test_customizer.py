@@ -13,6 +13,12 @@ assert SPEC is not None and SPEC.loader is not None
 customizer = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(customizer)
 
+APPLY_LOGO_SCRIPT = Path(__file__).with_name("apply_logo.py")
+APPLY_LOGO_SPEC = importlib.util.spec_from_file_location("apply_logo", APPLY_LOGO_SCRIPT)
+assert APPLY_LOGO_SPEC is not None and APPLY_LOGO_SPEC.loader is not None
+logo_applier = importlib.util.module_from_spec(APPLY_LOGO_SPEC)
+APPLY_LOGO_SPEC.loader.exec_module(logo_applier)
+
 
 class CustomizeAmethystTests(unittest.TestCase):
     def fixture(self, root: Path) -> None:
@@ -323,18 +329,18 @@ class ProfileTypeSelectFragment {
             prefs = (root / "app_pojavlauncher/src/main/java/net/kdt/pojavlaunch/prefs/LauncherPreferences.java").read_text(encoding="utf-8")
             self.assertIn('applicationId "com.mf.mylauncher"', build)
             self.assertIn("com.mf.mylauncher.scoped.gamefolder", build)
-            self.assertIn('"myLauncher (Debug)"', build)
-            self.assertIn('"app_name", "myLauncher"', build)
+            self.assertIn('"Orbit Launcher (Debug)"', build)
+            self.assertIn('"app_name", "Orbit Launcher"', build)
             self.assertIn("'application_package', 'com.mf.mylauncher.debug'", build)
             self.assertIn("'application_package', 'com.mf.mylauncher'", build)
             self.assertIn("'shareProviderAuthority', 'com.mf.mylauncher.scoped.controlfolder.debug'", build)
             self.assertNotIn("org.angelauramc.amethyst", build)
             self.assertNotIn("Amethyst", strings)
-            self.assertIn("myLauncher crashed", strings)
+            self.assertIn("Orbit Launcher crashed", strings)
             tools_java = (root / "app_pojavlauncher/src/main/java/net/kdt/pojavlaunch/Tools.java").read_text(encoding="utf-8")
-            self.assertIn('public static String APP_NAME = "myLauncher";', tools_java)
+            self.assertIn('public static String APP_NAME = "Orbit Launcher";', tools_java)
             self.assertNotIn('public static String APP_NAME = "Amethyst";', tools_java)
-            self.assertIn("rootProject.name='myLauncher'", settings)
+            self.assertIn("rootProject.name='Orbit Launcher'", settings)
             self.assertIn('<string name="main_mods_folder">Mods folder</string>', strings)
             self.assertIn('<string name="main_resourcepacks_folder">Resource packs</string>', strings)
             self.assertIn('<string name="main_world_saves_folder">World saves</string>', strings)
@@ -413,7 +419,7 @@ class ProfileTypeSelectFragment {
                 self.assertEqual(launcher_layout.count('android:id="@+id/mylauncher_mods_button"'), 1)
                 self.assertEqual(launcher_layout.count('android:id="@+id/mylauncher_resourcepacks_button"'), 1)
                 self.assertEqual(launcher_layout.count('android:id="@+id/mylauncher_world_saves_button"'), 1)
-                self.assertIn('android:text="myLauncher"', launcher_layout)
+                self.assertIn('android:text="Orbit Launcher"', launcher_layout)
                 self.assertIn('android:text="Minecraft Java Edition · built for lightweight devices"', launcher_layout)
                 self.assertIn('android:text="@string/main_add_account"', launcher_layout)
                 self.assertIn('android:drawableStart="@android:drawable/ic_menu_myplaces"', launcher_layout)
@@ -627,6 +633,35 @@ class ProfileTypeSelectFragment {
                 customizer.patch_upstream(Path(temp))
 
 
+class ApplyLogoTests(unittest.TestCase):
+    def test_applies_orbit_icon_to_manifest(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            app = root / "app_pojavlauncher"
+            (app / "src/main").mkdir(parents=True)
+            manifest = app / "src/main/AndroidManifest.xml"
+            manifest.write_text(
+                '<manifest xmlns:android="http://schemas.android.com/apk/res/android">'
+                '<application android:icon="@mipmap/ic_launcher" '
+                'android:roundIcon="@mipmap/ic_launcher_round" /></manifest>',
+                encoding="utf-8",
+            )
+            logo_applier.main(root)
+            manifest_root = ET.parse(manifest).getroot()
+            app_node = manifest_root.find("application")
+            self.assertIsNotNone(app_node)
+            assert app_node is not None
+            self.assertEqual(app_node.get("{http://schemas.android.com/apk/res/android}icon"),
+                             "@drawable/orbit_launcher_logo")
+            self.assertEqual(app_node.get("{http://schemas.android.com/apk/res/android}roundIcon"),
+                             "@drawable/orbit_launcher_logo")
+            icon = app / "src/main/res/drawable/orbit_launcher_logo.xml"
+            ET.parse(icon)
+            icon_text = icon.read_text(encoding="utf-8")
+            self.assertIn('android:strokeColor="#6EF3FF"', icon_text)
+            self.assertIn('android:strokeColor="#7B61FF"', icon_text)
+
+
 class BuildWorkflowTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
@@ -675,10 +710,10 @@ class BuildWorkflowTests(unittest.TestCase):
         )
         self.assertIn("APK did not reach LauncherActivity", self.smoke_script)
         self.assertIn("Emulator smoke test passed: APK installed and LauncherActivity resumed.", self.smoke_script)
-        self.assertIn("name: myLauncher-emulator-diagnostics", self.workflow)
+        self.assertIn("name: orbit-launcher-emulator-diagnostics", self.workflow)
         self.assertIn("upstream/mylauncher-emulator-logcat.txt", self.workflow)
         self.assertIn("if: ${{ always() && env.APK_PATH != '' }}", self.workflow)
-        self.assertIn("if: ${{ always() && hashFiles('upstream/MYLAUNCHER_BUILD_INFO.txt') != '' }}", self.workflow)
+        self.assertIn("if: ${{ always() && hashFiles('upstream/ORBIT_LAUNCHER_BUILD_INFO.txt') != '' }}", self.workflow)
         self.assertLess(
             self.workflow.index("Upload debug APK"),
             self.workflow.index("Upload upstream build notes"),
@@ -688,7 +723,7 @@ class BuildWorkflowTests(unittest.TestCase):
         self.assertIn("  push:\n    branches:\n      - main", self.workflow)
         self.assertIn("  pull_request:", self.workflow)
         self.assertIn("  workflow_dispatch:", self.workflow)
-        self.assertIn("group: mylauncher-build-v2-${{ github.ref }}", self.workflow)
+        self.assertIn("group: orbit-launcher-build-v2-${{ github.ref }}", self.workflow)
         self.assertIn("EXPECTED_UPSTREAM_COMMIT=330c6eae3164df64bdc4828e946a9e62cc5169e4", self.workflow)
         # Keep the hosted build toolchain aligned with the pinned upstream project.
         self.assertIn("java-version: '21'", self.workflow)
@@ -698,7 +733,7 @@ class BuildWorkflowTests(unittest.TestCase):
         self.assertIn("yes | sdkmanager --licenses", self.workflow)
         self.assertIn("sdkmanager --install 'platforms;android-37.0' 'ndk;27.3.13750724' --channel=3", self.workflow)
         self.assertIn("./gradlew --no-daemon :jre_lwjgl3glfw:build :app_pojavlauncher:assembleDebug --stacktrace", self.workflow)
-        self.assertIn("python3 -m py_compile .github/scripts/customize_amethyst.py .github/scripts/test_customizer.py", self.workflow)
+        self.assertIn("python3 -m py_compile .github/scripts/customize_amethyst.py .github/scripts/apply_logo.py .github/scripts/test_customizer.py", self.workflow)
         self.assertIn("sh -n .github/scripts/prepare_emulator_kvm.sh", self.workflow)
         self.assertIn("sh -n .github/scripts/emulator_smoke_test.sh", self.workflow)
         self.assertIn("python3 -m unittest discover -s .github/scripts -p 'test_*.py' -v", self.workflow)
@@ -706,7 +741,7 @@ class BuildWorkflowTests(unittest.TestCase):
         self.assertIn('test "$MIN_SDK" -le 28', self.workflow)
         self.assertIn('name apksigner', self.workflow)
         self.assertIn('"$APKSIGNER" verify --verbose "$APK"', self.workflow)
-        self.assertIn("myLauncher-debug-apk", self.workflow)
+        self.assertIn("orbit-launcher-debug-apk", self.workflow)
         self.assertIn('sha256sum "$(basename "$APK")"', self.workflow)
         self.assertIn("${{ env.APK_SHA256_PATH }}", self.workflow)
         self.assertIn("APK SHA-256:", self.workflow)

@@ -1,4 +1,4 @@
-# myLauncher feature scope and delivery tracker
+# Orbit Launcher feature scope and delivery tracker
 
 ## Important status rule
 
