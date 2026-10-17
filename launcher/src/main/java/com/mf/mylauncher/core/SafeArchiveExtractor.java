@@ -61,8 +61,12 @@ public final class SafeArchiveExtractor {
         for (ArchiveSpec spec : archives) {
             if (spec == null) throw new IllegalArgumentException("Archive specifications must not contain null entries");
             Path archive = spec.archive;
-            if (archive == null || Files.isSymbolicLink(archive)
-                    || !Files.isRegularFile(archive, LinkOption.NOFOLLOW_LINKS)) {
+            if (archive == null) {
+                throw new IOException("Native archive must be an existing regular non-symlink file");
+            }
+            archive = archive.toAbsolutePath().normalize();
+            rejectSymbolicLinkComponents(archive);
+            if (!Files.isRegularFile(archive, LinkOption.NOFOLLOW_LINKS)) {
                 throw new IOException("Native archive must be an existing regular non-symlink file");
             }
             validatedArchives.add(new ArchiveSpec(archive,
@@ -266,6 +270,17 @@ public final class SafeArchiveExtractor {
 
     private static void rejectSymlink(Path path) throws IOException {
         if (Files.isSymbolicLink(path)) throw new IOException("Symbolic links are not allowed in extraction paths");
+    }
+
+    private static void rejectSymbolicLinkComponents(Path path) throws IOException {
+        Path current = path.getRoot();
+        if (current == null) throw new IOException("Native archive path must be absolute");
+        for (Path segment : path) {
+            current = current.resolve(segment);
+            if (Files.isSymbolicLink(current)) {
+                throw new IOException("Symbolic links are not allowed in native archive paths");
+            }
+        }
     }
 
     private static void moveDirectory(Path source, Path target) throws IOException {
