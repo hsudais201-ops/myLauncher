@@ -137,7 +137,8 @@ jobs:
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -camera-front none
           script: |
-            set -euo pipefail
+            # This action executes the script with /bin/sh (dash), not bash.
+            set -eu
             adb install -r "$APK_PATH"
             adb shell am force-stop com.mf.mylauncher.debug || true
             adb shell monkey -p com.mf.mylauncher.debug 1
