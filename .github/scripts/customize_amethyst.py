@@ -103,6 +103,18 @@ def patch_upstream(upstream: Path) -> None:
         strings_text = strings_text[:mods_string_match.end()] + "\n" + resourcepacks_string + strings_text[mods_string_match.end():]
     if not re.search(r'<string\s+name="main_resourcepacks_folder"[^>]*>\s*Resource packs\s*</string>', strings_text):
         raise ValueError("Required main_resourcepacks_folder string is missing or invalid")
+    if not re.search(r'<string\s+name="main_resourcepacks_folder_hint"', strings_text):
+        resourcepacks_label_match = re.search(
+            r'(?m)^([ \t]*<string\s+name="main_resourcepacks_folder"[^>]*>.*?</string>)[ \t]*$',
+            strings_text,
+        )
+        if not resourcepacks_label_match:
+            raise ValueError("Could not find main_resourcepacks_folder to add the resource-pack toggle hint")
+        indent = re.match(r"[ \t]*", resourcepacks_label_match.group(1)).group(0)
+        resourcepacks_hint = indent + '<string name="main_resourcepacks_folder_hint">Resource packs. Long-press to enable or disable ZIP packs.</string>'
+        strings_text = strings_text[:resourcepacks_label_match.end()] + "\n" + resourcepacks_hint + strings_text[resourcepacks_label_match.end():]
+    if not re.search(r'<string\s+name="main_resourcepacks_folder_hint"[^>]*>\s*Resource packs\. Long-press to enable or disable ZIP packs\.\s*</string>', strings_text):
+        raise ValueError("Required main_resourcepacks_folder_hint text is missing or invalid")
     if not re.search(r'<string\s+name="main_world_saves_folder"', strings_text):
         resourcepacks_string_match = re.search(
             r'(?m)^([ \t]*<string\s+name="main_resourcepacks_folder"[^>]*>.*?</string>)[ \t]*$',
@@ -898,6 +910,9 @@ def patch_upstream(upstream: Path) -> None:
         if mods_binding not in main_menu_text:
             raise ValueError("Could not bind the resource-packs shortcut without the mods shortcut")
         main_menu_text = main_menu_text.replace(mods_binding, mods_binding + "\n        " + resourcepacks_binding, 1)
+    resourcepacks_hint_binding = "mMyLauncherResourcePacksButton.setContentDescription(getString(R.string.main_resourcepacks_folder_hint));"
+    if resourcepacks_hint_binding not in main_menu_text:
+        main_menu_text = main_menu_text.replace(resourcepacks_binding, resourcepacks_binding + "\n        " + resourcepacks_hint_binding, 1)
     resourcepacks_listener = """mMyLauncherResourcePacksButton.setOnClickListener(v -> {
             if (Tools.isDemoProfile(v.getContext())) {
                 hasNoOnlineProfileDialog(getActivity(), getString(R.string.demo_unsupported), getString(R.string.change_account));
@@ -917,12 +932,108 @@ def patch_upstream(upstream: Path) -> None:
         main_menu_text = main_menu_text.replace(listener_anchor, "        " + resourcepacks_listener + "\n        " + listener_anchor, 1)
     if (
         main_menu_text.count(resourcepacks_binding) != 1
+        or main_menu_text.count(resourcepacks_hint_binding) != 1
         or main_menu_text.count(resourcepacks_listener) != 1
         or 'new File(getCurrentProfileDirectory(), "resourcepacks")' not in main_menu_text
         or "!resourcePackDirectory.isDirectory() && !resourcePackDirectory.mkdirs()" not in main_menu_text
         or "openPath(v.getContext(), resourcePackDirectory, false);" not in main_menu_text
     ):
-        raise ValueError("The resource-packs shortcut binding, directory creation, or handler is incomplete")
+        raise ValueError("The resource-packs shortcut binding, hint, directory creation, or handler is incomplete")
+
+    resourcepacks_manager_listener = """mMyLauncherResourcePacksButton.setOnLongClickListener(v -> {
+            if (Tools.isDemoProfile(v.getContext())) {
+                hasNoOnlineProfileDialog(getActivity(), getString(R.string.demo_unsupported), getString(R.string.change_account));
+                return true;
+            }
+            File resourcePackDirectory = new File(getCurrentProfileDirectory(), "resourcepacks");
+            if (!resourcePackDirectory.isDirectory() && !resourcePackDirectory.mkdirs()) {
+                Toast.makeText(requireContext(), "Unable to create the resource packs folder", Toast.LENGTH_LONG).show();
+                return true;
+            }
+            File[] packFiles = resourcePackDirectory.listFiles((directory, name) -> {
+                if (name == null) return false;
+                String normalizedName = name.toLowerCase(java.util.Locale.ROOT);
+                return new File(directory, name).isFile()
+                        && (normalizedName.endsWith(".zip") || normalizedName.endsWith(".zip.disabled"));
+            });
+            if (packFiles == null || packFiles.length == 0) {
+                Toast.makeText(requireContext(), "No ZIP resource packs found to enable or disable", Toast.LENGTH_LONG).show();
+                return true;
+            }
+            java.util.Arrays.sort(packFiles, (left, right) ->
+                    left.getName().compareToIgnoreCase(right.getName()));
+            String[] packChoices = new String[packFiles.length];
+            for (int i = 0; i < packFiles.length; i++) {
+                String normalizedName = packFiles[i].getName().toLowerCase(java.util.Locale.ROOT);
+                boolean disabled = normalizedName.endsWith(".zip.disabled");
+                packChoices[i] = (disabled ? "Disabled · " : "Enabled · ") + packFiles[i].getName();
+            }
+            new AlertDialog.Builder(requireContext())
+                    .setTitle("Manage resource packs — enable or disable")
+                    .setItems(packChoices, (dialog, which) -> {
+                        if (which < 0 || which >= packFiles.length) return;
+                        File selectedPack = packFiles[which];
+                        String selectedName = selectedPack.getName();
+                        String normalizedName = selectedName.toLowerCase(java.util.Locale.ROOT);
+                        boolean wasDisabled = normalizedName.endsWith(".zip.disabled");
+                        String destinationName = wasDisabled
+                                ? selectedName.substring(0, selectedName.length() - ".disabled".length())
+                                : selectedName + ".disabled";
+                        File destination = new File(resourcePackDirectory, destinationName);
+                        new AlertDialog.Builder(requireContext())
+                                .setTitle(wasDisabled ? "Enable resource pack?" : "Disable resource pack?")
+                                .setMessage((wasDisabled ? "Enable " : "Disable ") + selectedName + "?")
+                                .setNegativeButton(android.R.string.cancel, null)
+                                .setPositiveButton(wasDisabled ? "Enable" : "Disable", (confirmDialog, result) -> {
+                                    try {
+                                        String packsRoot = resourcePackDirectory.getCanonicalPath();
+                                        String selectedPath = selectedPack.getCanonicalPath();
+                                        String destinationPath = destination.getCanonicalPath();
+                                        if (!resourcePackDirectory.isDirectory()
+                                                || !selectedPack.isFile()
+                                                || !selectedPath.startsWith(packsRoot + File.separator)
+                                                || !destinationPath.startsWith(packsRoot + File.separator)) {
+                                            Toast.makeText(requireContext(), "The selected resource pack is no longer available", Toast.LENGTH_LONG).show();
+                                            return;
+                                        }
+                                        if (destination.exists()) {
+                                            Toast.makeText(requireContext(), "A file already exists with that name", Toast.LENGTH_LONG).show();
+                                            return;
+                                        }
+                                        if (!selectedPack.renameTo(destination)) {
+                                            Toast.makeText(requireContext(), "Unable to rename the resource pack file", Toast.LENGTH_LONG).show();
+                                            return;
+                                        }
+                                        Toast.makeText(requireContext(),
+                                                (wasDisabled ? "Enabled: " : "Disabled: ") + destination.getName(),
+                                                Toast.LENGTH_LONG).show();
+                                    } catch (IOException exception) {
+                                        Toast.makeText(requireContext(), "Unable to validate the resource-pack path: " + exception.getMessage(), Toast.LENGTH_LONG).show();
+                                    }
+                                })
+                                .show();
+                    })
+                    .show();
+            return true;
+        });"""
+    if resourcepacks_manager_listener not in main_menu_text:
+        main_menu_text = main_menu_text.replace(resourcepacks_listener, resourcepacks_listener + "\n\n        " + resourcepacks_manager_listener, 1)
+    if (
+        main_menu_text.count(resourcepacks_manager_listener) != 1
+        or main_menu_text.count("mMyLauncherResourcePacksButton.setOnLongClickListener") != 1
+        or "name.toLowerCase(java.util.Locale.ROOT)" not in resourcepacks_manager_listener
+        or 'normalizedName.endsWith(".zip")' not in resourcepacks_manager_listener
+        or 'normalizedName.endsWith(".zip.disabled")' not in resourcepacks_manager_listener
+        or 'selectedName + ".disabled"' not in resourcepacks_manager_listener
+        or 'selectedName.substring(0, selectedName.length() - ".disabled".length())' not in resourcepacks_manager_listener
+        or "destination.exists()" not in resourcepacks_manager_listener
+        or "!selectedPack.renameTo(destination)" not in resourcepacks_manager_listener
+        or "!selectedPath.startsWith(packsRoot + File.separator)" not in resourcepacks_manager_listener
+        or "Tools.isDemoProfile(v.getContext())" not in resourcepacks_manager_listener
+    ):
+        raise ValueError("The resource-pack enable/disable manager is incomplete or missing safety checks")
+    if resourcepacks_hint_binding not in main_menu_text or main_menu_text.count(resourcepacks_hint_binding) != 1:
+        raise ValueError("The Resource packs long-press accessibility hint is not wired exactly once")
 
     world_saves_binding = "Button mMyLauncherWorldSavesButton = view.findViewById(R.id.mylauncher_world_saves_button);"
     if world_saves_binding not in main_menu_text:
