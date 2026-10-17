@@ -191,6 +191,9 @@ class LocalLoginFragment {
         main_menu.parent.mkdir(parents=True, exist_ok=True)
         main_menu.write_text(
             """import android.widget.Button;
+import android.widget.Toast;
+import static net.kdt.pojavlaunch.Tools.openPath;
+import java.io.File;
 import net.kdt.pojavlaunch.extra.ExtraConstants;
 import net.kdt.pojavlaunch.extra.ExtraCore;
 
@@ -333,6 +336,9 @@ class SelectAuthFragment {
             self.assertIn('new File(getCurrentProfileDirectory(), "mods")', main_menu)
             self.assertIn("!modsDirectory.isDirectory() && !modsDirectory.mkdirs()", main_menu)
             self.assertIn("openPath(v.getContext(), modsDirectory, false);", main_menu)
+            self.assertIn("import java.io.File;", main_menu)
+            self.assertIn("import android.widget.Toast;", main_menu)
+            self.assertIn("import static net.kdt.pojavlaunch.Tools.openPath;", main_menu)
             activity = (root / "app_pojavlauncher/src/main/java/net/kdt/pojavlaunch/LauncherActivity.java").read_text(encoding="utf-8")
             self.assertIn("ExtraCore.addExtraListener(ExtraConstants.SELECT_AUTH_METHOD, mSelectAuthMethod);", activity)
             self.assertIn("Tools.swapFragment(this, SelectAuthFragment.class, SelectAuthFragment.TAG, null);", activity)
