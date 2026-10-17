@@ -1179,18 +1179,46 @@ public final class CoreTests {
                 "new Linux x86_64 classifier is excluded from ARM64 platform");
         yes(!lwjglDesktopLibrary.isCompatibleWithPlatform(linux),
                 "unqualified natives-linux classifier is treated as desktop x86_64");
+        yes(!epollArm64Library.hasExplicitNativeClassifier(),
+                "Netty's linux-aarch_64 classifier remains a classpath library with embedded native resources");
         NativeLibraryPlan modernPlan = NativeLibraryPlanner.create(modernDetails, linux, "linux", "arm64");
-        eq(1, modernPlan.getArchiveCount(),
-                "modern classifier planner selects only the explicit ARM64 native archive");
-        eq("libraries/" + epollArm64.getPath(), modernPlan.getArchives().get(0).getRelativeLibraryPath(),
-                "modern native classifier artifact path is retained");
+        eq(0, modernPlan.getArchiveCount(),
+                "Minecraft 26.1 metadata does not misclassify Netty's embedded ARM64 native resources as extractable archives");
         InstallationPlan modernInstallPlan = InstallationPlanner.create(modernDetails, noAssets, linux, modernPlan);
         eq(2, modernInstallPlan.getTaskCount(),
-                "modern native artifact is scheduled once alongside the client download");
-        eq(1, modernInstallPlan.count(DownloadTask.Kind.NATIVE),
-                "modern native archive keeps the native extraction task category");
-        eq(0, modernInstallPlan.count(DownloadTask.Kind.LIBRARY),
-                "same modern native payload is not double-scheduled as a library");
+                "compatible ARM64 Netty artifact and client JAR are downloaded exactly once");
+        eq(0, modernInstallPlan.count(DownloadTask.Kind.NATIVE),
+                "embedded Netty native resource is not unpacked into the launch native directory");
+        eq(1, modernInstallPlan.count(DownloadTask.Kind.LIBRARY),
+                "compatible ARM64 classifier remains on the launch classpath");
+        yes(modernInstallPlan.getTasks().stream().anyMatch(task ->
+                task.getRelativePath().equals(epollArm64.getPath())),
+                "compatible ARM64 classifier is retained in installation plan");
+        yes(modernInstallPlan.getTasks().stream().noneMatch(task ->
+                task.getRelativePath().equals(epollX64.getPath())
+                        || task.getRelativePath().equals(lwjglDesktop.getPath())),
+                "incompatible desktop native classifiers are not downloaded for Android ARM64");
+
+        DownloadArtifact windowsArm64Native = new DownloadArtifact(
+                URI.create("https://libraries.minecraft.net/org/lwjgl/lwjgl-glfw/3.4.1/"
+                        + "lwjgl-glfw-3.4.1-natives-windows-arm64.jar"),
+                hash1, 154, "org/lwjgl/lwjgl-glfw/3.4.1/lwjgl-glfw-3.4.1-natives-windows-arm64.jar");
+        LibraryMetadata windowsArm64NativeLibrary = new LibraryMetadata(
+                "org.lwjgl:lwjgl-glfw:3.4.1:natives-windows-arm64",
+                windowsArm64Native, java.util.Collections.emptyMap(), java.util.Collections.emptyMap(),
+                java.util.Collections.singletonList(new LibraryRule(true, "windows", null, null, null)),
+                java.util.Collections.emptyList());
+        VersionDetails windowsNativeDetails = new VersionDetails("26.1.2", "net.minecraft.client.main.Main", "30",
+                indexMetadata, client, 25, Arrays.asList(windowsArm64NativeLibrary),
+                VersionArgumentSet.empty(), null);
+        LibraryPlatform windowsArm64Platform = new LibraryPlatform("windows", "aarch64", "10.0.19045",
+                java.util.Collections.emptyMap());
+        NativeLibraryPlan windowsNativePlan = NativeLibraryPlanner.create(
+                windowsNativeDetails, windowsArm64Platform, "windows", "arm64");
+        eq(1, windowsNativePlan.getArchiveCount(),
+                "explicit natives-windows-arm64 coordinate is recognized as an extractable native archive");
+        yes(windowsNativePlan.getArchives().get(0).getExtractionExcludes().contains("META-INF/"),
+                "native extraction excludes META-INF by default when metadata omits exclusions");
         VersionDetails otherVersion = new VersionDetails("1.20.6", "net.minecraft.client.main.Main",
                 "1.21.4", indexMetadata, client, 21,
                 Arrays.asList(nativeOne), VersionArgumentSet.empty(), null);
