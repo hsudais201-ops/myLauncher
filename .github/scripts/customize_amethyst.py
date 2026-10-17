@@ -649,13 +649,13 @@ def patch_upstream(upstream: Path) -> None:
 
 """
             crash_pattern = re.compile(
-                r'(<com\\.kdt\\.mcgui\\.LauncherMenuButton\\s+android:id="@\\+id/mylauncher_crash_reports_button".*?/>\\s*)',
+                r'(<com\.kdt\.mcgui\.LauncherMenuButton\s+android:id="@\+id/mylauncher_crash_reports_button".*?/>\s*)',
                 re.DOTALL,
             )
             crash_match = crash_pattern.search(layout_text)
             if not crash_match:
                 raise ValueError(f"Could not find mylauncher_crash_reports_button to add Config folder shortcut in {layout_path}")
-            block = crash_match.group(1) + "\\n" + config_button
+            block = crash_match.group(1) + "\n" + config_button
             layout_text = layout_text[:crash_match.start(1)] + block + layout_text[crash_match.end(1):]
 
         if "mylauncher_account_button" not in layout_text:
@@ -669,13 +669,13 @@ def patch_upstream(upstream: Path) -> None:
 
 """
             config_pattern = re.compile(
-                r'(<com\\.kdt\\.mcgui\\.LauncherMenuButton\\s+android:id="@\\+id/mylauncher_config_button".*?/>\\s*)',
+                r'(<com\.kdt\.mcgui\.LauncherMenuButton\s+android:id="@\+id/mylauncher_config_button".*?/>\s*)',
                 re.DOTALL,
             )
             config_match = config_pattern.search(layout_text)
             if not config_match:
                 raise ValueError(f"Could not find mylauncher_config_button in {layout_path}")
-            block = config_match.group(1) + "\\n" + account_button
+            block = config_match.group(1) + "\n" + account_button
             layout_text = layout_text[:config_match.start(1)] + block + layout_text[config_match.end(1):]
 
         account_pattern = re.compile(r'<com\.kdt\.mcgui\.LauncherMenuButton\s+android:id="@\+id/mylauncher_account_button".*?/>', re.DOTALL)
@@ -724,7 +724,7 @@ def patch_upstream(upstream: Path) -> None:
             flags=re.DOTALL,
         )
         config_match = re.search(
-            r'<com\\.kdt\\.mcgui\\.LauncherMenuButton\\s+android:id="@\\+id/mylauncher_config_button".*?/>',
+            r'<com\.kdt\.mcgui\.LauncherMenuButton\s+android:id="@\+id/mylauncher_config_button".*?/>',
             layout_text,
             flags=re.DOTALL,
         )
@@ -1292,7 +1292,7 @@ def patch_upstream(upstream: Path) -> None:
     if config_binding not in main_menu_text:
         if crash_reports_binding not in main_menu_text:
             raise ValueError("Could not bind the Config folder shortcut without the Crash reports shortcut")
-        main_menu_text = main_menu_text.replace(crash_reports_binding, crash_reports_binding + "\\n        " + config_binding, 1)
+        main_menu_text = main_menu_text.replace(crash_reports_binding, crash_reports_binding + "\n        " + config_binding, 1)
     config_listener = """mMyLauncherConfigButton.setOnClickListener(v -> {
             if (Tools.isDemoProfile(v.getContext())) {
                 hasNoOnlineProfileDialog(getActivity(), getString(R.string.demo_unsupported), getString(R.string.change_account));
@@ -1306,7 +1306,7 @@ def patch_upstream(upstream: Path) -> None:
             openPath(v.getContext(), configDirectory, false);
         });"""
     if config_listener not in main_menu_text:
-        main_menu_text = main_menu_text.replace(crash_reports_listener, crash_reports_listener + "\\\\n\\\\n        " + config_listener, 1)
+        main_menu_text = main_menu_text.replace(crash_reports_listener, crash_reports_listener + "\n\n        " + config_listener, 1)
     if (
         main_menu_text.count(config_binding) != 1
         or main_menu_text.count(config_listener) != 1
