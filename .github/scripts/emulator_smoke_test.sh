@@ -1,7 +1,7 @@
 #!/bin/sh
 set -eu
 
-APK_PATH="$1"
+APK_PATH="${1:-}"
 if [ -z "$APK_PATH" ]; then
     echo "Usage: emulator_smoke_test.sh <apk-path>" >&2
     exit 2
