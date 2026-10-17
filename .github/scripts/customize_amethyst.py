@@ -174,6 +174,18 @@ def patch_upstream(upstream: Path) -> None:
         strings_text = strings_text[:logs_string_match.end()] + "\n" + screenshots_string + strings_text[logs_string_match.end():]
     if not re.search(r'<string\s+name="main_screenshots_folder"[^>]*>\s*Screenshots\s*</string>', strings_text):
         raise ValueError("Required main_screenshots_folder string is missing or invalid")
+    if not re.search(r'<string\s+name="main_crash_reports_folder"', strings_text):
+        screenshots_string_match = re.search(
+            r'(?m)^([ \t]*<string\s+name="main_screenshots_folder"[^>]*>.*?</string>)[ \t]*$',
+            strings_text,
+        )
+        if not screenshots_string_match:
+            raise ValueError("Could not find main_screenshots_folder to add the crash-reports label")
+        indent = re.match(r"[ \t]*", screenshots_string_match.group(1)).group(0)
+        crash_reports_string = indent + '<string name="main_crash_reports_folder">Crash reports</string>'
+        strings_text = strings_text[:screenshots_string_match.end()] + "\n" + crash_reports_string + strings_text[screenshots_string_match.end():]
+    if not re.search(r'<string\s+name="main_crash_reports_folder"[^>]*>\s*Crash reports\s*</string>', strings_text):
+        raise ValueError("Required main_crash_reports_folder string is missing or invalid")
     strings.write_text(strings_text, encoding="utf-8")
 
     # App names can be localized in values-*/strings.xml. Force the product
@@ -585,6 +597,23 @@ def patch_upstream(upstream: Path) -> None:
             block = logs_match.group(1) + "\n" + screenshots_button
             layout_text = layout_text[:logs_match.start(1)] + block + layout_text[logs_match.end(1):]
 
+        if "mylauncher_crash_reports_button" not in layout_text:
+            crash_reports_button = """            <com.kdt.mcgui.LauncherMenuButton
+                android:id="@+id/mylauncher_crash_reports_button"
+                style="@style/LauncherMenuButton.Universal"
+                android:layout_width="match_parent"
+                android:drawableStart="@android:drawable/ic_menu_info_details"
+                android:text="@string/main_crash_reports_folder"
+                app:layout_constraintTop_toBottomOf="@id/mylauncher_screenshots_button" />
+
+"""
+            screenshots_pattern = re.compile(r'(<com\.kdt\.mcgui\.LauncherMenuButton\s+android:id="@\+id/mylauncher_screenshots_button".*?\/>\s*)', re.DOTALL)
+            screenshots_match = screenshots_pattern.search(layout_text)
+            if not screenshots_match:
+                raise ValueError(f"Could not find mylauncher_screenshots_button to add crash-reports shortcut in {layout_path}")
+            block = screenshots_match.group(1) + "\n" + crash_reports_button
+            layout_text = layout_text[:screenshots_match.start(1)] + block + layout_text[screenshots_match.end(1):]
+
         if "mylauncher_account_button" not in layout_text:
             account_button = """            <com.kdt.mcgui.LauncherMenuButton
                 android:id="@+id/mylauncher_account_button"
@@ -592,7 +621,7 @@ def patch_upstream(upstream: Path) -> None:
                 android:layout_width="match_parent"
                 android:drawableStart="@android:drawable/ic_menu_myplaces"
                 android:text="@string/main_add_account"
-                app:layout_constraintTop_toBottomOf="@id/mylauncher_screenshots_button" />
+                app:layout_constraintTop_toBottomOf="@id/mylauncher_crash_reports_button" />
 
 """
             screenshots_pattern = re.compile(r'(<com\.kdt\.mcgui\.LauncherMenuButton\s+android:id="@\+id/mylauncher_screenshots_button".*?/>\s*)', re.DOTALL)
@@ -605,12 +634,12 @@ def patch_upstream(upstream: Path) -> None:
         account_pattern = re.compile(r'<com\.kdt\.mcgui\.LauncherMenuButton\s+android:id="@\+id/mylauncher_account_button".*?/>', re.DOTALL)
         account_match = account_pattern.search(layout_text)
         if account_match:
-            for prior_anchor in ("open_files_button", "mylauncher_mods_button", "mylauncher_resourcepacks_button", "mylauncher_world_saves_button", "mylauncher_logs_button"):
+            for prior_anchor in ("open_files_button", "mylauncher_mods_button", "mylauncher_resourcepacks_button", "mylauncher_world_saves_button", "mylauncher_logs_button", "mylauncher_screenshots_button"):
                 prior_constraint = 'app:layout_constraintTop_toBottomOf="@id/' + prior_anchor + '"'
                 if prior_constraint in account_match.group(0):
                     updated_account = account_match.group(0).replace(
                         prior_constraint,
-                        'app:layout_constraintTop_toBottomOf="@id/mylauncher_screenshots_button"',
+                        'app:layout_constraintTop_toBottomOf="@id/mylauncher_crash_reports_button"',
                         1,
                     )
                     layout_text = layout_text[:account_match.start()] + updated_account + layout_text[account_match.end():]
@@ -639,6 +668,11 @@ def patch_upstream(upstream: Path) -> None:
         )
         screenshots_match = re.search(
             r'<com\.kdt\.mcgui\.LauncherMenuButton\s+android:id="@\+id/mylauncher_screenshots_button".*?/>',
+            layout_text,
+            flags=re.DOTALL,
+        )
+        crash_reports_match = re.search(
+            r'<com\.kdt\.mcgui\.LauncherMenuButton\s+android:id="@\+id/mylauncher_crash_reports_button".*?/>',
             layout_text,
             flags=re.DOTALL,
         )
@@ -679,22 +713,30 @@ def patch_upstream(upstream: Path) -> None:
             or 'android:drawableStart="@android:drawable/ic_menu_gallery"' not in screenshots_match.group(0)
             or 'android:text="@string/main_screenshots_folder"' not in screenshots_match.group(0)
             or 'app:layout_constraintTop_toBottomOf="@id/mylauncher_logs_button"' not in screenshots_match.group(0)
+            or not crash_reports_match
+            or crash_reports_match.group(0).count('android:id="@+id/mylauncher_crash_reports_button"') != 1
+            or 'style="@style/LauncherMenuButton.Universal"' not in crash_reports_match.group(0)
+            or 'android:layout_width="match_parent"' not in crash_reports_match.group(0)
+            or 'android:drawableStart="@android:drawable/ic_menu_info_details"' not in crash_reports_match.group(0)
+            or 'android:text="@string/main_crash_reports_folder"' not in crash_reports_match.group(0)
+            or 'app:layout_constraintTop_toBottomOf="@id/mylauncher_screenshots_button"' not in crash_reports_match.group(0)
             or not account_match
             or account_match.group(0).count('android:id="@+id/mylauncher_account_button"') != 1
             or 'style="@style/LauncherMenuButton.Universal"' not in account_match.group(0)
             or 'android:layout_width="match_parent"' not in account_match.group(0)
             or 'android:drawableStart="@android:drawable/ic_menu_myplaces"' not in account_match.group(0)
             or 'android:text="@string/main_add_account"' not in account_match.group(0)
-            or 'app:layout_constraintTop_toBottomOf="@id/mylauncher_screenshots_button"' not in account_match.group(0)
+            or 'app:layout_constraintTop_toBottomOf="@id/mylauncher_crash_reports_button"' not in account_match.group(0)
             or open_files_index < 0
             or open_files_index > mods_match.start()
             or mods_match.start() > resourcepacks_match.start()
             or resourcepacks_match.start() > world_saves_match.start()
             or world_saves_match.start() > logs_match.start()
             or logs_match.start() > screenshots_match.start()
-            or screenshots_match.start() > account_match.start()
+            or screenshots_match.start() > crash_reports_match.start()
+            or crash_reports_match.start() > account_match.start()
         ):
-            raise ValueError(f"myLauncher mods/resource-packs/world-saves/logs/screenshots/account shortcuts are incomplete in {layout_path}")
+            raise ValueError(f"myLauncher mods/resource-packs/world-saves/logs/screenshots/crash-reports/account shortcuts are incomplete in {layout_path}")
 
         title_match = re.search(
             r'<TextView\s+android:id="@\+id/mylauncher_hero_title".*?/>',
@@ -713,6 +755,7 @@ def patch_upstream(upstream: Path) -> None:
             or layout_text.count('android:id="@+id/mylauncher_world_saves_button"') != 1
             or layout_text.count('android:id="@+id/mylauncher_logs_button"') != 1
             or layout_text.count('android:id="@+id/mylauncher_screenshots_button"') != 1
+            or layout_text.count('android:id="@+id/mylauncher_crash_reports_button"') != 1
             or layout_text.count('android:id="@+id/news_button"') != 1
             or layout_text.count('android:id="@+id/discord_button"') != 1
             or layout_text.count('android:id="@+id/social_divider"') != 1
@@ -1052,6 +1095,37 @@ def patch_upstream(upstream: Path) -> None:
         or "openPath(v.getContext(), screenshotsDirectory, false);" not in main_menu_text
     ):
         raise ValueError("The screenshots shortcut binding, directory creation, or handler is incomplete")
+
+    crash_reports_binding = "Button mMyLauncherCrashReportsButton = view.findViewById(R.id.mylauncher_crash_reports_button);"
+    if crash_reports_binding not in main_menu_text:
+        if screenshots_binding not in main_menu_text:
+            raise ValueError("Could not bind the crash-reports shortcut without the screenshots shortcut")
+        main_menu_text = main_menu_text.replace(screenshots_binding, screenshots_binding + "\n        " + crash_reports_binding, 1)
+    crash_reports_listener = """mMyLauncherCrashReportsButton.setOnClickListener(v -> {
+            if (Tools.isDemoProfile(v.getContext())) {
+                hasNoOnlineProfileDialog(getActivity(), getString(R.string.demo_unsupported), getString(R.string.change_account));
+                return;
+            }
+            File crashReportsDirectory = new File(getCurrentProfileDirectory(), "crash-reports");
+            if (!crashReportsDirectory.isDirectory() && !crashReportsDirectory.mkdirs()) {
+                Toast.makeText(requireContext(), "Unable to create the crash reports folder", Toast.LENGTH_LONG).show();
+                return;
+            }
+            openPath(v.getContext(), crashReportsDirectory, false);
+        });"""
+    if crash_reports_listener not in main_menu_text:
+        listener_anchor = "mVersionSpinner = view.findViewById(R.id.mc_version_spinner);"
+        if listener_anchor not in main_menu_text:
+            raise ValueError("Could not find the listener insertion point for the crash-reports shortcut")
+        main_menu_text = main_menu_text.replace(listener_anchor, "        " + crash_reports_listener + "\n        " + listener_anchor, 1)
+    if (
+        main_menu_text.count(crash_reports_binding) != 1
+        or main_menu_text.count(crash_reports_listener) != 1
+        or 'new File(getCurrentProfileDirectory(), "crash-reports")' not in main_menu_text
+        or "!crashReportsDirectory.isDirectory() && !crashReportsDirectory.mkdirs()" not in main_menu_text
+        or "openPath(v.getContext(), crashReportsDirectory, false);" not in main_menu_text
+    ):
+        raise ValueError("The crash-reports shortcut binding, directory creation, or handler is incomplete")
 
     required_backup_imports = (
         "import java.io.FileInputStream;",
