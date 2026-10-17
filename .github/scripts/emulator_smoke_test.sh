@@ -10,6 +10,14 @@ fi
 # The workflow validates and signs this APK before starting the emulator.
 timeout 180s adb install -r "$APK_PATH"
 
+# Save a screenshot when possible so startup can be inspected without a physical device.
+# Screenshot collection is diagnostic only; it must not turn a successful launch into a failed test.
+capture_startup_screenshot() {
+    timeout 10s adb shell screencap -p /sdcard/mylauncher-emulator-startup.png >/dev/null 2>&1 || return 0
+    timeout 10s adb pull /sdcard/mylauncher-emulator-startup.png upstream/mylauncher-emulator-startup.png >/dev/null 2>&1 || true
+    timeout 10s adb shell rm -f /sdcard/mylauncher-emulator-startup.png >/dev/null 2>&1 || true
+}
+
 # TestStorageActivity requests legacy storage permissions on Android 9 before opening LauncherActivity.
 timeout 15s adb shell pm grant com.mf.mylauncher.debug android.permission.READ_EXTERNAL_STORAGE
 timeout 15s adb shell pm grant com.mf.mylauncher.debug android.permission.WRITE_EXTERNAL_STORAGE
@@ -23,6 +31,7 @@ for i in $(seq 1 45); do
     if [ "$i" -eq 45 ]; then
         timeout 20s adb logcat -d -t 5000 > upstream/mylauncher-emulator-logcat.txt || true
         timeout 20s adb shell dumpsys activity activities > upstream/mylauncher-activities.txt || true
+        capture_startup_screenshot
         cat upstream/mylauncher-activities.txt || true
         grep -E 'FATAL EXCEPTION|AndroidRuntime|com\.mf\.mylauncher\.debug' upstream/mylauncher-emulator-logcat.txt | tail -250 || true
         echo "APK did not reach LauncherActivity in the emulator" >&2
@@ -33,5 +42,6 @@ done
 
 timeout 20s adb shell dumpsys activity activities > upstream/mylauncher-activities.txt || true
 timeout 20s adb logcat -d -t 5000 > upstream/mylauncher-emulator-logcat.txt || true
+capture_startup_screenshot
 grep -Fq 'com.mf.mylauncher.debug/net.kdt.pojavlaunch.LauncherActivity' upstream/mylauncher-activities.txt
 echo "Emulator smoke test passed: APK installed and LauncherActivity resumed."
