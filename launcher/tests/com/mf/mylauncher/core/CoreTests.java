@@ -768,6 +768,35 @@ public final class CoreTests {
             } catch (InterruptedIOException expected) {
                 checks++;
             }
+
+            byte[] largePayload = new byte[100_000];
+            Arrays.fill(largePayload, (byte) 7);
+            String largeHash = sha1Hex(largePayload);
+            AssetObjectMetadata largeAsset = new AssetObjectMetadata("minecraft/test/large.bin",
+                    largeHash, largePayload.length);
+            AssetIndex largeIndex = new AssetIndex(
+                    java.util.Collections.singletonMap(largeAsset.getName(), largeAsset), true, true);
+            Path cancelGameRoot = temporary.resolve("cancel-during-copy");
+            Path cancelAssetsRoot = cancelGameRoot.resolve("assets");
+            Path largeObject = cancelAssetsRoot.resolve(largeAsset.getObjectRelativePath());
+            Files.createDirectories(largeObject.getParent());
+            Files.write(largeObject, largePayload);
+            java.util.concurrent.atomic.AtomicInteger cancellationPolls = new java.util.concurrent.atomic.AtomicInteger();
+            CancellationToken cancelDuringCopy = () -> cancellationPolls.incrementAndGet() >= 8;
+            Path cancelledVirtual = cancelAssetsRoot.resolve("virtual/1.12.2/minecraft/test/large.bin");
+            try {
+                AssetLayoutMaterializer.materialize(largeIndex, "1.12.2",
+                        cancelAssetsRoot, cancelGameRoot, cancelDuringCopy);
+                throw new AssertionError("cancellation during a large asset copy should abort");
+            } catch (InterruptedIOException expected) {
+                checks++;
+            }
+            yes(!Files.exists(cancelledVirtual),
+                    "cancelled asset copy is not published as a partial virtual asset");
+            try (java.util.stream.Stream<Path> paths = Files.walk(cancelGameRoot)) {
+                eq(0L, paths.filter(file -> file.getFileName().toString().endsWith(".part")).count(),
+                        "cancelled asset copy removes its temporary partial file");
+            }
         } finally {
             try (java.util.stream.Stream<Path> paths = Files.walk(temporary)) {
                 paths.sorted(java.util.Comparator.reverseOrder()).forEach(path -> {
