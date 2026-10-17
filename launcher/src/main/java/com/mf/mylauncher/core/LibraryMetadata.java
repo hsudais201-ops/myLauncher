@@ -80,6 +80,74 @@ public final class LibraryMetadata {
 
     public String getName() { return name; }
     public Optional<DownloadArtifact> getArtifact() { return Optional.ofNullable(artifact); }
+
+    /** Returns the explicit Maven classifier, when the coordinate has four colon-separated parts. */
+    public Optional<String> getExplicitClassifier() {
+        String[] parts = name.split(":", -1);
+        if (parts.length != 4) return Optional.empty();
+        String classifier = parts[3];
+        int extension = classifier.indexOf('@');
+        if (extension >= 0) classifier = classifier.substring(0, extension);
+        return classifier.isEmpty() ? Optional.empty() : Optional.of(classifier);
+    }
+
+    /**
+     * Newer Minecraft metadata lists platform native archives as ordinary artifacts with an
+     * explicit classifier instead of the legacy natives/classifiers maps.
+     */
+    public boolean hasExplicitNativeClassifier() {
+        Optional<String> optional = getExplicitClassifier();
+        if (!optional.isPresent()) return false;
+        String classifier = optional.get();
+        return classifier.startsWith("natives-")
+                || classifier.matches("(?:linux|windows|osx|macos)-(?:aarch_64|x86_64|arm64|arm32|arm32hf|arm32v6|arm32v7|x86|i386|i486|i586|i686)");
+    }
+
+    /** Safely filters classifier-qualified native binaries by both OS and CPU architecture. */
+    public boolean isExplicitNativeClassifierCompatible(String osName, String architecture) {
+        Optional<String> optional = getExplicitClassifier();
+        if (!optional.isPresent()) return true;
+        String classifier = optional.get();
+        if (!hasExplicitNativeClassifier()) return true;
+
+        if (classifier.startsWith("natives-")) classifier = classifier.substring("natives-".length());
+        String[] parts = classifier.split("-", -1);
+        if (parts.length == 0) return false;
+        String classifierOs = normalizeClassifierOs(parts[0]);
+        if (classifierOs == null || !classifierOs.equals(normalizeClassifierOs(osName))) return false;
+
+        String classifierArch;
+        if (parts.length == 1) {
+            // Mojang's unqualified natives-linux/macos/windows artifacts are the desktop x86_64 variant.
+            classifierArch = "x86_64";
+        } else {
+            String suffix = classifier.substring(parts[0].length() + 1);
+            classifierArch = normalizeClassifierArch(suffix);
+        }
+        return classifierArch != null && classifierArch.equals(normalizeClassifierArch(architecture));
+    }
+
+    /** Platform-specific native classifiers must not leak into the classpath for another CPU target. */
+    public boolean isCompatibleWithPlatform(LibraryPlatform platform) {
+        if (platform == null) throw new IllegalArgumentException("Library platform is required");
+        return isExplicitNativeClassifierCompatible(platform.getOsName(), platform.getArchitecture());
+    }
+
+    private static String normalizeClassifierOs(String value) {
+        if ("macos".equals(value)) return "osx";
+        return ("linux".equals(value) || "osx".equals(value) || "windows".equals(value)) ? value : null;
+    }
+
+    private static String normalizeClassifierArch(String value) {
+        if ("arm64".equals(value) || "aarch64".equals(value) || "aarch_64".equals(value)
+                || "arm64-v8a".equals(value)) return "arm64";
+        if ("x86_64".equals(value) || "amd64".equals(value) || "x64".equals(value)) return "x86_64";
+        if ("x86".equals(value) || "i386".equals(value) || "i486".equals(value)
+                || "i586".equals(value) || "i686".equals(value)) return "x86";
+        if ("arm".equals(value) || "arm32".equals(value) || "armhf".equals(value)
+                || "arm32hf".equals(value) || "arm32v6".equals(value) || "arm32v7".equals(value)) return "arm32";
+        return null;
+    }
     public Map<String, DownloadArtifact> getClassifiers() { return classifiers; }
     public Map<String, String> getNatives() { return natives; }
     public List<LibraryRule> getRules() { return rules; }
