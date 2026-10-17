@@ -10,7 +10,7 @@ import java.util.regex.Pattern;
 
 /** Parsed metadata for one client library and any platform-specific native classifiers. */
 public final class LibraryMetadata {
-    private static final Pattern SAFE_COORDINATE = Pattern.compile("[^\\s:]+:[^\\s:]+:[^\\s:]+(?:@[^\\s:]+)?");
+    private static final Pattern SAFE_COORDINATE = Pattern.compile("[^\\s:]+:[^\\s:]+:[^\\s:]+(?::[^\\s:]+)?(?:@[^\\s:]+)?");
     private final String name;
     private final DownloadArtifact artifact;
     private final Map<String, DownloadArtifact> classifiers;
