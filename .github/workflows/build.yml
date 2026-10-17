@@ -87,6 +87,15 @@ jobs:
       - name: Apply and inspect VoidCraft Launcher customization
         run: |
           python3 .github/scripts/customize_amethyst.py upstream
+          python3 - <<'PY'
+          from pathlib import Path
+
+          settings = Path("upstream/settings.gradle").read_text(encoding="utf-8")
+          plugin_management = settings.split("dependencyResolutionManagement", 1)[0]
+          if "mavenCentral()" not in plugin_management:
+              raise SystemExit("Maven Central must be configured in pluginManagement for AGP classpath dependencies")
+          print("Verified Maven Central is configured for plugin-management dependencies.")
+          PY
           git -C upstream diff --check
 
       - name: Apply VoidCraft Launcher logo

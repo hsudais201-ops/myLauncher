@@ -76,7 +76,18 @@ class CustomizeAmethystTests(unittest.TestCase):
             '* License:<br>\n • GNU GPLv3<br>\n • Third party components and their licenses<br>\n',
             encoding="utf-8",
         )
-        (root / "settings.gradle").write_text("rootProject.name='Amethyst'\n", encoding="utf-8")
+        (root / "settings.gradle").write_text(
+            """pluginManagement {
+    repositories {
+        gradlePluginPortal()
+        google()
+    }
+}
+
+rootProject.name='Amethyst'
+""",
+            encoding="utf-8",
+        )
 
         tools_java = app / "src/main/java/net/kdt/pojavlaunch/Tools.java"
         tools_java.parent.mkdir(parents=True, exist_ok=True)
@@ -307,6 +318,22 @@ class ProfileTypeSelectFragment {
             encoding="utf-8",
         )
 
+    def test_plugin_management_includes_maven_central(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            self.fixture(root)
+            customizer.patch_upstream(root)
+            settings = (root / "settings.gradle").read_text(encoding="utf-8")
+            plugin_management = settings.split("dependencyResolutionManagement", 1)[0]
+            self.assertIn("pluginManagement", plugin_management)
+            self.assertIn("gradlePluginPortal()", plugin_management)
+            self.assertIn("google()", plugin_management)
+            self.assertIn("mavenCentral()", plugin_management)
+            customizer.patch_upstream(root)
+            settings_again = (root / "settings.gradle").read_text(encoding="utf-8")
+            self.assertEqual(settings, settings_again)
+            self.assertEqual(settings.count("mavenCentral()"), 1)
+
     def test_local_profiles_can_download_missing_versions_when_connected(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
@@ -362,9 +389,12 @@ class ProfileTypeSelectFragment {
             self.assertIn('public static String APP_NAME = "VoidCraft Launcher";', tools_java)
             self.assertNotIn('public static String APP_NAME = "Amethyst";', tools_java)
             self.assertIn("rootProject.name='VoidCraft Launcher'", settings)
+            self.assertIn("pluginManagement", settings)
+            self.assertIn("mavenCentral()", settings.split("rootProject.name")[0])
             self.assertIn('<string name="main_mods_folder">Mods folder</string>', strings)
             self.assertIn('<string name="main_resourcepacks_folder">Resource packs</string>', strings)
             self.assertIn('<string name="main_world_saves_folder">World saves</string>', strings)
+            self.assertIn('<string name="main_logs_folder">Game logs</string>', strings)
             self.assertIn("if (deviceRam <= 2048) return 512;", prefs)
             self.assertIn("int targetSide = Tools.getTotalDeviceMemory(context) <= 2048 ? 480 : (isDevicePowerful ? 1080 : 720);", prefs)
             self.assertNotIn("int targetSide = isDevicePowerful ? 1080 :", prefs)
@@ -405,6 +435,11 @@ class ProfileTypeSelectFragment {
             self.assertIn('new File(getCurrentProfileDirectory(), "saves")', main_menu)
             self.assertIn("!worldSavesDirectory.isDirectory() && !worldSavesDirectory.mkdirs()", main_menu)
             self.assertIn("openPath(v.getContext(), worldSavesDirectory, false);", main_menu)
+            self.assertIn("Button mMyLauncherLogsButton = view.findViewById(R.id.mylauncher_logs_button);", main_menu)
+            self.assertIn("mMyLauncherLogsButton.setOnClickListener", main_menu)
+            self.assertIn('new File(getCurrentProfileDirectory(), "logs")', main_menu)
+            self.assertIn("!logsDirectory.isDirectory() && !logsDirectory.mkdirs()", main_menu)
+            self.assertIn("openPath(v.getContext(), logsDirectory, false);", main_menu)
             activity = (root / "app_pojavlauncher/src/main/java/net/kdt/pojavlaunch/LauncherActivity.java").read_text(encoding="utf-8")
             self.assertIn("ExtraCore.addExtraListener(ExtraConstants.SELECT_AUTH_METHOD, mSelectAuthMethod);", activity)
             self.assertIn("Tools.swapFragment(this, SelectAuthFragment.class, SelectAuthFragment.TAG, null);", activity)
@@ -442,6 +477,7 @@ class ProfileTypeSelectFragment {
                 self.assertEqual(launcher_layout.count('android:id="@+id/mylauncher_mods_button"'), 1)
                 self.assertEqual(launcher_layout.count('android:id="@+id/mylauncher_resourcepacks_button"'), 1)
                 self.assertEqual(launcher_layout.count('android:id="@+id/mylauncher_world_saves_button"'), 1)
+                self.assertEqual(launcher_layout.count('android:id="@+id/mylauncher_logs_button"'), 1)
                 self.assertIn('android:text="VoidCraft Launcher"', launcher_layout)
                 self.assertIn('android:text="Minecraft Java Edition · by MF"', launcher_layout)
                 self.assertIn('android:text="@string/main_add_account"', launcher_layout)
@@ -455,6 +491,10 @@ class ProfileTypeSelectFragment {
                 self.assertIn('android:drawableStart="@android:drawable/ic_menu_save"', launcher_layout)
                 self.assertIn('app:layout_constraintTop_toBottomOf="@id/mylauncher_mods_button"', launcher_layout)
                 self.assertIn('app:layout_constraintTop_toBottomOf="@id/mylauncher_resourcepacks_button"', launcher_layout)
+                self.assertIn('android:text="@string/main_logs_folder"', launcher_layout)
+                self.assertIn('android:drawableStart="@android:drawable/ic_menu_view"', launcher_layout)
+                self.assertIn('app:layout_constraintTop_toBottomOf="@id/mylauncher_world_saves_button"', launcher_layout)
+                self.assertIn('app:layout_constraintTop_toBottomOf="@id/mylauncher_logs_button"', launcher_layout)
                 self.assertIn('app:layout_constraintTop_toTopOf="@id/news_button"', launcher_layout)
                 self.assertIn('app:layout_constraintTop_toBottomOf="@id/mylauncher_hero_subtitle"', launcher_layout)
 
@@ -589,6 +629,25 @@ class ProfileTypeSelectFragment {
             self.assertIn('if (!worldSavesDirectory.isDirectory() && !worldSavesDirectory.mkdirs())', menu)
             self.assertIn('openPath(v.getContext(), worldSavesDirectory, false);', menu)
             self.assertIn('Tools.isDemoProfile(v.getContext())', menu)
+
+    def test_logs_folder_shortcut_opens_the_selected_profile_logs_directory(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            self.fixture(root)
+            customizer.patch_upstream(root)
+            menu = (root / "app_pojavlauncher/src/main/java/net/kdt/pojavlaunch/fragments/MainMenuFragment.java").read_text(encoding="utf-8")
+            strings = (root / "app_pojavlauncher/src/main/res/values/strings.xml").read_text(encoding="utf-8")
+            self.assertIn('<string name="main_logs_folder">Game logs</string>', strings)
+            self.assertIn("Tools.isDemoProfile(v.getContext())", menu)
+            self.assertIn('new File(getCurrentProfileDirectory(), "logs")', menu)
+            self.assertIn('if (!logsDirectory.isDirectory() && !logsDirectory.mkdirs())', menu)
+            self.assertIn('openPath(v.getContext(), logsDirectory, false);', menu)
+            for relative in ("src/main/res/layout/fragment_launcher.xml", "src/main/res/layout-land/fragment_launcher.xml"):
+                layout = (root / "app_pojavlauncher" / relative).read_text(encoding="utf-8")
+                self.assertEqual(layout.count('android:id="@+id/mylauncher_logs_button"'), 1)
+                self.assertIn('android:text="@string/main_logs_folder"', layout)
+                self.assertIn('app:layout_constraintTop_toBottomOf="@id/mylauncher_world_saves_button"', layout)
+                self.assertIn('app:layout_constraintTop_toBottomOf="@id/mylauncher_logs_button"', layout)
 
     def test_is_idempotent(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
@@ -757,6 +816,8 @@ class BuildWorkflowTests(unittest.TestCase):
         self.assertIn("yes | sdkmanager --licenses", self.workflow)
         self.assertIn("sdkmanager --install 'platforms;android-37.0' 'ndk;27.3.13750724' --channel=3", self.workflow)
         self.assertIn("./gradlew --no-daemon :jre_lwjgl3glfw:build :app_pojavlauncher:assembleDebug --stacktrace", self.workflow)
+        self.assertIn('plugin_management = settings.split("dependencyResolutionManagement", 1)[0]', self.workflow)
+        self.assertIn("Maven Central must be configured in pluginManagement for AGP classpath dependencies", self.workflow)
         self.assertIn("python3 -m py_compile .github/scripts/customize_amethyst.py .github/scripts/apply_logo.py .github/scripts/test_customizer.py", self.workflow)
         self.assertIn("sh -n .github/scripts/prepare_emulator_kvm.sh", self.workflow)
         self.assertIn("sh -n .github/scripts/emulator_smoke_test.sh", self.workflow)
