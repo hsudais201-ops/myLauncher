@@ -230,6 +230,33 @@ class SelectAuthFragment {
             encoding="utf-8",
         )
 
+        profile_type = app / "src/main/java/net/kdt/pojavlaunch/fragments/ProfileTypeSelectFragment.java"
+        profile_type.write_text(
+            """import static net.kdt.pojavlaunch.Tools.hasNoOnlineProfileDialog;
+import static net.kdt.pojavlaunch.Tools.hasOnlineProfile;
+
+import androidx.fragment.app.Fragment;
+import net.kdt.pojavlaunch.R;
+import net.kdt.pojavlaunch.Tools;
+
+class ProfileTypeSelectFragment {
+    void onViewCreated() {
+        view.findViewById(R.id.vanilla_profile).setOnClickListener(v -> Tools.swapFragment(requireActivity(), ProfileEditorFragment.class, ProfileEditorFragment.TAG, new Bundle(1)));
+        view.findViewById(R.id.optifine_profile).setOnClickListener(v -> tryInstall(OptiFineInstallFragment.class, OptiFineInstallFragment.TAG));
+    }
+
+    private void tryInstall(Class<? extends Fragment> fragmentClass, String tag){
+        if(!hasOnlineProfile()){
+            hasNoOnlineProfileDialog(requireActivity());
+        } else {
+            Tools.swapFragment(requireActivity(), fragmentClass, tag, null);
+        }
+    }
+}
+""",
+            encoding="utf-8",
+        )
+
         manifest = app / "src/main/AndroidManifest.xml"
         manifest.write_text(
             '<manifest xmlns:android="http://schemas.android.com/apk/res/android">'
@@ -459,6 +486,22 @@ class SelectAuthFragment {
             )
             with self.assertRaisesRegex(ValueError, "SELECT_AUTH_METHOD listener"):
                 customizer.patch_upstream(root)
+
+    def test_mod_loader_gate_offers_direct_microsoft_sign_in(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            self.fixture(root)
+            customizer.patch_upstream(root)
+            profile_type = (root / "app_pojavlauncher/src/main/java/net/kdt/pojavlaunch/fragments/ProfileTypeSelectFragment.java").read_text(encoding="utf-8")
+
+            # Do not bypass Minecraft ownership validation; give eligible users an immediate sign-in path.
+            self.assertIn("if (!hasOnlineProfile())", profile_type)
+            self.assertIn(".setPositiveButton(R.string.login_online_login_label", profile_type)
+            self.assertIn("MicrosoftLoginFragment.class, MicrosoftLoginFragment.TAG", profile_type)
+            self.assertIn(".setNegativeButton(android.R.string.cancel, null)", profile_type)
+            self.assertIn("Tools.swapFragment(requireActivity(), fragmentClass, tag, null);", profile_type)
+            self.assertIn("R.id.vanilla_profile", profile_type)
+            self.assertNotIn("hasNoOnlineProfileDialog", profile_type)
 
     def test_mods_folder_shortcut_opens_the_selected_profile_mods_directory(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
