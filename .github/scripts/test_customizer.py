@@ -96,6 +96,117 @@ rootProject.name='Amethyst'
             encoding="utf-8",
         )
 
+        logger_view = app / "src/main/java/com/kdt/LoggerView.java"
+        logger_view.parent.mkdir(parents=True, exist_ok=True)
+        logger_view.write_text(
+            r"""package com.kdt;
+
+import android.content.Context;
+import android.graphics.Typeface;
+import android.util.AttributeSet;
+import android.view.View;
+import android.widget.ImageButton;
+import android.widget.TextView;
+import android.widget.ToggleButton;
+
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+import androidx.constraintlayout.widget.ConstraintLayout;
+
+import net.kdt.pojavlaunch.Logger;
+import net.kdt.pojavlaunch.R;
+
+public class LoggerView extends ConstraintLayout {
+    private Logger.eventLogListener mLogListener;
+    private ToggleButton mLogToggle;
+    private DefocusableScrollView mScrollView;
+    private TextView mLogTextView;
+
+    public LoggerView(@NonNull Context context) { this(context, null); }
+    public LoggerView(@NonNull Context context, @Nullable AttributeSet attrs) { super(context, attrs); init(); }
+
+    @Override
+    public void setVisibility(int visibility) {
+        super.setVisibility(visibility);
+        mLogToggle.setChecked(visibility == VISIBLE);
+    }
+
+    private void init() {
+        inflate(getContext(), R.layout.view_logger, this);
+        mLogTextView = findViewById(R.id.content_log_view);
+        mLogTextView.setTypeface(Typeface.MONOSPACE);
+        mLogTextView.setMaxLines(Integer.MAX_VALUE);
+        mLogTextView.setEllipsize(null);
+        mLogTextView.setVisibility(GONE);
+
+        mLogToggle = findViewById(R.id.content_log_toggle_log);
+        mLogToggle.setOnCheckedChangeListener((compoundButton, isChecked) -> {
+            mLogTextView.setVisibility(isChecked ? VISIBLE : GONE);
+            if (isChecked) {
+                Logger.addLogListener(mLogListener);
+            } else {
+                mLogTextView.setText("");
+                Logger.removeLogListener(mLogListener);
+            }
+        });
+        mLogToggle.setChecked(false);
+        ImageButton cancelButton = findViewById(R.id.log_view_cancel);
+        cancelButton.setOnClickListener(view -> LoggerView.this.setVisibility(GONE));
+        mScrollView = findViewById(R.id.content_log_scroll);
+        mScrollView.setKeepFocusing(true);
+        ToggleButton autoscrollToggle = findViewById(R.id.content_log_toggle_autoscroll);
+        autoscrollToggle.setOnCheckedChangeListener((compoundButton, isChecked) -> {
+            if (isChecked) mScrollView.fullScroll(View.FOCUS_DOWN);
+            mScrollView.setKeepFocusing(isChecked);
+        });
+        autoscrollToggle.setChecked(true);
+        mLogListener = text -> {
+            if (mLogTextView.getVisibility() != VISIBLE) return;
+            post(() -> {
+                mLogTextView.append(text + '\n');
+                if (mScrollView.isKeepFocusing()) mScrollView.fullScroll(View.FOCUS_DOWN);
+            });
+        };
+    }
+}
+""",
+            encoding="utf-8",
+        )
+        logger_layout = app / "src/main/res/layout/view_logger.xml"
+        logger_layout.parent.mkdir(parents=True, exist_ok=True)
+        logger_layout.write_text(
+            """<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+    <View android:id="@+id/top_log_view" android:layout_width="match_parent"
+        android:layout_height="70dp" app:layout_constraintTop_toTopOf="parent" />
+    <TextView android:id="@+id/log_title" android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        app:layout_constraintTop_toTopOf="parent" />
+    <ToggleButton android:id="@+id/content_log_toggle_autoscroll"
+        android:layout_width="wrap_content" android:layout_height="0dp"
+        app:layout_constraintTop_toTopOf="parent" />
+    <ToggleButton android:id="@+id/content_log_toggle_log"
+        android:layout_width="wrap_content" android:layout_height="0dp"
+        app:layout_constraintTop_toTopOf="parent" />
+    <ImageButton android:id="@+id/log_view_cancel"
+        android:layout_width="70dp" android:layout_height="70dp"
+        app:layout_constraintTop_toTopOf="parent" />
+    <com.kdt.DefocusableScrollView android:id="@+id/content_log_scroll"
+        android:layout_width="match_parent" android:layout_height="0dp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/top_log_view">
+        <TextView android:id="@+id/content_log_view" android:layout_width="match_parent"
+            android:layout_height="wrap_content" android:textIsSelectable="true" />
+    </com.kdt.DefocusableScrollView>
+</androidx.constraintlayout.widget.ConstraintLayout>
+""",
+            encoding="utf-8",
+        )
+
         downloader = app / "src/main/java/net/kdt/pojavlaunch/tasks/MinecraftDownloader.java"
         downloader.parent.mkdir(parents=True, exist_ok=True)
         downloader.write_text(
@@ -806,6 +917,29 @@ class ProfileTypeSelectFragment {
                 self.assertIn('android:text="@string/main_logs_folder"', layout)
                 self.assertIn('app:layout_constraintTop_toBottomOf="@id/mylauncher_world_saves_button"', layout)
                 self.assertIn('app:layout_constraintTop_toBottomOf="@id/mylauncher_logs_button"', layout)
+
+    def test_live_log_filter_is_case_insensitive_bounded_and_clearable(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            self.fixture(root)
+            customizer.patch_upstream(root)
+            logger_view = (root / "app_pojavlauncher/src/main/java/com/kdt/LoggerView.java").read_text(encoding="utf-8")
+            logger_layout = root / "app_pojavlauncher/src/main/res/layout/view_logger.xml"
+            layout_text = logger_layout.read_text(encoding="utf-8")
+            strings = (root / "app_pojavlauncher/src/main/res/values/strings.xml").read_text(encoding="utf-8")
+            self.assertIn("private void renderFilteredLog()", logger_view)
+            self.assertIn("line.toLowerCase(Locale.ROOT).contains(filter)", logger_view)
+            self.assertIn("MAX_LOG_BUFFER_CHARS = 300000", logger_view)
+            self.assertIn("mLogBuffer.delete(0, removeChars)", logger_view)
+            self.assertIn("mLogFilterInput.setText(\\"\\")", logger_view)
+            self.assertIn("mLogToggle.isChecked()", logger_view)
+            self.assertIn("main_live_log_filter_hint", strings)
+            self.assertIn("main_live_log_count_matches", strings)
+            self.assertIn("main_live_log_truncated", strings)
+            ET.parse(logger_layout)
+            for view_id in ("log_filter_row", "content_log_filter_input", "content_log_filter_clear", "content_log_filter_count"):
+                self.assertEqual(layout_text.count('android:id="@+id/' + view_id + '"'), 1)
+            self.assertIn('app:layout_constraintTop_toBottomOf="@+id/log_filter_row"', layout_text)
 
     def test_long_press_game_logs_copies_bounded_redacted_latest_log(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
