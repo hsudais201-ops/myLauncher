@@ -1108,7 +1108,7 @@ def patch_upstream(upstream: Path) -> None:
         listener_anchor = "mVersionSpinner = view.findViewById(R.id.mc_version_spinner);"
         if listener_anchor not in main_menu_text:
             raise ValueError("Could not find the listener insertion point for the latest-log copy action")
-        main_menu_text = main_menu_text.replace(listener_anchor, "        " + logs_long_listener + "\\n        " + listener_anchor, 1)
+        main_menu_text = main_menu_text.replace(listener_anchor, "        " + logs_long_listener + "\n        " + listener_anchor, 1)
     if (
         main_menu_text.count(logs_long_listener) != 1
         or 'new File(new File(getCurrentProfileDirectory(), "logs"), "latest.log")' not in main_menu_text
