@@ -246,6 +246,106 @@ class MainMenuFragment {
             encoding="utf-8",
         )
 
+
+        logger_view = app / "src/main/java/com/kdt/LoggerView.java"
+        logger_view.parent.mkdir(parents=True, exist_ok=True)
+        logger_view.write_text(
+            """package com.kdt;
+import android.content.Context;
+import android.graphics.Typeface;
+import android.util.AttributeSet;
+import android.view.View;
+import android.widget.ImageButton;
+import android.widget.TextView;
+import android.widget.ToggleButton;
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+import androidx.constraintlayout.widget.ConstraintLayout;
+import net.kdt.pojavlaunch.Logger;
+import net.kdt.pojavlaunch.R;
+public class LoggerView extends ConstraintLayout {
+    private Logger.eventLogListener mLogListener;
+    private ToggleButton mLogToggle;
+    private DefocusableScrollView mScrollView;
+    private TextView mLogTextView;
+    public LoggerView(@NonNull Context context) { this(context, null); }
+    public LoggerView(@NonNull Context context, @Nullable AttributeSet attrs) { super(context, attrs); init(); }
+    @Override
+    public void setVisibility(int visibility) {
+        super.setVisibility(visibility);
+        mLogToggle.setChecked(visibility == VISIBLE);
+    }
+    private void init(){
+        inflate(getContext(), R.layout.view_logger, this);
+        mLogTextView = findViewById(R.id.content_log_view);
+        mLogTextView.setTypeface(Typeface.MONOSPACE);
+        mLogTextView.setMaxLines(Integer.MAX_VALUE);
+        mLogTextView.setEllipsize(null);
+        mLogTextView.setVisibility(GONE);
+        mLogToggle = findViewById(R.id.content_log_toggle_log);
+        mLogToggle.setOnCheckedChangeListener((compoundButton, isChecked) -> {
+            mLogTextView.setVisibility(isChecked ? VISIBLE : GONE);
+            if(isChecked) {
+                Logger.addLogListener(mLogListener);
+            }else{
+                mLogTextView.setText("");
+                Logger.removeLogListener(mLogListener);
+            }
+        });
+        mLogToggle.setChecked(false);
+        ImageButton cancelButton = findViewById(R.id.log_view_cancel);
+        cancelButton.setOnClickListener(view -> LoggerView.this.setVisibility(GONE));
+        mScrollView = findViewById(R.id.content_log_scroll);
+        mScrollView.setKeepFocusing(true);
+        ToggleButton autoscrollToggle = findViewById(R.id.content_log_toggle_autoscroll);
+        autoscrollToggle.setOnCheckedChangeListener((compoundButton, isChecked) -> {
+            if(isChecked) mScrollView.fullScroll(View.FOCUS_DOWN);
+            mScrollView.setKeepFocusing(isChecked);
+        });
+        autoscrollToggle.setChecked(true);
+        mLogListener = text -> {
+            if(mLogTextView.getVisibility() != VISIBLE) return;
+            post(() -> {
+                mLogTextView.append(text + '\n');
+                if(mScrollView.isKeepFocusing()) mScrollView.fullScroll(View.FOCUS_DOWN);
+            });
+
+        };
+    }
+}
+""",
+            encoding="utf-8",
+        )
+
+        logger_layout = app / "src/main/res/layout/view_logger.xml"
+        logger_layout.parent.mkdir(parents=True, exist_ok=True)
+        logger_layout.write_text(
+            """<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+    <View
+        android:id="@+id/top_log_view"
+        android:layout_width="match_parent"
+        android:layout_height="70dp" />
+    <com.kdt.DefocusableScrollView
+        android:id="@+id/content_log_scroll"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        app:layout_constraintTop_toBottomOf="@+id/top_log_view">
+        <TextView
+            android:id="@+id/content_log_view"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textIsSelectable="true" />
+    </com.kdt.DefocusableScrollView>
+</androidx.constraintlayout.widget.ConstraintLayout>
+""",
+            encoding="utf-8",
+        )
+
         auth_selector = app / "src/main/java/net/kdt/pojavlaunch/fragments/SelectAuthFragment.java"
         auth_selector.write_text(
             """import static net.kdt.pojavlaunch.Tools.hasNoOnlineProfileDialog;
@@ -822,6 +922,31 @@ class ProfileTypeSelectFragment {
             self.assertIn("android.content.ClipboardManager", menu)
             self.assertIn("Latest game log copied with sensitive tokens redacted", menu)
             self.assertIn("Tools.isDemoProfile(v.getContext())", menu)
+
+    def test_live_logger_supports_case_insensitive_search_with_bounded_buffer(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            self.fixture(root)
+            customizer.patch_upstream(root)
+            logger = (root / "app_pojavlauncher/src/main/java/com/kdt/LoggerView.java").read_text(encoding="utf-8")
+            layout_path = root / "app_pojavlauncher/src/main/res/layout/view_logger.xml"
+            layout = layout_path.read_text(encoding="utf-8")
+            strings = (root / "app_pojavlauncher/src/main/res/values/strings.xml").read_text(encoding="utf-8")
+
+            self.assertIn("import android.text.TextWatcher;", logger)
+            self.assertIn("mLogSearch.addTextChangedListener", logger)
+            self.assertIn("editable.toString().trim().toLowerCase(Locale.ROOT)", logger)
+            self.assertIn("line.toLowerCase(Locale.ROOT).contains(mLogFilter)", logger)
+            self.assertIn("MAX_BUFFERED_LOG_LINES = 5000", logger)
+            self.assertIn("mLogLines.size() > MAX_BUFFERED_LOG_LINES", logger)
+            self.assertIn("mLogLines.clear();", logger)
+            self.assertIn('<string name="log_view_search_hint">Search log lines</string>', strings)
+
+            self.assertEqual(layout.count('android:id="@+id/content_log_search"'), 1)
+            self.assertIn('android:hint="@string/log_view_search_hint"', layout)
+            self.assertIn('app:layout_constraintTop_toBottomOf="@+id/content_log_search">', layout)
+            import xml.etree.ElementTree as ET
+            ET.parse(layout_path)
 
     def test_screenshots_folder_shortcut_opens_the_selected_profile_screenshots_directory(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
