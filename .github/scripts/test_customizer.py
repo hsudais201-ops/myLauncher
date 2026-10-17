@@ -517,6 +517,16 @@ class BuildWorkflowTests(unittest.TestCase):
         self.assertIn("APK did not reach LauncherActivity", self.workflow)
         self.assertIn("            set -eu", self.workflow)
         self.assertNotIn("            set -euo pipefail", self.workflow)
+        self.assertIn('timeout 180s adb install -r "$APK_PATH"', self.workflow)
+        self.assertIn("adb shell pm grant com.mf.mylauncher.debug android.permission.READ_EXTERNAL_STORAGE", self.workflow)
+        self.assertIn("adb shell pm grant com.mf.mylauncher.debug android.permission.WRITE_EXTERNAL_STORAGE", self.workflow)
+        self.assertIn("timeout 30s adb shell monkey -p com.mf.mylauncher.debug 1", self.workflow)
+        self.assertLess(
+            self.workflow.index("android.permission.WRITE_EXTERNAL_STORAGE"),
+            self.workflow.index("adb shell monkey -p com.mf.mylauncher.debug 1"),
+        )
+        self.assertIn("name: myLauncher-emulator-diagnostics", self.workflow)
+        self.assertIn("upstream/mylauncher-emulator-logcat.txt", self.workflow)
         self.assertIn("if: ${{ always() && env.APK_PATH != '' }}", self.workflow)
         self.assertIn("if: ${{ always() && hashFiles('upstream/MYLAUNCHER_BUILD_INFO.txt') != '' }}", self.workflow)
         self.assertLess(
