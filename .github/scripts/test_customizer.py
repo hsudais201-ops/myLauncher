@@ -931,7 +931,7 @@ class ProfileTypeSelectFragment {
             self.assertIn("line.toLowerCase(Locale.ROOT).contains(filter)", logger_view)
             self.assertIn("MAX_LOG_BUFFER_CHARS = 300000", logger_view)
             self.assertIn("mLogBuffer.delete(0, removeChars)", logger_view)
-            self.assertIn("mLogFilterInput.setText(\\"\\")", logger_view)
+            self.assertIn('mLogFilterInput.setText("")', logger_view)
             self.assertIn("mLogToggle.isChecked()", logger_view)
             self.assertIn("main_live_log_filter_hint", strings)
             self.assertIn("main_live_log_count_matches", strings)
