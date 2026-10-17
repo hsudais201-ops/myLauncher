@@ -34,7 +34,7 @@ If the launcher reports `FileNotFoundException` for a path like `versions/<versi
 - The app name is normalized across localized Android string resources, and the in-app **About** text identifies the VoidCraft Launcher custom build and MF while retaining upstream and third-party license credits.
 - The Game logs shortcut opens the selected profile's `logs/` directory, creating it if needed, so logs are easier to find during troubleshooting.
 - The Screenshots shortcut opens the selected profile's `screenshots/` directory, creating it if needed, so screenshots can be browsed and copied without navigating through the entire game directory.
-- Long-press **World saves** to create a timestamped ZIP backup in that profile's `backups/` directory. Compression runs off the UI thread, incomplete ZIPs are discarded, and canonical-path checks reject save entries that escape `saves/`. Restoring a backup is still a manual extraction into `saves/`.
+- Tap **World saves** to open the saves folder or choose a ZIP backup to restore. Restore first extracts into a temporary directory, rejects unsafe or duplicate ZIP paths and archives larger than 20 GB uncompressed, and moves restored worlds into `saves/` without overwriting existing names (conflicts receive a `(restored)` suffix). Long-press **World saves** to create a timestamped ZIP backup in the profile's `backups/` directory. Backup and restore run off the UI thread and discard temporary files on failure.
 - The Android launcher icon is replaced by a lightweight vector mark matching the new dark/purple identity. No UI library or significant runtime dependency is added.
 
 ## Build the APK
