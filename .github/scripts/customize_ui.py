@@ -109,14 +109,14 @@ def patch_upstream(upstream: Path) -> None:
     colors = res / "values/colors.xml"
     styles = res / "values/styles.xml"
     strings = res / "values/strings.xml"
-    launcher_activity = app / "src/main/java/net/kdt/pojavlaunch/LauncherActivity.java"
+    main_activity = app / "src/main/java/net/kdt/pojavlaunch/MainActivity.java"
     manifest = app / "src/main/AndroidManifest.xml"
     card = res / "drawable/background_card.xml"
     launcher_preferences = app / "src/main/java/net/kdt/pojavlaunch/prefs/LauncherPreferences.java"
     mine_button = app / "src/main/java/com/kdt/mcgui/MineButton.java"
     mine_edit_text = app / "src/main/java/com/kdt/mcgui/MineEditText.java"
 
-    for path in (colors, styles, strings, launcher_activity, launcher_preferences, mine_button, mine_edit_text, manifest, card):
+    for path in (colors, styles, strings, main_activity, launcher_preferences, mine_button, mine_edit_text, manifest, card):
         if not path.is_file():
             raise FileNotFoundError(f"Required UI/compatibility source is missing: {path}")
 
@@ -443,68 +443,47 @@ def patch_upstream(upstream: Path) -> None:
             )
     mine_edit_text.write_text(input_text, encoding="utf-8")
 
-    # The MobileGlues project documents a 26.3-snapshot-3+ compatibility setting:
-    # error filtering must ignore shader/program errors. Apply it at launch only
-    # for affected versions and this renderer, leaving saved user preferences alone.
+    # Patch the final renderer configuration write, which happens in MainActivity
+    # after renderer selection and immediately before Java starts.
+    main_activity_text = main_activity.read_text(encoding="utf-8")
+    main_activity_text = replace_idempotently(
+        main_activity_text,
+        "LauncherPreferences.writeMGRendererSettings();",
+        "LauncherPreferences.writeMGRendererSettings(versionId);",
+        str(main_activity),
+    )
+    main_activity.write_text(main_activity_text, encoding="utf-8")
+
     prefs_text = launcher_preferences.read_text(encoding="utf-8")
-    if "public static boolean MYLAUNCHER_RENDERPEARL_COMPAT = false;" not in prefs_text:
-        prefs_text = replace_idempotently(
-            prefs_text,
-            "    public static SharedPreferences DEFAULT_PREF;",
-            "    public static boolean MYLAUNCHER_RENDERPEARL_COMPAT = false;\n\n    public static SharedPreferences DEFAULT_PREF;",
-            str(launcher_preferences),
-        )
-    elif "public static SharedPreferences DEFAULT_PREF;" not in prefs_text:
-        raise ValueError(f"SharedPreferences anchor is missing in {launcher_preferences}")
+    old_signature = "    public static void writeMGRendererSettings() throws IOException {"
+    new_signature = r"""    private static boolean isRenderPearlWorkaroundTarget(String versionId) {
+        if (versionId == null) return false;
+        String id = versionId.trim();
+        if (!id.matches("(?i)^26\\.(?:3|[4-9]|[1-9][0-9]+)(?:[.-].*|$)")) return false;
+        return !id.matches("(?i)^26\\.3-snapshot-1(?:$|[-+].*)");
+    }
+
+    public static void writeMGRendererSettings(String versionId) throws IOException {"""
+    prefs_text = replace_idempotently(
+        prefs_text, old_signature, new_signature, str(launcher_preferences)
+    )
     old_setting = '        MGConfigJson.put("enableNoError", Integer.parseInt(DEFAULT_PREF.getString("mg_renderer_setting_errorSetting", "0")));'
     new_setting = """        String errorSetting = DEFAULT_PREF.getString("mg_renderer_setting_errorSetting", "0");
-        if (MYLAUNCHER_RENDERPEARL_COMPAT
+        if (isRenderPearlWorkaroundTarget(versionId)
                 && "opengles_mobileglues".equals(Tools.LOCAL_RENDERER)
                 && "0".equals(errorSetting)) {
             // Value 2 means ignore shader/program errors (partial filtering).
             errorSetting = "2";
+            Log.i("myLauncher", "Applying MobileGlues compatibility filter for Minecraft " + versionId);
         }
         MGConfigJson.put("enableNoError", Integer.parseInt(errorSetting));"""
     prefs_text = replace_idempotently(prefs_text, old_setting, new_setting, str(launcher_preferences))
+    if "isRenderPearlWorkaroundTarget(versionId)" not in prefs_text or 'errorSetting = "2";' not in prefs_text:
+        raise ValueError("Version-gated MobileGlues shader/program error-filter workaround was not installed")
     launcher_preferences.write_text(prefs_text, encoding="utf-8")
-
-    activity_text = launcher_activity.read_text(encoding="utf-8")
-    launch_anchor = "        new MinecraftDownloader().start("
-    compat_block = r"""        // MobileGlues' default filter is adjusted only for affected Minecraft 26.x versions.
-        // Preserve an explicit user-selected filter and leave other renderers untouched.
-        boolean useRenderPearlCompatibility = normalizedVersionId.matches("(?i)^26\\.(?:3|[4-9]|[1-9][0-9]+)(?:[.-].*|$)")
-                && !normalizedVersionId.matches("(?i)^26\\.3-snapshot-1(?:$|[-+].*)");
-        boolean useDefaultRendererErrorFilter = "0".equals(
-                LauncherPreferences.DEFAULT_PREF.getString("mg_renderer_setting_errorSetting", "0"));
-        if ("opengles_mobileglues".equals(Tools.LOCAL_RENDERER)
-                && useRenderPearlCompatibility && useDefaultRendererErrorFilter) {
-            LauncherPreferences.MYLAUNCHER_RENDERPEARL_COMPAT = true;
-            try {
-                LauncherPreferences.writeMGRendererSettings();
-            } catch (IOException e) {
-                Log.w("myLauncher", "Unable to write MobileGlues compatibility settings", e);
-            } finally {
-                LauncherPreferences.MYLAUNCHER_RENDERPEARL_COMPAT = false;
-            }
-            Toast.makeText(this, R.string.mylauncher_26x_renderer_compat, Toast.LENGTH_LONG).show();
-        }
-
-"""
-
-    if "boolean useRenderPearlCompatibility = normalizedVersionId.matches(" not in activity_text:
-        activity_text = replace_idempotently(
-            activity_text,
-            launch_anchor,
-            compat_block + launch_anchor,
-            str(launcher_activity),
-        )
-    elif "LauncherPreferences.writeMGRendererSettings();" not in activity_text or launch_anchor not in activity_text:
-        raise ValueError(f"Incomplete RenderPearl compatibility patch in {launcher_activity}")
-    launcher_activity.write_text(activity_text, encoding="utf-8")
 
     strings_text = strings.read_text(encoding="utf-8")
     for resource_name, label_text in {
-        "mylauncher_26x_renderer_compat": "MobileGlues compatibility mode enabled for Minecraft 26.3+.",
         "mcl_setting_renderer_mobileglues": "MobileGlues (OpenGL ES) - 26.3 compatibility varies by device",
         "mcl_setting_renderer_vulkan_kopper_zink": "Kopper Zink (Vulkan) - requires a compatible Vulkan driver",
         "mcl_setting_renderer_vulkan_zink": "Zink (Vulkan) - compatibility and speed vary by device",
