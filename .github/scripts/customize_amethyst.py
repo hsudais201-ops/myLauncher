@@ -491,6 +491,47 @@ def patch_upstream(upstream: Path) -> None:
         if guard_count != 1 or json_guard_marker not in downloader_text:
             raise ValueError("Could not add missing/unreadable/empty Minecraft version JSON guard")
 
+    # A modded version may inherit the vanilla version's metadata. Validate the
+    # parent manifest explicitly so the user gets an actionable error before parsing it.
+    inherited_json_guard_marker = (
+        "providedJson.inheritsFrom != null && (!vanillaJsonFile.isFile() "
+        "|| !vanillaJsonFile.canRead() || vanillaJsonFile.length() == 0)"
+    )
+    normalized_downloader_text = " ".join(downloader_text.split())
+    if inherited_json_guard_marker not in normalized_downloader_text:
+        inherited_assignment = "versionMessage = providedJson.inheritsFrom != null ? providedJson.inheritsFrom : versionMessage;"
+        inherits_line = re.compile(r"(?m)^([ \t]*)" + re.escape(inherited_assignment) + r"[ \t]*$")
+        def add_inherited_json_guard(match: re.Match[str]) -> str:
+            indent = match.group(1)
+            guard_lines = (
+                "if (providedJson.inheritsFrom != null &&",
+                "    (!vanillaJsonFile.isFile() || !vanillaJsonFile.canRead() || vanillaJsonFile.length() == 0)) {",
+                "    throw new FileNotFoundException(",
+                '        "Base Minecraft version " + providedJson.inheritsFrom + " required by " + realVersion +',
+                '        " is missing or its metadata is unreadable/empty. " +',
+                '        "Connect to the internet and select Play again to download it."',
+                "    );",
+                "}",
+            )
+            return match.group(0) + "\n" + "\n".join(indent + line for line in guard_lines)
+        downloader_text, inherited_guard_count = inherits_line.subn(
+            add_inherited_json_guard, downloader_text, count=1
+        )
+        normalized_downloader_text = " ".join(downloader_text.split())
+        if inherited_guard_count != 1 or inherited_json_guard_marker not in normalized_downloader_text:
+            raise ValueError("Could not add missing/unreadable/empty inherited Minecraft version JSON guard")
+    inherited_guard_anchors = (
+        inherited_json_guard_marker,
+        "new FileNotFoundException(",
+        '"Base Minecraft version " + providedJson.inheritsFrom + " required by " + realVersion +',
+        "Connect to the internet and select Play again to download it.",
+    )
+    missing_inherited_guards = [
+        anchor for anchor in inherited_guard_anchors if anchor not in normalized_downloader_text
+    ]
+    if missing_inherited_guards:
+        raise ValueError(f"Inherited Minecraft version JSON guard is incomplete: {missing_inherited_guards}")
+
     downloader_text = replace_idempotently(
         downloader_text,
         'String tryagain = !isOnline ? "Please ensure you have an internet connection" : "Please try again on your Microsoft Account";',
@@ -535,6 +576,15 @@ def patch_upstream(upstream: Path) -> None:
         or "if(!checkEditText())" not in login_text
     ):
         raise ValueError("The upstream offline-login submission/username validation flow is incomplete")
+    normalized_login_text = " ".join(login_text.split())
+    expected_username_submission = (
+        "ExtraCore.setValue(ExtraConstants.MOJANG_LOGIN_TODO, "
+        'new String[]{ mUsernameEditText.getText().toString(), "" });'
+    )
+    if expected_username_submission not in normalized_login_text:
+        raise ValueError(
+            "The upstream offline-login submission is incomplete or does not submit the validated username"
+        )
 
     # Fail closed if upstream changes the local username rules. Local profile names
     # must remain valid and unique rather than silently admitting unusable profiles.
@@ -548,6 +598,8 @@ def patch_upstream(upstream: Path) -> None:
         raise ValueError(f"Offline username validation imports are missing: {missing_imports}")
     if 'mUsernameValidationPattern = Pattern.compile("^[a-zA-Z0-9_]*$");' not in login_text:
         raise ValueError("Offline username validation pattern must allow only letters, digits, and underscores")
+    # matches() validates the entire username; find() can accept a partial match.
+    login_text = login_text.replace("!matcher.find()", "!matcher.matches()")
 
     validation_method = re.search(
         r"private\s+boolean\s+checkEditText\s*\(\s*\)\s*\{(?P<body>.*?)^\s*\}",
@@ -562,7 +614,7 @@ def patch_upstream(upstream: Path) -> None:
         "return !(text.isEmpty() ||",
         "text.length() < 3 ||",
         "text.length() > 16 ||",
-        "!matcher.find() ||",
+        "!matcher.matches() ||",
         'new File(Tools.DIR_ACCOUNT_NEW + "/" + text + ".json").exists()',
     )
     # Normalize whitespace so validation checks the operators and their ordering,
