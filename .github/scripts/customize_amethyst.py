@@ -1423,32 +1423,51 @@ def patch_upstream(upstream: Path) -> None:
                 Toast.makeText(requireContext(), "Latest game log is not available yet", Toast.LENGTH_LONG).show();
                 return true;
             }
-            final long maxCopyBytes = 1024L * 1024L;
+            final long maxLogBytes = 1024L * 1024L;
             try (java.io.RandomAccessFile logReader = new java.io.RandomAccessFile(latestLog, "r")) {
                 long fileLength = logReader.length();
-                long bytesToRead = Math.min(maxCopyBytes, fileLength);
+                long bytesToRead = Math.min(maxLogBytes, fileLength);
                 long offset = fileLength - bytesToRead;
                 logReader.seek(offset);
                 byte[] logBytes = new byte[(int) bytesToRead];
                 logReader.readFully(logBytes);
-                String copiedText = new String(logBytes, java.nio.charset.StandardCharsets.UTF_8);
+                String logText = new String(logBytes, java.nio.charset.StandardCharsets.UTF_8);
                 if (offset > 0) {
-                    copiedText = "[Earlier log content omitted; copied final 1 MiB only.]\\n" + copiedText;
+                    logText = "[Earlier log content omitted; final 1 MiB only.]\\n" + logText;
                 }
-                copiedText = copiedText.replaceAll(
+                logText = logText.replaceAll(
                         "(?i)((?:access[_-]?token|refresh[_-]?token|client[_-]?secret|authorization|xsts[_-]?token|minecraft[_-]?token)[^A-Za-z0-9]{0,5})[A-Za-z0-9._~+/-=]+",
                         "$1[REDACTED]");
-                copiedText = copiedText.replaceAll("(?i)Bearer[ ]+[A-Za-z0-9._~+/-=]+", "Bearer [REDACTED]");
-                android.content.ClipboardManager clipboard = (android.content.ClipboardManager)
-                        requireContext().getSystemService(android.content.Context.CLIPBOARD_SERVICE);
-                if (clipboard == null) {
-                    Toast.makeText(requireContext(), "Clipboard is not available", Toast.LENGTH_LONG).show();
-                } else {
-                    clipboard.setPrimaryClip(android.content.ClipData.newPlainText("VoidCraft Launcher latest.log", copiedText));
-                    Toast.makeText(requireContext(), "Latest game log copied with sensitive tokens redacted", Toast.LENGTH_LONG).show();
-                }
+                logText = logText.replaceAll("(?i)Bearer[ ]+[A-Za-z0-9._~+/-=]+", "Bearer [REDACTED]");
+                final String sanitizedLog = logText;
+                new android.app.AlertDialog.Builder(requireContext())
+                        .setTitle("Latest game log")
+                        .setItems(new String[]{"Copy latest log", "Share latest log"}, (dialog, which) -> {
+                            if (which == 0) {
+                                android.content.ClipboardManager clipboard = (android.content.ClipboardManager)
+                                        requireContext().getSystemService(android.content.Context.CLIPBOARD_SERVICE);
+                                if (clipboard == null) {
+                                    Toast.makeText(requireContext(), "Clipboard is not available", Toast.LENGTH_LONG).show();
+                                } else {
+                                    clipboard.setPrimaryClip(android.content.ClipData.newPlainText("VoidCraft Launcher latest.log", sanitizedLog));
+                                    Toast.makeText(requireContext(), "Latest game log copied with sensitive tokens redacted", Toast.LENGTH_LONG).show();
+                                }
+                            } else if (which == 1) {
+                                android.content.Intent shareIntent = new android.content.Intent(android.content.Intent.ACTION_SEND);
+                                shareIntent.setType("text/plain");
+                                shareIntent.putExtra(android.content.Intent.EXTRA_SUBJECT, "VoidCraft Launcher latest.log");
+                                shareIntent.putExtra(android.content.Intent.EXTRA_TEXT, sanitizedLog);
+                                try {
+                                    startActivity(android.content.Intent.createChooser(shareIntent,
+                                            "Share game log — review before sending"));
+                                } catch (android.content.ActivityNotFoundException error) {
+                                    Toast.makeText(requireContext(), "No app can share text right now", Toast.LENGTH_LONG).show();
+                                }
+                            }
+                        })
+                        .show();
             } catch (java.io.IOException error) {
-                Toast.makeText(requireContext(), "Unable to copy latest game log: " + error.getMessage(), Toast.LENGTH_LONG).show();
+                Toast.makeText(requireContext(), "Unable to prepare latest game log: " + error.getMessage(), Toast.LENGTH_LONG).show();
             }
             return true;
         });"""
@@ -1460,14 +1479,19 @@ def patch_upstream(upstream: Path) -> None:
     if (
         main_menu_text.count(logs_long_listener) != 1
         or 'new File(new File(getCurrentProfileDirectory(), "logs"), "latest.log")' not in main_menu_text
-        or "final long maxCopyBytes = 1024L * 1024L;" not in main_menu_text
+        or "final long maxLogBytes = 1024L * 1024L;" not in main_menu_text
         or "logReader.seek(offset);" not in main_menu_text
         or "access[_-]?token|refresh[_-]?token|client[_-]?secret|authorization" not in main_menu_text
         or 'Bearer [REDACTED]' not in main_menu_text
+        or 'setItems(new String[]{"Copy latest log", "Share latest log"}' not in main_menu_text
         or "ClipboardManager" not in main_menu_text
+        or "Intent.ACTION_SEND" not in main_menu_text
+        or "Intent.EXTRA_TEXT" not in main_menu_text
+        or "review before sending" not in main_menu_text
         or "Latest game log copied with sensitive tokens redacted" not in main_menu_text
+        or "Tools.isDemoProfile(v.getContext())" not in logs_long_listener
     ):
-        raise ValueError("Latest-log copy, size limit, clipboard, or token redaction is incomplete")
+        raise ValueError("Latest-log copy/share, read limit, token redaction, or demo-profile guard is incomplete")
 
     screenshots_binding = "Button mMyLauncherScreenshotsButton = view.findViewById(R.id.mylauncher_screenshots_button);"
     if screenshots_binding not in main_menu_text:
