@@ -290,6 +290,9 @@ def patch_upstream(upstream: Path) -> None:
         raise ValueError(f"Offline username validation imports are missing: {missing_imports}")
     if 'mUsernameValidationPattern = Pattern.compile("^[a-zA-Z0-9_]*$");' not in login_text:
         raise ValueError("Offline username validation pattern must allow only letters, digits, and underscores")
+    # Matcher.find() can accept a partial match before a trailing line terminator with this $-anchored pattern.
+    # Use matches() so the entire supplied username must consist of permitted characters.
+    login_text = login_text.replace("!matcher.find()", "!matcher.matches()")
 
     validation_method = re.search(
         r"private\s+boolean\s+checkEditText\s*\(\s*\)\s*\{(?P<body>.*?)^\s*\}",
@@ -304,7 +307,7 @@ def patch_upstream(upstream: Path) -> None:
         "return !(text.isEmpty() ||",
         "text.length() < 3 ||",
         "text.length() > 16 ||",
-        "!matcher.find() ||",
+        "!matcher.matches() ||",
         'new File(Tools.DIR_ACCOUNT_NEW + "/" + text + ".json").exists()',
     )
     # Normalize whitespace so validation checks the operators and their ordering,
