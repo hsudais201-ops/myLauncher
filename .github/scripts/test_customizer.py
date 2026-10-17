@@ -777,12 +777,40 @@ class ProfileTypeSelectFragment {
             self.assertIn('new File(getCurrentProfileDirectory(), "crash-reports")', menu)
             self.assertIn('if (!crashReportsDirectory.isDirectory() && !crashReportsDirectory.mkdirs())', menu)
             self.assertIn('openPath(v.getContext(), crashReportsDirectory, false);', menu)
+            self.assertIn("mMyLauncherCrashReportsButton.setOnLongClickListener", menu)
+            self.assertIn("final long maxShareBytes = 2L * 1024L * 1024L;", menu)
+            self.assertIn("reportReader.seek(offset);", menu)
+            self.assertIn("Long.compare(right.lastModified(), left.lastModified())", menu)
+            self.assertIn("access[_-]?token|refresh[_-]?token|client[_-]?secret|authorization", menu)
+            self.assertIn('Bearer [REDACTED]', menu)
+            self.assertIn("Intent.ACTION_SEND", menu)
+            self.assertIn("Intent.EXTRA_TEXT", menu)
+            self.assertIn("review before sending", menu)
             for relative in ("src/main/res/layout/fragment_launcher.xml", "src/main/res/layout-land/fragment_launcher.xml"):
                 layout = (root / "app_pojavlauncher" / relative).read_text(encoding="utf-8")
                 self.assertEqual(layout.count('android:id="@+id/mylauncher_crash_reports_button"'), 1)
                 self.assertIn('android:text="@string/main_crash_reports_folder"', layout)
                 self.assertIn('app:layout_constraintTop_toBottomOf="@id/mylauncher_screenshots_button"', layout)
                 self.assertIn('app:layout_constraintTop_toBottomOf="@id/mylauncher_crash_reports_button"', layout)
+
+    def test_long_press_crash_reports_shares_bounded_redacted_latest_report(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            self.fixture(root)
+            customizer.patch_upstream(root)
+            menu = (root / "app_pojavlauncher/src/main/java/net/kdt/pojavlaunch/fragments/MainMenuFragment.java").read_text(encoding="utf-8")
+            self.assertIn("mMyLauncherCrashReportsButton.setOnLongClickListener", menu)
+            self.assertIn('new File(getCurrentProfileDirectory(), "crash-reports")', menu)
+            self.assertIn('normalizedName.endsWith(".txt") || normalizedName.endsWith(".log")', menu)
+            self.assertIn("Long.compare(right.lastModified(), left.lastModified())", menu)
+            self.assertIn("final long maxShareBytes = 2L * 1024L * 1024L;", menu)
+            self.assertIn("reportReader.seek(offset);", menu)
+            self.assertIn("access[_-]?token|refresh[_-]?token|client[_-]?secret|authorization", menu)
+            self.assertIn('Bearer [REDACTED]', menu)
+            self.assertIn("Intent.ACTION_SEND", menu)
+            self.assertIn("Intent.EXTRA_TEXT", menu)
+            self.assertIn("review before sending", menu)
+            self.assertIn("Tools.isDemoProfile(v.getContext())", menu)
 
     def test_is_idempotent(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
