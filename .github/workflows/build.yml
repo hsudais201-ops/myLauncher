@@ -89,6 +89,9 @@ jobs:
           python3 .github/scripts/customize_amethyst.py upstream
           git -C upstream diff --check
 
+      - name: Apply custom myLauncher logo
+        run: python3 .github/scripts/apply_logo.py upstream
+
       - name: Record upstream revision
         run: |
           echo "Upstream: https://github.com/AngelAuraMC/Amethyst-Android" > upstream/MYLAUNCHER_BUILD_INFO.txt
