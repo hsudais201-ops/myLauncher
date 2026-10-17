@@ -962,6 +962,38 @@ public final class CoreTests {
             eq(loggingPath.toAbsolutePath().normalize().toString(), result.getLoggingConfigurationPath(),
                     "logging config path resolved from checked asset cache");
 
+            DownloadArtifact desktopNativeArtifact = new DownloadArtifact(
+                    URI.create("https://libraries.minecraft.net/org/lwjgl/lwjgl-glfw/3.4.1/"
+                            + "lwjgl-glfw-3.4.1-natives-linux.jar"),
+                    placeholderHash, 321,
+                    "org/lwjgl/lwjgl-glfw/3.4.1/lwjgl-glfw-3.4.1-natives-linux.jar");
+            LibraryMetadata desktopNativeLibrary = new LibraryMetadata(
+                    "org.lwjgl:lwjgl-glfw:3.4.1:natives-linux", desktopNativeArtifact,
+                    java.util.Collections.emptyMap(), java.util.Collections.emptyMap(),
+                    java.util.Collections.singletonList(new LibraryRule(true, "linux", null, null, null)),
+                    java.util.Collections.emptyList());
+            VersionDetails desktopDetails = new VersionDetails("1.21.4", "net.minecraft.client.main.Main",
+                    "1.21.4", assetIndex, clientArtifact, 21,
+                    Arrays.asList(duplicateLibrary, desktopNativeLibrary),
+                    VersionArgumentSet.empty(), null, logging);
+            LibraryPlatform desktopLinux = new LibraryPlatform("linux", "x86_64", "6.1.0",
+                    java.util.Collections.emptyMap());
+            ClasspathResolver.Result desktopClasspath = ClasspathResolver.resolve(desktopDetails, desktopLinux, game);
+            eq(2, desktopClasspath.getClasspathEntries().size(),
+                    "extractable natives-linux archive is omitted from the classpath even on matching x86_64 target");
+            yes(desktopClasspath.getClasspathEntries().stream().noneMatch(entry ->
+                    entry.toString().endsWith(desktopNativeArtifact.getPath())),
+                    "native classifier JAR is never appended as an ordinary classpath dependency");
+            InstallationPlan noNativeTargetPlan = InstallationPlanner.create(
+                    desktopDetails, new AssetIndex(java.util.Collections.emptyMap(), false, false), desktopLinux);
+            eq(0, noNativeTargetPlan.count(DownloadTask.Kind.NATIVE),
+                    "native archives are not silently treated as ordinary libraries without a native plan");
+            eq(1, noNativeTargetPlan.count(DownloadTask.Kind.LIBRARY),
+                    "regular classifier-free JAR remains in the install plan when native target is absent");
+            yes(noNativeTargetPlan.getTasks().stream().noneMatch(task ->
+                    task.getRelativePath().equals(desktopNativeArtifact.getPath())),
+                    "explicit natives-linux archive is omitted until native extraction is enabled");
+
             Path hostJava = java.nio.file.Paths.get(System.getProperty("java.home"), "bin", "java").toRealPath();
             String specificationVersion = System.getProperty("java.specification.version");
             int hostMajor = specificationVersion.startsWith("1.")
