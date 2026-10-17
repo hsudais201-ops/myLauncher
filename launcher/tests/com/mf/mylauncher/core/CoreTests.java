@@ -1317,6 +1317,23 @@ public final class CoreTests {
                 "new Linux aarch_64 classifier maps to an ARM64 platform");
         yes(!epollX64Library.isCompatibleWithPlatform(linux),
                 "new Linux x86_64 classifier is excluded from ARM64 platform");
+
+        DownloadArtifact arm64V8aArtifact = new DownloadArtifact(
+                URI.create("https://libraries.minecraft.net/io/netty/netty-transport-native-epoll/4.2.7.Final/"
+                        + "netty-transport-native-epoll-4.2.7.Final-linux-arm64-v8a.jar"),
+                hash1, 155, "io/netty/netty-transport-native-epoll/4.2.7.Final/"
+                        + "netty-transport-native-epoll-4.2.7.Final-linux-arm64-v8a.jar");
+        LibraryMetadata arm64V8aLibrary = new LibraryMetadata(
+                "io.netty:netty-transport-native-epoll:4.2.7.Final:linux-arm64-v8a",
+                arm64V8aArtifact, java.util.Collections.emptyMap(), java.util.Collections.emptyMap(),
+                java.util.Collections.singletonList(modernLinuxRule), java.util.Collections.emptyList());
+        yes(arm64V8aLibrary.hasExplicitPlatformClassifier(),
+                "Android-style linux-arm64-v8a coordinate is recognized as platform-specific");
+        yes(arm64V8aLibrary.isCompatibleWithPlatform(linux),
+                "linux-arm64-v8a coordinate is compatible with an ARM64 platform");
+        yes(!arm64V8aLibrary.isCompatibleWithPlatform(new LibraryPlatform("linux", "x86_64", "6.1.0",
+                        java.util.Collections.emptyMap())),
+                "linux-arm64-v8a coordinate is filtered out on x86_64");
         yes(!lwjglDesktopLibrary.isCompatibleWithPlatform(linux),
                 "unqualified natives-linux classifier is treated as desktop x86_64");
         yes(!epollArm64Library.hasExplicitNativeClassifier(),
