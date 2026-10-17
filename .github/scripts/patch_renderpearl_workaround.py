@@ -17,7 +17,7 @@ OLD_CALL = "LauncherPreferences.writeMGRendererSettings();"
 NEW_CALL = "LauncherPreferences.writeMGRendererSettings(versionId);"
 
 OLD_SIGNATURE = "    public static void writeMGRendererSettings() throws IOException {"
-NEW_SIGNATURE = '''    /**
+NEW_SIGNATURE = r'''    /**
      * Minecraft 26.3 after snapshot 1 introduced RenderPearl startup behavior
      * that can fail MobileGlues' OpenGL backend when GL error filtering is
      * disabled. Use partial filtering only for affected versions and only when
