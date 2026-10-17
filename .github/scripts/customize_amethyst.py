@@ -2061,13 +2061,13 @@ def patch_upstream(upstream: Path) -> None:
 
     logger_strings = strings.read_text(encoding="utf-8")
     if 'name="log_view_search_hint"' not in logger_strings:
-        closing_resources = re.search(r"</resources>\\s*$", logger_strings)
+        closing_resources = re.search(r"</resources>\s*$", logger_strings)
         if not closing_resources:
             raise ValueError(f"Could not add the log search label to {strings}: missing </resources>")
-        new_string = '    <string name="log_view_search_hint">Search log lines</string>\\n'
+        new_string = '    <string name="log_view_search_hint">Search log lines</string>\n'
         logger_strings = logger_strings[:closing_resources.start()] + new_string + logger_strings[closing_resources.start():]
     if not re.search(
-        r'<string\\s+name="log_view_search_hint"[^>]*>\\s*Search log lines\\s*</string>',
+        r'<string\s+name="log_view_search_hint"[^>]*>\s*Search log lines\s*</string>',
         logger_strings,
     ):
         raise ValueError("The log search hint resource is missing or invalid")
