@@ -241,9 +241,8 @@ def patch_upstream(upstream: Path) -> None:
     )
     normalized_downloader_text = " ".join(downloader_text.split())
     if inherited_json_guard_marker not in normalized_downloader_text:
-        inherits_line = re.compile(
-            r"(?m)^([ \\t]*)versionMessage = providedJson\\.inheritsFrom != null \\? providedJson\\.inheritsFrom : versionMessage;[ \\t]*$"
-        )
+        inherited_assignment = "versionMessage = providedJson.inheritsFrom != null ? providedJson.inheritsFrom : versionMessage;"
+        inherits_line = re.compile(r"(?m)^([ \t]*)" + re.escape(inherited_assignment) + r"[ \t]*$")
 
         def add_inherited_json_guard(match: re.Match[str]) -> str:
             indent = match.group(1)
@@ -257,7 +256,7 @@ def patch_upstream(upstream: Path) -> None:
                 "    );",
                 "}",
             )
-            return match.group(0) + "\\n" + "\\n".join(indent + line for line in guard_lines)
+            return match.group(0) + "\n" + "\n".join(indent + line for line in guard_lines)
 
         downloader_text, inherited_guard_count = inherits_line.subn(
             add_inherited_json_guard, downloader_text, count=1
