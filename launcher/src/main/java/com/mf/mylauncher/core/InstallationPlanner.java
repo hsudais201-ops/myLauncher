@@ -53,6 +53,7 @@ public final class InstallationPlanner {
         for (LibraryMetadata library : version.getLibraries()) {
             if (!library.isAllowedOn(platform.getOsName(), platform.getArchitecture(),
                     platform.getOsVersion(), platform.getFeatures())) continue;
+            if (!library.isCompatibleWithPlatform(platform)) continue;
             Optional<DownloadArtifact> artifact = library.getArtifact();
             if (!artifact.isPresent()) {
                 // Native-only classifiers need Android runtime-specific selection/extraction and are not plain JAR tasks.
