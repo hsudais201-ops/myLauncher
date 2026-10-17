@@ -995,6 +995,7 @@ class ProfileTypeSelectFragment {
             self.assertNotIn('diagnosisText.contains("virglrenderer") ||', menu)
             self.assertIn('diagnosisText.contains("/versions/")', menu)
             self.assertIn('diagnosisText.contains("no such file")', menu)
+            self.assertIn('diagnosisText.contains("missing")))) {', menu)
             self.assertIn("R.string.main_log_diagnosis_memory", menu)
             self.assertIn("R.string.main_log_diagnosis_renderer", menu)
             self.assertIn("R.string.main_log_diagnosis_missing_files", menu)
