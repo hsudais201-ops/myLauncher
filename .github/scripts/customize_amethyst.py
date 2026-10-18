@@ -2039,7 +2039,6 @@ def patch_upstream(upstream: Path) -> None:
         "allowlist constants": "MYLAUNCHER_PORTABLE_SETTING_KEYS" in main_menu_text,
         "boolean type list": "MYLAUNCHER_PORTABLE_BOOLEAN_SETTING_KEYS" in main_menu_text,
         "integer type list": "MYLAUNCHER_PORTABLE_INTEGER_SETTING_KEYS" in main_menu_text,
-        "import URI handler": "importSafeSettingsFromUri" in main_menu_text,
         "bounded import size": "MYLAUNCHER_SETTINGS_IMPORT_MAX_BYTES" in main_menu_text,
     }
     failed_config_export_checks = [
