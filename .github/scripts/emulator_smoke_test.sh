@@ -43,7 +43,7 @@ else
 fi
 
 # Require the launcher to be foreground/resumed, not just present in task history.
-ACTIVITY_PATTERN='(mResumedActivity|topResumedActivity).*com\.mf\.mylauncher\.debug/net\.kd\.pojavlaunch\.LauncherActivity'
+ACTIVITY_PATTERN='(mResumedActivity|topResumedActivity).*com\.mf\.mylauncher\.debug/net\.kdt\.pojavlaunch\.LauncherActivity'
 ACTIVITY_QUERY_ERRORS=0
 for i in $(seq 1 45); do
     ACTIVITY_DUMP=""
