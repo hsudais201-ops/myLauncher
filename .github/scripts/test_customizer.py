@@ -932,6 +932,38 @@ class ProfileTypeSelectFragment {
             self.assertIn("!canonicalSelectedBackup.delete()", menu)
             self.assertIn("Tools.isDemoProfile(v.getContext())", menu)
 
+    def test_world_backup_verification_checks_paths_entries_crc_and_bounds(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            self.fixture(root)
+            customizer.patch_upstream(root)
+            menu = (root / "app_pojavlauncher/src/main/java/net/kdt/pojavlaunch/fragments/MainMenuFragment.java").read_text(encoding="utf-8")
+            strings = (root / "app_pojavlauncher/src/main/res/values/strings.xml").read_text(encoding="utf-8")
+            self.assertIn('<string name="main_world_backup_verify">Verify a ZIP backup</string>', strings)
+            self.assertIn('<string name="main_world_backup_verify_picker_title">Choose a backup to verify</string>', strings)
+            self.assertIn('<string name="main_world_backup_verify_progress">Verifying world backup…</string>', strings)
+            self.assertIn('<string name="main_world_backup_verify_success">World backup passed archive checks</string>', strings)
+            self.assertIn('<string name="main_world_backup_verify_failure">World backup verification failed</string>', strings)
+            self.assertIn("showWorldBackupVerifyPicker(requireActivity(), profileDirectory)", menu)
+            self.assertIn("private void showWorldBackupVerifyPicker(", menu)
+            self.assertIn("private static void verifyWorldBackupArchive(", menu)
+            self.assertIn("private static File validatedWorldBackupFile(", menu)
+            self.assertIn("private static int scanWorldBackupZip(", menu)
+            self.assertIn("canonicalBackupsParent.equals(canonicalProfile)", menu)
+            self.assertIn("!canonicalSelectedBackup.getName().equals(selectedBackup.getName())", menu)
+            self.assertIn("new ZipInputStream(new FileInputStream(canonicalBackup))", menu)
+            self.assertIn("while ((count = zipInput.read(buffer)) != -1)", menu)
+            self.assertIn("entryCount > maxEntries", menu)
+            self.assertIn("count > maxUncompressedBytes - uncompressedBytes", menu)
+            self.assertIn("!seenEntries.add(normalizedName)", menu)
+            self.assertIn("fileEntries.contains(parentPath)", menu)
+            self.assertIn("zipInput.closeEntry()", menu)
+            self.assertIn("VoidCraftWorldBackupVerify", menu)
+            self.assertIn("main_world_backup_verify_progress", menu)
+            self.assertIn("main_world_backup_verify_failure", menu)
+            self.assertIn("main_world_backup_verify_success", menu)
+            self.assertIn("if (which == 3)", menu)
+
     def test_world_saves_long_press_creates_safe_zip_backup(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
