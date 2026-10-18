@@ -158,6 +158,12 @@ def patch_upstream(upstream: Path) -> None:
         "main_world_backup_picker_title": "Choose a world backup",
         "main_world_backup_confirm_title": "Restore world backup?",
         "main_world_backup_confirm_message": "Existing worlds will not be overwritten. Name conflicts will be restored with a suffix.",
+        "main_world_backup_delete": "Delete a ZIP backup",
+        "main_world_backup_delete_picker_title": "Choose a backup to delete",
+        "main_world_backup_delete_confirm_title": "Delete this backup?",
+        "main_world_backup_delete_confirm_message": "This permanently removes the selected backup ZIP, not any restored world.",
+        "main_world_backup_delete_success": "World backup deleted",
+        "main_world_backup_delete_failure": "Unable to delete backup; the file may have moved or the backups folder may have changed.",
     }
     for string_name, string_value in restore_strings.items():
         if not re.search(r'<string\s+name="' + re.escape(string_name) + r'"', strings_text):
@@ -1468,12 +1474,15 @@ def patch_upstream(upstream: Path) -> None:
                     .setTitle(R.string.main_world_saves_folder)
                     .setItems(new String[] {
                             getString(R.string.main_world_saves_open_folder),
-                            getString(R.string.main_world_backup_restore)
+                            getString(R.string.main_world_backup_restore),
+                            getString(R.string.main_world_backup_delete)
                     }, (dialog, which) -> {
                         if (which == 0) {
                             openPath(v.getContext(), worldSavesDirectory, false);
                         } else if (which == 1) {
                             showWorldBackupPicker(requireActivity(), profileDirectory);
+                        } else if (which == 2) {
+                            showWorldBackupDeletePicker(requireActivity(), profileDirectory);
                         }
                     })
                     .show();
@@ -1490,6 +1499,8 @@ def patch_upstream(upstream: Path) -> None:
         or 'new File(profileDirectory, "saves")' not in world_saves_listener
         or "!worldSavesDirectory.isDirectory() && !worldSavesDirectory.mkdirs()" not in world_saves_listener
         or "openPath(v.getContext(), worldSavesDirectory, false);" not in main_menu_text
+        or "getString(R.string.main_world_backup_delete)" not in world_saves_listener
+        or "showWorldBackupDeletePicker(requireActivity(), profileDirectory)" not in world_saves_listener
     ):
         raise ValueError("The world-saves shortcut binding, directory creation, or handler is incomplete")
 
@@ -2234,6 +2245,58 @@ def patch_upstream(upstream: Path) -> None:
                 .show();
     }
 
+    private void showWorldBackupDeletePicker(final android.app.Activity activity, File profileDirectory) {
+        File backupsDirectory = new File(profileDirectory, "backups");
+        File[] backupFiles = backupsDirectory.listFiles((directory, name) ->
+                name != null && name.endsWith(".zip") && new File(directory, name).isFile());
+        if (backupFiles == null || backupFiles.length == 0) {
+            Toast.makeText(activity, "No ZIP backups were found", Toast.LENGTH_LONG).show();
+            return;
+        }
+        java.util.Arrays.sort(backupFiles, (left, right) ->
+                Long.compare(right.lastModified(), left.lastModified()));
+        String[] backupNames = new String[backupFiles.length];
+        for (int i = 0; i < backupFiles.length; i++) {
+            backupNames[i] = backupFiles[i].getName();
+        }
+        new AlertDialog.Builder(activity)
+                .setTitle(R.string.main_world_backup_delete_picker_title)
+                .setItems(backupNames, (dialog, which) -> {
+                    if (which < 0 || which >= backupFiles.length) return;
+                    File selectedBackup = backupFiles[which];
+                    new AlertDialog.Builder(activity)
+                            .setTitle(R.string.main_world_backup_delete_confirm_title)
+                            .setMessage(activity.getString(R.string.main_world_backup_delete_confirm_message)
+                                    + "\\n\\n" + selectedBackup.getName())
+                            .setNegativeButton(android.R.string.cancel, null)
+                            .setPositiveButton(R.string.main_world_backup_delete, (confirmDialog, result) -> {
+                                try {
+                                    File canonicalProfile = profileDirectory.getCanonicalFile();
+                                    File canonicalBackupsDirectory = backupsDirectory.getCanonicalFile();
+                                    File canonicalSelectedBackup = selectedBackup.getCanonicalFile();
+                                    File canonicalBackupsParent = canonicalBackupsDirectory.getParentFile();
+                                    if (canonicalBackupsParent == null
+                                            || !canonicalBackupsParent.equals(canonicalProfile)
+                                            || !selectedBackup.isFile()
+                                            || canonicalSelectedBackup.getParentFile() == null
+                                            || !canonicalSelectedBackup.getParentFile().equals(canonicalBackupsDirectory)) {
+                                        Toast.makeText(activity, R.string.main_world_backup_delete_failure, Toast.LENGTH_LONG).show();
+                                        return;
+                                    }
+                                    if (!canonicalSelectedBackup.delete()) {
+                                        Toast.makeText(activity, R.string.main_world_backup_delete_failure, Toast.LENGTH_LONG).show();
+                                        return;
+                                    }
+                                    Toast.makeText(activity, R.string.main_world_backup_delete_success, Toast.LENGTH_LONG).show();
+                                } catch (IOException exception) {
+                                    Toast.makeText(activity, R.string.main_world_backup_delete_failure, Toast.LENGTH_LONG).show();
+                                }
+                            })
+                            .show();
+                })
+                .show();
+    }
+
     private static void restoreWorldBackup(final android.app.Activity activity, File profileDirectory, File backupArchive) {
         File backupsDirectory = new File(profileDirectory, "backups");
         File savesDirectory = new File(profileDirectory, "saves");
@@ -2441,6 +2504,10 @@ def patch_upstream(upstream: Path) -> None:
         or "output.putNextEntry(new ZipEntry(relativePath))" not in main_menu_text
         or "new byte[16384]" not in main_menu_text
         or "private void showWorldBackupPicker(" not in main_menu_text
+        or "private void showWorldBackupDeletePicker(" not in main_menu_text
+        or "main_world_backup_delete_confirm_message" not in main_menu_text
+        or "canonicalBackupsParent.equals(canonicalProfile)" not in main_menu_text
+        or "canonicalSelectedBackup.getParentFile().equals(canonicalBackupsDirectory)" not in main_menu_text
         or "private static void restoreWorldBackup(" not in main_menu_text
         or "private static void extractWorldBackup(" not in main_menu_text
         or "outputPath.startsWith(stagingRoot + File.separator)" not in main_menu_text
