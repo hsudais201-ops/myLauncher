@@ -925,7 +925,7 @@ class ProfileTypeSelectFragment {
             self.assertIn("selectedBackup.getCanonicalFile()", menu)
             self.assertIn("canonicalBackupsParent.equals(canonicalProfile)", menu)
             self.assertIn("canonicalSelectedBackup.getParentFile().equals(canonicalBackupsDirectory)", menu)
-            self.assertIn("!selectedBackup.delete()", menu)
+            self.assertIn("!canonicalSelectedBackup.delete()", menu)
             self.assertIn("Tools.isDemoProfile(v.getContext())", menu)
 
     def test_world_saves_long_press_creates_safe_zip_backup(self) -> None:
