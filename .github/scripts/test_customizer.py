@@ -96,6 +96,29 @@ rootProject.name='Amethyst'
             encoding="utf-8",
         )
 
+        auth_logging_fixture = app / "src/main/java/net/kdt/pojavlaunch/authenticator/microsoft/MicrosoftBackgroundLogin.java"
+        auth_logging_fixture.parent.mkdir(parents=True, exist_ok=True)
+        auth_logging_fixture.write_text(
+            '''class MicrosoftBackgroundLogin {
+    void authLogs(boolean isRefresh, String authcode, String formData, String req,
+                   String token, String uhs, String s, String name, String uuidDashes,
+                   org.json.JSONObject jo) throws Exception {
+        Log.i("MicrosoftLogin", "isRefresh=" + isRefresh + ", authCode= "+authcode);
+        Log.i("MicroAuth", formData);
+        Log.i("MicrosoftLogin","Acess Token = " + jo.getString("access_token"));
+        Log.i("MicrosoftLogin","Xbl Token = "+jo.getString("Token"));
+        Log.i("MicroAuth", req);
+        Log.i("MicrosoftLogin","Xbl Xsts = " + token + "; Uhs = " + uhs);
+        Log.i("MicrosoftLogin","MC token: "+jo.getString("access_token"));
+        Log.i("MicrosoftLogin","profile:" + s);
+        Log.i("MicrosoftLogin","UserName = " + name);
+        Log.i("MicrosoftLogin","Uuid Minecraft = " + uuidDashes);
+    }
+}
+''',
+            encoding="utf-8",
+        )
+
         logger_view = app / "src/main/java/com/kdt/LoggerView.java"
         logger_view.parent.mkdir(parents=True, exist_ok=True)
         logger_view.write_text(
@@ -1393,6 +1416,47 @@ class ProfileTypeSelectFragment {
             self.assertIn('new File(getCurrentProfileDirectory(), "shaderpacks")', shader_handler)
             self.assertNotIn('new File(getCurrentProfileDirectory(), "resourcepacks")', shader_handler)
             self.assertLess(menu.index("mMyLauncherShaderPacksButton.setOnClickListener"), handler_start)
+
+    def test_microsoft_auth_logging_never_writes_tokens_or_profile_data(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            self.fixture(root)
+            customizer.patch_upstream(root)
+
+            auth_path = (
+                root / "app_pojavlauncher/src/main/java/net/kdt/pojavlaunch/"
+                "authenticator/microsoft/MicrosoftBackgroundLogin.java"
+            )
+            auth_text = auth_path.read_text(encoding="utf-8")
+            for forbidden in (
+                'authCode= "+authcode',
+                'Log.i("MicroAuth", formData)',
+                'Log.i("MicroAuth", req)',
+                'Log.i("MicrosoftLogin","Acess Token = " + jo.getString("access_token"))',
+                'Log.i("MicrosoftLogin","Xbl Token = "+jo.getString("Token"))',
+                '"Xbl Xsts = " + token',
+                '"MC token: "+jo.getString("access_token")',
+                '"profile:" + s',
+                '"UserName = " + name',
+                '"Uuid Minecraft = " + uuidDashes',
+            ):
+                with self.subTest(forbidden=forbidden):
+                    self.assertNotIn(forbidden, auth_text)
+
+            for safe_log in (
+                "Starting Microsoft token request; refresh=",
+                "Submitting OAuth token request",
+                "OAuth access token received",
+                "Xbox Live token received",
+                "Submitting XSTS token request",
+                "XSTS token received",
+                "Minecraft access token received",
+                "Minecraft profile response received",
+                "Minecraft profile name resolved",
+                "Minecraft profile UUID resolved",
+            ):
+                with self.subTest(safe_log=safe_log):
+                    self.assertIn(safe_log, auth_text)
 
     def test_is_idempotent(self) -> None:
         with tempfile.TemporaryDirectory() as temp:

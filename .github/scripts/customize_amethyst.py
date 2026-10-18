@@ -26,6 +26,86 @@ def validate_xml_files(paths: tuple[Path, ...]) -> None:
             raise ValueError(f"Generated Android XML is invalid at {path}: {exc}") from exc
 
 
+def patch_microsoft_auth_logging(upstream: Path) -> None:
+    """Remove credential-bearing values and account identifiers from auth logs."""
+    source = (
+        upstream
+        / "app_pojavlauncher"
+        / "src"
+        / "main"
+        / "java"
+        / "net"
+        / "kdt"
+        / "pojavlaunch"
+        / "authenticator"
+        / "microsoft"
+        / "MicrosoftBackgroundLogin.java"
+    )
+    if not source.is_file():
+        raise FileNotFoundError(f"Expected Microsoft authentication source is missing: {source}")
+
+    text = source.read_text(encoding="utf-8")
+    replacements = (
+        (
+            'Log.i("MicrosoftLogin", "isRefresh=" + isRefresh + ", authCode= "+authcode);',
+            'Log.i("MicrosoftLogin", "Starting Microsoft token request; refresh=" + isRefresh);',
+        ),
+        ('Log.i("MicroAuth", formData);',
+         'Log.i("MicroAuth", "Submitting OAuth token request");'),
+        ('Log.i("MicrosoftLogin","Acess Token = " + jo.getString("access_token"));',
+         'Log.d("MicrosoftLogin", "OAuth access token received");'),
+        ('Log.i("MicrosoftLogin","Xbl Token = "+jo.getString("Token"));',
+         'Log.d("MicrosoftLogin", "Xbox Live token received");'),
+        ('Log.i("MicroAuth", req);',
+         'Log.i("MicroAuth", "Submitting XSTS token request");'),
+        ('Log.i("MicrosoftLogin","Xbl Xsts = " + token + "; Uhs = " + uhs);',
+         'Log.d("MicrosoftLogin", "XSTS token received");'),
+        ('Log.i("MicrosoftLogin","MC token: "+jo.getString("access_token"));',
+         'Log.d("MicrosoftLogin", "Minecraft access token received");'),
+        ('Log.i("MicrosoftLogin","profile:" + s);',
+         'Log.d("MicrosoftLogin", "Minecraft profile response received");'),
+        ('Log.i("MicrosoftLogin","UserName = " + name);',
+         'Log.d("MicrosoftLogin", "Minecraft profile name resolved");'),
+        ('Log.i("MicrosoftLogin","Uuid Minecraft = " + uuidDashes);',
+         'Log.d("MicrosoftLogin", "Minecraft profile UUID resolved");'),
+    )
+
+    for old, new in replacements:
+        old_count = text.count(old)
+        new_count = text.count(new)
+        if old_count == 1:
+            text = text.replace(old, new, 1)
+        elif old_count == 0 and new_count == 1:
+            # Already patched: support a repeat build from the same source tree.
+            continue
+        else:
+            raise ValueError(
+                f"Expected exactly one original or patched authentication log statement in {source}: {old!r}"
+            )
+
+    forbidden_log_fragments = (
+        'Log.i("MicroAuth", formData)',
+        'Log.i("MicroAuth", req)',
+        'authCode= "+authcode',
+        'jo.getString("access_token"));',
+        'jo.getString("Token"));',
+        '"Xbl Xsts = " + token',
+        '"profile:" + s',
+        '"UserName = " + name',
+        '"Uuid Minecraft = " + uuidDashes',
+    )
+    # Upstream also has commented-out examples that mention these values; only
+    # executable Log.* statements should be treated as potential log disclosure.
+    log_text = "\n".join(
+        line for line in text.splitlines()
+        if re.search(r"\bLog\.[vdiew]\s*\(", line)
+    )
+    remaining = [fragment for fragment in forbidden_log_fragments if fragment in log_text]
+    if remaining:
+        raise ValueError(f"Credential or account data may still be emitted by authentication logs: {remaining}")
+    source.write_text(text, encoding="utf-8")
+
+
 def patch_upstream(upstream: Path) -> None:
     gradle = upstream / "app_pojavlauncher" / "build.gradle"
     strings = upstream / "app_pojavlauncher" / "src" / "main" / "res" / "values" / "strings.xml"
@@ -3398,6 +3478,8 @@ def patch_upstream(upstream: Path) -> None:
     if "if (deviceRam <= 2048) return 512;" not in preferences_text:
         raise ValueError("The 1.5–2 GB RAM tier must default to a 512 MB heap")
     launcher_preferences.write_text(preferences_text, encoding="utf-8")
+
+    patch_microsoft_auth_logging(upstream)
 
     validate_xml_files((
         strings,
