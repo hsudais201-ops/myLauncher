@@ -155,6 +155,11 @@ def patch_upstream(upstream: Path) -> None:
     restore_strings = {
         "main_world_saves_open_folder": "Open saves folder",
         "main_world_backup_restore": "Restore a ZIP backup",
+        "main_world_backup_verify": "Verify a ZIP backup",
+        "main_world_backup_verify_picker_title": "Choose a backup to verify",
+        "main_world_backup_verify_progress": "Verifying world backup…",
+        "main_world_backup_verify_success": "World backup passed archive checks",
+        "main_world_backup_verify_failure": "World backup verification failed",
         "main_world_backup_picker_title": "Choose a world backup",
         "main_world_backup_confirm_title": "Restore world backup?",
         "main_world_backup_confirm_message": "Existing worlds will not be overwritten. Name conflicts will be restored with a suffix.",
@@ -1475,6 +1480,7 @@ def patch_upstream(upstream: Path) -> None:
                     .setItems(new String[] {
                             getString(R.string.main_world_saves_open_folder),
                             getString(R.string.main_world_backup_restore),
+                            getString(R.string.main_world_backup_verify),
                             getString(R.string.main_world_backup_delete)
                     }, (dialog, which) -> {
                         if (which == 0) {
@@ -1482,6 +1488,8 @@ def patch_upstream(upstream: Path) -> None:
                         } else if (which == 1) {
                             showWorldBackupPicker(requireActivity(), profileDirectory);
                         } else if (which == 2) {
+                            showWorldBackupVerifyPicker(requireActivity(), profileDirectory);
+                        } else if (which == 3) {
                             showWorldBackupDeletePicker(requireActivity(), profileDirectory);
                         }
                     })
@@ -2245,6 +2253,135 @@ def patch_upstream(upstream: Path) -> None:
                 .show();
     }
 
+    private void showWorldBackupVerifyPicker(final android.app.Activity activity, File profileDirectory) {
+        File backupsDirectory = new File(profileDirectory, "backups");
+        File[] backupFiles = backupsDirectory.listFiles((directory, name) ->
+                name != null && name.endsWith(".zip") && new File(directory, name).isFile());
+        if (backupFiles == null || backupFiles.length == 0) {
+            Toast.makeText(activity, "No ZIP backups were found", Toast.LENGTH_LONG).show();
+            return;
+        }
+        java.util.Arrays.sort(backupFiles, (left, right) ->
+                right.getName().compareToIgnoreCase(left.getName()));
+        String[] backupNames = new String[backupFiles.length];
+        for (int i = 0; i < backupFiles.length; i++) backupNames[i] = backupFiles[i].getName();
+        new AlertDialog.Builder(activity)
+                .setTitle(R.string.main_world_backup_verify_picker_title)
+                .setItems(backupNames, (dialog, which) -> {
+                    if (which < 0 || which >= backupFiles.length) return;
+                    verifyWorldBackupArchive(activity, profileDirectory, backupFiles[which]);
+                })
+                .show();
+    }
+
+    private static void verifyWorldBackupArchive(final android.app.Activity activity,
+                                                 File profileDirectory, File selectedBackup) {
+        final String successPrefix = activity.getString(R.string.main_world_backup_verify_success);
+        final String failurePrefix = activity.getString(R.string.main_world_backup_verify_failure);
+        try {
+            validatedWorldBackupFile(profileDirectory, selectedBackup);
+        } catch (IOException | SecurityException exception) {
+            Toast.makeText(activity, failurePrefix + ": " + exception.getMessage(), Toast.LENGTH_LONG).show();
+            return;
+        }
+        Toast.makeText(activity, R.string.main_world_backup_verify_progress, Toast.LENGTH_SHORT).show();
+        new Thread(() -> {
+            String message;
+            try {
+                int entryCount = scanWorldBackupZip(selectedBackup, profileDirectory);
+                message = successPrefix + ": " + entryCount + " archive entries checked";
+            } catch (IOException | SecurityException exception) {
+                message = failurePrefix + ": " + exception.getMessage();
+            }
+            final String resultMessage = message;
+            activity.runOnUiThread(() ->
+                    Toast.makeText(activity, resultMessage, Toast.LENGTH_LONG).show());
+        }, "VoidCraftWorldBackupVerify").start();
+    }
+
+    /** Resolves a selected backup and rejects aliases or paths outside this profile's backups folder. */
+    private static File validatedWorldBackupFile(File profileDirectory, File selectedBackup) throws IOException {
+        File canonicalProfile = profileDirectory.getCanonicalFile();
+        File backupsDirectory = new File(profileDirectory, "backups");
+        File canonicalBackupsDirectory = backupsDirectory.getCanonicalFile();
+        File canonicalSelectedBackup = selectedBackup.getCanonicalFile();
+        File canonicalBackupsParent = canonicalBackupsDirectory.getParentFile();
+        if (!backupsDirectory.isDirectory()
+                || canonicalBackupsParent == null
+                || !canonicalBackupsParent.equals(canonicalProfile)
+                || !selectedBackup.isFile()
+                || !selectedBackup.getName().endsWith(".zip")
+                || !canonicalSelectedBackup.getName().equals(selectedBackup.getName())
+                || canonicalSelectedBackup.getParentFile() == null
+                || !canonicalSelectedBackup.getParentFile().equals(canonicalBackupsDirectory)) {
+            throw new IOException("The selected ZIP is not a regular file in this profile's backups folder");
+        }
+        return canonicalSelectedBackup;
+    }
+
+    /** Reads each ZIP entry fully so data and CRC errors surface without extracting any files. */
+    private static int scanWorldBackupZip(File selectedBackup, File profileDirectory) throws IOException {
+        File canonicalBackup = validatedWorldBackupFile(profileDirectory, selectedBackup);
+        final int maxEntries = 250000;
+        final long maxUncompressedBytes = 20L * 1024L * 1024L * 1024L;
+        int entryCount = 0;
+        long uncompressedBytes = 0L;
+        Set<String> seenEntries = new HashSet<>();
+        Set<String> fileEntries = new HashSet<>();
+        Set<String> directoryEntries = new HashSet<>();
+        try (ZipInputStream zipInput = new ZipInputStream(new FileInputStream(canonicalBackup))) {
+            ZipEntry entry;
+            while ((entry = zipInput.getNextEntry()) != null) {
+                if (++entryCount > maxEntries) throw new IOException("The ZIP contains too many entries");
+                String entryName = entry.getName();
+                if (entryName == null || entryName.isEmpty()
+                        || entryName.startsWith("/")
+                        || entryName.indexOf((char) 92) >= 0
+                        || entryName.indexOf((char) 0) >= 0
+                        || entryName.indexOf(':') >= 0) {
+                    throw new IOException("The ZIP contains an unsafe path");
+                }
+                boolean directoryEntry = entry.isDirectory();
+                String normalizedName = directoryEntry && entryName.endsWith("/")
+                        ? entryName.substring(0, entryName.length() - 1) : entryName;
+                if (normalizedName.isEmpty()) throw new IOException("The ZIP contains an empty path");
+                String[] segments = normalizedName.split("/", -1);
+                for (String segment : segments) {
+                    if (segment.isEmpty() || segment.equals(".") || segment.equals("..")) {
+                        throw new IOException("The ZIP contains an unsafe path segment");
+                    }
+                }
+                if (!seenEntries.add(normalizedName)) throw new IOException("The ZIP contains duplicate entries");
+                String parentPath = "";
+                for (int i = 0; i < segments.length - 1; i++) {
+                    parentPath = parentPath.isEmpty() ? segments[i] : parentPath + "/" + segments[i];
+                    if (fileEntries.contains(parentPath)) {
+                        throw new IOException("The ZIP contains a file used as a parent directory");
+                    }
+                    directoryEntries.add(parentPath);
+                }
+                if (directoryEntry) {
+                    if (fileEntries.contains(normalizedName)) throw new IOException("The ZIP contains conflicting entry types");
+                    directoryEntries.add(normalizedName);
+                } else {
+                    if (directoryEntries.contains(normalizedName)) throw new IOException("The ZIP contains conflicting entry types");
+                    fileEntries.add(normalizedName);
+                }
+                byte[] buffer = new byte[16384];
+                int count;
+                while ((count = zipInput.read(buffer)) != -1) {
+                    if (count > maxUncompressedBytes - uncompressedBytes) {
+                        throw new IOException("The ZIP exceeds the 20 GiB verification limit");
+                    }
+                    uncompressedBytes += count;
+                }
+                zipInput.closeEntry();
+            }
+        }
+        if (entryCount == 0) throw new IOException("The ZIP contains no entries");
+        return entryCount;
+    }
+
     private void showWorldBackupDeletePicker(final android.app.Activity activity, File profileDirectory) {
         File backupsDirectory = new File(profileDirectory, "backups");
         File[] backupFiles = backupsDirectory.listFiles((directory, name) ->
@@ -2505,6 +2642,14 @@ def patch_upstream(upstream: Path) -> None:
         or "output.putNextEntry(new ZipEntry(relativePath))" not in main_menu_text
         or "new byte[16384]" not in main_menu_text
         or "private void showWorldBackupPicker(" not in main_menu_text
+        or "private void showWorldBackupVerifyPicker(" not in main_menu_text
+        or "private static void verifyWorldBackupArchive(" not in main_menu_text
+        or "private static File validatedWorldBackupFile(" not in main_menu_text
+        or "private static int scanWorldBackupZip(" not in main_menu_text
+        or "entryCount > maxEntries" not in main_menu_text
+        or "count > maxUncompressedBytes - uncompressedBytes" not in main_menu_text
+        or "!seenEntries.add(normalizedName)" not in main_menu_text
+        or "new ZipInputStream(new FileInputStream(canonicalBackup))" not in main_menu_text
         or "private void showWorldBackupDeletePicker(" not in main_menu_text
         or "main_world_backup_delete_confirm_message" not in main_menu_text
         or "canonicalBackupsParent.equals(canonicalProfile)" not in main_menu_text
