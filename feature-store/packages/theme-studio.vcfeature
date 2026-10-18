@@ -6,7 +6,6 @@
   "author": "VoidCraft Launcher",
   "owner": "VoidCraft Launcher",
   "description": "Choose a separate launcher-wide color palette and preview supported theme presets.",
-  "category": "Appearance",
   "screen": {
     "type": "theme",
     "title": "Theme Studio",
