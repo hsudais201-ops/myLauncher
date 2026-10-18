@@ -26,6 +26,82 @@ def validate_xml_files(paths: tuple[Path, ...]) -> None:
             raise ValueError(f"Generated Android XML is invalid at {path}: {exc}") from exc
 
 
+def patch_android_backup_policy(
+    manifest_text: str, resources_dir: Path
+) -> tuple[str, tuple[Path, Path]]:
+    """Exclude account JSON containing auth tokens from legacy and modern Android backups."""
+    application_match = re.search(r"<application\b[^>]*>", manifest_text, flags=re.DOTALL)
+    if not application_match:
+        raise ValueError("Could not find the Android application tag to configure backup exclusions")
+
+    application_tag = application_match.group(0)
+    if not re.search(r'\bandroid:allowBackup\s*=\s*"true"', application_tag):
+        raise ValueError("Expected upstream android:allowBackup=true; review any backup-policy change")
+
+    attributes = (
+        ("fullBackupContent", "@xml/voidcraft_backup_rules"),
+        ("dataExtractionRules", "@xml/voidcraft_data_extraction_rules"),
+    )
+    tag_is_self_closing = application_tag.rstrip().endswith("/>")
+    tag_body = application_tag.rstrip()[:-2].rstrip() if tag_is_self_closing else application_tag.rstrip()[:-1].rstrip()
+
+    for attribute, expected_value in attributes:
+        pattern = re.compile(r'\bandroid:' + re.escape(attribute) + r'\s*=\s*"([^"]*)"')
+        existing = pattern.search(application_tag)
+        if existing:
+            if existing.group(1) != expected_value:
+                raise ValueError(
+                    f"Android backup policy conflict: android:{attribute} points to "
+                    f"{existing.group(1)!r}, expected {expected_value!r}"
+                )
+            continue
+        tag_body += f' android:{attribute}="{expected_value}"'
+
+    updated_application_tag = tag_body + (" />" if tag_is_self_closing else ">")
+    patched_manifest = (
+        manifest_text[:application_match.start()]
+        + updated_application_tag
+        + manifest_text[application_match.end():]
+    )
+
+    legacy_path = resources_dir / "xml" / "voidcraft_backup_rules.xml"
+    modern_path = resources_dir / "xml" / "voidcraft_data_extraction_rules.xml"
+    legacy_content = """<?xml version="1.0" encoding="utf-8"?>
+<full-backup-content>
+    <!-- Account JSON stores access and refresh tokens; never copy them through OS backup. -->
+    <exclude domain="root" path="accounts/" />
+</full-backup-content>
+"""
+    modern_content = """<?xml version="1.0" encoding="utf-8"?>
+<data-extraction-rules>
+    <cloud-backup>
+        <!-- Account JSON stores access and refresh tokens. -->
+        <exclude domain="root" path="accounts/" />
+    </cloud-backup>
+    <device-transfer>
+        <!-- Do not transfer credential-bearing account JSON to another device. -->
+        <exclude domain="root" path="accounts/" />
+    </device-transfer>
+</data-extraction-rules>
+"""
+
+    for path, expected_content in (
+        (legacy_path, legacy_content),
+        (modern_path, modern_content),
+    ):
+        if path.exists():
+            actual_content = path.read_text(encoding="utf-8")
+            if actual_content.strip() != expected_content.strip():
+                raise ValueError(
+                    f"Existing Android backup policy resource differs from the reviewed policy: {path}"
+                )
+        else:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(expected_content, encoding="utf-8")
+
+    return patched_manifest, (legacy_path, modern_path)
+
+
 def patch_upstream(upstream: Path) -> None:
     gradle = upstream / "app_pojavlauncher" / "build.gradle"
     strings = upstream / "app_pojavlauncher" / "src" / "main" / "res" / "values" / "strings.xml"
@@ -3272,6 +3348,9 @@ def patch_upstream(upstream: Path) -> None:
     if not manifest.is_file():
         raise FileNotFoundError(f"Expected Android manifest is missing: {manifest}")
     manifest_text = manifest.read_text(encoding="utf-8")
+    manifest_text, backup_rule_files = patch_android_backup_policy(
+        manifest_text, upstream / "app_pojavlauncher" / "src" / "main" / "res"
+    )
     manifest_text = manifest_text.replace('android:icon="@mipmap/ic_launcher"', 'android:icon="@drawable/mylauncher_icon"')
     manifest_text = manifest_text.replace('android:roundIcon="@mipmap/ic_launcher_round"', 'android:roundIcon="@drawable/mylauncher_icon"')
     if (
@@ -3406,6 +3485,7 @@ def patch_upstream(upstream: Path) -> None:
         upstream / "app_pojavlauncher" / "src" / "main" / "res" / "layout" / "fragment_launcher.xml",
         upstream / "app_pojavlauncher" / "src" / "main" / "res" / "layout-land" / "fragment_launcher.xml",
         manifest,
+        *backup_rule_files,
         icon,
         *localized_string_files,
     ))
@@ -3414,6 +3494,7 @@ def patch_upstream(upstream: Path) -> None:
     print("  app label: VoidCraft Launcher")
     print("  application ID: com.mf.mylauncher (debug adds .debug)")
     print("  storage/share authorities: customized")
+    print("  account-token JSON: excluded from cloud, device-transfer, and legacy Android backups")
     print("  low-memory defaults: 296/448/512 MB RAM tiers and ~480 px short-edge target for <=2 GB")
 
 
