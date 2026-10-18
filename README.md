@@ -54,15 +54,20 @@ For an explicit check without launching the game, select the profile and press *
 3. Open the completed workflow run and download its **voidcraft-launcher-debug-apk** artifact. The artifact includes the APK and a `.sha256` checksum sidecar.
 4. Before installing, verify the transfer on Linux with `sha256sum -c <apk-filename>.sha256` from the directory containing the APK and sidecar. Then transfer the APK to Android, install it, and allow installation from your download source if Android asks.
 
-The workflow fetches the exact Amethyst commit `330c6eae3164df64bdc4828e946a9e62cc5169e4` and its submodules, rewrites SSH-style public GitHub submodule URLs to HTTPS for hosted runners, validates submodule checkout status, validates the customization regression suite before installing the Android toolchain, adds Maven Central to the plugin-management repositories required for Android Gradle Plugin transitive dependencies, applies the customizations, and builds the debug APK. The source pin is independent of branch movement. Update the pin deliberately when adopting a newer upstream version.
+The workflow fetches the exact Amethyst commit `330c6eae3164df64bdc4828e946a9e62cc5169e4` and its submodules, rewrites SSH-style public GitHub submodule URLs to HTTPS for hosted runners, validates submodule checkout status, runs the customization regression suite before installing the Android toolchain, adds Maven Central to the plugin-management repositories required for Android Gradle Plugin transitive dependencies, applies the launcher customizations, applies the guarded Minecraft 26.3 MobileGlues compatibility workaround, validates and applies the Android vector icon, then builds and verifies the debug APK. The emulator smoke test checks that the launcher is resumed and captures diagnostics/screenshots. The source pin is independent of branch movement; update it deliberately when adopting a newer upstream version.
 
 ## Files
 
 - `.gitignore` — excludes local upstream checkouts, Python caches, and build outputs.
 - `.github/workflows/build.yml` — repeatable Android build workflow, triggered by relevant pushes to `main`, pull requests, or a manual dispatch.
 - `.github/workflows/runner-diagnostic.yml` — minimal hosted-runner diagnostic workflow.
-- `.github/scripts/customize_amethyst.py` — deterministic patch for app branding, package/authority IDs, low-memory defaults, offline account access, launcher header, account and profile-folder shortcuts, and vector app icon.
-- `.github/scripts/test_customizer.py` — regression tests for branding, offline-account username syntax/length/duplicate-profile and boolean-logic guards, account submission and labeling, auth-selector listener/navigation safety, local game-directory access, both launcher layouts, the Game logs copy/share actions and Screenshots shortcut, safe world-backup wiring, XML well-formedness, missing-anchor failures, repeat-run idempotency, Android toolchain alignment, and CI submodule/APK safeguards.
+- `.github/scripts/customize_amethyst.py` — deterministic patch for branding/package IDs, low-memory defaults, offline account flow, launcher/folder actions, inherited-version metadata guards, safe log/settings actions, and other launcher behavior.
+- `.github/scripts/patch_renderpearl_workaround.py` — applies the guarded Minecraft 26.3 MobileGlues compatibility workaround while preserving explicitly selected renderer settings.
+- `.github/scripts/apply_logo.py` — applies and validates the Android vector application icon used by CI.
+- `.github/scripts/emulator_smoke_test.sh` — installs the APK, launches the launcher entry point, checks foreground activity state, and captures emulator screenshots and diagnostics.
+- `.github/scripts/prepare_emulator_kvm.sh` — verifies and enables KVM access for hosted emulator runs.
+- `.github/scripts/test_customizer.py` — regression tests for the source patcher, account validation/submission, launcher actions, XML well-formedness, safe file handling, idempotency, build safeguards, and emulator-smoke expectations.
+- `FEATURE_ROADMAP.md` — tracks source-confirmed features separately from planned work and device/gameplay acceptance still needed.
 
 ## Local build
 
@@ -83,9 +88,14 @@ Then fetch the pinned upstream source and build:
     yes | sdkmanager --licenses
     sdkmanager --install 'platforms;android-37.0' 'ndk;27.3.13750724' --channel=3
     python3 .github/scripts/customize_amethyst.py upstream
+    git -C upstream diff --check
     python3 .github/scripts/patch_renderpearl_workaround.py upstream
+    git -C upstream diff --check
+    python3 .github/scripts/apply_logo.py upstream
     cd upstream
-    ./gradlew :jre_lwjgl3glfw:build :app_pojavlauncher:assembleDebug
+    ./gradlew --no-daemon :jre_lwjgl3glfw:build :app_pojavlauncher:assembleDebug --stacktrace
+
+The debug APK is written to `upstream/app_pojavlauncher/build/outputs/apk/debug/app_pojavlauncher-debug.apk`. CI also generates a SHA-256 checksum sidecar and verifies the APK signature/package metadata before its emulator smoke test.
 
 ## Verification and limitations
 
