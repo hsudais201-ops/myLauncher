@@ -1,0 +1,41 @@
+{
+  "schemaVersion": 1,
+  "id": "voidcraft.theme-studio",
+  "name": "Theme Studio",
+  "version": "1.0.0",
+  "author": "VoidCraft Launcher",
+  "owner": "VoidCraft Launcher",
+  "description": "Choose a separate launcher-wide color palette and preview supported theme presets.",
+  "category": "Appearance",
+  "screen": {
+    "type": "theme",
+    "title": "Theme Studio",
+    "description": "Applying a palette updates supported launcher screens and buttons. It does not modify game rendering.",
+    "presets": [
+      {
+        "name": "Night Violet",
+        "background": "#171526",
+        "accent": "#8158E9",
+        "text": "#F4F0FF"
+      },
+      {
+        "name": "Ocean Blue",
+        "background": "#101D2E",
+        "accent": "#2486E8",
+        "text": "#EAF4FF"
+      },
+      {
+        "name": "Forest Green",
+        "background": "#12251E",
+        "accent": "#35A96B",
+        "text": "#ECFFF4"
+      },
+      {
+        "name": "Warm Ember",
+        "background": "#2B1A17",
+        "accent": "#E87945",
+        "text": "#FFF2E8"
+      }
+    ]
+  }
+}
