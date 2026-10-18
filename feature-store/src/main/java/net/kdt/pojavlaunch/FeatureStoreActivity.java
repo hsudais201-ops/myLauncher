@@ -467,6 +467,341 @@ public final class FeatureStoreActivity extends BaseActivity {
         addText("Status is fetched from the third-party mcsrvstat.us service. Do not enter passwords or account tokens.", 12, false);
     }
 
+    private android.content.SharedPreferences socialPreferences() {
+        return getSharedPreferences("voidcraft_feature_store", MODE_PRIVATE);
+    }
+
+    private String socialKey(String suffix) {
+        String id = currentFeature == null ? "social" : currentFeature.optString("id", "social");
+        return "social." + id + "." + suffix;
+    }
+
+    private JSONArray socialArray(String name) {
+        try {
+            return new JSONArray(socialPreferences().getString(socialKey(name), "[]"));
+        } catch (JSONException ignored) {
+            return new JSONArray();
+        }
+    }
+
+    private void saveSocialArray(String name, JSONArray values) {
+        socialPreferences().edit().putString(socialKey(name), values.toString()).apply();
+    }
+
+    private boolean socialContainsUser(JSONArray entries, String username) {
+        for (int i = 0; i < entries.length(); i++) {
+            JSONObject entry = entries.optJSONObject(i);
+            if (entry != null && username.equalsIgnoreCase(entry.optString("username", ""))) return true;
+        }
+        return false;
+    }
+
+    private boolean validSocialUsername(String username) {
+        return username != null && Pattern.matches("[A-Za-z0-9_]{3,16}", username);
+    }
+
+    private void showSocialProviderNotice(String provider) {
+        new AlertDialog.Builder(this)
+                .setTitle(provider + " sign-in")
+                .setMessage("This provider button is a UI placeholder in the Social Hub preview. No password or token is requested or saved. Provider OAuth, account linking, server-side verification, and online friend/chat delivery need a configured authentication backend. Your existing Minecraft/Microsoft launcher sign-in remains separate and unchanged.")
+                .setPositiveButton(android.R.string.ok, null)
+                .show();
+    }
+
+    private void renderSocialScreen(JSONObject screen) {
+        addText("SOCIAL HUB  ·  PREVIEW", 12, true);
+        addText("Profiles, friend requests, contacts and message screens. This install currently stores preview data on this device only; nothing is sent to another player.", 13, false);
+        addButtonRow("Profile", v -> { socialTab = 0; showFeature(currentFeature); },
+                "Friends", v -> { socialTab = 1; showFeature(currentFeature); });
+        addButtonRow("Requests", v -> { socialTab = 2; showFeature(currentFeature); },
+                "Chats", v -> { socialTab = 3; showFeature(currentFeature); });
+        addButtonRow("← Previous", v -> { socialTab = (socialTab + 3) % 4; showFeature(currentFeature); },
+                "Swipe → Next", v -> { socialTab = (socialTab + 1) % 4; showFeature(currentFeature); });
+
+        if (socialTab == 0) renderSocialProfile();
+        else if (socialTab == 1) renderSocialFriends();
+        else if (socialTab == 2) renderSocialRequests();
+        else renderSocialChats();
+
+        addText("Online-service status: not connected. Microsoft/Xbox, Google and other-provider sign-in buttons are not live authentication yet.", 12, false);
+    }
+
+    private void renderSocialProfile() {
+        addText("Social profile", 19, true);
+        EditText username = editField("Username: 3–16 letters, numbers or underscores");
+        username.setSingleLine(true);
+        username.setText(socialPreferences().getString(socialKey("username"), ""));
+        pageBody.addView(username);
+        addButtonRow("Save username", v -> {
+            String value = username.getText().toString().trim();
+            if (!validSocialUsername(value)) {
+                Toast.makeText(this, "Use 3–16 letters, numbers, or underscores.", Toast.LENGTH_LONG).show();
+                return;
+            }
+            socialPreferences().edit().putString(socialKey("username"), value).apply();
+            Toast.makeText(this, "Saved local Social Hub profile", Toast.LENGTH_LONG).show();
+            showFeature(currentFeature);
+        });
+        addText("This username belongs to the add-on preview. It does not alter the selected Minecraft profile, Microsoft gamertag, or official account.", 12, false);
+        addText("Account providers", 16, true);
+        LinearLayout providers = horizontalRow();
+        addButtonTo(providers, "Microsoft / Xbox", v -> showSocialProviderNotice("Microsoft / Xbox"));
+        addButtonTo(providers, "Google", v -> showSocialProviderNotice("Google"));
+        pageBody.addView(providers);
+        addButtonRow("Other account provider", v -> showSocialProviderNotice("Other account provider"));
+        addText("Real account sign-in requires provider registration, secure token exchange, and server-side account linking. Never paste passwords or tokens into this preview.", 12, false);
+    }
+
+    private void renderSocialFriends() {
+        addText("Friends", 19, true);
+        JSONArray friends = socialArray("friends");
+        if (friends.length() == 0) addText("No contacts yet. Add a demo contact to try the friend and chat screens.", 13, false);
+        for (int i = 0; i < Math.min(friends.length(), 100); i++) {
+            JSONObject friend = friends.optJSONObject(i);
+            if (friend == null) continue;
+            String name = friend.optString("username", "");
+            LinearLayout card = newCard();
+            addTextTo(card, "@" + name, 17, true);
+            addTextTo(card, "Local preview contact · not an online presence indicator", 12, false);
+            LinearLayout actions = horizontalRow();
+            addButtonTo(actions, "Open chat", v -> {
+                activeChatFriend = name;
+                socialTab = 3;
+                showFeature(currentFeature);
+            });
+            addButtonTo(actions, "Remove friend", v -> confirmRemoveSocialFriend(name));
+            card.addView(actions);
+        }
+
+        addText("Find player / send friend request", 16, true);
+        EditText target = editField("Player username");
+        target.setSingleLine(true);
+        pageBody.addView(target);
+        addButtonRow("Create local request preview", v -> {
+            String name = target.getText().toString().trim();
+            if (!validSocialUsername(name)) {
+                Toast.makeText(this, "Enter a username with 3–16 letters, numbers, or underscores.", Toast.LENGTH_LONG).show();
+                return;
+            }
+            String own = socialPreferences().getString(socialKey("username"), "");
+            if (!empty(own) && own.equalsIgnoreCase(name)) {
+                Toast.makeText(this, "You cannot send a friend request to your own username.", Toast.LENGTH_LONG).show();
+                return;
+            }
+            JSONArray currentFriends = socialArray("friends");
+            JSONArray requests = socialArray("requests");
+            if (socialContainsUser(currentFriends, name) || socialContainsUser(requests, name)) {
+                Toast.makeText(this, "That username is already a contact or pending request.", Toast.LENGTH_LONG).show();
+                return;
+            }
+            if (requests.length() >= 100) {
+                Toast.makeText(this, "The preview is limited to 100 pending requests.", Toast.LENGTH_LONG).show();
+                return;
+            }
+            try {
+                JSONObject request = new JSONObject();
+                request.put("username", name);
+                request.put("direction", "outgoing");
+                request.put("state", "pending");
+                requests.put(request);
+                saveSocialArray("requests", requests);
+                socialTab = 2;
+                showFeature(currentFeature);
+            } catch (JSONException error) {
+                showError("Could not create preview request", error);
+            }
+        });
+        addButtonRow("Add demo contact", v -> addDemoSocialContact());
+        addText("Requests created here are saved locally for UI testing only. They are not delivered to the named player.", 12, false);
+    }
+
+    private void renderSocialRequests() {
+        addText("Friend requests", 19, true);
+        JSONArray requests = socialArray("requests");
+        if (requests.length() == 0) addText("No pending preview requests.", 13, false);
+        for (int i = 0; i < Math.min(requests.length(), 100); i++) {
+            JSONObject request = requests.optJSONObject(i);
+            if (request == null) continue;
+            final String name = request.optString("username", "");
+            final String direction = request.optString("direction", "outgoing");
+            LinearLayout card = newCard();
+            addTextTo(card, "@" + name, 17, true);
+            addTextTo(card, ("incoming".equals(direction) ? "Incoming demo request" : "Outgoing demo request")
+                    + " · Pending locally", 12, false);
+            LinearLayout actions = horizontalRow();
+            if ("incoming".equals(direction)) {
+                addButtonTo(actions, "Accept", v -> resolveSocialRequest(name, true));
+                addButtonTo(actions, "Decline", v -> resolveSocialRequest(name, false));
+            } else {
+                addButtonTo(actions, "Cancel request", v -> resolveSocialRequest(name, false));
+            }
+            card.addView(actions);
+        }
+        addText("Preview an incoming request", 16, true);
+        EditText incoming = editField("Incoming player username");
+        incoming.setSingleLine(true);
+        pageBody.addView(incoming);
+        addButtonRow("Add incoming demo request", v -> {
+            String name = incoming.getText().toString().trim();
+            if (!validSocialUsername(name)) {
+                Toast.makeText(this, "Enter a username with 3–16 letters, numbers, or underscores.", Toast.LENGTH_LONG).show();
+                return;
+            }
+            if (socialContainsUser(socialArray("friends"), name) || socialContainsUser(socialArray("requests"), name)) {
+                Toast.makeText(this, "That username is already a contact or request.", Toast.LENGTH_LONG).show();
+                return;
+            }
+            JSONArray requestsNow = socialArray("requests");
+            if (requestsNow.length() >= 100) {
+                Toast.makeText(this, "The preview is limited to 100 pending requests.", Toast.LENGTH_LONG).show();
+                return;
+            }
+            try {
+                JSONObject request = new JSONObject();
+                request.put("username", name);
+                request.put("direction", "incoming");
+                request.put("state", "pending");
+                requestsNow.put(request);
+                saveSocialArray("requests", requestsNow);
+                showFeature(currentFeature);
+            } catch (JSONException error) {
+                showError("Could not create demo request", error);
+            }
+        });
+        addText("Incoming requests are simulated on this device so you can test Accept and Decline. They do not originate from another account.", 12, false);
+    }
+
+    private void resolveSocialRequest(String username, boolean accept) {
+        JSONArray requests = socialArray("requests");
+        JSONArray remaining = new JSONArray();
+        String direction = "";
+        try {
+            for (int i = 0; i < requests.length(); i++) {
+                JSONObject item = requests.optJSONObject(i);
+                if (item == null) continue;
+                if (username.equalsIgnoreCase(item.optString("username", ""))) {
+                    direction = item.optString("direction", "");
+                    continue;
+                }
+                remaining.put(item);
+            }
+            if (accept && "incoming".equals(direction)) {
+                JSONArray friends = socialArray("friends");
+                if (!socialContainsUser(friends, username)) {
+                    JSONObject friend = new JSONObject();
+                    friend.put("username", username);
+                    friends.put(friend);
+                    saveSocialArray("friends", friends);
+                }
+            }
+            saveSocialArray("requests", remaining);
+            showFeature(currentFeature);
+        } catch (JSONException error) {
+            showError("Could not update friend request", error);
+        }
+    }
+
+    private void addDemoSocialContact() {
+        JSONArray friends = socialArray("friends");
+        String username = "DemoPlayer";
+        int suffix = 2;
+        while (socialContainsUser(friends, username)) username = "DemoPlayer" + suffix++;
+        try {
+            JSONObject friend = new JSONObject();
+            friend.put("username", username);
+            friends.put(friend);
+            saveSocialArray("friends", friends);
+            activeChatFriend = username;
+            socialTab = 1;
+            showFeature(currentFeature);
+        } catch (JSONException error) {
+            showError("Could not create demo contact", error);
+        }
+    }
+
+    private void confirmRemoveSocialFriend(String username) {
+        new AlertDialog.Builder(this)
+                .setTitle("Remove friend")
+                .setMessage("Remove @" + username + " from this device's Social Hub preview?")
+                .setNegativeButton(android.R.string.cancel, null)
+                .setPositiveButton("Remove", (dialog, which) -> {
+                    JSONArray friends = socialArray("friends");
+                    JSONArray remaining = new JSONArray();
+                    for (int i = 0; i < friends.length(); i++) {
+                        JSONObject friend = friends.optJSONObject(i);
+                        if (friend != null && !username.equalsIgnoreCase(friend.optString("username", ""))) remaining.put(friend);
+                    }
+                    saveSocialArray("friends", remaining);
+                    if (username.equalsIgnoreCase(activeChatFriend)) activeChatFriend = null;
+                    showFeature(currentFeature);
+                }).show();
+    }
+
+    private void renderSocialChats() {
+        addText("Chats", 19, true);
+        JSONArray friends = socialArray("friends");
+        if (empty(activeChatFriend) || !socialContainsUser(friends, activeChatFriend)) {
+            addText("Choose a contact to open its conversation preview.", 13, false);
+            for (int i = 0; i < Math.min(friends.length(), 100); i++) {
+                JSONObject friend = friends.optJSONObject(i);
+                if (friend == null) continue;
+                String name = friend.optString("username", "");
+                addButtonRow("Chat with @" + name, v -> {
+                    activeChatFriend = name;
+                    showFeature(currentFeature);
+                });
+            }
+            addButtonRow("Add demo contact", v -> addDemoSocialContact());
+            return;
+        }
+
+        final String conversationFriend = activeChatFriend;
+        addTextTo(pageBody, "Conversation with @" + conversationFriend, 17, true);
+        addButtonRow("Choose another friend", v -> { activeChatFriend = null; showFeature(currentFeature); });
+        String messageKey = "messages." + conversationFriend.toLowerCase(Locale.ROOT);
+        JSONArray messages = socialArray(messageKey);
+        if (messages.length() == 0) addText("No preview messages yet. Your messages stay on this device.", 13, false);
+        for (int i = Math.max(0, messages.length() - 100); i < messages.length(); i++) {
+            JSONObject message = messages.optJSONObject(i);
+            if (message == null) continue;
+            String from = message.optString("from", "");
+            String body = message.optString("text", "");
+            addText((from.equalsIgnoreCase(socialPreferences().getString(socialKey("username"), "")) ? "You" : "@" + from)
+                    + ": " + body, 14, false);
+        }
+        EditText composer = editField("Write a local preview message…");
+        pageBody.addView(composer);
+        addButtonRow("Send local preview message", v -> {
+            String body = composer.getText().toString().trim();
+            if (empty(body)) {
+                Toast.makeText(this, "Type a message first.", Toast.LENGTH_SHORT).show();
+                return;
+            }
+            if (body.length() > 1000) {
+                Toast.makeText(this, "Preview messages are limited to 1,000 characters.", Toast.LENGTH_LONG).show();
+                return;
+            }
+            try {
+                JSONArray currentMessages = socialArray(messageKey);
+                JSONObject message = new JSONObject();
+                String own = socialPreferences().getString(socialKey("username"), "Me");
+                message.put("from", empty(own) ? "Me" : own);
+                message.put("text", body);
+                message.put("createdAt", System.currentTimeMillis());
+                currentMessages.put(message);
+                JSONArray bounded = new JSONArray();
+                for (int i = Math.max(0, currentMessages.length() - 200); i < currentMessages.length(); i++) {
+                    bounded.put(currentMessages.get(i));
+                }
+                saveSocialArray(messageKey, bounded);
+                showFeature(currentFeature);
+            } catch (JSONException error) {
+                showError("Could not save preview message", error);
+            }
+        });
+        addText("Messages are saved as local UI previews, not delivered to the other contact.", 12, false);
+    }
+
     private void renderPageScreen(JSONObject screen) {
         addText(screen.optString("description", "Feature page"), 14, false);
         JSONArray widgets = screen.optJSONArray("widgets");
