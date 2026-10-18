@@ -1359,6 +1359,8 @@ class BuildWorkflowTests(unittest.TestCase):
         self.assertIn("timed out after dispatch", self.smoke_script)
         self.assertIn('exit "$start_status"', self.smoke_script)
         self.assertIn("(mResumedActivity|topResumedActivity)", self.smoke_script)
+        self.assertIn(r"net\.kdt\.pojavlaunch\.LauncherActivity", self.smoke_script)
+        self.assertNotIn(r"net\.kd\.pojavlaunch\.LauncherActivity", self.smoke_script)
         self.assertIn('grep -Eq "$ACTIVITY_PATTERN"', self.smoke_script)
         self.assertIn("timeout 5s adb shell dumpsys activity activities", self.smoke_script)
         self.assertIn("ACTIVITY_QUERY_ERRORS=0", self.smoke_script)
