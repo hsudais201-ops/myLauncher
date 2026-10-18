@@ -154,7 +154,9 @@ Tasks:
 
 ## Immediate next task
 
-Complete the P0 immutable baseline: inspect the pinned upstream Android manifest/Gradle configuration and native ABI/runtime path; record exact minimum/target SDK, permissions, ABI filters, native libraries, current launch/data flow and unverified device claims in FEATURE_AUDIT.md. Then run the existing regression/build workflow before selecting the next code change.
+**Priority 0 — credential protection.** The pinned Microsoft authentication source currently logs authorization codes/request bodies, OAuth/Xbox/XSTS/Minecraft tokens and Minecraft profile identifiers, while account JSON contains access/refresh-token fields without confirmed at-rest encryption. PR #61 proposes excluding `accounts/` from legacy/cloud/device-transfer backups; its full CI build/package/API 28 emulator smoke test passed in [run #39116546902](https://github.com/hsudais201-ops/myLauncher/actions/runs/39116546902), but the PR remains open. PR #62 proposes guarded auth-log redaction; its regression stage passed but its full CI workflow was still in progress at the last check. Review both PRs and merge only after final CI/review. Then design and test Android Keystore-backed credential encryption with a backward-compatible migration covering sign-in, token refresh, account switching, logout, old JSON files, corruption/recovery and import/export. Backup exclusion and log redaction are interim mitigations, not encryption at rest.
+
+The source SDK/manifest/ABI audit is now automated in PR #60 and its build/test/emulator workflow passed in [run #39116190501](https://github.com/hsudais201-ops/myLauncher/actions/runs/39116190501); that PR also remains open. Continue next with download/install/launch recovery tests, then real-device gameplay acceptance for supported ABIs/renderers/input features. The emulator startup test is not gameplay certification.
 
 ## Definition of a finished ticket
 
