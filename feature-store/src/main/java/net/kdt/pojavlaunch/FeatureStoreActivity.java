@@ -76,6 +76,8 @@ public final class FeatureStoreActivity extends BaseActivity {
     private JSONObject currentFeature;
     private JSONObject pendingExport;
     private boolean remoteCatalogLoaded;
+    private int socialTab = 0;
+    private String activeChatFriend;
 
     @Override
     public boolean setFullscreen() {
@@ -154,8 +156,7 @@ public final class FeatureStoreActivity extends BaseActivity {
         catalog.clear();
         catalog.addAll(merged.values());
         Collections.sort(catalog, Comparator.comparing(
-                item -> item.optString("category") + "/" + item.optString("name"),
-                String.CASE_INSENSITIVE_ORDER));
+                item -> item.optString("name"), String.CASE_INSENSITIVE_ORDER));
     }
 
     private boolean validCatalogEntry(JSONObject entry) {
@@ -192,7 +193,7 @@ public final class FeatureStoreActivity extends BaseActivity {
         boolean installed = isInstalled(item.optString("id"));
         LinearLayout card = newCard();
         addTextTo(card, item.optString("name", "Unnamed feature"), 18, true);
-        addTextTo(card, categoryAndVersion(item), 12, false);
+        addTextTo(card, "Version " + item.optString("version", "1.0.0"), 12, false);
         addTextTo(card, item.optString("description", ""), 14, false);
         addTextTo(card, "Owner: " + item.optString("owner", item.optString("author", "Unknown")), 12, false);
         LinearLayout actions = horizontalRow();
@@ -221,7 +222,7 @@ public final class FeatureStoreActivity extends BaseActivity {
         for (JSONObject item : installed) {
             LinearLayout card = newCard();
             addTextTo(card, item.optString("name", "Unnamed feature"), 18, true);
-            addTextTo(card, categoryAndVersion(item), 12, false);
+            addTextTo(card, "Version " + item.optString("version", "1.0.0"), 12, false);
             addTextTo(card, item.optString("description", ""), 14, false);
             addTextTo(card, "Owner: " + item.optString("owner", item.optString("author", "Unknown")), 12, false);
             LinearLayout actions = horizontalRow();
@@ -248,7 +249,7 @@ public final class FeatureStoreActivity extends BaseActivity {
         pageBody.addView(description);
         addText("Screen type", 14, true);
         Spinner type = new Spinner(this);
-        String[] screenTypes = new String[] {"Custom page", "Theme studio", "Server status"};
+        String[] screenTypes = new String[] {"Custom page", "Theme studio", "Server status", "Social hub (local preview)"};
         type.setAdapter(new ArrayAdapter<String>(this, android.R.layout.simple_spinner_dropdown_item, screenTypes));
         pageBody.addView(type, matchWrap());
         addButtonRow("Create and install", v -> {
@@ -294,7 +295,6 @@ public final class FeatureStoreActivity extends BaseActivity {
         feature.put("author", owner);
         feature.put("owner", owner);
         feature.put("description", description);
-        feature.put("category", typeIndex == 1 ? "Appearance" : (typeIndex == 2 ? "Multiplayer" : "Custom"));
         JSONObject screen = new JSONObject();
         if (typeIndex == 1) {
             screen.put("type", "theme");
@@ -306,6 +306,11 @@ public final class FeatureStoreActivity extends BaseActivity {
             screen.put("title", name);
             screen.put("description", empty(description) ? "Check a Minecraft Java Edition server." : description);
             screen.put("defaultHost", "mc.hypixel.net");
+        } else if (typeIndex == 3) {
+            screen.put("type", "social");
+            screen.put("mode", "local_preview");
+            screen.put("title", name);
+            screen.put("description", empty(description) ? "A mobile-first social interface preview. Profiles, requests and chats are stored locally; online delivery is not connected." : description);
         } else {
             screen.put("type", "page");
             screen.put("title", name);
@@ -358,13 +363,14 @@ public final class FeatureStoreActivity extends BaseActivity {
                     "Export / share", v -> exportPackage(currentFeature));
             addText("Owner: " + currentFeature.optString("owner", currentFeature.optString("author")),
                     12, false);
-            addText("Version " + currentFeature.optString("version", "1.0.0")
-                    + " · " + currentFeature.optString("category", "Feature"), 12, false);
+            addText("Version " + currentFeature.optString("version", "1.0.0"), 12, false);
             String type = screen.optString("type", "page");
             if ("theme".equals(type)) {
                 renderThemeScreen(screen);
             } else if ("server_status".equals(type)) {
                 renderServerStatus(screen);
+            } else if ("social".equals(type)) {
+                renderSocialScreen(screen);
             } else {
                 renderPageScreen(screen);
             }
@@ -588,8 +594,12 @@ public final class FeatureStoreActivity extends BaseActivity {
         JSONObject screen = feature.optJSONObject("screen");
         if (screen == null) throw new IllegalArgumentException("Feature screen is missing");
         String type = screen.optString("type", "");
-        if (!("page".equals(type) || "theme".equals(type) || "server_status".equals(type))) {
+        if (!("page".equals(type) || "theme".equals(type) || "server_status".equals(type)
+                || "social".equals(type))) {
             throw new IllegalArgumentException("Unsupported feature screen type");
+        }
+        if ("social".equals(type) && !"local_preview".equals(screen.optString("mode", "local_preview"))) {
+            throw new IllegalArgumentException("Only the explicitly local-preview social mode is supported until an online service is configured");
         }
         if ("theme".equals(type)) {
             JSONArray presets = screen.optJSONArray("presets");
@@ -854,10 +864,6 @@ public final class FeatureStoreActivity extends BaseActivity {
 
     private static boolean empty(String value) {
         return value == null || value.trim().isEmpty();
-    }
-
-    private static String categoryAndVersion(JSONObject item) {
-        return item.optString("category", "Feature") + " · v" + item.optString("version", "1.0.0");
     }
 
     private void openHttps(String address) {
