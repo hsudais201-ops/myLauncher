@@ -2223,7 +2223,31 @@ def patch_upstream(upstream: Path) -> None:
     if missing_backup_imports:
         raise ValueError(f"World backup imports are incomplete: {missing_backup_imports}")
 
-    backup_helper = """    private void showWorldBackupPicker(final android.app.Activity activity, File profileDirectory) {
+    backup_helper = """    /**
+     * Gives each backup entry useful metadata without opening or modifying the archive.
+     */
+    private static String worldBackupDisplayLabel(File backupFile) {
+        long bytes = Math.max(0L, backupFile.length());
+        String sizeLabel;
+        if (bytes < 1024L) {
+            sizeLabel = bytes + " B";
+        } else {
+            double scaled = bytes;
+            String[] units = {"KiB", "MiB", "GiB", "TiB"};
+            int unitIndex = -1;
+            do {
+                scaled /= 1024.0;
+                unitIndex++;
+            } while (scaled >= 1024.0 && unitIndex < units.length - 1);
+            sizeLabel = String.format(java.util.Locale.getDefault(), "%.1f %s", scaled, units[unitIndex]);
+        }
+        String modifiedLabel = java.text.DateFormat.getDateTimeInstance(
+                java.text.DateFormat.MEDIUM, java.text.DateFormat.SHORT,
+                java.util.Locale.getDefault()).format(new java.util.Date(backupFile.lastModified()));
+        return backupFile.getName() + "\n" + sizeLabel + " · " + modifiedLabel;
+    }
+
+    private void showWorldBackupPicker(final android.app.Activity activity, File profileDirectory) {
         File backupsDirectory = new File(profileDirectory, "backups");
         File[] backupFiles = backupsDirectory.listFiles((directory, name) ->
                 name != null && name.endsWith(".zip") && new File(directory, name).isFile());
@@ -2235,7 +2259,7 @@ def patch_upstream(upstream: Path) -> None:
                 Long.compare(right.lastModified(), left.lastModified()));
         String[] backupNames = new String[backupFiles.length];
         for (int i = 0; i < backupFiles.length; i++) {
-            backupNames[i] = backupFiles[i].getName();
+            backupNames[i] = worldBackupDisplayLabel(backupFiles[i]);
         }
         new AlertDialog.Builder(activity)
                 .setTitle(R.string.main_world_backup_picker_title)
@@ -2262,9 +2286,9 @@ def patch_upstream(upstream: Path) -> None:
             return;
         }
         java.util.Arrays.sort(backupFiles, (left, right) ->
-                right.getName().compareToIgnoreCase(left.getName()));
+                Long.compare(right.lastModified(), left.lastModified()));
         String[] backupNames = new String[backupFiles.length];
-        for (int i = 0; i < backupFiles.length; i++) backupNames[i] = backupFiles[i].getName();
+        for (int i = 0; i < backupFiles.length; i++) backupNames[i] = worldBackupDisplayLabel(backupFiles[i]);
         new AlertDialog.Builder(activity)
                 .setTitle(R.string.main_world_backup_verify_picker_title)
                 .setItems(backupNames, (dialog, which) -> {
@@ -2407,7 +2431,7 @@ def patch_upstream(upstream: Path) -> None:
                 Long.compare(right.lastModified(), left.lastModified()));
         String[] backupNames = new String[backupFiles.length];
         for (int i = 0; i < backupFiles.length; i++) {
-            backupNames[i] = backupFiles[i].getName();
+            backupNames[i] = worldBackupDisplayLabel(backupFiles[i]);
         }
         new AlertDialog.Builder(activity)
                 .setTitle(R.string.main_world_backup_delete_picker_title)
@@ -2659,6 +2683,9 @@ def patch_upstream(upstream: Path) -> None:
         or "private static void verifyWorldBackupArchive(" not in main_menu_text
         or "private static File validatedWorldBackupFile(" not in main_menu_text
         or "private static int scanWorldBackupZip(" not in main_menu_text
+        or "private static String worldBackupDisplayLabel(" not in main_menu_text
+        or "format(java.util.Locale.getDefault(), \"%.1f %s\", scaled, units[unitIndex])" not in main_menu_text
+        or "backupNames[i] = worldBackupDisplayLabel(backupFiles[i]);" not in main_menu_text
         or "entryCount > maxEntries" not in main_menu_text
         or "count > maxUncompressedBytes - uncompressedBytes" not in main_menu_text
         or "!seenEntries.add(normalizedName)" not in main_menu_text
