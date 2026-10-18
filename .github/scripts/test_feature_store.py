@@ -56,7 +56,7 @@ class FeatureStoreTests(unittest.TestCase):
                 '<com.kdt.mcgui.LauncherMenuButton '
                 'android:id="@+id/mylauncher_account_button" '
                 'style="@style/LauncherMenuButton.Universal" '
-                'app:layout_constraintTop_toBottomOf="@id/mylauncher_repair_version_button" />'
+                'app:layout_constraintTop_toBottomOf="@id/mylauncher_repair_version_button" />\n'
                 '</androidx.constraintlayout.widget.ConstraintLayout>\n')
             (app / "res" / "layout" / "fragment_launcher.xml").write_text(layout, encoding="utf-8")
             (app / "res" / "layout-land" / "fragment_launcher.xml").write_text(layout, encoding="utf-8")
