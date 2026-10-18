@@ -1001,7 +1001,7 @@ class ProfileTypeSelectFragment {
             self.assertIn('<string name="main_world_backup_confirm_message">Existing worlds will not be overwritten. Name conflicts will be restored with a suffix.</string>', strings)
             self.assertIn("mMyLauncherWorldSavesButton.setOnLongClickListener", menu)
             self.assertIn("Tools.isDemoProfile(v.getContext())", menu)
-            self.assertIn('new File(getCurrentProfileDirectory(), "backups")', menu)
+            self.assertIn('new File(profileDirectory, "backups")', menu)
             self.assertIn('String backupName = "worlds-" + System.currentTimeMillis() + ".zip";', menu)
             self.assertIn('new File(backupsDirectory, backupName + ".tmp")', menu)
             self.assertIn("private static void zipWorldSaves(", menu)
