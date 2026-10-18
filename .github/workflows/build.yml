@@ -31,7 +31,7 @@ jobs:
 
       - name: Validate customizer and regression suite
         run: |
-          python3 -m py_compile .github/scripts/customize_amethyst.py .github/scripts/apply_logo.py .github/scripts/patch_renderpearl_workaround.py .github/scripts/test_customizer.py .github/scripts/test_renderpearl_workaround.py .github/scripts/customize_ui.py .github/scripts/test_ui_customizer.py
+          python3 -m py_compile .github/scripts/customize_amethyst.py .github/scripts/apply_logo.py .github/scripts/patch_renderpearl_workaround.py .github/scripts/test_customizer.py .github/scripts/test_renderpearl_workaround.py .github/scripts/customize_ui.py .github/scripts/test_ui_customizer.py .github/scripts/audit_upstream.py .github/scripts/test_audit_upstream.py
           sh -n .github/scripts/prepare_emulator_kvm.sh
           sh -n .github/scripts/emulator_smoke_test.sh
           python3 -m unittest discover -s .github/scripts -p 'test_*.py' -v
@@ -83,6 +83,11 @@ jobs:
           echo "Expected upstream: $EXPECTED_UPSTREAM_COMMIT"
           echo "Actual upstream:   $ACTUAL_UPSTREAM_COMMIT"
           test "$ACTUAL_UPSTREAM_COMMIT" = "$EXPECTED_UPSTREAM_COMMIT"
+
+      - name: Audit pinned Android SDK, permissions, features, and native ABIs
+        run: |
+          python3 .github/scripts/audit_upstream.py upstream --output upstream/VOIDCRAFT_LAUNCHER_UPSTREAM_AUDIT.md
+          cat upstream/VOIDCRAFT_LAUNCHER_UPSTREAM_AUDIT.md >> "$GITHUB_STEP_SUMMARY"
 
       - name: Apply and inspect VoidCraft Launcher customization
         run: |
@@ -192,6 +197,15 @@ jobs:
           path: upstream/VOIDCRAFT_LAUNCHER_BUILD_INFO.txt
           if-no-files-found: error
           retention-days: 14
+
+      - name: Upload upstream runtime audit report
+        if: ${{ always() && hashFiles('upstream/VOIDCRAFT_LAUNCHER_UPSTREAM_AUDIT.md') != '' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: voidcraft-launcher-upstream-runtime-audit
+          path: upstream/VOIDCRAFT_LAUNCHER_UPSTREAM_AUDIT.md
+          if-no-files-found: error
+          retention-days: 30
 
       - name: Upload emulator diagnostics
         if: ${{ always() }}
