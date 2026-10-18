@@ -341,7 +341,7 @@ def patch_upstream(upstream: Path) -> None:
         ):
             raise ValueError(f"Log-diagnosis resource is missing or invalid: {string_name}")
     config_export_strings = {
-        "main_config_export_hint": "Config folder. Long-press to export or import portable launcher settings.",
+        "main_config_export_hint": "Config folder. Long-press to export, import or reset interface settings.",
         "main_config_export_subject": "VoidCraft Launcher safe settings export",
         "main_config_export_no_values": "No saved portable settings were found to export.",
         "main_config_export_chooser": "Export safe launcher settings. Review before sharing.",
@@ -354,6 +354,11 @@ def patch_upstream(upstream: Path) -> None:
         "main_config_import_apply": "Apply settings",
         "main_config_import_success": "Imported %1$d portable setting(s). Restart the launcher to refresh preferences cached at startup.",
         "main_config_import_failed": "Could not import settings. Choose a valid VoidCraft Launcher JSON export. No settings were changed.",
+        "main_config_reset_action": "Reset interface settings",
+        "main_config_reset_confirm_title": "Reset interface settings?",
+        "main_config_reset_confirm_message": "Reset saved touch, mouse, gesture, controller and display-interface preferences to launcher defaults? Renderer settings, accounts, profile selection, Java arguments, files, worlds and backups will not be changed.",
+        "main_config_reset_success": "Reset %1$d interface setting(s) to launcher defaults. Restart the launcher to refresh preferences cached at startup.",
+        "main_config_reset_no_values": "No saved interface overrides were found to reset.",
     }
     for string_name, string_value in config_export_strings.items():
         if not re.search(r'<string\s+name="' + re.escape(string_name) + r'"', strings_text):
@@ -1940,6 +1945,14 @@ def patch_upstream(upstream: Path) -> None:
             "resolutionRatio", "gyroSensitivity", "gyroSampleRate", "gamepad_deadzone_scale",
             "touchControllerVibrateLength"
     };
+    private static final String[] MYLAUNCHER_INTERFACE_RESET_KEYS = new String[] {
+            "buttonscale", "mousescale", "mousespeed", "ignoreNotch", "timeLongPressTrigger",
+            "force_english", "disableGestures", "gamepadPassthruForced", "disableDoubleTap", "mouse_start",
+            "resolutionRatio", "enableGyro", "gyroSensitivity", "gyroSampleRate", "gyroSmoothing",
+            "gyroInvertX", "gyroInvertY", "buttonAllCaps", "gamepad_deadzone_scale",
+            "forceEnableTouchController", "touchControllerVibrateLength", "always_grab_mouse",
+            "keyboardPanning"
+    };
 """
     if "MYLAUNCHER_SETTINGS_IMPORT_REQUEST_CODE" not in main_menu_text:
         main_menu_class = re.search(
@@ -1966,7 +1979,8 @@ def patch_upstream(upstream: Path) -> None:
                     .setTitle(R.string.main_config_actions_title)
                     .setItems(new String[] {
                             getString(R.string.main_config_export_action),
-                            getString(R.string.main_config_import_action)
+                            getString(R.string.main_config_import_action),
+                            getString(R.string.main_config_reset_action)
                     }, (dialog, which) -> {
                         if (which == 0) {
                             java.util.Map<String, ?> storedPreferences = LauncherPreferences.DEFAULT_PREF.getAll();
@@ -2007,6 +2021,33 @@ def patch_upstream(upstream: Path) -> None:
                             } catch (android.content.ActivityNotFoundException error) {
                                 Toast.makeText(requireContext(), R.string.main_config_import_failed, Toast.LENGTH_LONG).show();
                             }
+                        } else if (which == 2) {
+                            new AlertDialog.Builder(requireContext())
+                                    .setTitle(R.string.main_config_reset_confirm_title)
+                                    .setMessage(R.string.main_config_reset_confirm_message)
+                                    .setNegativeButton(android.R.string.cancel, null)
+                                    .setPositiveButton(android.R.string.ok, (confirmDialog, confirmWhich) -> {
+                                        java.util.Map<String, ?> storedPreferences = LauncherPreferences.DEFAULT_PREF.getAll();
+                                        int resetCount = 0;
+                                        android.content.SharedPreferences.Editor editor = LauncherPreferences.DEFAULT_PREF.edit();
+                                        for (String key : MYLAUNCHER_INTERFACE_RESET_KEYS) {
+                                            if (storedPreferences.containsKey(key)) {
+                                                editor.remove(key);
+                                                resetCount++;
+                                            }
+                                        }
+                                        if (resetCount == 0) {
+                                            Toast.makeText(requireContext(), R.string.main_config_reset_no_values, Toast.LENGTH_LONG).show();
+                                            return;
+                                        }
+                                        editor.apply();
+                                        Toast.makeText(
+                                                requireContext(),
+                                                getString(R.string.main_config_reset_success, resetCount),
+                                                Toast.LENGTH_LONG
+                                        ).show();
+                                    })
+                                    .show();
                         }
                     })
                     .show();
@@ -2039,6 +2080,10 @@ def patch_upstream(upstream: Path) -> None:
         "allowlist constants": "MYLAUNCHER_PORTABLE_SETTING_KEYS" in main_menu_text,
         "boolean type list": "MYLAUNCHER_PORTABLE_BOOLEAN_SETTING_KEYS" in main_menu_text,
         "integer type list": "MYLAUNCHER_PORTABLE_INTEGER_SETTING_KEYS" in main_menu_text,
+        "interface reset key list": "MYLAUNCHER_INTERFACE_RESET_KEYS" in main_menu_text,
+        "interface reset menu item": "R.string.main_config_reset_action" in config_long_listener,
+        "interface reset confirmation": "R.string.main_config_reset_confirm_message" in config_long_listener,
+        "interface reset removes only allowlisted overrides": "editor.remove(key)" in config_long_listener and "for (String key : MYLAUNCHER_INTERFACE_RESET_KEYS)" in config_long_listener,
         "bounded import size": "MYLAUNCHER_SETTINGS_IMPORT_MAX_BYTES" in main_menu_text,
     }
     failed_config_export_checks = [
