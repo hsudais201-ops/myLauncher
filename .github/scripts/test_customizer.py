@@ -1120,6 +1120,7 @@ class ProfileTypeSelectFragment {
             self.assertIn("toLowerCase(java.util.Locale.ROOT)", menu)
             self.assertIn("substring(Math.max(0, normalizedLog.length() - 65536))", menu)
             self.assertIn('diagnosisText.contains("virglrenderer initialization failed")', menu)
+            self.assertIn('diagnosisText.contains("requires java 25")', menu)
             self.assertNotIn('diagnosisText.contains("virglrenderer") ||', menu)
             self.assertIn('diagnosisText.contains("/versions/")', menu)
             self.assertIn('diagnosisText.contains("no such file")', menu)
