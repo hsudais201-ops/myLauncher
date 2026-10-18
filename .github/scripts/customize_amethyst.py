@@ -242,8 +242,8 @@ def patch_folder_provider_security(upstream: Path) -> None:
 """
     replace_block(old_delete, new_delete, "deleteDocument storage-root protection")
 
-    old_search = """            // Avoid directories outside the $HOME directory linked with symlinks (to avoid e.g. search
-            // through the whole SD card).
+    old_search = """            // Avoid directories outside the $HOME directory linked with symlinks (to avoid e.g.
+            // search through the whole SD card).
             boolean isInsideHome;
             try {
                 isInsideHome = file.getCanonicalPath().startsWith(Tools.DIR_GAME_HOME);
