@@ -26,6 +26,406 @@ def validate_xml_files(paths: tuple[Path, ...]) -> None:
             raise ValueError(f"Generated Android XML is invalid at {path}: {exc}") from exc
 
 
+def patch_folder_provider_security(upstream: Path) -> None:
+    """Constrain SAF document-provider file operations to the launcher's game directory."""
+    source = (
+        upstream
+        / "app_pojavlauncher"
+        / "src"
+        / "main"
+        / "java"
+        / "net"
+        / "kdt"
+        / "pojavlaunch"
+        / "scoped"
+        / "FolderProvider.java"
+    )
+    if not source.is_file():
+        raise FileNotFoundError(f"Expected folder document provider is missing: {source}")
+    text = source.read_text(encoding="utf-8")
+
+    def replace_block(old: str, new: str, label: str) -> None:
+        nonlocal text
+        old_count = text.count(old)
+        new_count = text.count(new)
+        if old_count == 1 and new_count == 0:
+            text = text.replace(old, new, 1)
+        elif old_count == 0 and new_count == 1:
+            return
+        else:
+            raise ValueError(
+                f"Could not safely patch {label} in {source}; expected exactly one original or patched block"
+            )
+
+    old_create = """    @Override
+    public String createDocument(String parentDocumentId, String mimeType, String displayName) throws FileNotFoundException {
+        File newFile = new File(parentDocumentId, displayName);
+        int noConflictId = 2;
+        while (newFile.exists()) {
+            newFile = new File(parentDocumentId, displayName + " (" + noConflictId++ + ")");
+        }
+        try {
+            boolean succeeded;
+            if (Document.MIME_TYPE_DIR.equals(mimeType)) {
+                succeeded = newFile.mkdir();
+            } else {
+                succeeded = newFile.createNewFile();
+            }
+            if (!succeeded) {
+                throw new FileNotFoundException("Failed to create document with id " + newFile.getPath());
+            }
+        } catch (IOException e) {
+            throw new FileNotFoundException("Failed to create document with id " + newFile.getPath());
+        }
+        // Notify the file manager that the parent directory has changed
+        notifyChange(createUriForDocId(parentDocumentId));
+        return newFile.getPath();
+    }
+"""
+    new_create = """    @Override
+    public String createDocument(String parentDocumentId, String mimeType, String displayName) throws FileNotFoundException {
+        File parent = getFileForDocId(parentDocumentId);
+        if (!parent.isDirectory() || !isSafeDocumentName(displayName)) {
+            throw new FileNotFoundException("Invalid document parent or name");
+        }
+
+        File newFile = new File(parent, displayName);
+        int noConflictId = 2;
+        while (newFile.exists()) {
+            newFile = new File(parent, displayName + " (" + noConflictId++ + ")");
+        }
+        if (!isWithinStorageRoot(newFile)) {
+            throw new FileNotFoundException("Refusing to create a document outside launcher storage");
+        }
+        try {
+            boolean succeeded;
+            if (Document.MIME_TYPE_DIR.equals(mimeType)) {
+                succeeded = newFile.mkdir();
+            } else {
+                succeeded = newFile.createNewFile();
+            }
+            if (!succeeded) {
+                throw new FileNotFoundException("Failed to create document with id " + newFile.getPath());
+            }
+        } catch (IOException e) {
+            FileNotFoundException failure = new FileNotFoundException("Failed to create document");
+            failure.initCause(e);
+            throw failure;
+        }
+        notifyChange(createUriForFile(parent));
+        return getDocIdForFile(newFile);
+    }
+"""
+    replace_block(old_create, new_create, "createDocument path confinement")
+
+    old_rename = """    @Override
+    public String renameDocument(String documentId, String displayName) throws FileNotFoundException {
+        File sourceFile = getFileForDocId(documentId);
+        File sourceParent = sourceFile.getParentFile();
+        if(sourceParent == null) throw new FileNotFoundException("Cannot rename root");
+        File targetFile = new File(getDocIdForFile(sourceParent) + "/" + displayName);
+        if(!sourceFile.renameTo(targetFile)){
+            throw new FileNotFoundException("Couldn't rename the document with id" + documentId);
+        }
+        return getDocIdForFile(targetFile);
+    }
+"""
+    new_rename = """    @Override
+    public String renameDocument(String documentId, String displayName) throws FileNotFoundException {
+        File sourceFile = getFileForDocId(documentId);
+        File sourceParent = sourceFile.getParentFile();
+        if (sourceParent == null || isStorageRoot(sourceFile) || !isSafeDocumentName(displayName)) {
+            throw new FileNotFoundException("Cannot rename the storage root or use an invalid name");
+        }
+        File targetFile = new File(sourceParent, displayName);
+        if (sourceFile.equals(targetFile)) return getDocIdForFile(sourceFile);
+        if (targetFile.exists() || !isWithinStorageRoot(targetFile) || !sourceFile.renameTo(targetFile)) {
+            throw new FileNotFoundException("Unable to safely rename document " + documentId);
+        }
+        notifyChange(createUriForFile(sourceParent));
+        return getDocIdForFile(targetFile);
+    }
+"""
+    replace_block(old_rename, new_rename, "renameDocument path confinement")
+
+    old_move = """    @Override
+    public String moveDocument(String sourceDocumentId, String sourceParentDocumentId, String targetParentDocumentId) throws FileNotFoundException {
+        File sourceFile = getFileForDocId(sourceParentDocumentId + sourceDocumentId);
+        File targetFile = new File(targetParentDocumentId + sourceDocumentId);
+        if(!sourceFile.renameTo(targetFile)){
+            throw new FileNotFoundException("Failed to move the document with id " + sourceFile.getPath());
+        }
+        return getDocIdForFile(targetFile);
+    }
+"""
+    new_move = """    @Override
+    public String moveDocument(String sourceDocumentId, String sourceParentDocumentId, String targetParentDocumentId) throws FileNotFoundException {
+        File sourceFile = getFileForDocId(sourceDocumentId);
+        File sourceParent = getFileForDocId(sourceParentDocumentId);
+        File targetParent = getFileForDocId(targetParentDocumentId);
+        if (!sourceParent.isDirectory()
+                || !targetParent.isDirectory()
+                || sourceFile.getParentFile() == null
+                || !sourceFile.getParentFile().equals(sourceParent)
+                || isStorageRoot(sourceFile)) {
+            throw new FileNotFoundException("Invalid source or target directory");
+        }
+
+        File targetFile = new File(targetParent, sourceFile.getName());
+        if (sourceFile.equals(targetFile)) return getDocIdForFile(sourceFile);
+        if (targetFile.exists() || !isWithinStorageRoot(targetFile) || !sourceFile.renameTo(targetFile)) {
+            throw new FileNotFoundException("Unable to safely move document " + sourceDocumentId);
+        }
+        notifyChange(createUriForFile(sourceParent));
+        notifyChange(createUriForFile(targetParent));
+        return getDocIdForFile(targetFile);
+    }
+"""
+    replace_block(old_move, new_move, "moveDocument path confinement")
+
+    old_remove = """    @Override
+    public void removeDocument(String documentId, String parentDocumentId) throws FileNotFoundException {
+        deleteDocument(parentDocumentId + "/" + documentId);
+    }
+"""
+    new_remove = """    @Override
+    public void removeDocument(String documentId, String parentDocumentId) throws FileNotFoundException {
+        File sourceFile = getFileForDocId(documentId);
+        File parent = getFileForDocId(parentDocumentId);
+        if (sourceFile.getParentFile() == null || !sourceFile.getParentFile().equals(parent)) {
+            throw new FileNotFoundException("Document is not a child of the supplied parent");
+        }
+        deleteDocument(getDocIdForFile(sourceFile));
+    }
+"""
+    replace_block(old_remove, new_remove, "removeDocument parent validation")
+
+    old_delete = """    @Override
+    public void deleteDocument(String documentId) throws FileNotFoundException {
+        File file = getFileForDocId(documentId);
+        if(file.isDirectory()){
+            try {
+                FileUtils.deleteDirectory(file);
+            } catch (IOException e) {
+                throw new FileNotFoundException("Failed to delete document with id " + documentId);
+            }
+        }else{
+            if (!file.delete()) {
+                throw new FileNotFoundException("Failed to delete document with id " + documentId);
+            }
+        }
+        // Notify the file manager that the parent directory has changed
+        notifyChange(createUriForFile(file.getParentFile()));
+    }
+"""
+    new_delete = """    @Override
+    public void deleteDocument(String documentId) throws FileNotFoundException {
+        File file = getFileForDocId(documentId);
+        if (isStorageRoot(file)) {
+            throw new FileNotFoundException("Refusing to delete the launcher storage root");
+        }
+        File parent = file.getParentFile();
+        if (parent == null) throw new FileNotFoundException("Cannot delete a document without a parent");
+        if (file.isDirectory()) {
+            try {
+                FileUtils.deleteDirectory(file);
+            } catch (IOException e) {
+                FileNotFoundException failure = new FileNotFoundException("Failed to delete document");
+                failure.initCause(e);
+                throw failure;
+            }
+        } else if (!file.delete()) {
+            throw new FileNotFoundException("Failed to delete document " + documentId);
+        }
+        notifyChange(createUriForFile(parent));
+    }
+"""
+    replace_block(old_delete, new_delete, "deleteDocument storage-root protection")
+
+    old_search = """            // Avoid directories outside the $HOME directory linked with symlinks (to avoid e.g. search
+            // through the whole SD card).
+            boolean isInsideHome;
+            try {
+                isInsideHome = file.getCanonicalPath().startsWith(Tools.DIR_GAME_HOME);
+            } catch (IOException e) {
+                isInsideHome = true;
+            }
+"""
+    new_search = """            // Resolve symlinks and fail closed if a child points outside the game directory.
+            boolean isInsideHome;
+            try {
+                isInsideHome = isWithinStorageRoot(file);
+            } catch (FileNotFoundException e) {
+                isInsideHome = false;
+            }
+"""
+    replace_block(old_search, new_search, "querySearchDocuments symlink boundary")
+
+    old_child = """    @Override
+    public boolean isChildDocument(String parentDocumentId, String documentId) {
+        return documentId.startsWith(parentDocumentId);
+    }
+"""
+    new_child = """    @Override
+    public boolean isChildDocument(String parentDocumentId, String documentId) {
+        try {
+            File parent = getFileForDocId(parentDocumentId);
+            File child = getFileForDocId(documentId);
+            return isStrictChildOf(parent, child);
+        } catch (FileNotFoundException e) {
+            return false;
+        }
+    }
+"""
+    replace_block(old_child, new_child, "isChildDocument boundary comparison")
+
+    old_file_lookup = """    private static File getFileForDocId(String docId) throws FileNotFoundException {
+        final File f = new File(docId);
+        if (!f.exists()) throw new FileNotFoundException(f.getAbsolutePath() + " not found");
+        return f;
+    }
+"""
+    new_file_lookup = """    private static String getCanonicalStorageRoot() throws FileNotFoundException {
+        if (Tools.DIR_GAME_HOME == null || Tools.DIR_GAME_HOME.isEmpty()) {
+            throw new FileNotFoundException("Launcher storage root is unavailable");
+        }
+        return canonicalPath(new File(Tools.DIR_GAME_HOME));
+    }
+
+    private static String canonicalPath(File file) throws FileNotFoundException {
+        try {
+            return file.getCanonicalPath();
+        } catch (IOException e) {
+            FileNotFoundException failure = new FileNotFoundException("Unable to resolve document path");
+            failure.initCause(e);
+            throw failure;
+        }
+    }
+
+    private static boolean isWithinStorageRoot(File candidate) throws FileNotFoundException {
+        String root = getCanonicalStorageRoot();
+        String path = canonicalPath(candidate);
+        return path.equals(root) || path.startsWith(root + File.separator);
+    }
+
+    private static boolean isStorageRoot(File candidate) throws FileNotFoundException {
+        return canonicalPath(candidate).equals(getCanonicalStorageRoot());
+    }
+
+    private static boolean isStrictChildOf(File parent, File child) throws FileNotFoundException {
+        String parentPath = canonicalPath(parent);
+        String childPath = canonicalPath(child);
+        return childPath.startsWith(parentPath + File.separator);
+    }
+
+    private static boolean isSafeDocumentName(String name) {
+        if (name == null || name.isEmpty() || name.length() > 255
+                || name.equals(".") || name.equals("..")
+                || name.indexOf('/') >= 0 || name.indexOf('\\\\') >= 0) {
+            return false;
+        }
+        for (int i = 0; i < name.length(); i++) {
+            if (Character.isISOControl(name.charAt(i))) return false;
+        }
+        return true;
+    }
+
+    private static File getFileForDocId(String docId) throws FileNotFoundException {
+        if (docId == null) throw new FileNotFoundException("Missing document ID");
+        String root = getCanonicalStorageRoot();
+        String path = canonicalPath(new File(docId));
+        if (!path.equals(root) && !path.startsWith(root + File.separator)) {
+            throw new FileNotFoundException("Document is outside launcher storage");
+        }
+        File file = new File(path);
+        if (!file.exists()) throw new FileNotFoundException(path + " not found");
+        return file;
+    }
+"""
+    replace_block(old_file_lookup, new_file_lookup, "document ID canonical-path confinement")
+
+    old_include = """        if (docId == null) {
+            docId = getDocIdForFile(file);
+        } else {
+            file = getFileForDocId(docId);
+        }
+"""
+    new_include = """        if (docId == null) {
+            docId = getDocIdForFile(file);
+        }
+        file = getFileForDocId(docId);
+        docId = getDocIdForFile(file);
+"""
+    replace_block(old_include, new_include, "includeFile canonical path normalization")
+
+    old_find_path = """    @Override
+    @TargetApi(26)
+    public DocumentsContract.Path findDocumentPath(@Nullable String parentDocumentId, String childDocumentId) throws FileNotFoundException {
+        File source = BASE_DIR;
+        if(parentDocumentId != null) source = getFileForDocId(parentDocumentId);
+        File destination = getFileForDocId(childDocumentId);
+        List<String> pathIds = new ArrayList<>();
+        while(!source.equals(destination) && destination != null) {
+            pathIds.add(getDocIdForFile(destination));
+            destination = destination.getParentFile();
+        }
+        pathIds.add(getDocIdForFile(source));
+        Collections.reverse(pathIds);
+        Log.i("FolderProvider", pathIds.toString());
+        return new DocumentsContract.Path(getDocIdForFile(source), pathIds);
+    }
+"""
+    new_find_path = """    @Override
+    @TargetApi(26)
+    public DocumentsContract.Path findDocumentPath(@Nullable String parentDocumentId, String childDocumentId) throws FileNotFoundException {
+        File source = parentDocumentId == null
+                ? getFileForDocId(getCanonicalStorageRoot())
+                : getFileForDocId(parentDocumentId);
+        File destination = getFileForDocId(childDocumentId);
+        if (!source.equals(destination) && !isStrictChildOf(source, destination)) {
+            throw new FileNotFoundException("Requested document is not below the supplied root");
+        }
+        List<String> pathIds = new ArrayList<>();
+        File current = destination;
+        while (!source.equals(current)) {
+            pathIds.add(getDocIdForFile(current));
+            current = current.getParentFile();
+            if (current == null) {
+                throw new FileNotFoundException("Unable to resolve document path");
+            }
+        }
+        pathIds.add(getDocIdForFile(source));
+        Collections.reverse(pathIds);
+        return new DocumentsContract.Path(getDocIdForFile(source), pathIds);
+    }
+"""
+    replace_block(old_find_path, new_find_path, "findDocumentPath ancestor validation")
+
+    required_guards = (
+        "private static boolean isWithinStorageRoot(File candidate)",
+        'path.startsWith(root + File.separator)',
+        "private static boolean isSafeDocumentName(String name)",
+        "Refusing to delete the launcher storage root",
+        "isStrictChildOf(parent, child)",
+        'throw new FileNotFoundException("Requested document is not below the supplied root")',
+        "file = getFileForDocId(docId);",
+    )
+    missing = [guard for guard in required_guards if guard not in text]
+    forbidden = (
+        "documentId.startsWith(parentDocumentId)",
+        "file.getCanonicalPath().startsWith(Tools.DIR_GAME_HOME)",
+        "isInsideHome = true;",
+        "getFileForDocId(sourceParentDocumentId + sourceDocumentId)",
+        "deleteDocument(parentDocumentId + \"/\" + documentId)",
+    )
+    remaining = [fragment for fragment in forbidden if fragment in text]
+    if missing or remaining:
+        raise ValueError(
+            f"FolderProvider hardening is incomplete; missing={missing}, remainingUnsafe={remaining}"
+        )
+    source.write_text(text, encoding="utf-8")
+
+
 def patch_upstream(upstream: Path) -> None:
     gradle = upstream / "app_pojavlauncher" / "build.gradle"
     strings = upstream / "app_pojavlauncher" / "src" / "main" / "res" / "values" / "strings.xml"
@@ -3398,6 +3798,8 @@ def patch_upstream(upstream: Path) -> None:
     if "if (deviceRam <= 2048) return 512;" not in preferences_text:
         raise ValueError("The 1.5–2 GB RAM tier must default to a 512 MB heap")
     launcher_preferences.write_text(preferences_text, encoding="utf-8")
+
+    patch_folder_provider_security(upstream)
 
     validate_xml_files((
         strings,
