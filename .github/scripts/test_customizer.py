@@ -96,6 +96,173 @@ rootProject.name='Amethyst'
             encoding="utf-8",
         )
 
+        folder_provider = app / "src/main/java/net/kdt/pojavlaunch/scoped/FolderProvider.java"
+        folder_provider.parent.mkdir(parents=True, exist_ok=True)
+        folder_provider.write_text(
+            r"""import android.provider.DocumentsContract;
+import android.provider.DocumentsContract.Document;
+import android.provider.DocumentsContract.Path;
+import android.util.Log;
+import android.content.res.AssetFileDescriptor;
+import android.database.MatrixCursor;
+import android.net.Uri;
+import android.os.CancellationSignal;
+import android.os.ParcelFileDescriptor;
+import androidx.annotation.Nullable;
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import org.apache.commons.io.FileUtils;
+
+class FolderProvider {
+    private File BASE_DIR;
+    private ContentResolver mContentResolver;
+    private String mStorageProviderAuthortiy;
+
+    private Uri createUriForDocId(String documentId) throws FileNotFoundException {
+        return createUriForFile(getFileForDocId(documentId));
+    }
+    private Uri createUriForFile(File file) {
+        return DocumentsContract.buildDocumentUri(mStorageProviderAuthortiy, file.getAbsolutePath());
+    }
+    private void notifyChange(Uri uri) { mContentResolver.notifyChange(uri, null); }
+
+    @Override
+    public String createDocument(String parentDocumentId, String mimeType, String displayName) throws FileNotFoundException {
+        File newFile = new File(parentDocumentId, displayName);
+        int noConflictId = 2;
+        while (newFile.exists()) {
+            newFile = new File(parentDocumentId, displayName + " (" + noConflictId++ + ")");
+        }
+        try {
+            boolean succeeded;
+            if (Document.MIME_TYPE_DIR.equals(mimeType)) {
+                succeeded = newFile.mkdir();
+            } else {
+                succeeded = newFile.createNewFile();
+            }
+            if (!succeeded) {
+                throw new FileNotFoundException("Failed to create document with id " + newFile.getPath());
+            }
+        } catch (IOException e) {
+            throw new FileNotFoundException("Failed to create document with id " + newFile.getPath());
+        }
+        // Notify the file manager that the parent directory has changed
+        notifyChange(createUriForDocId(parentDocumentId));
+        return newFile.getPath();
+    }
+
+    @Override
+    public String renameDocument(String documentId, String displayName) throws FileNotFoundException {
+        File sourceFile = getFileForDocId(documentId);
+        File sourceParent = sourceFile.getParentFile();
+        if(sourceParent == null) throw new FileNotFoundException("Cannot rename root");
+        File targetFile = new File(getDocIdForFile(sourceParent) + "/" + displayName);
+        if(!sourceFile.renameTo(targetFile)){
+            throw new FileNotFoundException("Couldn't rename the document with id" + documentId);
+        }
+        return getDocIdForFile(targetFile);
+    }
+
+    @Override
+    public String moveDocument(String sourceDocumentId, String sourceParentDocumentId, String targetParentDocumentId) throws FileNotFoundException {
+        File sourceFile = getFileForDocId(sourceParentDocumentId + sourceDocumentId);
+        File targetFile = new File(targetParentDocumentId + sourceDocumentId);
+        if(!sourceFile.renameTo(targetFile)){
+            throw new FileNotFoundException("Failed to move the document with id " + sourceFile.getPath());
+        }
+        return getDocIdForFile(targetFile);
+    }
+
+    @Override
+    public void removeDocument(String documentId, String parentDocumentId) throws FileNotFoundException {
+        deleteDocument(parentDocumentId + "/" + documentId);
+    }
+
+    @Override
+    public void deleteDocument(String documentId) throws FileNotFoundException {
+        File file = getFileForDocId(documentId);
+        if(file.isDirectory()){
+            try {
+                FileUtils.deleteDirectory(file);
+            } catch (IOException e) {
+                throw new FileNotFoundException("Failed to delete document with id " + documentId);
+            }
+        }else{
+            if (!file.delete()) {
+                throw new FileNotFoundException("Failed to delete document with id " + documentId);
+            }
+        }
+        // Notify the file manager that the parent directory has changed
+        notifyChange(createUriForFile(file.getParentFile()));
+    }
+
+    @Override
+    public Cursor querySearchDocuments(String rootId, String query, String[] projection) throws FileNotFoundException {
+        final MatrixCursor result = new MatrixCursor(projection != null ? projection : DEFAULT_DOCUMENT_PROJECTION);
+        final File parent = getFileForDocId(rootId);
+
+        // Avoid directories outside the $HOME directory linked with symlinks (to avoid e.g. search
+        // through the whole SD card).
+        boolean isInsideHome;
+        try {
+            isInsideHome = file.getCanonicalPath().startsWith(Tools.DIR_GAME_HOME);
+        } catch (IOException e) {
+            isInsideHome = true;
+        }
+    }
+
+    @Override
+    public boolean isChildDocument(String parentDocumentId, String documentId) {
+        return documentId.startsWith(parentDocumentId);
+    }
+
+    private static String getDocIdForFile(File file) {
+        return file.getAbsolutePath();
+    }
+
+    private static File getFileForDocId(String docId) throws FileNotFoundException {
+        final File f = new File(docId);
+        if (!f.exists()) throw new FileNotFoundException(f.getAbsolutePath() + " not found");
+        return f;
+    }
+
+    private void includeFile(MatrixCursor result, String docId, File file)
+        throws FileNotFoundException {
+        if (docId == null) {
+            docId = getDocIdForFile(file);
+        } else {
+            file = getFileForDocId(docId);
+        }
+
+        int flags = 0;
+        if (file.isDirectory()) flags |= Document.FLAG_DIR_SUPPORTS_CREATE;
+    }
+
+    @Override
+    @TargetApi(26)
+    public DocumentsContract.Path findDocumentPath(@Nullable String parentDocumentId, String childDocumentId) throws FileNotFoundException {
+        File source = BASE_DIR;
+        if(parentDocumentId != null) source = getFileForDocId(parentDocumentId);
+        File destination = getFileForDocId(childDocumentId);
+        List<String> pathIds = new ArrayList<>();
+        while(!source.equals(destination) && destination != null) {
+            pathIds.add(getDocIdForFile(destination));
+            destination = destination.getParentFile();
+        }
+        pathIds.add(getDocIdForFile(source));
+        Collections.reverse(pathIds);
+        Log.i("FolderProvider", pathIds.toString());
+        return new DocumentsContract.Path(getDocIdForFile(source), pathIds);
+    }
+}
+""",
+            encoding="utf-8",
+        )
+
         logger_view = app / "src/main/java/com/kdt/LoggerView.java"
         logger_view.parent.mkdir(parents=True, exist_ok=True)
         logger_view.write_text(
@@ -1393,6 +1560,52 @@ class ProfileTypeSelectFragment {
             self.assertIn('new File(getCurrentProfileDirectory(), "shaderpacks")', shader_handler)
             self.assertNotIn('new File(getCurrentProfileDirectory(), "resourcepacks")', shader_handler)
             self.assertLess(menu.index("mMyLauncherShaderPacksButton.setOnClickListener"), handler_start)
+
+    def test_folder_provider_confines_all_paths_to_game_directory(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            self.fixture(root)
+            customizer.patch_upstream(root)
+
+            provider = (
+                root / "app_pojavlauncher/src/main/java/net/kdt/pojavlaunch/scoped/FolderProvider.java"
+            ).read_text(encoding="utf-8")
+            for required in (
+                "private static boolean isWithinStorageRoot(File candidate)",
+                "private static boolean isSafeDocumentName(String name)",
+                "path.startsWith(root + File.separator)",
+                "isStrictChildOf(parent, child)",
+                "Refusing to delete the launcher storage root",
+                "Document is outside launcher storage",
+                "sourceFile.getParentFile().equals(sourceParent)",
+                "targetFile.exists() || !isWithinStorageRoot(targetFile)",
+                "file = getFileForDocId(docId);",
+            ):
+                with self.subTest(required=required):
+                    self.assertIn(required, provider)
+
+            for unsafe in (
+                "documentId.startsWith(parentDocumentId)",
+                "getFileForDocId(sourceParentDocumentId + sourceDocumentId)",
+                'deleteDocument(parentDocumentId + "/" + documentId)',
+                "isInsideHome = true;",
+            ):
+                with self.subTest(unsafe=unsafe):
+                    self.assertNotIn(unsafe, provider)
+
+    def test_folder_provider_patcher_is_idempotent(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            self.fixture(root)
+            customizer.patch_upstream(root)
+            provider_path = (
+                root / "app_pojavlauncher/src/main/java/net/kdt/pojavlaunch/scoped/FolderProvider.java"
+            )
+            first = provider_path.read_bytes()
+            customizer.patch_upstream(root)
+            self.assertEqual(first, provider_path.read_bytes())
+            self.assertEqual(first.count(b"private static boolean isWithinStorageRoot"), 1)
+            self.assertEqual(first.count(b"private static boolean isSafeDocumentName"), 1)
 
     def test_is_idempotent(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
