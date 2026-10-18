@@ -1282,6 +1282,49 @@ class ProfileTypeSelectFragment {
                 menu.index("editor.apply();"),
             )
 
+    def test_config_interface_reset_is_confirmed_and_limited_to_ui_keys(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            self.fixture(root)
+            customizer.patch_upstream(root)
+            menu = (root / "app_pojavlauncher/src/main/java/net/kdt/pojavlaunch/fragments/MainMenuFragment.java").read_text(encoding="utf-8")
+            strings = (root / "app_pojavlauncher/src/main/res/values/strings.xml").read_text(encoding="utf-8")
+
+            self.assertIn('<string name="main_config_reset_action">Reset interface settings</string>', strings)
+            self.assertIn('<string name="main_config_reset_confirm_title">Reset interface settings?</string>', strings)
+            self.assertIn("renderer settings, accounts, profile selection, Java arguments", strings.lower())
+            self.assertIn("getString(R.string.main_config_reset_action)", menu)
+            self.assertIn("setTitle(R.string.main_config_reset_confirm_title)", menu)
+            self.assertIn("setMessage(R.string.main_config_reset_confirm_message)", menu)
+            self.assertIn("setPositiveButton(android.R.string.ok", menu)
+            self.assertIn("for (String key : MYLAUNCHER_INTERFACE_RESET_KEYS)", menu)
+            self.assertIn("if (storedPreferences.containsKey(key))", menu)
+            self.assertIn("editor.remove(key);", menu)
+            self.assertIn("editor.apply();", menu)
+            self.assertIn("getString(R.string.main_config_reset_success, resetCount)", menu)
+            self.assertIn("R.string.main_config_reset_no_values", menu)
+
+            reset_start = menu.index("private static final String[] MYLAUNCHER_INTERFACE_RESET_KEYS")
+            reset_end = menu.index("\\n    };", reset_start)
+            reset_keys = menu[reset_start:reset_end]
+            for expected in (
+                '"buttonscale"', '"mousescale"', '"mousespeed"', '"ignoreNotch"',
+                '"resolutionRatio"', '"enableGyro"', '"gyroSensitivity"',
+                '"gamepad_deadzone_scale"', '"keyboardPanning"',
+            ):
+                self.assertIn(expected, reset_keys)
+            for excluded in (
+                '"allocation"', '"javaArgs"', '"defaultCtrl"', '"defaultRuntime"',
+                '"currentProfile"', '"force_vsync"', '"zinkPreferSystemDriver"',
+                '"verifyManifest"', '"downloadSource"',
+            ):
+                self.assertNotIn(excluded, reset_keys)
+
+            reset_confirm = menu.index("setPositiveButton(android.R.string.ok")
+            reset_remove = menu.index("editor.remove(key);")
+            self.assertLess(reset_confirm, reset_remove)
+            self.assertIn("Tools.isDemoProfile(v.getContext())", menu)
+
     def test_shaderpacks_folder_shortcut_opens_the_selected_profile_shaderpacks_directory(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
