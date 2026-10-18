@@ -10,4 +10,5 @@ Not every feature listed in project planning documents is implemented. Entries d
 - Added ARCHITECTURE.md documenting the existing Amethyst-Android customization/build approach and CI boundaries.
 - Added TESTING.md with current regression/build/smoke-test commands and a physical-device acceptance matrix.
 - Linked these documents from the project entry point and existing feature roadmap.
+- Refined the SDK/ABI audit against the exact pinned upstream Gradle, AndroidManifest.xml and Application.mk sources: compile SDK 37, target SDK 34, minimum SDK 21 upstream, and native NDK ABI declarations for ARM32, ARM64, x86 and x86_64. Full runtime/gameplay support on each ABI remains unverified.
 - No runtime/product code change is claimed by this documentation update. No test or APK build result is claimed for this documentation-only change; run the workflow as part of review if a fresh full validation is required.
