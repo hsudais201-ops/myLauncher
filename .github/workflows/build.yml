@@ -31,7 +31,7 @@ jobs:
 
       - name: Validate customizer and regression suite
         run: |
-          python3 -m py_compile .github/scripts/customize_amethyst.py .github/scripts/apply_logo.py .github/scripts/patch_renderpearl_workaround.py .github/scripts/test_customizer.py .github/scripts/test_renderpearl_workaround.py
+          python3 -m py_compile .github/scripts/customize_amethyst.py .github/scripts/apply_logo.py .github/scripts/patch_renderpearl_workaround.py .github/scripts/test_customizer.py .github/scripts/test_renderpearl_workaround.py .github/scripts/customize_ui.py .github/scripts/test_ui_customizer.py
           sh -n .github/scripts/prepare_emulator_kvm.sh
           sh -n .github/scripts/emulator_smoke_test.sh
           python3 -m unittest discover -s .github/scripts -p 'test_*.py' -v
@@ -101,6 +101,11 @@ jobs:
       - name: Apply RenderPearl MobileGlues compatibility workaround
         run: |
           python3 .github/scripts/patch_renderpearl_workaround.py upstream
+          git -C upstream diff --check
+
+      - name: Apply VoidCraft Launcher night-violet UI
+        run: |
+          python3 .github/scripts/customize_ui.py upstream
           git -C upstream diff --check
 
       - name: Apply VoidCraft Launcher logo
