@@ -1201,7 +1201,7 @@ class ProfileTypeSelectFragment {
             menu = (root / "app_pojavlauncher/src/main/java/net/kdt/pojavlaunch/fragments/MainMenuFragment.java").read_text(encoding="utf-8")
             strings = (root / "app_pojavlauncher/src/main/res/values/strings.xml").read_text(encoding="utf-8")
             self.assertIn('<string name="main_config_folder">Config folder</string>', strings)
-            self.assertIn('<string name="main_config_export_hint">Config folder. Long-press to export safe launcher settings.</string>', strings)
+            self.assertIn('<string name="main_config_export_hint">Config folder. Long-press to export or import portable launcher settings.</string>', strings)
             self.assertIn("Account data, session tokens, profile selection", strings)
             self.assertIn("Button mMyLauncherConfigButton = view.findViewById(R.id.mylauncher_config_button);", menu)
             self.assertIn("mMyLauncherConfigButton.setOnClickListener", menu)
@@ -1213,11 +1213,14 @@ class ProfileTypeSelectFragment {
             export_end = menu.index("mMyLauncherShaderPacksButton.setOnClickListener", export_start)
             export_block = menu[export_start:export_end]
             self.assertIn("LauncherPreferences.DEFAULT_PREF.getAll()", export_block)
-            self.assertIn('"buttonscale"', export_block)
-            self.assertIn('"allocation"', export_block)
+            self.assertIn("MYLAUNCHER_PORTABLE_SETTING_KEYS", export_block)
+            self.assertIn('"buttonscale"', menu)
+            self.assertIn('"allocation"', menu)
+            self.assertIn("MYLAUNCHER_PORTABLE_BOOLEAN_SETTING_KEYS", menu)
+            self.assertIn("MYLAUNCHER_PORTABLE_INTEGER_SETTING_KEYS", menu)
             self.assertIn("value instanceof Boolean", export_block)
             self.assertIn("value instanceof Integer", export_block)
-            self.assertIn("new org.json.JSONObject(safeSettings).toString()", export_block)
+            self.assertIn('new org.json.JSONObject(portableEnvelope).toString()', export_block)
             self.assertIn("Intent.ACTION_SEND", export_block)
             self.assertIn("Intent.EXTRA_TEXT", export_block)
             self.assertNotIn('"javaArgs"', export_block)
@@ -1235,6 +1238,49 @@ class ProfileTypeSelectFragment {
                 self.assertIn('android:text="@string/main_config_folder"', layout)
                 self.assertIn('app:layout_constraintTop_toBottomOf="@id/mylauncher_crash_reports_button"', layout)
                 self.assertIn('app:layout_constraintTop_toBottomOf="@id/mylauncher_config_button"', layout)
+
+    def test_config_settings_import_is_versioned_bounded_allowlisted_and_confirmed(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            self.fixture(root)
+            customizer.patch_upstream(root)
+            menu = (root / "app_pojavlauncher/src/main/java/net/kdt/pojavlaunch/fragments/MainMenuFragment.java").read_text(encoding="utf-8")
+            strings = (root / "app_pojavlauncher/src/main/res/values/strings.xml").read_text(encoding="utf-8")
+
+            self.assertIn('<string name="main_config_actions_title">Portable launcher settings</string>', strings)
+            self.assertIn('<string name="main_config_import_action">Import portable settings</string>', strings)
+            self.assertIn('<string name="main_config_import_apply">Apply settings</string>', strings)
+            self.assertIn("mMyLauncherConfigButton.setOnLongClickListener", menu)
+            self.assertIn("Intent.ACTION_OPEN_DOCUMENT", menu)
+            self.assertIn("Intent.EXTRA_MIME_TYPES", menu)
+            self.assertIn("MYLAUNCHER_SETTINGS_IMPORT_REQUEST_CODE", menu)
+            self.assertIn("MYLAUNCHER_SETTINGS_IMPORT_MAX_BYTES = 65536", menu)
+            self.assertIn("totalBytes > MYLAUNCHER_SETTINGS_IMPORT_MAX_BYTES", menu)
+            self.assertIn('"voidcraft-launcher-settings".equals(envelope.optString("format"))', menu)
+            self.assertIn('((Integer) envelope.opt("version")).intValue() != 1', menu)
+            self.assertIn("Unknown settings export field", menu)
+            self.assertIn("containsPortableSettingKey(MYLAUNCHER_PORTABLE_SETTING_KEYS, key)", menu)
+            self.assertIn("MYLAUNCHER_PORTABLE_BOOLEAN_SETTING_KEYS", menu)
+            self.assertIn("MYLAUNCHER_PORTABLE_INTEGER_SETTING_KEYS", menu)
+            self.assertIn("validatePortableSettingValue(key, settings.get(key), requireContext())", menu)
+            self.assertIn("recommendedPortableAllocation(requireContext())", menu)
+            self.assertIn("setPositiveButton(R.string.main_config_import_apply", menu)
+            self.assertIn("LauncherPreferences.DEFAULT_PREF.edit()", menu)
+            self.assertIn("editor.apply();", menu)
+            self.assertIn("No settings were changed", strings)
+            self.assertIn("Account/session data, profile selection", strings)
+
+            keys_start = menu.index("private static final String[] MYLAUNCHER_PORTABLE_SETTING_KEYS")
+            keys_end = menu.index("private static final String[] MYLAUNCHER_PORTABLE_BOOLEAN_SETTING_KEYS", keys_start)
+            allowed_keys = menu[keys_start:keys_end]
+            self.assertNotIn('"javaArgs"', allowed_keys)
+            self.assertNotIn('"defaultCtrl"', allowed_keys)
+            self.assertNotIn('"currentProfile"', allowed_keys)
+            self.assertNotIn("PREF_KEY_CURRENT_PROFILE", allowed_keys)
+            self.assertLess(
+                menu.index("setPositiveButton(R.string.main_config_import_apply"),
+                menu.index("editor.apply();"),
+            )
 
     def test_shaderpacks_folder_shortcut_opens_the_selected_profile_shaderpacks_directory(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
