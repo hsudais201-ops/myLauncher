@@ -100,7 +100,7 @@ The debug APK is written to `upstream/app_pojavlauncher/build/outputs/apk/debug/
 
 ## Verification and limitations
 
-The most recent post-merge `main` workflow, [run #39106117976](https://github.com/hsudais201-ops/myLauncher/actions/runs/39106117976), passed on October 18, 2026, for commit `ffbaa3c27a1300e6391f0ea885e1adf1c1dbe0da` after the world-backup metadata change was merged. It passed regression tests, pinned Amethyst checkout and submodules, Gradle APK build, APK signature/package/minimum-SDK checks, Android 9/API 28 emulator install-and-launch, and uploads of the APK, SHA-256 sidecar, build information, and emulator diagnostics. The backup-picker filename/size/modified-time display also passed its pre-merge workflow in [PR #51 run #39102041594](https://github.com/hsudais201-ops/myLauncher/actions/runs/39102041594).
+The most recent post-merge `main` workflow, [run #39113878971](https://github.com/hsudais201-ops/myLauncher/actions/runs/39113878971), passed on October 18, 2026, for commit `2baaea0cad1c3ec3f486bff7c4ffb1361d42d64a` after PR #56 added post-create world-backup verification. It passed regression tests, pinned Amethyst checkout and submodules, Gradle APK build, APK signature/package/minimum-SDK checks, Android 9/API 28 emulator install-and-launch, and uploads of the APK, SHA-256 sidecar, build information, and emulator diagnostics. The generated ZIP backup is now checked through the existing path/entry/size/CRC verifier before success is reported. The backup-picker filename/size/modified-time display also passed its pre-merge workflow in [PR #51 run #39102041594](https://github.com/hsudais201-ops/myLauncher/actions/runs/39102041594).
 
 
 
