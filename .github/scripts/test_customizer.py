@@ -406,7 +406,7 @@ class ProfileTypeSelectFragment {
         manifest = app / "src/main/AndroidManifest.xml"
         manifest.write_text(
             '<manifest xmlns:android="http://schemas.android.com/apk/res/android">'
-            '<application android:icon="@mipmap/ic_launcher" '
+            '<application android:allowBackup="true" android:icon="@mipmap/ic_launcher" '
             'android:roundIcon="@mipmap/ic_launcher_round" '
             'android:label="@string/app_name" /></manifest>\n',
             encoding="utf-8",
@@ -1393,6 +1393,66 @@ class ProfileTypeSelectFragment {
             self.assertIn('new File(getCurrentProfileDirectory(), "shaderpacks")', shader_handler)
             self.assertNotIn('new File(getCurrentProfileDirectory(), "resourcepacks")', shader_handler)
             self.assertLess(menu.index("mMyLauncherShaderPacksButton.setOnClickListener"), handler_start)
+
+    def test_account_token_files_are_excluded_from_legacy_and_modern_backups(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            self.fixture(root)
+            customizer.patch_upstream(root)
+
+            android_ns = "{http://schemas.android.com/apk/res/android}"
+            manifest_path = root / "app_pojavlauncher/src/main/AndroidManifest.xml"
+            manifest_root = ET.parse(manifest_path).getroot()
+            application = manifest_root.find("application")
+            self.assertIsNotNone(application)
+            assert application is not None
+            self.assertEqual(application.get(android_ns + "allowBackup"), "true")
+            self.assertEqual(
+                application.get(android_ns + "fullBackupContent"),
+                "@xml/voidcraft_backup_rules",
+            )
+            self.assertEqual(
+                application.get(android_ns + "dataExtractionRules"),
+                "@xml/voidcraft_data_extraction_rules",
+            )
+
+            legacy_path = root / "app_pojavlauncher/src/main/res/xml/voidcraft_backup_rules.xml"
+            legacy_root = ET.parse(legacy_path).getroot()
+            self.assertEqual(legacy_root.tag, "full-backup-content")
+            legacy_excludes = {
+                (item.get("domain"), item.get("path"))
+                for item in legacy_root.findall("exclude")
+            }
+            self.assertIn(("root", "accounts/"), legacy_excludes)
+
+            modern_path = root / "app_pojavlauncher/src/main/res/xml/voidcraft_data_extraction_rules.xml"
+            modern_root = ET.parse(modern_path).getroot()
+            self.assertEqual(modern_root.tag, "data-extraction-rules")
+            for mode in ("cloud-backup", "device-transfer"):
+                with self.subTest(backup_mode=mode):
+                    section = modern_root.find(mode)
+                    self.assertIsNotNone(section)
+                    assert section is not None
+                    excludes = {
+                        (item.get("domain"), item.get("path"))
+                        for item in section.findall("exclude")
+                    }
+                    self.assertIn(("root", "accounts/"), excludes)
+
+    def test_conflicting_android_backup_rules_fail_closed(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            self.fixture(root)
+            manifest_path = root / "app_pojavlauncher/src/main/AndroidManifest.xml"
+            manifest_text = manifest_path.read_text(encoding="utf-8")
+            manifest_text = manifest_text.replace(
+                'android:allowBackup="true"',
+                'android:allowBackup="true" android:fullBackupContent="@xml/another_policy"',
+                1,
+            )
+            manifest_path.write_text(manifest_text, encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "Android backup policy conflict"):
+                customizer.patch_upstream(root)
 
     def test_is_idempotent(self) -> None:
         with tempfile.TemporaryDirectory() as temp:

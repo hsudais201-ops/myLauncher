@@ -19,6 +19,8 @@ See [FEATURE_ROADMAP.md](FEATURE_ROADMAP.md) for the complete 23-section feature
 
 - The launcher retains Amethyst's Microsoft account sign-in and local/offline profile flow. The custom patch removes the online-account gate in the account selector and the local-login screen, so a local profile can be created without first adding a Microsoft account. The local username field is configured as a username field.
 - An offline profile is only a local player name; it is **not** a Microsoft-authenticated Minecraft account. Servers requiring authenticated/online-mode accounts may reject it. Do not use offline mode to impersonate another player.
+
+**Android backup privacy:** the launcher customization excludes the app-private `accounts/` directory from legacy Android backups, cloud backups, and device-to-device transfer. Those JSON files contain access/refresh-token fields. After reinstalling from a device backup or transferring to a new device, sign in to Microsoft again or recreate local profiles. This exclusion does not turn off backup of all other app data; world ZIP backups remain a separate, user-controlled feature.
 - An offline profile does not supply game files or bypass Minecraft licensing. When internet is available, VoidCraft Launcher can download public Minecraft version metadata, libraries, client files, and assets for a local profile without Microsoft sign-in. Without internet, the selected version must already be fully installed.
 
 ### Troubleshooting: missing Minecraft version metadata
@@ -62,7 +64,7 @@ The workflow fetches the exact Amethyst commit `330c6eae3164df64bdc4828e946a9e62
 - `.gitignore` — excludes local upstream checkouts, Python caches, and build outputs.
 - `.github/workflows/build.yml` — repeatable Android build workflow, triggered by relevant pushes to `main`, pull requests, or a manual dispatch.
 - `.github/workflows/runner-diagnostic.yml` — minimal hosted-runner diagnostic workflow.
-- `.github/scripts/customize_amethyst.py` — deterministic patch for branding/package IDs, low-memory defaults, offline account flow, launcher/folder actions, inherited-version metadata guards, safe log/settings actions, and other launcher behavior.
+- `.github/scripts/customize_amethyst.py` — deterministic patch for branding/package IDs, low-memory defaults, offline account flow, launcher/folder actions, inherited-version metadata guards, account-token backup exclusions, safe log/settings actions, and other launcher behavior.
 - `.github/scripts/patch_renderpearl_workaround.py` — applies the guarded Minecraft 26.3 MobileGlues compatibility workaround while preserving explicitly selected renderer settings.
 - `.github/scripts/apply_logo.py` — applies and validates the Android vector application icon used by CI.
 - `.github/scripts/emulator_smoke_test.sh` — installs the APK, launches the launcher entry point, checks foreground activity state, and captures emulator screenshots and diagnostics.
