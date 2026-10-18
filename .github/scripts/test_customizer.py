@@ -1410,7 +1410,7 @@ class BuildWorkflowTests(unittest.TestCase):
             self.smoke_script.index("android.permission.WRITE_EXTERNAL_STORAGE"),
             self.smoke_script.index("net.kdt.pojavlaunch.TestStorageActivity"),
         )
-        self.assertIn("test -s upstream/mylauncher-emulator-screenshot.png", self.smoke_script)
+        self.assertIn('test -s "$SCREENSHOT_PATH"', self.smoke_script)
         self.assertIn("adb exec-out screencap -p", self.smoke_script)
         self.assertIn('while [ "$attempt" -le 3 ]', self.smoke_script)
         self.assertIn('if [ "$SCREENSHOT_CAPTURED" != true ]; then', self.smoke_script)
