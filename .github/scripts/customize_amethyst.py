@@ -2283,7 +2283,7 @@ def patch_upstream(upstream: Path) -> None:
                                         Toast.makeText(activity, R.string.main_world_backup_delete_failure, Toast.LENGTH_LONG).show();
                                         return;
                                     }
-                                    if (!selectedBackup.delete()) {
+                                    if (!canonicalSelectedBackup.delete()) {
                                         Toast.makeText(activity, R.string.main_world_backup_delete_failure, Toast.LENGTH_LONG).show();
                                         return;
                                     }
