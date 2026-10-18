@@ -1592,7 +1592,7 @@ def patch_upstream(upstream: Path) -> None:
     if (
         main_menu_text.count(world_saves_backup_listener) != 1
         or "mMyLauncherWorldSavesButton.setContentDescription(getString(R.string.main_world_saves_backup_hint));" not in main_menu_text
-        or 'new File(getCurrentProfileDirectory(), "backups")' not in main_menu_text
+        or 'new File(profileDirectory, "backups")' not in main_menu_text
         or 'new File(backupsDirectory, backupName + ".tmp")' not in main_menu_text
         or 'zipWorldSaves(savesDirectory, savesDirectory.getCanonicalPath(), zipOut, new HashSet<String>(), new int[] {0}, new long[] {0L})' not in main_menu_text
         or '!tempBackupFile.renameTo(backupFile)' not in main_menu_text
