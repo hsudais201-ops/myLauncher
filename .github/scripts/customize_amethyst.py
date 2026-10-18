@@ -1589,21 +1589,28 @@ def patch_upstream(upstream: Path) -> None:
         });"""
     if world_saves_backup_listener not in main_menu_text:
         main_menu_text = main_menu_text.replace(world_saves_listener, world_saves_listener + "\n\n        " + world_saves_backup_listener, 1)
-    if (
-        main_menu_text.count(world_saves_backup_listener) != 1
-        or "mMyLauncherWorldSavesButton.setContentDescription(getString(R.string.main_world_saves_backup_hint));" not in main_menu_text
-        or 'new File(profileDirectory, "backups")' not in main_menu_text
-        or 'new File(backupsDirectory, backupName + ".tmp")' not in main_menu_text
-        or 'zipWorldSaves(savesDirectory, savesDirectory.getCanonicalPath(), zipOut, new HashSet<String>(), new int[] {0}, new long[] {0L})' not in main_menu_text
-        or '!tempBackupFile.renameTo(backupFile)' not in main_menu_text
-        or 'scanWorldBackupZip(backupFile, profileDirectory)' not in world_saves_backup_listener
-        or 'World backup saved and verified:' not in world_saves_backup_listener
-        or 'World backup verification failed' not in world_saves_backup_listener
-        or 'backupFile.delete()' not in world_saves_backup_listener
-        or "new Thread(() ->" not in main_menu_text
-        or "Tools.isDemoProfile(v.getContext())" not in world_saves_backup_listener
-    ):
-        raise ValueError("World backup action is incomplete or lacks safety and error handling")
+    world_backup_requirements = {
+        "exactly one long-press listener": main_menu_text.count(world_saves_backup_listener) == 1,
+        "accessible backup hint": "mMyLauncherWorldSavesButton.setContentDescription(getString(R.string.main_world_saves_backup_hint));" in main_menu_text,
+        "captured profile backup directory": 'new File(profileDirectory, "backups")' in main_menu_text,
+        "temporary backup file": 'new File(backupsDirectory, backupName + ".tmp")' in main_menu_text,
+        "bounded ZIP creation call": 'zipWorldSaves(savesDirectory, savesDirectory.getCanonicalPath(), zipOut, new HashSet<String>(), new int[] {0}, new long[] {0L})' in main_menu_text,
+        "finalize temporary ZIP before verification": '!tempBackupFile.renameTo(backupFile)' in main_menu_text,
+        "verify finalized archive": 'scanWorldBackupZip(backupFile, profileDirectory)' in world_saves_backup_listener,
+        "success toast follows verification": 'World backup saved and verified:' in world_saves_backup_listener,
+        "verification failure is reported": 'World backup verification failed' in world_saves_backup_listener,
+        "invalid archive is removed when possible": 'backupFile.delete()' in world_saves_backup_listener,
+        "background execution": "new Thread(() ->" in main_menu_text,
+        "demo-profile protection": "Tools.isDemoProfile(v.getContext())" in world_saves_backup_listener,
+    }
+    missing_world_backup_requirements = [
+        requirement for requirement, present in world_backup_requirements.items() if not present
+    ]
+    if missing_world_backup_requirements:
+        raise ValueError(
+            "World backup action is incomplete or lacks safety and error handling: "
+            + ", ".join(missing_world_backup_requirements)
+        )
 
     logs_binding = "Button mMyLauncherLogsButton = view.findViewById(R.id.mylauncher_logs_button);"
     if logs_binding not in main_menu_text:
