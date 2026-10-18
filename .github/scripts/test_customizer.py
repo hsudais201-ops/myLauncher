@@ -1446,10 +1446,6 @@ class ProfileTypeSelectFragment {
             manifest_path = root / "app_pojavlauncher/src/main/AndroidManifest.xml"
             manifest_text = manifest_path.read_text(encoding="utf-8")
             manifest_text = manifest_text.replace(
-                'android:fullBackupContent="@xml/another_policy"',
-                'android:fullBackupContent="@xml/another_policy"',
-            )
-            manifest_text = manifest_text.replace(
                 'android:allowBackup="true"',
                 'android:allowBackup="true" android:fullBackupContent="@xml/another_policy"',
                 1,
