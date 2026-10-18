@@ -149,6 +149,8 @@ def _copy_assets() -> None:
     for entry in catalog["features"]:
         if not isinstance(entry, dict):
             raise ValueError("Catalog feature entry is not an object")
+        if "category" in entry:
+            raise ValueError("Feature categories are not part of the catalog schema")
         feature_id = entry.get("id", "")
         asset = entry.get("asset", "")
         expected = entry.get("sha256", "")
@@ -168,6 +170,8 @@ def _copy_assets() -> None:
         if hashlib.sha256(raw).hexdigest() != expected.lower():
             raise ValueError(f"Feature package SHA-256 mismatch: {package_path}")
         manifest = json.loads(raw.decode("utf-8"))
+        if "category" in manifest:
+            raise ValueError(f"Feature categories are not supported in {feature_id}")
         if manifest.get("schemaVersion") != 1 or manifest.get("id") != feature_id:
             raise ValueError(f"Catalog id/schema does not match package: {feature_id}")
         if not all(isinstance(manifest.get(key), str) and manifest[key].strip()
