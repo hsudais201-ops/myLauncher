@@ -44,8 +44,24 @@ fi
 
 # Require the launcher to be foreground/resumed, not just present in task history.
 ACTIVITY_PATTERN='(mResumedActivity|topResumedActivity).*com\.mf\.mylauncher\.debug/net\.kd\.pojavlaunch\.LauncherActivity'
+ACTIVITY_QUERY_ERRORS=0
 for i in $(seq 1 45); do
-    ACTIVITY_DUMP=$(timeout 10s adb shell dumpsys activity activities 2>/dev/null | tr -d '\r' || true)
+    ACTIVITY_DUMP=""
+    if ACTIVITY_DUMP=$(timeout 5s adb shell dumpsys activity activities 2>/dev/null) && [ -n "$ACTIVITY_DUMP" ]; then
+        ACTIVITY_QUERY_ERRORS=0
+        ACTIVITY_DUMP=$(printf '%s\n' "$ACTIVITY_DUMP" | tr -d '\r')
+    else
+        ACTIVITY_QUERY_ERRORS=$((ACTIVITY_QUERY_ERRORS + 1))
+        if [ "$ACTIVITY_QUERY_ERRORS" -ge 5 ]; then
+            timeout 20s adb logcat -d -t 5000 > upstream/mylauncher-emulator-logcat.txt || true
+            timeout 20s adb shell dumpsys activity activities > upstream/mylauncher-activities.txt || true
+            capture_diagnostic_screenshot
+            cat upstream/mylauncher-activities.txt || true
+            grep -E 'FATAL EXCEPTION|AndroidRuntime|com\.mf\.mylauncher\.debug' upstream/mylauncher-emulator-logcat.txt | tail -250 || true
+            echo "ADB activity queries failed repeatedly; LauncherActivity could not be verified." >&2
+            exit 1
+        fi
+    fi
     if printf '%s\n' "$ACTIVITY_DUMP" | grep -Eq "$ACTIVITY_PATTERN"; then
         break
     fi
