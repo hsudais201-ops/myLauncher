@@ -1010,7 +1010,21 @@ class ProfileTypeSelectFragment {
             self.assertIn("new ZipEntry(relativePath)", menu)
             self.assertIn("new byte[16384]", menu)
             self.assertIn("if (!tempBackupFile.renameTo(backupFile))", menu)
-            self.assertIn("World backup saved:", menu)
+            self.assertIn("new int[] {0}, new long[] {0L}", menu)
+            self.assertIn("entryCount[0] > maxEntries", menu)
+            self.assertIn("count > maxUncompressedBytes - uncompressedBytes[0]", menu)
+            self.assertIn("scanWorldBackupZip(backupFile, profileDirectory)", menu)
+            self.assertIn("World backup saved and verified:", menu)
+            self.assertIn("World backup verification failed", menu)
+            self.assertIn("backupFile.delete()", menu)
+            self.assertLess(
+                menu.index("if (!tempBackupFile.renameTo(backupFile))"),
+                menu.index("int verifiedEntries = scanWorldBackupZip(backupFile, profileDirectory)"),
+            )
+            self.assertLess(
+                menu.index("int verifiedEntries = scanWorldBackupZip(backupFile, profileDirectory)"),
+                menu.index("World backup saved and verified:"),
+            )
             self.assertIn("World backup failed:", menu)
 
     def test_world_backup_restore_is_staged_and_does_not_overwrite_existing_worlds(self) -> None:
