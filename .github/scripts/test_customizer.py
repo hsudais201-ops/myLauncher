@@ -205,8 +205,8 @@ class FolderProvider {
         final MatrixCursor result = new MatrixCursor(projection != null ? projection : DEFAULT_DOCUMENT_PROJECTION);
         final File parent = getFileForDocId(rootId);
 
-        // Avoid directories outside the $HOME directory linked with symlinks (to avoid e.g.
-        // search through the whole SD card).
+        // Avoid directories outside the $HOME directory linked with symlinks (to avoid e.g. search
+        // through the whole SD card).
         boolean isInsideHome;
         try {
             isInsideHome = file.getCanonicalPath().startsWith(Tools.DIR_GAME_HOME);
