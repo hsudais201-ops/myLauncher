@@ -48,6 +48,14 @@ For an explicit check without launching the game, select the profile and press *
 - Shared launcher controls, text fields, dialogs, and both portrait/landscape home screens use a coordinated night-violet palette with a matching hero panel and custom button/input backgrounds. This is a visual customization only; it does not add a UI library or guarantee gameplay/rendering compatibility.
 - The Android launcher icon is replaced by a lightweight vector mark matching the new dark/purple identity. No UI library or significant runtime dependency is added.
 
+## Optional Feature Store
+
+VoidCraft also has an additive **Feature Store** entry on the launcher home screen. It does not replace the Amethyst engine, native libraries, Java runtimes, renderer, Minecraft version downloader, loaders, or built-in Modrinth/CurseForge support.
+
+Browse optional add-ons, install or update them, open each installed feature in its own screen, uninstall them, import a `.vcfeature` package, or create/export a custom feature with an owner/author name. The initial catalog includes Theme Studio (supported launcher UI colors), Server Status, and Community Resources. Feature definitions use a bounded JSON schema rather than executable plugins: the store will not run uploaded Java/DEX/shell code or overwrite core launcher files. Remote packages require HTTPS, a matching catalog SHA-256, and schema validation. The bundled catalog remains available offline.
+
+To share an owner-created feature publicly, export the `.vcfeature` package and submit the package plus catalog entry for repository review; see [Feature Store publishing instructions](feature-store/README.md). Public one-tap upload needs an authenticated publishing service and is intentionally not implemented by embedding a maintainer token inside the launcher.
+
 ## Build the APK
 
 1. Open the Actions tab in this GitHub repository.
