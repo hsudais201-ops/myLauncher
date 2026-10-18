@@ -6,6 +6,19 @@
 
 This document tracks the complete requested feature scope. A feature appearing in this list does **not** by itself mean the feature is implemented or has passed a runtime test. The project builds the pinned [Amethyst-Android engine](https://github.com/AngelAuraMC/Amethyst-Android) and applies VoidCraft Launcher patches; existing engine features should be audited and exposed before reimplementing them. Every unverified item below needs a source check and/or an acceptance test before it is described as shipped.
 
+## Master mobile specification and companion documents
+
+The full requested mobile-first feature scope, including dashboard, Java/runtime launch, touch input, loaders, mods/modpacks, storage, authentication, multiplayer, backups, background work, security, testing and definition of done, is maintained in [MASTER_MOBILE_LAUNCHER_SPEC.md](MASTER_MOBILE_LAUNCHER_SPEC.md).
+
+Use the companion documents to keep plans separate from evidence:
+- [FEATURE_AUDIT.md](FEATURE_AUDIT.md) — status matrix and current gaps.
+- [IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md) — prioritized implementation sequence.
+- [ARCHITECTURE.md](ARCHITECTURE.md) — existing Amethyst-Android customization boundary.
+- [TESTING.md](TESTING.md) — tests and device acceptance requirements.
+- [CHANGELOG.md](CHANGELOG.md) — dated history of changes.
+
+This roadmap remains an evolving inventory. The feature list is not proof of implementation; use only the status/evidence recorded in the audit and actual test results.
+
 ## Current source audit
 
 | Area | Current evidence | Status |

@@ -57,6 +57,19 @@ For an explicit check without launching the game, select the profile and press *
 
 The workflow fetches the exact Amethyst commit `330c6eae3164df64bdc4828e946a9e62cc5169e4` and its submodules, rewrites SSH-style public GitHub submodule URLs to HTTPS for hosted runners, validates submodule checkout status, runs the customization regression suite before installing the Android toolchain, adds Maven Central to the plugin-management repositories required for Android Gradle Plugin transitive dependencies, applies the launcher customizations, applies the guarded Minecraft 26.3 MobileGlues compatibility workaround, validates and applies the Android vector icon, then builds and verifies the debug APK. The emulator smoke test checks that the launcher is resumed and captures diagnostics/screenshots. The source pin is independent of branch movement; update it deliberately when adopting a newer upstream version.
 
+## Development documentation
+
+The following documents define the full mobile feature scope and separate requirements from verified functionality:
+
+- [MASTER_MOBILE_LAUNCHER_SPEC.md](MASTER_MOBILE_LAUNCHER_SPEC.md) — comprehensive mobile requirements, security/platform rules, testing, roadmap and definition of done.
+- [FEATURE_AUDIT.md](FEATURE_AUDIT.md) — evidence-based status matrix, current repository/runtime facts, gaps and highest-priority tasks.
+- [IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md) — phased implementation priorities and acceptance criteria.
+- [ARCHITECTURE.md](ARCHITECTURE.md) — current upstream customization/build architecture and unverified architecture questions.
+- [TESTING.md](TESTING.md) — regression/build workflow and device/gameplay acceptance matrix.
+- [CHANGELOG.md](CHANGELOG.md) — dated record of project/documentation changes.
+
+These planning documents do not mean planned features are already available in the app. See the audit and roadmap for limitations and required evidence.
+
 ## Files
 
 - `.gitignore` — excludes local upstream checkouts, Python caches, and build outputs.
