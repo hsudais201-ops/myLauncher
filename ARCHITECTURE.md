@@ -25,7 +25,8 @@ The build workflow currently:
 - Uses Ubuntu 24.04 hosted runner.
 - Runs Python 3 compilation, shell syntax checks and unittest discovery before expensive toolchain setup.
 - Uses Temurin Java 21 for Gradle.
-- Installs Android SDK platform android-37.0 and NDK 27.3.13750724.
+- Installs Android SDK compile platform android-37.0 and NDK 27.3.13750724. At the pinned upstream revision, app_pojavlauncher/build.gradle declares minSdkVersion 21 and targetSdkVersion 34; the README's intended supported-device target is Android 9/API 28 and newer, and CI verifies the APK minimum SDK is no greater than 28.
+- app_pojavlauncher/src/main/jni/Application.mk declares native build ABIs armeabi-v7a, arm64-v8a, x86 and x86_64. This declaration is not sufficient proof that the complete Java runtime, graphics stack, and native dependencies work on all four architectures; only the x86_64 API 28 emulator is used by current automated smoke testing.
 - Fetches AngelAuraMC/Amethyst-Android at commit 330c6eae3164df64bdc4828e946a9e62cc5169e4 and initializes pinned submodules.
 - Applies VoidCraft patches and checks diffs for whitespace errors.
 - Builds :jre_lwjgl3glfw:build and :app_pojavlauncher:assembleDebug.
@@ -53,6 +54,10 @@ The precise Java versions, Minecraft releases, renderers and ABIs that work depe
 
 The build workflow is configured for pushes to main when .github/workflows/build.yml or .github/scripts/** change, for pull requests with those path changes, and for manual workflow dispatch. A docs-only PR may not trigger this workflow automatically; run a manual workflow when a full baseline validation is required.
 
+## Manifest and permission baseline
+
+At the pinned upstream source revision, the app manifest declares OpenGL ES 2.0 and marks PC hardware as optional. Declared permissions include INTERNET, ACCESS_NETWORK_STATE, POST_NOTIFICATIONS, RECORD_AUDIO, VIBRATE, foreground-service/data-sync/special-use permissions, and READ/WRITE_EXTERNAL_STORAGE limited to API 28 and lower. The application also has android:allowBackup=true. TestStorageActivity and ImportControlActivity are exported, and the scoped FolderProvider is exported with a MANAGE_DOCUMENTS permission plus URI-grant support. Confirm these declarations against the generated/merged manifest and review data backup, entry-point intent handling, provider path confinement and permission boundaries before release; this source inspection alone does not establish a vulnerability or prove installed behavior.
+
 ## Data and security boundaries
 
 - Keep all profile/world/config operations confined to the selected profile or user-authorized path.
@@ -71,8 +76,8 @@ Source patcher/regression coverage validates many custom behaviors in isolation.
 
 ## Architecture questions still open
 
-- Exact target SDK and final merged-manifest permissions/exported components.
-- Exact ABI filters and included native runtime/graphics libraries for each build variant.
+- Confirm target/minimum SDK and source manifest values against the generated APK and final merged manifest.
+- Verify which runtime/graphics/native library files are packaged for each declared ABI and run supported-device/gameplay acceptance beyond the x86_64 emulator.
 - Which Java runtimes and Minecraft/loader combinations are actually distributable and usable per ABI.
 - Whether download jobs resume correctly after process death and what state is persisted.
 - Complete account token storage/refresh/logout implementation and threat boundaries.
