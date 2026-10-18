@@ -98,7 +98,7 @@ def patch_microsoft_auth_logging(upstream: Path) -> None:
     # executable Log.* statements should be treated as potential log disclosure.
     log_text = "\n".join(
         line for line in text.splitlines()
-        if re.search(r"\\bLog\\.[vdiew]\\s*\\(", line)
+        if re.search(r"\bLog\.[vdiew]\s*\(", line)
     )
     remaining = [fragment for fragment in forbidden_log_fragments if fragment in log_text]
     if remaining:
