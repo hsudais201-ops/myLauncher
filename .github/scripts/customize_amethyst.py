@@ -1710,7 +1710,8 @@ def patch_upstream(upstream: Path) -> None:
                                         || diagnosisText.contains("unsupported class file major version")
                                         || diagnosisText.contains("incorrect java version")
                                         || diagnosisText.contains("requires java 17")
-                                        || diagnosisText.contains("requires java 21")) {
+                                        || diagnosisText.contains("requires java 21")
+                                        || diagnosisText.contains("requires java 25")) {
                                     diagnosisResource = R.string.main_log_diagnosis_java;
                                 } else if (diagnosisText.contains("renderer initialization failed")
                                         || diagnosisText.contains("failed to create renderer")
@@ -1785,6 +1786,7 @@ def patch_upstream(upstream: Path) -> None:
         or "Latest game log copied with sensitive tokens redacted" not in main_menu_text
         or "toLowerCase(java.util.Locale.ROOT)" not in logs_long_listener
         or "R.string.main_log_diagnosis_memory" not in logs_long_listener
+        or 'diagnosisText.contains("requires java 25")' not in logs_long_listener
         or "R.string.main_log_diagnosis_renderer" not in logs_long_listener
         or "R.string.main_log_diagnosis_missing_files" not in logs_long_listener
         or "R.string.main_log_diagnosis_mod" not in logs_long_listener
