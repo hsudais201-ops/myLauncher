@@ -2278,6 +2278,7 @@ def patch_upstream(upstream: Path) -> None:
                                     if (canonicalBackupsParent == null
                                             || !canonicalBackupsParent.equals(canonicalProfile)
                                             || !selectedBackup.isFile()
+                                            || !canonicalSelectedBackup.getName().equals(selectedBackup.getName())
                                             || canonicalSelectedBackup.getParentFile() == null
                                             || !canonicalSelectedBackup.getParentFile().equals(canonicalBackupsDirectory)) {
                                         Toast.makeText(activity, R.string.main_world_backup_delete_failure, Toast.LENGTH_LONG).show();
@@ -2507,6 +2508,7 @@ def patch_upstream(upstream: Path) -> None:
         or "private void showWorldBackupDeletePicker(" not in main_menu_text
         or "main_world_backup_delete_confirm_message" not in main_menu_text
         or "canonicalBackupsParent.equals(canonicalProfile)" not in main_menu_text
+        or "!canonicalSelectedBackup.getName().equals(selectedBackup.getName())" not in main_menu_text
         or "canonicalSelectedBackup.getParentFile().equals(canonicalBackupsDirectory)" not in main_menu_text
         or "private static void restoreWorldBackup(" not in main_menu_text
         or "private static void extractWorldBackup(" not in main_menu_text
