@@ -927,6 +927,7 @@ class ProfileTypeSelectFragment {
             self.assertIn(".setPositiveButton(R.string.main_world_backup_delete", menu)
             self.assertIn("selectedBackup.getCanonicalFile()", menu)
             self.assertIn("canonicalBackupsParent.equals(canonicalProfile)", menu)
+            self.assertIn("!canonicalSelectedBackup.getName().equals(selectedBackup.getName())", menu)
             self.assertIn("canonicalSelectedBackup.getParentFile().equals(canonicalBackupsDirectory)", menu)
             self.assertIn("!canonicalSelectedBackup.delete()", menu)
             self.assertIn("Tools.isDemoProfile(v.getContext())", menu)
