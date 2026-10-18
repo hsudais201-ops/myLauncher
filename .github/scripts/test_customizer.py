@@ -617,9 +617,12 @@ class ProfileTypeSelectFragment {
             self.assertIn("openPath(v.getContext(), worldSavesDirectory, false);", main_menu)
             self.assertIn("R.string.main_world_saves_open_folder", main_menu)
             self.assertIn("R.string.main_world_backup_restore", main_menu)
+            self.assertIn("R.string.main_world_backup_delete", main_menu)
             self.assertIn("showWorldBackupPicker(requireActivity(), profileDirectory)", main_menu)
+            self.assertIn("showWorldBackupDeletePicker(requireActivity(), profileDirectory)", main_menu)
             self.assertIn("setPositiveButton(R.string.main_world_backup_restore", main_menu)
             self.assertIn("private void showWorldBackupPicker(", main_menu)
+            self.assertIn("private void showWorldBackupDeletePicker(", main_menu)
             self.assertIn("private static void restoreWorldBackup(", main_menu)
             self.assertIn("private static void extractWorldBackup(", main_menu)
             self.assertIn("private static File uniqueRestoredWorldDestination(", main_menu)
@@ -908,6 +911,24 @@ class ProfileTypeSelectFragment {
             self.assertIn('if (!worldSavesDirectory.isDirectory() && !worldSavesDirectory.mkdirs())', menu)
             self.assertIn('openPath(v.getContext(), worldSavesDirectory, false);', menu)
             self.assertIn('Tools.isDemoProfile(v.getContext())', menu)
+
+    def test_world_backup_delete_is_confirmed_and_confined_to_profile_backups(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            self.fixture(root)
+            customizer.patch_upstream(root)
+            menu = (root / "app_pojavlauncher/src/main/java/net/kdt/pojavlaunch/fragments/MainMenuFragment.java").read_text(encoding="utf-8")
+            strings = (root / "app_pojavlauncher/src/main/res/values/strings.xml").read_text(encoding="utf-8")
+            self.assertIn('<string name="main_world_backup_delete">Delete a ZIP backup</string>', strings)
+            self.assertIn('<string name="main_world_backup_delete_confirm_message">This permanently removes the selected backup ZIP, not any restored world.</string>', strings)
+            self.assertIn("private void showWorldBackupDeletePicker(", menu)
+            self.assertIn('+ "\\\\n\\\\n" + selectedBackup.getName()', menu)
+            self.assertIn(".setPositiveButton(R.string.main_world_backup_delete", menu)
+            self.assertIn("selectedBackup.getCanonicalFile()", menu)
+            self.assertIn("canonicalBackupsParent.equals(canonicalProfile)", menu)
+            self.assertIn("canonicalSelectedBackup.getParentFile().equals(canonicalBackupsDirectory)", menu)
+            self.assertIn("!canonicalSelectedBackup.delete()", menu)
+            self.assertIn("Tools.isDemoProfile(v.getContext())", menu)
 
     def test_world_saves_long_press_creates_safe_zip_backup(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
