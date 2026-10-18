@@ -2329,9 +2329,10 @@ def patch_upstream(upstream: Path) -> None:
         Set<String> seenEntries = new HashSet<>();
         Set<String> fileEntries = new HashSet<>();
         Set<String> directoryEntries = new HashSet<>();
-        try (ZipInputStream zipInput = new ZipInputStream(new FileInputStream(canonicalBackup))) {
-            ZipEntry entry;
-            while ((entry = zipInput.getNextEntry()) != null) {
+        try (java.util.zip.ZipFile zipFile = new java.util.zip.ZipFile(canonicalBackup)) {
+            java.util.Enumeration<? extends ZipEntry> entries = zipFile.entries();
+            while (entries.hasMoreElements()) {
+                ZipEntry entry = entries.nextElement();
                 if (++entryCount > maxEntries) throw new IOException("The ZIP contains too many entries");
                 String entryName = entry.getName();
                 if (entryName == null || entryName.isEmpty()
@@ -2367,15 +2368,27 @@ def patch_upstream(upstream: Path) -> None:
                     if (directoryEntries.contains(normalizedName)) throw new IOException("The ZIP contains conflicting entry types");
                     fileEntries.add(normalizedName);
                 }
+
+                java.util.zip.CRC32 crc = new java.util.zip.CRC32();
                 byte[] buffer = new byte[16384];
-                int count;
-                while ((count = zipInput.read(buffer)) != -1) {
-                    if (count > maxUncompressedBytes - uncompressedBytes) {
-                        throw new IOException("The ZIP exceeds the 20 GiB verification limit");
+                long entryUncompressedBytes = 0L;
+                try (java.io.InputStream input = zipFile.getInputStream(entry)) {
+                    int count;
+                    while ((count = input.read(buffer)) != -1) {
+                        if (count > maxUncompressedBytes - uncompressedBytes) {
+                            throw new IOException("The ZIP exceeds the 20 GiB verification limit");
+                        }
+                        uncompressedBytes += count;
+                        entryUncompressedBytes += count;
+                        crc.update(buffer, 0, count);
                     }
-                    uncompressedBytes += count;
                 }
-                zipInput.closeEntry();
+                if (entry.getSize() >= 0L && entry.getSize() != entryUncompressedBytes) {
+                    throw new IOException("The ZIP entry size does not match its directory record");
+                }
+                if (entry.getCrc() >= 0L && entry.getCrc() != crc.getValue()) {
+                    throw new IOException("The ZIP contains a checksum mismatch");
+                }
             }
         }
         if (entryCount == 0) throw new IOException("The ZIP contains no entries");
@@ -2649,7 +2662,9 @@ def patch_upstream(upstream: Path) -> None:
         or "entryCount > maxEntries" not in main_menu_text
         or "count > maxUncompressedBytes - uncompressedBytes" not in main_menu_text
         or "!seenEntries.add(normalizedName)" not in main_menu_text
-        or "new ZipInputStream(new FileInputStream(canonicalBackup))" not in main_menu_text
+        or "new java.util.zip.ZipFile(canonicalBackup)" not in main_menu_text
+        or "entry.getCrc() >= 0L && entry.getCrc() != crc.getValue()" not in main_menu_text
+        or "entry.getSize() != entryUncompressedBytes" not in main_menu_text
         or "private void showWorldBackupDeletePicker(" not in main_menu_text
         or "main_world_backup_delete_confirm_message" not in main_menu_text
         or "canonicalBackupsParent.equals(canonicalProfile)" not in main_menu_text
