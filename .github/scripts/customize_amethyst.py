@@ -2014,36 +2014,42 @@ def patch_upstream(upstream: Path) -> None:
         });"""
     if config_long_listener not in main_menu_text:
         main_menu_text = main_menu_text.replace(config_listener, config_listener + "\n\n        " + config_long_listener, 1)
-    if (
-        main_menu_text.count(config_binding) != 1
-        or main_menu_text.count(config_hint_binding) != 1
-        or main_menu_text.count(config_listener) != 1
-        or main_menu_text.count(config_long_listener) != 1
-        or 'new File(getCurrentProfileDirectory(), "config")' not in config_listener
-        or "!configDirectory.isDirectory() && !configDirectory.mkdirs()" not in config_listener
-        or "openPath(v.getContext(), configDirectory, false);" not in config_listener
-        or "LauncherPreferences.DEFAULT_PREF.getAll()" not in config_long_listener
-        or "MYLAUNCHER_PORTABLE_SETTING_KEYS" not in config_long_listener
-        or "new org.json.JSONObject(portableEnvelope).toString()" not in config_long_listener
-        or 'portableEnvelope.put("format", "voidcraft-launcher-settings")' not in config_long_listener
-        or 'portableEnvelope.put("version", 1)' not in config_long_listener
-        or 'portableEnvelope.put("settings", safeSettings)' not in config_long_listener
-        or "Intent.ACTION_SEND" not in config_long_listener
-        or "Intent.EXTRA_TEXT" not in config_long_listener
-        or "Intent.ACTION_OPEN_DOCUMENT" not in config_long_listener
-        or "MYLAUNCHER_SETTINGS_IMPORT_REQUEST_CODE" not in config_long_listener
-        or "R.string.main_config_export_note" not in config_long_listener
-        or '"javaArgs"' in config_long_listener
-        or '"defaultCtrl"' in config_long_listener
-        or "PREF_KEY_CURRENT_PROFILE" in config_long_listener
-        or "Tools.isDemoProfile(v.getContext())" not in config_long_listener
-        or "MYLAUNCHER_PORTABLE_SETTING_KEYS" not in main_menu_text
-        or "MYLAUNCHER_PORTABLE_BOOLEAN_SETTING_KEYS" not in main_menu_text
-        or "MYLAUNCHER_PORTABLE_INTEGER_SETTING_KEYS" not in main_menu_text
-        or "importSafeSettingsFromUri" not in main_menu_text
-        or "MYLAUNCHER_SETTINGS_IMPORT_MAX_BYTES" not in main_menu_text
-    ):
-        raise ValueError("The Config-folder settings export is incomplete or includes excluded preference fields")
+    config_export_checks = {
+        "unique config button binding": main_menu_text.count(config_binding) == 1,
+        "unique config long-press hint": main_menu_text.count(config_hint_binding) == 1,
+        "unique config tap listener": main_menu_text.count(config_listener) == 1,
+        "unique config long-press listener": main_menu_text.count(config_long_listener) == 1,
+        "config path": 'new File(getCurrentProfileDirectory(), "config")' in config_listener,
+        "config directory creation guard": "!configDirectory.isDirectory() && !configDirectory.mkdirs()" in config_listener,
+        "config directory open": "openPath(v.getContext(), configDirectory, false);" in config_listener,
+        "portable preference source": "LauncherPreferences.DEFAULT_PREF.getAll()" in config_long_listener,
+        "portable settings allowlist": "MYLAUNCHER_PORTABLE_SETTING_KEYS" in config_long_listener,
+        "versioned JSON envelope": "new org.json.JSONObject(portableEnvelope).toString()" in config_long_listener,
+        "envelope format marker": 'portableEnvelope.put("format", "voidcraft-launcher-settings")' in config_long_listener,
+        "envelope version marker": 'portableEnvelope.put("version", 1)' in config_long_listener,
+        "envelope settings member": 'portableEnvelope.put("settings", safeSettings)' in config_long_listener,
+        "export share intent": "Intent.ACTION_SEND" in config_long_listener and "Intent.EXTRA_TEXT" in config_long_listener,
+        "import document picker": "Intent.ACTION_OPEN_DOCUMENT" in config_long_listener,
+        "import request code": "MYLAUNCHER_SETTINGS_IMPORT_REQUEST_CODE" in config_long_listener,
+        "privacy note": "R.string.main_config_export_note" in config_long_listener,
+        "Java args excluded": '"javaArgs"' not in config_long_listener,
+        "control file key excluded": '"defaultCtrl"' not in config_long_listener,
+        "current profile key excluded": "PREF_KEY_CURRENT_PROFILE" not in config_long_listener,
+        "demo profile gate": "Tools.isDemoProfile(v.getContext())" in config_long_listener,
+        "allowlist constants": "MYLAUNCHER_PORTABLE_SETTING_KEYS" in main_menu_text,
+        "boolean type list": "MYLAUNCHER_PORTABLE_BOOLEAN_SETTING_KEYS" in main_menu_text,
+        "integer type list": "MYLAUNCHER_PORTABLE_INTEGER_SETTING_KEYS" in main_menu_text,
+        "import URI handler": "importSafeSettingsFromUri" in main_menu_text,
+        "bounded import size": "MYLAUNCHER_SETTINGS_IMPORT_MAX_BYTES" in main_menu_text,
+    }
+    failed_config_export_checks = [
+        name for name, passed in config_export_checks.items() if not passed
+    ]
+    if failed_config_export_checks:
+        raise ValueError(
+            "The Config-folder settings export/import is incomplete: "
+            + ", ".join(failed_config_export_checks)
+        )
 
     shaderpacks_binding = "Button mMyLauncherShaderPacksButton = view.findViewById(R.id.mylauncher_shaderpacks_button);"
     if shaderpacks_binding not in main_menu_text:
