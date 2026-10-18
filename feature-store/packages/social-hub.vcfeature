@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "id": "voidcraft.social-hub",
+  "name": "Social Hub (Preview)",
+  "version": "1.0.0",
+  "author": "VoidCraft Launcher",
+  "owner": "VoidCraft Launcher",
+  "description": "Mobile-first profile, friend-request, friend-list, remove-friend and chat interface. Local preview only; online delivery and external sign-in are not connected.",
+  "screen": {
+    "type": "social",
+    "mode": "local_preview",
+    "title": "Social Hub",
+    "description": "Create a launcher social username and preview friend requests, contacts, and chat conversations. This does not change your Minecraft account. Online service and provider sign-in are not connected."
+  }
+}
