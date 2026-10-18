@@ -1277,9 +1277,10 @@ class ProfileTypeSelectFragment {
             self.assertNotIn('"defaultCtrl"', allowed_keys)
             self.assertNotIn('"currentProfile"', allowed_keys)
             self.assertNotIn("PREF_KEY_CURRENT_PROFILE", allowed_keys)
+            import_method_start = menu.index("private void importSafeSettingsFromUri")
             self.assertLess(
-                menu.index("setPositiveButton(R.string.main_config_import_apply"),
-                menu.index("editor.apply();"),
+                menu.index("setPositiveButton(R.string.main_config_import_apply", import_method_start),
+                menu.index("editor.apply();", import_method_start),
             )
 
     def test_config_interface_reset_is_confirmed_and_limited_to_ui_keys(self) -> None:
@@ -1292,7 +1293,7 @@ class ProfileTypeSelectFragment {
 
             self.assertIn('<string name="main_config_reset_action">Reset interface settings</string>', strings)
             self.assertIn('<string name="main_config_reset_confirm_title">Reset interface settings?</string>', strings)
-            self.assertIn("renderer settings, accounts, profile selection, Java arguments", strings.lower())
+            self.assertIn("renderer settings, accounts, profile selection, java arguments", strings.lower())
             self.assertIn("getString(R.string.main_config_reset_action)", menu)
             self.assertIn("setTitle(R.string.main_config_reset_confirm_title)", menu)
             self.assertIn("setMessage(R.string.main_config_reset_confirm_message)", menu)
