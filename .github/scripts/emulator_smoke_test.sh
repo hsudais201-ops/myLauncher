@@ -116,4 +116,5 @@ if [ "$SCREENSHOT_CAPTURED" != true ]; then
 fi
 test -s "$SCREENSHOT_PATH"
 echo "Emulator screenshot saved: $SCREENSHOT_PATH"
-echo "Emulator smoke test passed: APK installed, LauncherActivity resumed, and screenshot captured."
+echo "Emulator smoke test passed: APK installed and LauncherActivity resumed."
+echo "Non-empty emulator screenshot captured: $SCREENSHOT_PATH"
