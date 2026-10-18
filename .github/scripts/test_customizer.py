@@ -1411,6 +1411,10 @@ class BuildWorkflowTests(unittest.TestCase):
             self.smoke_script.index("net.kdt.pojavlaunch.TestStorageActivity"),
         )
         self.assertIn("test -s upstream/mylauncher-emulator-screenshot.png", self.smoke_script)
+        self.assertIn("adb exec-out screencap -p", self.smoke_script)
+        self.assertIn('while [ "$attempt" -le 3 ]', self.smoke_script)
+        self.assertIn('if [ "$SCREENSHOT_CAPTURED" != true ]; then', self.smoke_script)
+        self.assertIn("Unable to capture a non-empty emulator screenshot after 3 attempts.", self.smoke_script)
         self.assertIn("upstream/mylauncher-emulator-screenshot.png", self.workflow)
         self.assertIn('if timeout -k 3s 20s adb shell am start -n com.mf.mylauncher.debug/net.kdt.pojavlaunch.TestStorageActivity; then', self.smoke_script)
         self.assertIn('[ "$start_status" -eq 124 ]', self.smoke_script)
