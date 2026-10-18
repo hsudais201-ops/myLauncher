@@ -944,6 +944,7 @@ class ProfileTypeSelectFragment {
             self.assertIn("java.text.DateFormat.getDateTimeInstance(", menu)
             self.assertIn('sizeLabel + " · " + modifiedLabel', menu)
             self.assertIn("return backupFile.getName() +", menu)
+            self.assertIn('return backupFile.getName() + "\\n" + sizeLabel', menu)
             self.assertGreaterEqual(menu.count("backupNames[i] = worldBackupDisplayLabel(backupFiles[i]);"), 3)
             self.assertEqual(menu.count("backupNames[i] = backupFiles[i].getName();"), 0)
             self.assertGreaterEqual(menu.count("Long.compare(right.lastModified(), left.lastModified())"), 3)
