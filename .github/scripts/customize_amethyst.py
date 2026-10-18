@@ -94,7 +94,13 @@ def patch_microsoft_auth_logging(upstream: Path) -> None:
         '"UserName = " + name',
         '"Uuid Minecraft = " + uuidDashes',
     )
-    remaining = [fragment for fragment in forbidden_log_fragments if fragment in text]
+    # Upstream also has commented-out examples that mention these values; only
+    # executable Log.* statements should be treated as potential log disclosure.
+    log_text = "\n".join(
+        line for line in text.splitlines()
+        if re.search(r"\\bLog\\.[vdiew]\\s*\\(", line)
+    )
+    remaining = [fragment for fragment in forbidden_log_fragments if fragment in log_text]
     if remaining:
         raise ValueError(f"Credential or account data may still be emitted by authentication logs: {remaining}")
     source.write_text(text, encoding="utf-8")
