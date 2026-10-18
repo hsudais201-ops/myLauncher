@@ -1201,7 +1201,7 @@ class ProfileTypeSelectFragment {
             menu = (root / "app_pojavlauncher/src/main/java/net/kdt/pojavlaunch/fragments/MainMenuFragment.java").read_text(encoding="utf-8")
             strings = (root / "app_pojavlauncher/src/main/res/values/strings.xml").read_text(encoding="utf-8")
             self.assertIn('<string name="main_config_folder">Config folder</string>', strings)
-            self.assertIn('<string name="main_config_export_hint">Config folder. Long-press to export or import portable launcher settings.</string>', strings)
+            self.assertIn('<string name="main_config_export_hint">Config folder. Long-press to export, import or reset interface settings.</string>', strings)
             self.assertIn("Account data, session tokens, profile selection", strings)
             self.assertIn("Button mMyLauncherConfigButton = view.findViewById(R.id.mylauncher_config_button);", menu)
             self.assertIn("mMyLauncherConfigButton.setOnClickListener", menu)
