@@ -1,0 +1,36 @@
+{
+  "schemaVersion": 1,
+  "id": "community.community-links",
+  "name": "Community Resources",
+  "version": "1.0.0",
+  "author": "VoidCraft Community",
+  "owner": "VoidCraft Community",
+  "description": "A dedicated screen of links to mod discovery and launcher project resources.",
+  "category": "Community",
+  "screen": {
+    "type": "page",
+    "title": "Community Resources",
+    "description": "These shortcuts supplement — and do not replace — the launcher’s built-in mod and modpack support.",
+    "widgets": [
+      {
+        "type": "text",
+        "label": "Find community content and learn about the project."
+      },
+      {
+        "type": "link",
+        "label": "Browse Modrinth",
+        "url": "https://modrinth.com/"
+      },
+      {
+        "type": "link",
+        "label": "Browse CurseForge",
+        "url": "https://www.curseforge.com/minecraft"
+      },
+      {
+        "type": "link",
+        "label": "VoidCraft Launcher source and feature catalog",
+        "url": "https://github.com/hsudais201-ops/myLauncher"
+      }
+    ]
+  }
+}
