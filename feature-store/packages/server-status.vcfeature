@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "id": "community.server-status",
+  "name": "Server Status",
+  "version": "1.0.0",
+  "author": "VoidCraft Community",
+  "owner": "VoidCraft Community",
+  "description": "Check whether a Java Edition server is online, its player count, and version.",
+  "category": "Multiplayer",
+  "screen": {
+    "type": "server_status",
+    "title": "Minecraft Server Status",
+    "description": "Enter a Java server address. Status lookup uses mcsrvstat.us and requires internet access.",
+    "defaultHost": "mc.hypixel.net"
+  }
+}
