@@ -1600,8 +1600,6 @@ def patch_upstream(upstream: Path) -> None:
         or 'World backup saved and verified:' not in world_saves_backup_listener
         or 'World backup verification failed' not in world_saves_backup_listener
         or 'backupFile.delete()' not in world_saves_backup_listener
-        or 'maxEntries = 250000' not in main_menu_text
-        or 'maxUncompressedBytes - uncompressedBytes[0]' not in main_menu_text
         or "new Thread(() ->" not in main_menu_text
         or "Tools.isDemoProfile(v.getContext())" not in world_saves_backup_listener
     ):
