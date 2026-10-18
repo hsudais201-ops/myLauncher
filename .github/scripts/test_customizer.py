@@ -1263,7 +1263,7 @@ class ProfileTypeSelectFragment {
             self.assertIn("MYLAUNCHER_PORTABLE_BOOLEAN_SETTING_KEYS", menu)
             self.assertIn("MYLAUNCHER_PORTABLE_INTEGER_SETTING_KEYS", menu)
             self.assertIn("validatePortableSettingValue(key, settings.get(key), requireContext())", menu)
-            self.assertIn("recommendedPortableAllocation(requireContext())", menu)
+            self.assertIn("Math.min(intValue, recommendedPortableAllocation(context))", menu)
             self.assertIn("setPositiveButton(R.string.main_config_import_apply", menu)
             self.assertIn("LauncherPreferences.DEFAULT_PREF.edit()", menu)
             self.assertIn("editor.apply();", menu)
