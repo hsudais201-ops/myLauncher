@@ -2244,7 +2244,7 @@ def patch_upstream(upstream: Path) -> None:
         String modifiedLabel = java.text.DateFormat.getDateTimeInstance(
                 java.text.DateFormat.MEDIUM, java.text.DateFormat.SHORT,
                 java.util.Locale.getDefault()).format(new java.util.Date(backupFile.lastModified()));
-        return backupFile.getName() + "\\n" + sizeLabel + " · " + modifiedLabel;
+        return backupFile.getName() + "\n" + sizeLabel + " · " + modifiedLabel;
     }
 
     private void showWorldBackupPicker(final android.app.Activity activity, File profileDirectory) {
