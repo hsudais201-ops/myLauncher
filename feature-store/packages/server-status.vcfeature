@@ -6,7 +6,6 @@
   "author": "VoidCraft Community",
   "owner": "VoidCraft Community",
   "description": "Check whether a Java Edition server is online, its player count, and version.",
-  "category": "Multiplayer",
   "screen": {
     "type": "server_status",
     "title": "Minecraft Server Status",
