@@ -612,7 +612,8 @@ class ProfileTypeSelectFragment {
             self.assertIn("openPath(v.getContext(), resourcePackDirectory, false);", main_menu)
             self.assertIn("Button mMyLauncherWorldSavesButton = view.findViewById(R.id.mylauncher_world_saves_button);", main_menu)
             self.assertIn("mMyLauncherWorldSavesButton.setOnClickListener", main_menu)
-            self.assertIn('new File(getCurrentProfileDirectory(), "saves")', main_menu)
+            self.assertIn("File profileDirectory = getCurrentProfileDirectory();", main_menu)
+            self.assertIn('new File(profileDirectory, "saves")', main_menu)
             self.assertIn("!worldSavesDirectory.isDirectory() && !worldSavesDirectory.mkdirs()", main_menu)
             self.assertIn("openPath(v.getContext(), worldSavesDirectory, false);", main_menu)
             self.assertIn("R.string.main_world_saves_open_folder", main_menu)
@@ -631,9 +632,9 @@ class ProfileTypeSelectFragment {
             self.assertIn("Restoring world backup…", main_menu)
             self.assertIn("mMyLauncherWorldSavesButton.setContentDescription(getString(R.string.main_world_saves_backup_hint));", main_menu)
             self.assertIn("mMyLauncherWorldSavesButton.setOnLongClickListener", main_menu)
-            self.assertIn('new File(getCurrentProfileDirectory(), "backups")', main_menu)
+            self.assertIn('new File(profileDirectory, "backups")', main_menu)
             self.assertIn('new File(backupsDirectory, backupName + ".tmp")', main_menu)
-            self.assertIn('zipWorldSaves(savesDirectory, savesDirectory.getCanonicalPath(), zipOut, new HashSet<String>())', main_menu)
+            self.assertIn('zipWorldSaves(savesDirectory, savesDirectory.getCanonicalPath(), zipOut, new HashSet<String>(), new int[] {0}, new long[] {0L})', main_menu)
             self.assertIn("A world-save path escapes the saves directory", main_menu)
             self.assertIn("!tempBackupFile.renameTo(backupFile)", main_menu)
             self.assertIn("new Thread(() ->", main_menu)
@@ -907,7 +908,8 @@ class ProfileTypeSelectFragment {
                 self.assertIn('android:text="@string/main_world_saves_folder"', layout)
                 self.assertIn('app:layout_constraintTop_toBottomOf="@id/mylauncher_resourcepacks_button"', layout)
             self.assertIn('<string name="main_world_saves_folder">World saves</string>', strings)
-            self.assertIn('new File(getCurrentProfileDirectory(), "saves")', menu)
+            self.assertIn("File profileDirectory = getCurrentProfileDirectory();", menu)
+            self.assertIn('new File(profileDirectory, "saves")', menu)
             self.assertIn('if (!worldSavesDirectory.isDirectory() && !worldSavesDirectory.mkdirs())', menu)
             self.assertIn('openPath(v.getContext(), worldSavesDirectory, false);', menu)
             self.assertIn('Tools.isDemoProfile(v.getContext())', menu)
@@ -1001,7 +1003,7 @@ class ProfileTypeSelectFragment {
             self.assertIn('<string name="main_world_backup_confirm_message">Existing worlds will not be overwritten. Name conflicts will be restored with a suffix.</string>', strings)
             self.assertIn("mMyLauncherWorldSavesButton.setOnLongClickListener", menu)
             self.assertIn("Tools.isDemoProfile(v.getContext())", menu)
-            self.assertIn('new File(getCurrentProfileDirectory(), "backups")', menu)
+            self.assertIn('new File(profileDirectory, "backups")', menu)
             self.assertIn('String backupName = "worlds-" + System.currentTimeMillis() + ".zip";', menu)
             self.assertIn('new File(backupsDirectory, backupName + ".tmp")', menu)
             self.assertIn("private static void zipWorldSaves(", menu)
@@ -1010,7 +1012,21 @@ class ProfileTypeSelectFragment {
             self.assertIn("new ZipEntry(relativePath)", menu)
             self.assertIn("new byte[16384]", menu)
             self.assertIn("if (!tempBackupFile.renameTo(backupFile))", menu)
-            self.assertIn("World backup saved:", menu)
+            self.assertIn("new int[] {0}, new long[] {0L}", menu)
+            self.assertIn("entryCount[0] > maxEntries", menu)
+            self.assertIn("count > maxUncompressedBytes - uncompressedBytes[0]", menu)
+            self.assertIn("scanWorldBackupZip(backupFile, profileDirectory)", menu)
+            self.assertIn("World backup saved and verified:", menu)
+            self.assertIn("World backup verification failed", menu)
+            self.assertIn("backupFile.delete()", menu)
+            self.assertLess(
+                menu.index("if (!tempBackupFile.renameTo(backupFile))"),
+                menu.index("int verifiedEntries = scanWorldBackupZip(backupFile, profileDirectory)"),
+            )
+            self.assertLess(
+                menu.index("int verifiedEntries = scanWorldBackupZip(backupFile, profileDirectory)"),
+                menu.index("World backup saved and verified:"),
+            )
             self.assertIn("World backup failed:", menu)
 
     def test_world_backup_restore_is_staged_and_does_not_overwrite_existing_worlds(self) -> None:

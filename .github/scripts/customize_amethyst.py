@@ -1530,13 +1530,14 @@ def patch_upstream(upstream: Path) -> None:
                 hasNoOnlineProfileDialog(getActivity(), getString(R.string.demo_unsupported), getString(R.string.change_account));
                 return true;
             }
-            File savesDirectory = new File(getCurrentProfileDirectory(), "saves");
+            File profileDirectory = getCurrentProfileDirectory();
+            File savesDirectory = new File(profileDirectory, "saves");
             File[] worldEntries = savesDirectory.listFiles();
             if (!savesDirectory.isDirectory() || worldEntries == null || worldEntries.length == 0) {
                 Toast.makeText(requireContext(), "No worlds are available to back up", Toast.LENGTH_LONG).show();
                 return true;
             }
-            File backupsDirectory = new File(getCurrentProfileDirectory(), "backups");
+            File backupsDirectory = new File(profileDirectory, "backups");
             if (!backupsDirectory.isDirectory() && !backupsDirectory.mkdirs()) {
                 Toast.makeText(requireContext(), "Unable to create the backups folder", Toast.LENGTH_LONG).show();
                 return true;
@@ -1554,7 +1555,7 @@ def patch_upstream(upstream: Path) -> None:
             new Thread(() -> {
                 try (FileOutputStream fileOut = new FileOutputStream(tempBackupFile);
                      ZipOutputStream zipOut = new ZipOutputStream(fileOut)) {
-                    zipWorldSaves(savesDirectory, savesDirectory.getCanonicalPath(), zipOut, new HashSet<String>());
+                    zipWorldSaves(savesDirectory, savesDirectory.getCanonicalPath(), zipOut, new HashSet<String>(), new int[] {0}, new long[] {0L});
                     zipOut.finish();
                 } catch (IOException exception) {
                     if (tempBackupFile.exists()) tempBackupFile.delete();
@@ -1568,24 +1569,48 @@ def patch_upstream(upstream: Path) -> None:
                             "World backup failed: unable to finalize the ZIP file", Toast.LENGTH_LONG).show());
                     return;
                 }
-                backupActivity.runOnUiThread(() -> Toast.makeText(backupActivity,
-                        "World backup saved: " + backupFile.getName(), Toast.LENGTH_LONG).show());
+                try {
+                    int verifiedEntries = scanWorldBackupZip(backupFile, profileDirectory);
+                    backupActivity.runOnUiThread(() -> Toast.makeText(backupActivity,
+                            "World backup saved and verified: " + backupFile.getName()
+                                    + " (" + verifiedEntries + " entries checked)", Toast.LENGTH_LONG).show());
+                } catch (IOException | SecurityException exception) {
+                    boolean backupRemoved = !backupFile.exists() || backupFile.delete();
+                    String detail = exception.getMessage() == null
+                            ? "ZIP integrity check failed" : exception.getMessage();
+                    String failureText = backupRemoved
+                            ? "World backup verification failed and the incomplete ZIP was removed: " + detail
+                            : "World backup verification failed; unable to remove " + backupFile.getName() + ". " + detail;
+                    backupActivity.runOnUiThread(() -> Toast.makeText(
+                            backupActivity, failureText, Toast.LENGTH_LONG).show());
+                }
             }, "VoidCraftWorldBackup").start();
             return true;
         });"""
     if world_saves_backup_listener not in main_menu_text:
         main_menu_text = main_menu_text.replace(world_saves_listener, world_saves_listener + "\n\n        " + world_saves_backup_listener, 1)
-    if (
-        main_menu_text.count(world_saves_backup_listener) != 1
-        or "mMyLauncherWorldSavesButton.setContentDescription(getString(R.string.main_world_saves_backup_hint));" not in main_menu_text
-        or 'new File(getCurrentProfileDirectory(), "backups")' not in main_menu_text
-        or 'new File(backupsDirectory, backupName + ".tmp")' not in main_menu_text
-        or 'zipWorldSaves(savesDirectory, savesDirectory.getCanonicalPath(), zipOut, new HashSet<String>())' not in main_menu_text
-        or '!tempBackupFile.renameTo(backupFile)' not in main_menu_text
-        or "new Thread(() ->" not in main_menu_text
-        or "Tools.isDemoProfile(v.getContext())" not in world_saves_backup_listener
-    ):
-        raise ValueError("World backup action is incomplete or lacks safety and error handling")
+    world_backup_requirements = {
+        "exactly one long-press listener": main_menu_text.count(world_saves_backup_listener) == 1,
+        "accessible backup hint": "mMyLauncherWorldSavesButton.setContentDescription(getString(R.string.main_world_saves_backup_hint));" in main_menu_text,
+        "captured profile backup directory": 'new File(profileDirectory, "backups")' in main_menu_text,
+        "temporary backup file": 'new File(backupsDirectory, backupName + ".tmp")' in main_menu_text,
+        "bounded ZIP creation call": 'zipWorldSaves(savesDirectory, savesDirectory.getCanonicalPath(), zipOut, new HashSet<String>(), new int[] {0}, new long[] {0L})' in main_menu_text,
+        "finalize temporary ZIP before verification": '!tempBackupFile.renameTo(backupFile)' in main_menu_text,
+        "verify finalized archive": 'scanWorldBackupZip(backupFile, profileDirectory)' in world_saves_backup_listener,
+        "success toast follows verification": 'World backup saved and verified:' in world_saves_backup_listener,
+        "verification failure is reported": 'World backup verification failed' in world_saves_backup_listener,
+        "invalid archive is removed when possible": 'backupFile.delete()' in world_saves_backup_listener,
+        "background execution": "new Thread(() ->" in main_menu_text,
+        "demo-profile protection": "Tools.isDemoProfile(v.getContext())" in world_saves_backup_listener,
+    }
+    missing_world_backup_requirements = [
+        requirement for requirement, present in world_backup_requirements.items() if not present
+    ]
+    if missing_world_backup_requirements:
+        raise ValueError(
+            "World backup action is incomplete or lacks safety and error handling: "
+            + ", ".join(missing_world_backup_requirements)
+        )
 
     logs_binding = "Button mMyLauncherLogsButton = view.findViewById(R.id.mylauncher_logs_button);"
     if logs_binding not in main_menu_text:
@@ -2754,7 +2779,9 @@ def patch_upstream(upstream: Path) -> None:
      * Repeated canonical paths are skipped to prevent symbolic-link cycles and duplicate entries.
      */
     private static void zipWorldSaves(File current, String rootCanonicalPath, ZipOutputStream output,
-                                      Set<String> visitedPaths) throws IOException {
+                                      Set<String> visitedPaths, int[] entryCount, long[] uncompressedBytes) throws IOException {
+        final int maxEntries = 250000;
+        final long maxUncompressedBytes = 20L * 1024L * 1024L * 1024L;
         String canonicalPath = current.getCanonicalPath();
         if (!canonicalPath.equals(rootCanonicalPath)
                 && !canonicalPath.startsWith(rootCanonicalPath + File.separator)) {
@@ -2767,6 +2794,7 @@ def patch_upstream(upstream: Path) -> None:
                 : canonicalPath.substring(rootCanonicalPath.length() + 1).replace(File.separatorChar, '/');
         if (current.isDirectory()) {
             if (!relativePath.isEmpty()) {
+                if (++entryCount[0] > maxEntries) throw new IOException("The world backup contains too many entries");
                 output.putNextEntry(new ZipEntry(relativePath + "/"));
                 output.closeEntry();
             }
@@ -2775,19 +2803,24 @@ def patch_upstream(upstream: Path) -> None:
                 throw new IOException("Unable to read world-save directory: " + current.getName());
             }
             for (File child : children) {
-                zipWorldSaves(child, rootCanonicalPath, output, visitedPaths);
+                zipWorldSaves(child, rootCanonicalPath, output, visitedPaths, entryCount, uncompressedBytes);
             }
             return;
         }
         if (!current.isFile() || relativePath.isEmpty()) {
             throw new IOException("Unsupported world-save entry: " + current.getName());
         }
+        if (++entryCount[0] > maxEntries) throw new IOException("The world backup contains too many entries");
 
         output.putNextEntry(new ZipEntry(relativePath));
         try (FileInputStream input = new FileInputStream(current)) {
             byte[] buffer = new byte[16384];
             int count;
             while ((count = input.read(buffer)) != -1) {
+                if (count > maxUncompressedBytes - uncompressedBytes[0]) {
+                    throw new IOException("The world backup exceeds the 20 GiB safety limit");
+                }
+                uncompressedBytes[0] += count;
                 output.write(buffer, 0, count);
             }
         }
@@ -2803,6 +2836,9 @@ def patch_upstream(upstream: Path) -> None:
         "A world-save path escapes the saves directory" not in main_menu_text
         or "output.putNextEntry(new ZipEntry(relativePath))" not in main_menu_text
         or "new byte[16384]" not in main_menu_text
+        or "int[] entryCount, long[] uncompressedBytes" not in main_menu_text
+        or "entryCount[0] > maxEntries" not in main_menu_text
+        or "maxUncompressedBytes - uncompressedBytes[0]" not in main_menu_text
         or "private void showWorldBackupPicker(" not in main_menu_text
         or "private void showWorldBackupVerifyPicker(" not in main_menu_text
         or "private static void verifyWorldBackupArchive(" not in main_menu_text
