@@ -14,10 +14,11 @@ class FeatureStoreTests(unittest.TestCase):
         catalog_path = feature_store.REPO_ROOT / "feature-store" / "catalog.json"
         catalog = json.loads(catalog_path.read_text(encoding="utf-8"))
         self.assertEqual(catalog["schemaVersion"], 1)
-        self.assertGreaterEqual(len(catalog["features"]), 3)
+        self.assertGreaterEqual(len(catalog["features"]), 4)
         seen = set()
         for entry in catalog["features"]:
             self.assertNotIn(entry["id"], seen)
+            self.assertNotIn("category", entry)
             seen.add(entry["id"])
             package_path = catalog_path.parent / entry["asset"]
             raw = package_path.read_bytes()
@@ -25,6 +26,7 @@ class FeatureStoreTests(unittest.TestCase):
             package = json.loads(raw.decode("utf-8"))
             self.assertEqual(package["schemaVersion"], 1)
             self.assertEqual(package["id"], entry["id"])
+            self.assertNotIn("category", package)
             self.assertIn(package["owner"], ("VoidCraft Launcher", "VoidCraft Community"))
 
     def test_patch_adds_feature_store_without_deleting_existing_core_files(self):
@@ -87,6 +89,23 @@ class FeatureStoreTests(unittest.TestCase):
                 text = (app / relative).read_text(encoding="utf-8")
                 self.assertEqual(text.count('android:id="@+id/mylauncher_feature_store_button"'), 1)
                 self.assertIn('app:layout_constraintTop_toBottomOf="@id/mylauncher_account_button"', text)
+
+    def test_social_hub_is_catalogued_as_explicit_local_preview(self):
+        catalog_path = feature_store.REPO_ROOT / "feature-store" / "catalog.json"
+        catalog = json.loads(catalog_path.read_text(encoding="utf-8"))
+        entry = next(item for item in catalog["features"] if item["id"] == "voidcraft.social-hub")
+        package_path = catalog_path.parent / entry["asset"]
+        package = json.loads(package_path.read_text(encoding="utf-8"))
+        self.assertEqual(package["screen"]["type"], "social")
+        self.assertEqual(package["screen"]["mode"], "local_preview")
+        self.assertIn("not connected", package["description"].lower())
+        activity = (catalog_path.parent / "src/main/java/net/kdt/pojavlaunch/FeatureStoreActivity.java").read_text(encoding="utf-8")
+        for marker in ("renderSocialScreen", "renderSocialProfile", "renderSocialFriends",
+                       "renderSocialRequests", "renderSocialChats", "Swipe → Next",
+                       "Microsoft / Xbox", "Google", "Send local preview message"):
+            self.assertIn(marker, activity)
+        self.assertNotIn('optString("category"', activity)
+        self.assertNotIn('put("category"', activity)
 
 
 if __name__ == "__main__":
