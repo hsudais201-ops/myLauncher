@@ -341,7 +341,7 @@ def patch_upstream(upstream: Path) -> None:
         ):
             raise ValueError(f"Log-diagnosis resource is missing or invalid: {string_name}")
     config_export_strings = {
-        "main_config_export_hint": "Config folder. Long-press to export or import portable launcher settings.",
+        "main_config_export_hint": "Config folder. Long-press to export, import or reset interface settings.",
         "main_config_export_subject": "VoidCraft Launcher safe settings export",
         "main_config_export_no_values": "No saved portable settings were found to export.",
         "main_config_export_chooser": "Export safe launcher settings. Review before sharing.",
