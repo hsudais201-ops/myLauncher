@@ -341,11 +341,19 @@ def patch_upstream(upstream: Path) -> None:
         ):
             raise ValueError(f"Log-diagnosis resource is missing or invalid: {string_name}")
     config_export_strings = {
-        "main_config_export_hint": "Config folder. Long-press to export safe launcher settings.",
+        "main_config_export_hint": "Config folder. Long-press to export or import portable launcher settings.",
         "main_config_export_subject": "VoidCraft Launcher safe settings export",
         "main_config_export_no_values": "No saved portable settings were found to export.",
         "main_config_export_chooser": "Export safe launcher settings. Review before sharing.",
         "main_config_export_note": "This export contains only a safe subset of portable launcher settings. Account data, session tokens, profile selection, free-form Java arguments, control-file paths, and world data are excluded.",
+        "main_config_actions_title": "Portable launcher settings",
+        "main_config_export_action": "Export portable settings",
+        "main_config_import_action": "Import portable settings",
+        "main_config_import_confirm_title": "Apply portable settings?",
+        "main_config_import_confirm_message": "Apply %1$d portable setting(s)? Existing values for those settings will be replaced. Memory allocation is limited to this device's recommended value. Account/session data, profile selection, free-form Java arguments, control-file paths, and world data are not imported.",
+        "main_config_import_apply": "Apply settings",
+        "main_config_import_success": "Imported %1$d portable setting(s). Restart the launcher to refresh preferences cached at startup.",
+        "main_config_import_failed": "Could not import settings. Choose a valid VoidCraft Launcher JSON export. No settings were changed.",
     }
     for string_name, string_value in config_export_strings.items():
         if not re.search(r'<string\s+name="' + re.escape(string_name) + r'"', strings_text):
@@ -1906,46 +1914,102 @@ def patch_upstream(upstream: Path) -> None:
     config_hint_binding = "mMyLauncherConfigButton.setContentDescription(getString(R.string.main_config_export_hint));"
     if config_hint_binding not in main_menu_text:
         main_menu_text = main_menu_text.replace(config_binding, config_binding + "\n        " + config_hint_binding, 1)
+    settings_import_constants = """    private static final int MYLAUNCHER_SETTINGS_IMPORT_REQUEST_CODE = 7418;
+    private static final int MYLAUNCHER_SETTINGS_IMPORT_MAX_BYTES = 65536;
+    private static final String[] MYLAUNCHER_PORTABLE_SETTING_KEYS = new String[] {
+            "buttonscale", "mousescale", "mousespeed", "ignoreNotch", "timeLongPressTrigger",
+            "force_english", "checkLibraries", "disableGestures", "gamepadPassthruForced",
+            "disableDoubleTap", "allocation", "sustainedPerformance", "mouse_start", "arc_capes",
+            "alternate_surface", "resolutionRatio", "enableGyro", "gyroSensitivity", "gyroSampleRate",
+            "gyroSmoothing", "gyroInvertX", "gyroInvertY", "force_vsync", "buttonAllCaps",
+            "dump_shaders", "gamepad_deadzone_scale", "bigCoreAffinity", "zinkPreferSystemDriver",
+            "verifyManifest", "skipNotificationPermissionCheck", "vsync_in_zink",
+            "forceEnableTouchController", "touchControllerVibrateLength", "always_grab_mouse",
+            "keyboardPanning"
+    };
+    private static final String[] MYLAUNCHER_PORTABLE_BOOLEAN_SETTING_KEYS = new String[] {
+            "ignoreNotch", "force_english", "checkLibraries", "disableGestures", "gamepadPassthruForced",
+            "disableDoubleTap", "sustainedPerformance", "mouse_start", "arc_capes", "alternate_surface",
+            "enableGyro", "gyroSmoothing", "gyroInvertX", "gyroInvertY", "force_vsync", "buttonAllCaps",
+            "dump_shaders", "bigCoreAffinity", "zinkPreferSystemDriver", "verifyManifest",
+            "skipNotificationPermissionCheck", "vsync_in_zink", "forceEnableTouchController",
+            "always_grab_mouse", "keyboardPanning"
+    };
+    private static final String[] MYLAUNCHER_PORTABLE_INTEGER_SETTING_KEYS = new String[] {
+            "buttonscale", "mousescale", "mousespeed", "timeLongPressTrigger", "allocation",
+            "resolutionRatio", "gyroSensitivity", "gyroSampleRate", "gamepad_deadzone_scale",
+            "touchControllerVibrateLength"
+    };
+"""
+    if "MYLAUNCHER_SETTINGS_IMPORT_REQUEST_CODE" not in main_menu_text:
+        main_menu_class = re.search(
+            r"(?m)^([ \t]*(?:public\s+)?class\s+MainMenuFragment\s*\{)[ \t]*$",
+            main_menu_text,
+        )
+        if not main_menu_class:
+            raise ValueError("Could not find MainMenuFragment class to add safe-settings import constants")
+        main_menu_text = (
+            main_menu_text[:main_menu_class.end()]
+            + "\n"
+            + settings_import_constants
+            + main_menu_text[main_menu_class.end():]
+        )
+    elif "MYLAUNCHER_PORTABLE_INTEGER_SETTING_KEYS" not in main_menu_text:
+        raise ValueError("Portable settings import constants are incomplete")
+
     config_long_listener = """mMyLauncherConfigButton.setOnLongClickListener(v -> {
             if (Tools.isDemoProfile(v.getContext())) {
                 hasNoOnlineProfileDialog(getActivity(), getString(R.string.demo_unsupported), getString(R.string.change_account));
                 return true;
             }
-            String[] exportKeys = new String[] {
-                    "buttonscale", "mousescale", "mousespeed", "ignoreNotch", "timeLongPressTrigger",
-                    "force_english", "checkLibraries", "disableGestures", "gamepadPassthruForced",
-                    "disableDoubleTap", "allocation", "sustainedPerformance", "mouse_start", "arc_capes",
-                    "alternate_surface", "resolutionRatio", "enableGyro", "gyroSensitivity", "gyroSampleRate",
-                    "gyroSmoothing", "gyroInvertX", "gyroInvertY", "force_vsync", "buttonAllCaps",
-                    "dump_shaders", "gamepad_deadzone_scale", "bigCoreAffinity", "zinkPreferSystemDriver",
-                    "verifyManifest", "skipNotificationPermissionCheck", "vsync_in_zink",
-                    "forceEnableTouchController", "touchControllerVibrateLength", "always_grab_mouse",
-                    "keyboardPanning"
-            };
-            java.util.Map<String, ?> storedPreferences = LauncherPreferences.DEFAULT_PREF.getAll();
-            java.util.Map<String, Object> safeSettings = new java.util.LinkedHashMap<>();
-            for (String key : exportKeys) {
-                Object value = storedPreferences.get(key);
-                if (value instanceof Boolean || value instanceof Integer
-                        || value instanceof Long || value instanceof Float) {
-                    safeSettings.put(key, value);
-                }
-            }
-            if (safeSettings.isEmpty()) {
-                Toast.makeText(requireContext(), R.string.main_config_export_no_values, Toast.LENGTH_LONG).show();
-                return true;
-            }
-            String exportText = new org.json.JSONObject(safeSettings).toString()
-                    + "\\n\\n" + getString(R.string.main_config_export_note);
-            Intent exportIntent = new Intent(Intent.ACTION_SEND);
-            exportIntent.setType("text/plain");
-            exportIntent.putExtra(Intent.EXTRA_SUBJECT, getString(R.string.main_config_export_subject));
-            exportIntent.putExtra(Intent.EXTRA_TEXT, exportText);
-            try {
-                startActivity(Intent.createChooser(exportIntent, getString(R.string.main_config_export_chooser)));
-            } catch (android.content.ActivityNotFoundException error) {
-                Toast.makeText(requireContext(), "No app can export text right now", Toast.LENGTH_LONG).show();
-            }
+            new AlertDialog.Builder(requireContext())
+                    .setTitle(R.string.main_config_actions_title)
+                    .setItems(new String[] {
+                            getString(R.string.main_config_export_action),
+                            getString(R.string.main_config_import_action)
+                    }, (dialog, which) -> {
+                        if (which == 0) {
+                            java.util.Map<String, ?> storedPreferences = LauncherPreferences.DEFAULT_PREF.getAll();
+                            java.util.Map<String, Object> safeSettings = new java.util.LinkedHashMap<>();
+                            for (String key : MYLAUNCHER_PORTABLE_SETTING_KEYS) {
+                                Object value = storedPreferences.get(key);
+                                if (value instanceof Boolean || value instanceof Integer
+                                        || value instanceof Long || value instanceof Float) {
+                                    safeSettings.put(key, value);
+                                }
+                            }
+                            if (safeSettings.isEmpty()) {
+                                Toast.makeText(requireContext(), R.string.main_config_export_no_values, Toast.LENGTH_LONG).show();
+                                return;
+                            }
+                            java.util.Map<String, Object> portableEnvelope = new java.util.LinkedHashMap<>();
+                            portableEnvelope.put("format", "voidcraft-launcher-settings");
+                            portableEnvelope.put("version", 1);
+                            portableEnvelope.put("settings", safeSettings);
+                            portableEnvelope.put("note", getString(R.string.main_config_export_note));
+                            String exportText = new org.json.JSONObject(portableEnvelope).toString();
+                            Intent exportIntent = new Intent(Intent.ACTION_SEND);
+                            exportIntent.setType("text/plain");
+                            exportIntent.putExtra(Intent.EXTRA_SUBJECT, getString(R.string.main_config_export_subject));
+                            exportIntent.putExtra(Intent.EXTRA_TEXT, exportText);
+                            try {
+                                startActivity(Intent.createChooser(exportIntent, getString(R.string.main_config_export_chooser)));
+                            } catch (android.content.ActivityNotFoundException error) {
+                                Toast.makeText(requireContext(), "No app can export text right now", Toast.LENGTH_LONG).show();
+                            }
+                        } else if (which == 1) {
+                            Intent importIntent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
+                            importIntent.addCategory(Intent.CATEGORY_OPENABLE);
+                            importIntent.setType("*/*");
+                            importIntent.putExtra(Intent.EXTRA_MIME_TYPES, new String[] {"application/json", "text/plain"});
+                            try {
+                                startActivityForResult(importIntent, MYLAUNCHER_SETTINGS_IMPORT_REQUEST_CODE);
+                            } catch (android.content.ActivityNotFoundException error) {
+                                Toast.makeText(requireContext(), R.string.main_config_import_failed, Toast.LENGTH_LONG).show();
+                            }
+                        }
+                    })
+                    .show();
             return true;
         });"""
     if config_long_listener not in main_menu_text:
@@ -1959,14 +2023,25 @@ def patch_upstream(upstream: Path) -> None:
         or "!configDirectory.isDirectory() && !configDirectory.mkdirs()" not in config_listener
         or "openPath(v.getContext(), configDirectory, false);" not in config_listener
         or "LauncherPreferences.DEFAULT_PREF.getAll()" not in config_long_listener
-        or "new org.json.JSONObject(safeSettings).toString()" not in config_long_listener
+        or "MYLAUNCHER_PORTABLE_SETTING_KEYS" not in config_long_listener
+        or "new org.json.JSONObject(portableEnvelope).toString()" not in config_long_listener
+        or 'portableEnvelope.put("format", "voidcraft-launcher-settings")' not in config_long_listener
+        or 'portableEnvelope.put("version", 1)' not in config_long_listener
+        or 'portableEnvelope.put("settings", safeSettings)' not in config_long_listener
         or "Intent.ACTION_SEND" not in config_long_listener
         or "Intent.EXTRA_TEXT" not in config_long_listener
+        or "Intent.ACTION_OPEN_DOCUMENT" not in config_long_listener
+        or "MYLAUNCHER_SETTINGS_IMPORT_REQUEST_CODE" not in config_long_listener
         or "R.string.main_config_export_note" not in config_long_listener
         or '"javaArgs"' in config_long_listener
         or '"defaultCtrl"' in config_long_listener
         or "PREF_KEY_CURRENT_PROFILE" in config_long_listener
         or "Tools.isDemoProfile(v.getContext())" not in config_long_listener
+        or "MYLAUNCHER_PORTABLE_SETTING_KEYS" not in main_menu_text
+        or "MYLAUNCHER_PORTABLE_BOOLEAN_SETTING_KEYS" not in main_menu_text
+        or "MYLAUNCHER_PORTABLE_INTEGER_SETTING_KEYS" not in main_menu_text
+        or "importSafeSettingsFromUri" not in main_menu_text
+        or "MYLAUNCHER_SETTINGS_IMPORT_MAX_BYTES" not in main_menu_text
     ):
         raise ValueError("The Config-folder settings export is incomplete or includes excluded preference fields")
 
@@ -2707,6 +2782,183 @@ def patch_upstream(upstream: Path) -> None:
         or "The ZIP contains an unsafe path segment" not in main_menu_text
     ):
         raise ValueError("Existing world backup/restore helpers are incomplete")
+
+    settings_import_methods = """    private static boolean containsPortableSettingKey(String[] keys, String key) {
+        for (String allowed : keys) {
+            if (allowed.equals(key)) return true;
+        }
+        return false;
+    }
+
+    private static int recommendedPortableAllocation(android.content.Context context) {
+        int deviceRam = Tools.getTotalDeviceMemory(context);
+        if (deviceRam < 1024) return 296;
+        if (deviceRam < 1536) return 448;
+        if (deviceRam < 2048) return 656;
+        if (!android.os.Process.is64Bit()) return 696;
+        if (deviceRam < 3064) return 936;
+        if (deviceRam < 4096) return 1144;
+        if (deviceRam < 6144) return 1536;
+        return 2048;
+    }
+
+    private static Object validatePortableSettingValue(String key, Object value, android.content.Context context) {
+        if (!containsPortableSettingKey(MYLAUNCHER_PORTABLE_SETTING_KEYS, key)) {
+            throw new IllegalArgumentException("Unknown portable setting");
+        }
+        if (containsPortableSettingKey(MYLAUNCHER_PORTABLE_BOOLEAN_SETTING_KEYS, key)) {
+            if (!(value instanceof Boolean)) throw new IllegalArgumentException("Invalid portable setting type");
+            return value;
+        }
+        if (!containsPortableSettingKey(MYLAUNCHER_PORTABLE_INTEGER_SETTING_KEYS, key)
+                || (!(value instanceof Integer) && !(value instanceof Long))) {
+            throw new IllegalArgumentException("Invalid portable setting type");
+        }
+        long longValue = ((Number) value).longValue();
+        if (longValue < Integer.MIN_VALUE || longValue > Integer.MAX_VALUE) {
+            throw new IllegalArgumentException("Portable setting is out of range");
+        }
+        int intValue = (int) longValue;
+        if ("buttonscale".equals(key) && (intValue < 10 || intValue > 400)) {
+            throw new IllegalArgumentException("Button scale is out of range");
+        }
+        if ("mousescale".equals(key) && (intValue < 10 || intValue > 400)) {
+            throw new IllegalArgumentException("Mouse scale is out of range");
+        }
+        if ("mousespeed".equals(key) && (intValue < 1 || intValue > 1000)) {
+            throw new IllegalArgumentException("Mouse speed is out of range");
+        }
+        if ("timeLongPressTrigger".equals(key) && (intValue < 50 || intValue > 5000)) {
+            throw new IllegalArgumentException("Long-press delay is out of range");
+        }
+        if ("allocation".equals(key)) {
+            if (intValue < 256) throw new IllegalArgumentException("Memory allocation is out of range");
+            intValue = Math.min(intValue, recommendedPortableAllocation(context));
+        }
+        if ("resolutionRatio".equals(key) && (intValue < 10 || intValue > 100)) {
+            throw new IllegalArgumentException("Resolution scale is out of range");
+        }
+        if ("gyroSensitivity".equals(key) && (intValue < 1 || intValue > 1000)) {
+            throw new IllegalArgumentException("Gyro sensitivity is out of range");
+        }
+        if ("gyroSampleRate".equals(key) && (intValue < 1 || intValue > 1000)) {
+            throw new IllegalArgumentException("Gyro sample rate is out of range");
+        }
+        if ("gamepad_deadzone_scale".equals(key) && (intValue < 1 || intValue > 500)) {
+            throw new IllegalArgumentException("Controller dead zone is out of range");
+        }
+        if ("touchControllerVibrateLength".equals(key) && (intValue < 0 || intValue > 10000)) {
+            throw new IllegalArgumentException("Controller vibration length is out of range");
+        }
+        return Integer.valueOf(intValue);
+    }
+
+    @Override
+    public void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode != MYLAUNCHER_SETTINGS_IMPORT_REQUEST_CODE
+                || resultCode != android.app.Activity.RESULT_OK
+                || data == null || data.getData() == null) {
+            return;
+        }
+        importSafeSettingsFromUri(data.getData());
+    }
+
+    private void importSafeSettingsFromUri(android.net.Uri uri) {
+        try (java.io.InputStream input = requireContext().getContentResolver().openInputStream(uri);
+             java.io.ByteArrayOutputStream output = new java.io.ByteArrayOutputStream()) {
+            if (input == null) throw new java.io.IOException("No input stream");
+            byte[] buffer = new byte[4096];
+            int totalBytes = 0;
+            int bytesRead;
+            while ((bytesRead = input.read(buffer)) != -1) {
+                totalBytes += bytesRead;
+                if (totalBytes > MYLAUNCHER_SETTINGS_IMPORT_MAX_BYTES) {
+                    throw new java.io.IOException("Settings file exceeds the size limit");
+                }
+                output.write(buffer, 0, bytesRead);
+            }
+
+            String jsonText = new String(output.toByteArray(), java.nio.charset.StandardCharsets.UTF_8);
+            org.json.JSONObject envelope = new org.json.JSONObject(jsonText);
+            if (!"voidcraft-launcher-settings".equals(envelope.optString("format"))
+                    || !(envelope.opt("version") instanceof Integer)
+                    || ((Integer) envelope.opt("version")).intValue() != 1) {
+                throw new IllegalArgumentException("Unsupported settings export format");
+            }
+            java.util.Iterator<String> envelopeKeys = envelope.keys();
+            while (envelopeKeys.hasNext()) {
+                String envelopeKey = envelopeKeys.next();
+                if (!"format".equals(envelopeKey) && !"version".equals(envelopeKey)
+                        && !"settings".equals(envelopeKey) && !"note".equals(envelopeKey)) {
+                    throw new IllegalArgumentException("Unknown settings export field");
+                }
+            }
+            org.json.JSONObject settings = envelope.optJSONObject("settings");
+            if (settings == null || settings.length() == 0
+                    || settings.length() > MYLAUNCHER_PORTABLE_SETTING_KEYS.length) {
+                throw new IllegalArgumentException("Settings export is empty or too large");
+            }
+            java.util.LinkedHashMap<String, Object> validatedSettings = new java.util.LinkedHashMap<>();
+            java.util.Iterator<String> settingKeys = settings.keys();
+            while (settingKeys.hasNext()) {
+                String key = settingKeys.next();
+                Object value = validatePortableSettingValue(key, settings.get(key), requireContext());
+                validatedSettings.put(key, value);
+            }
+
+            final java.util.Map<String, Object> settingsToApply = validatedSettings;
+            new AlertDialog.Builder(requireContext())
+                    .setTitle(R.string.main_config_import_confirm_title)
+                    .setMessage(getString(R.string.main_config_import_confirm_message, settingsToApply.size()))
+                    .setNegativeButton(android.R.string.cancel, null)
+                    .setPositiveButton(R.string.main_config_import_apply, (dialog, which) -> {
+                        android.content.SharedPreferences.Editor editor = LauncherPreferences.DEFAULT_PREF.edit();
+                        for (java.util.Map.Entry<String, Object> entry : settingsToApply.entrySet()) {
+                            Object value = entry.getValue();
+                            if (value instanceof Boolean) {
+                                editor.putBoolean(entry.getKey(), ((Boolean) value).booleanValue());
+                            } else {
+                                editor.putInt(entry.getKey(), ((Integer) value).intValue());
+                            }
+                        }
+                        editor.apply();
+                        Toast.makeText(
+                                requireContext(),
+                                getString(R.string.main_config_import_success, settingsToApply.size()),
+                                Toast.LENGTH_LONG
+                        ).show();
+                    })
+                    .show();
+        } catch (Exception error) {
+            Toast.makeText(requireContext(), R.string.main_config_import_failed, Toast.LENGTH_LONG).show();
+        }
+    }
+"""
+    if "private void importSafeSettingsFromUri(" not in main_menu_text:
+        class_end = main_menu_text.rfind("\n}")
+        if class_end < 0:
+            raise ValueError("Could not find MainMenuFragment closing brace for safe-settings import helpers")
+        main_menu_text = main_menu_text[:class_end] + "\n\n" + settings_import_methods + main_menu_text[class_end:]
+    settings_import_anchors = (
+        "MYLAUNCHER_SETTINGS_IMPORT_REQUEST_CODE",
+        "MYLAUNCHER_SETTINGS_IMPORT_MAX_BYTES",
+        "MYLAUNCHER_PORTABLE_SETTING_KEYS",
+        "Intent.ACTION_OPEN_DOCUMENT",
+        "void onActivityResult(int requestCode, int resultCode, @Nullable Intent data)",
+        "importSafeSettingsFromUri(data.getData())",
+        "totalBytes > MYLAUNCHER_SETTINGS_IMPORT_MAX_BYTES",
+        '"voidcraft-launcher-settings".equals(envelope.optString("format"))',
+        "validatePortableSettingValue(key, settings.get(key), requireContext())",
+        "setPositiveButton(R.string.main_config_import_apply",
+        "editor.apply();",
+        "Tools.isDemoProfile(v.getContext())",
+    )
+    missing_settings_import_anchors = [
+        anchor for anchor in settings_import_anchors if anchor not in main_menu_text
+    ]
+    if missing_settings_import_anchors:
+        raise ValueError(f"Safe-settings import implementation is incomplete: {missing_settings_import_anchors}")
 
     main_menu.write_text(main_menu_text, encoding="utf-8")
 
