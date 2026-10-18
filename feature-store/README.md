@@ -1,0 +1,27 @@
+# VoidCraft Feature Store
+
+The Feature Store is a new, separate extension system. It does **not** replace or remove Amethyst-Android, native libraries, Java runtimes, rendering, game/version download, Forge/NeoForge/Fabric-like/OptiFine loaders, or built-in Modrinth/CurseForge integration.
+
+## What a feature package is
+
+A `.vcfeature` file is a UTF-8 JSON manifest (maximum 1 MiB) with `schemaVersion: 1`, a stable `id`, `name`, `version`, `author`, `owner`, `description`, `category`, and a `screen` definition. The current renderer supports the `theme`, `server_status`, and `page` screen types. Page widgets are declarative text, toggle, and HTTPS-link controls.
+
+Feature packages are data, not executable Java, DEX, shell, or scripts. This keeps a community upload from silently gaining the launcher's privileges or replacing core files. Unsupported widgets/actions are ignored rather than executed.
+
+## Add a feature to the public catalog
+
+1. Create and test a feature in the launcher's **Feature Store → Create** screen.
+2. Export/share the resulting `.vcfeature` package.
+3. Add the package under `feature-store/packages/` in a pull request.
+4. Add a catalog entry to `feature-store/catalog.json` with its id, title, version, author/owner, category, description, package asset path, HTTPS download URL, and SHA-256 of the exact package bytes.
+5. Keep the package id identical in the catalog and package manifest. Do not publish secrets, tokens, personal data, or executable payloads.
+
+The launcher includes a bundled catalog for offline browsing and checks the public catalog URL for newer entries. Downloaded packages must use HTTPS, match their SHA-256, pass schema validation, and remain within the size limit. Owners can publish through normal repository review; the app does not contain a personal access token or silently write to GitHub. Direct one-tap upload to a shared public service would require a separately hosted authenticated publishing endpoint.
+
+## Current sample features
+
+- **Theme Studio** — changes supported launcher UI colors with named palettes.
+- **Server Status** — queries the public mcsrvstat.us service for an entered Java server.
+- **Community Resources** — a separate feature screen linking to Modrinth, CurseForge, and the project.
+
+The catalog is an additive option; existing launcher pages and integrations stay available.
