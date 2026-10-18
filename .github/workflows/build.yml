@@ -7,10 +7,12 @@ on:
     paths:
       - '.github/workflows/build.yml'
       - '.github/scripts/**'
+      - 'feature-store/**'
   pull_request:
     paths:
       - '.github/workflows/build.yml'
       - '.github/scripts/**'
+      - 'feature-store/**'
   workflow_dispatch:
 
 permissions:
@@ -31,7 +33,7 @@ jobs:
 
       - name: Validate customizer and regression suite
         run: |
-          python3 -m py_compile .github/scripts/customize_amethyst.py .github/scripts/apply_logo.py .github/scripts/patch_renderpearl_workaround.py .github/scripts/test_customizer.py .github/scripts/test_renderpearl_workaround.py .github/scripts/customize_ui.py .github/scripts/test_ui_customizer.py
+          python3 -m py_compile .github/scripts/customize_amethyst.py .github/scripts/apply_logo.py .github/scripts/patch_renderpearl_workaround.py .github/scripts/test_customizer.py .github/scripts/test_renderpearl_workaround.py .github/scripts/customize_ui.py .github/scripts/test_ui_customizer.py .github/scripts/feature_store.py .github/scripts/test_feature_store.py
           sh -n .github/scripts/prepare_emulator_kvm.sh
           sh -n .github/scripts/emulator_smoke_test.sh
           python3 -m unittest discover -s .github/scripts -p 'test_*.py' -v
@@ -106,6 +108,11 @@ jobs:
       - name: Apply VoidCraft Launcher night-violet UI
         run: |
           python3 .github/scripts/customize_ui.py upstream
+          git -C upstream diff --check
+
+      - name: Apply optional VoidCraft Feature Store
+        run: |
+          python3 .github/scripts/feature_store.py upstream
           git -C upstream diff --check
 
       - name: Apply VoidCraft Launcher logo
