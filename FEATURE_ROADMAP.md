@@ -11,6 +11,7 @@ This document tracks the complete requested feature scope. A feature appearing i
 | Area | Current evidence | Status |
 |---|---|---|
 | Account flow | Upstream has Microsoft login, account selector, local-login screen, account/profile classes; VoidCraft Launcher removes the online-profile gate for local-account creation and the offline-profile download gate. | Source patched; account UI still needs emulator/device acceptance testing. |
+| Feature Store / Social Hub | PR #65 adds an installable `voidcraft.social-hub` package with separate Profile, Friends, Requests, and Chats views, a local username, demo request acceptance/cancellation, contact removal, local chat history, provider-choice placeholders, and a Swipe → Next button. Package checksums and category-free catalog validation are covered by regression tests. | UI prototype only. Friend requests/messages are stored on this device and are not delivered online; Microsoft/Xbox, Google, and other-provider authentication are placeholders. A secured backend, OAuth/token verification, messaging delivery, abuse controls, and explicit device acceptance are still required for true cross-player functionality. |
 | Minecraft versions/downloads | Upstream has version-list, async downloader, checksum-aware downloads, mirrors and asset handling. The home screen now has **Verify / repair version**, which confirms intent, requires internet, resolves the selected profile against the official version list, reuses the existing downloader, and reports completion/failure without launching Minecraft. Missing/unreadable/empty selected-version and required `inheritsFrom` parent JSON guards remain in place; offline username validation uses full-string matching and submits the validated field value. | Regression coverage checks the button, both layouts, official-version guard and no-launch callback. Actual network repair of a missing/corrupt client or 26.x manifest still needs device acceptance. Custom/unlisted modded versions are intentionally rejected by this shortcut. |
 | Mod management | Mods tap opens the selected profile's folder; long-press lists top-level `.jar` and `.jar.disabled` files, labels their state, and confirms an enable/disable rename without overwriting a conflicting destination. | The implementation and regression tests are on `main`; the APK build/package checks passed in main run [#39101148914](https://github.com/hsudais201-ops/myLauncher/actions/runs/39101148914). The cloud emulator verifies launcher startup, not tapping this menu, so manual device acceptance is still needed. Mod installing, updating, conflict detection, and compatibility checks remain unimplemented. |
 | Mod loaders/modpacks | Source includes Forge, NeoForge, Fabric-like, OptiFine, Modrinth and CurseForge components. Top-level JAR mods and ZIP resource packs have safe enable/disable dialogs via long-press, with confirmation and conflict checks. | Source and regression coverage added; dialog interaction still needs manual device acceptance. Installers, dependency conflicts, updates and compatibility checks remain unimplemented. |
@@ -59,6 +60,16 @@ These links point to the pinned upstream source that the build uses. They establ
 - Account profile and avatar
 - Account session validation
 - Authentication error handling
+
+## Social Hub and cross-player chat (not yet implemented)
+
+- Real account registration and username-availability checks backed by a service, with a server-generated stable user ID.
+- Microsoft/Xbox and Google/OpenID Connect sign-in through official OAuth flows, token verification on the server, account linking and unlinking, sign-out, and safe session revocation.
+- User search, incoming/outgoing friend requests, accept/decline/cancel, friend removal, block/report, privacy controls, request rate limits, abuse prevention, and audit-safe moderation tools.
+- Cross-device one-to-one chat, message persistence/delivery, unread counts, timestamps, offline delivery, reconnect/retry handling, notifications, and deletion/retention rules.
+- The launcher must never treat a typed Minecraft username or the current Minecraft session as proof of an account identity. The backend must authorize every friend/message action and avoid storing provider passwords or logging access tokens.
+
+The current Social Hub package deliberately exposes only a local preview for these flows. Microsoft/Xbox social/messaging APIs require their own valid service authentication and permissions; the existing Minecraft sign-in alone does not make those services available.
 
 ## 2. Minecraft Version Management
 
