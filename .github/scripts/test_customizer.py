@@ -96,6 +96,100 @@ rootProject.name='Amethyst'
             encoding="utf-8",
         )
 
+        import_control = app / "src/main/java/net/kdt/pojavlaunch/ImportControlActivity.java"
+        import_control.parent.mkdir(parents=True, exist_ok=True)
+        import_control.write_text(
+            r"""import org.apache.commons.io.IOUtils;
+import org.json.JSONException;
+import org.json.JSONObject;
+
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+
+class ImportControlActivity {
+    private Uri mUriData;
+    private boolean mHasIntentChanged = true;
+    private volatile boolean mIsFileVerified = false;
+
+        //Import and verify thread
+        //Kill the app if the file isn't valid.
+        new Thread(() -> {
+            importControlFile();
+
+            if(verify())mIsFileVerified = true;
+            else runOnUiThread(() -> {
+                Toast.makeText(
+                        ImportControlActivity.this,
+                        getText(R.string.import_control_invalid_file),
+                        Toast.LENGTH_SHORT).show();
+                finishAndRemoveTask();
+            });
+        }).start();
+
+    public void startImport(View view) {
+        String fileName = trimFileName(mEditText.getText().toString());
+        if(!isFileNameValid(fileName)){
+            Toast.makeText(this, getText(R.string.import_control_invalid_name), Toast.LENGTH_SHORT).show();
+            return;
+        }
+        if(!mIsFileVerified){
+            Toast.makeText(this, getText(R.string.import_control_verifying_file), Toast.LENGTH_LONG).show();
+            return;
+        }
+
+        new File(Tools.CTRLMAP_PATH + "/TMP_IMPORT_FILE.json").renameTo(new File(Tools.CTRLMAP_PATH + "/" + fileName + ".json"));
+        Toast.makeText(getApplicationContext(), getText(R.string.import_control_done), Toast.LENGTH_SHORT).show();
+        finishAndRemoveTask();
+    }
+
+    private void importControlFile(){
+        InputStream is;
+        try {
+            is = getContentResolver().openInputStream(mUriData);
+            OutputStream os = new FileOutputStream(Tools.CTRLMAP_PATH + "/" + "TMP_IMPORT_FILE" + ".json");
+            IOUtils.copy(is, os);
+
+            os.close();
+            is.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private static boolean isFileNameValid(String fileName){
+        fileName = trimFileName(fileName);
+
+        if(fileName.isEmpty()) return false;
+        return !FileUtils.exists(Tools.CTRLMAP_PATH + "/" + fileName + ".json");
+    }
+
+    private static String trimFileName(String fileName){
+        return fileName
+                .replace(".json", "")
+                .replaceAll("%..", "/")
+                .replace("/", "")
+                .replace("\\\\", "")
+                .trim();
+    }
+
+    private static boolean verify(){
+        try{
+            String jsonLayoutData = Tools.read(Tools.CTRLMAP_PATH + "/TMP_IMPORT_FILE.json");
+            JSONObject layoutJobj = new JSONObject(jsonLayoutData);
+            return layoutJobj.has("version") && layoutJobj.has("mControlDataList");
+        }catch (JSONException | IOException e) {
+            e.printStackTrace();
+            return false;
+        }
+    }
+}
+""",
+            encoding="utf-8",
+        )
+
         logger_view = app / "src/main/java/com/kdt/LoggerView.java"
         logger_view.parent.mkdir(parents=True, exist_ok=True)
         logger_view.write_text(
@@ -1393,6 +1487,51 @@ class ProfileTypeSelectFragment {
             self.assertIn('new File(getCurrentProfileDirectory(), "shaderpacks")', shader_handler)
             self.assertNotIn('new File(getCurrentProfileDirectory(), "resourcepacks")', shader_handler)
             self.assertLess(menu.index("mMyLauncherShaderPacksButton.setOnClickListener"), handler_start)
+
+    def test_control_layout_import_is_bounded_and_structurally_checked(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            self.fixture(root)
+            customizer.patch_upstream(root)
+
+            import_source = (
+                root / "app_pojavlauncher/src/main/java/net/kdt/pojavlaunch/ImportControlActivity.java"
+            ).read_text(encoding="utf-8")
+            self.assertNotIn("IOUtils.copy", import_source)
+            self.assertIn("MAX_CONTROL_LAYOUT_BYTES = 2L * 1024L * 1024L", import_source)
+            self.assertIn("totalBytes > MAX_CONTROL_LAYOUT_BYTES", import_source)
+            self.assertIn("TMP_IMPORT_FILE.json.part", import_source)
+            self.assertIn("importControlFile(requestedUri)", import_source)
+            self.assertIn("synchronized (mImportLock)", import_source)
+            self.assertIn("requestId != mImportRequestId", import_source)
+            self.assertIn("MAX_CONTROL_LAYOUT_ITEMS = 1000", import_source)
+            self.assertIn('if (version < 2 || version > 8) return false;', import_source)
+            self.assertIn('if (!stagedFile.isFile()', import_source)
+            self.assertIn("destinationFile.exists()", import_source)
+            self.assertIn("!stagedFile.renameTo(destinationFile)", import_source)
+            self.assertIn('fileName.length() > 80', import_source)
+            self.assertIn("Double.isInfinite(numericVersion)", import_source)
+            self.assertIn("if (!importedFile.isFile()", import_source)
+
+            # Failure must never fall through to the success toast.
+            self.assertLess(
+                import_source.index("if (!stagedFile.isFile()"),
+                import_source.index('getText(R.string.import_control_done)'),
+            )
+
+    def test_control_layout_import_patch_is_idempotent(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            self.fixture(root)
+            customizer.patch_upstream(root)
+            source_path = (
+                root / "app_pojavlauncher/src/main/java/net/kdt/pojavlaunch/ImportControlActivity.java"
+            )
+            first = source_path.read_bytes()
+            customizer.patch_upstream(root)
+            self.assertEqual(first, source_path.read_bytes())
+            self.assertEqual(first.count(b"MAX_CONTROL_LAYOUT_BYTES ="), 1)
+            self.assertEqual(first.count(b"private boolean importControlFile(Uri sourceUri)"), 1)
 
     def test_is_idempotent(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
