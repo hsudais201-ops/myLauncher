@@ -1943,7 +1943,7 @@ def patch_upstream(upstream: Path) -> None:
 """
     if "MYLAUNCHER_SETTINGS_IMPORT_REQUEST_CODE" not in main_menu_text:
         main_menu_class = re.search(
-            r"(?m)^([ \t]*(?:public\s+)?class\s+MainMenuFragment\s*\{)[ \t]*$",
+            r"(?m)^([ \t]*(?:public\s+)?class\s+MainMenuFragment\b[^{]*\{)[ \t]*$",
             main_menu_text,
         )
         if not main_menu_class:
