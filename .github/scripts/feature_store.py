@@ -227,7 +227,8 @@ def patch_upstream(upstream: Path, repo_root: Path = REPO_ROOT) -> None:
 
         for path in (manifest, strings, *layouts):
             ET.parse(path)
-        if "FeatureStoreActivity.class" not in main_menu or "FeatureTheme.apply(this);" not in base_activity.read_text(encoding="utf-8"):
+        menu_text = main_menu.read_text(encoding="utf-8")
+        if "FeatureStoreActivity.class" not in menu_text or "FeatureTheme.apply(this);" not in base_activity.read_text(encoding="utf-8"):
             raise ValueError("Feature Store navigation or global theme application is incomplete")
     finally:
         REPO_ROOT, SOURCE_ROOT = previous_repo_root, previous_source_root
