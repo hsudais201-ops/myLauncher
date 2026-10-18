@@ -932,6 +932,24 @@ class ProfileTypeSelectFragment {
             self.assertIn("!canonicalSelectedBackup.delete()", menu)
             self.assertIn("Tools.isDemoProfile(v.getContext())", menu)
 
+    def test_world_backup_pickers_show_size_and_last_modified_metadata(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            self.fixture(root)
+            customizer.patch_upstream(root)
+            menu = (root / "app_pojavlauncher/src/main/java/net/kdt/pojavlaunch/fragments/MainMenuFragment.java").read_text(encoding="utf-8")
+            self.assertIn("private static String worldBackupDisplayLabel(File backupFile)", menu)
+            self.assertIn("backupFile.length()", menu)
+            self.assertIn("backupFile.lastModified()", menu)
+            self.assertIn("java.text.DateFormat.getDateTimeInstance(", menu)
+            self.assertIn('backupFile.getName() + "\\n" + sizeLabel + " · " + modifiedLabel', menu)
+            self.assertGreaterEqual(menu.count("backupNames[i] = worldBackupDisplayLabel(backupFiles[i]);"), 3)
+            self.assertEqual(menu.count("backupNames[i] = backupFiles[i].getName();"), 0)
+            self.assertGreaterEqual(menu.count("Long.compare(right.lastModified(), left.lastModified())"), 3)
+            self.assertIn("private void showWorldBackupPicker(", menu)
+            self.assertIn("private void showWorldBackupVerifyPicker(", menu)
+            self.assertIn("private void showWorldBackupDeletePicker(", menu)
+
     def test_world_backup_verification_checks_paths_entries_crc_and_bounds(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
