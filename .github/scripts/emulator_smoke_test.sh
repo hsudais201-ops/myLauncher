@@ -110,7 +110,7 @@ if [ "$SCREENSHOT_CAPTURED" != true ]; then
     timeout -k 3s 20s adb logcat -d -t 5000 > upstream/mylauncher-emulator-logcat.txt || true
     capture_diagnostic_screenshot
     cat upstream/mylauncher-activities.txt || true
-    grep -E 'FATAL EXCEPTION|AndroidRuntime|com\\.mf\\.mylauncher\\.debug' upstream/mylauncher-emulator-logcat.txt | tail -250 || true
+    grep -E 'FATAL EXCEPTION|AndroidRuntime|com\.mf\.mylauncher\.debug' upstream/mylauncher-emulator-logcat.txt | tail -250 || true
     echo "Unable to capture a non-empty emulator screenshot after 3 attempts." >&2
     exit 1
 fi
