@@ -47,10 +47,10 @@ def patch_control_layout_import(upstream: Path) -> None:
         nonlocal text
         old_count = text.count(old)
         new_count = text.count(new)
-        if old_count == 1:
-            text = text.replace(old, new, 1)
-        elif old_count == 0 and new_count == 1:
+        if new_count == 1:
             return
+        elif old_count == 1 and new_count == 0:
+            text = text.replace(old, new, 1)
         else:
             raise ValueError(
                 f"Could not safely patch {label} in {source}; expected exactly one original or patched block"
