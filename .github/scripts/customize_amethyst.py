@@ -2267,7 +2267,7 @@ def patch_upstream(upstream: Path) -> None:
                     new AlertDialog.Builder(activity)
                             .setTitle(R.string.main_world_backup_delete_confirm_title)
                             .setMessage(activity.getString(R.string.main_world_backup_delete_confirm_message)
-                                    + "\n\n" + selectedBackup.getName())
+                                    + "\\n\\n" + selectedBackup.getName())
                             .setNegativeButton(android.R.string.cancel, null)
                             .setPositiveButton(R.string.main_world_backup_delete, (confirmDialog, result) -> {
                                 try {
