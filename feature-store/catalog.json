@@ -1,0 +1,41 @@
+{
+  "schemaVersion": 1,
+  "features": [
+    {
+      "id": "voidcraft.theme-studio",
+      "name": "Theme Studio",
+      "version": "1.0.0",
+      "author": "VoidCraft Launcher",
+      "owner": "VoidCraft Launcher",
+      "description": "Choose a separate launcher-wide color palette and preview supported theme presets.",
+      "category": "Appearance",
+      "asset": "packages/theme-studio.vcfeature",
+      "packageUrl": "https://raw.githubusercontent.com/hsudais201-ops/myLauncher/main/feature-store/packages/theme-studio.vcfeature",
+      "sha256": "4d88aebb812d58a04c0d74c2a95d3bae9527eb0593d571aa193cdfbc442379bf"
+    },
+    {
+      "id": "community.server-status",
+      "name": "Server Status",
+      "version": "1.0.0",
+      "author": "VoidCraft Community",
+      "owner": "VoidCraft Community",
+      "description": "Check whether a Java Edition server is online, its player count, and version.",
+      "category": "Multiplayer",
+      "asset": "packages/server-status.vcfeature",
+      "packageUrl": "https://raw.githubusercontent.com/hsudais201-ops/myLauncher/main/feature-store/packages/server-status.vcfeature",
+      "sha256": "5779a9548ede8b669d89a2d8db9c9961f002d5a699a8106320ae0e94a26d1b91"
+    },
+    {
+      "id": "community.community-links",
+      "name": "Community Resources",
+      "version": "1.0.0",
+      "author": "VoidCraft Community",
+      "owner": "VoidCraft Community",
+      "description": "A dedicated screen of links to mod discovery and launcher project resources.",
+      "category": "Community",
+      "asset": "packages/community-links.vcfeature",
+      "packageUrl": "https://raw.githubusercontent.com/hsudais201-ops/myLauncher/main/feature-store/packages/community-links.vcfeature",
+      "sha256": "0a42f21a63d0519a9a100bb25f1b68c862063a6e43bd99ed8168540cb22553d9"
+    }
+  ]
+}
