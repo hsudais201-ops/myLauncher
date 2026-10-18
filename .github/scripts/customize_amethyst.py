@@ -350,7 +350,7 @@ def patch_upstream(upstream: Path) -> None:
         "main_config_export_action": "Export portable settings",
         "main_config_import_action": "Import portable settings",
         "main_config_import_confirm_title": "Apply portable settings?",
-        "main_config_import_confirm_message": "Apply %1$d portable setting(s)? Existing values for those settings will be replaced. Memory allocation is limited to this device's recommended value. Account/session data, profile selection, free-form Java arguments, control-file paths, and world data are not imported.",
+        "main_config_import_confirm_message": "Apply %1$d portable setting(s)? Existing values for those settings will be replaced. Memory allocation is limited to this device\\'s recommended value. Account/session data, profile selection, free-form Java arguments, control-file paths, and world data are not imported.",
         "main_config_import_apply": "Apply settings",
         "main_config_import_success": "Imported %1$d portable setting(s). Restart the launcher to refresh preferences cached at startup.",
         "main_config_import_failed": "Could not import settings. Choose a valid VoidCraft Launcher JSON export. No settings were changed.",
