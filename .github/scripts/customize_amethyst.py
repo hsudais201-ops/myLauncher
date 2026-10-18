@@ -26,6 +26,333 @@ def validate_xml_files(paths: tuple[Path, ...]) -> None:
             raise ValueError(f"Generated Android XML is invalid at {path}: {exc}") from exc
 
 
+def patch_control_layout_import(upstream: Path) -> None:
+    """Bound and validate imports of externally supplied touch-control layout JSON."""
+    source = (
+        upstream
+        / "app_pojavlauncher"
+        / "src"
+        / "main"
+        / "java"
+        / "net"
+        / "kdt"
+        / "pojavlaunch"
+        / "ImportControlActivity.java"
+    )
+    if not source.is_file():
+        raise FileNotFoundError(f"Expected control-layout import activity is missing: {source}")
+    text = source.read_text(encoding="utf-8")
+
+    def replace_block(old: str, new: str, label: str) -> None:
+        nonlocal text
+        old_count = text.count(old)
+        new_count = text.count(new)
+        if old_count == 1:
+            text = text.replace(old, new, 1)
+        elif old_count == 0 and new_count == 1:
+            return
+        else:
+            raise ValueError(
+                f"Could not safely patch {label} in {source}; expected exactly one original or patched block"
+            )
+
+    # IOUtils.copy has no bound and can exhaust storage when an exported activity
+    # receives a large or endless content stream.
+    text = text.replace("import org.apache.commons.io.IOUtils;\n", "")
+    if "import org.json.JSONArray;\n" not in text:
+        json_import_anchor = "import org.json.JSONException;\n"
+        if text.count(json_import_anchor) != 1:
+            raise ValueError("Could not add JSONArray import to control-layout verifier")
+        text = text.replace(json_import_anchor, json_import_anchor + "import org.json.JSONArray;\n", 1)
+
+    old_fields = """    private Uri mUriData;
+    private boolean mHasIntentChanged = true;
+    private volatile boolean mIsFileVerified = false;
+"""
+    new_fields = """    private Uri mUriData;
+    private boolean mHasIntentChanged = true;
+    private volatile boolean mIsFileVerified = false;
+    private static final long MAX_CONTROL_LAYOUT_BYTES = 2L * 1024L * 1024L;
+    private static final int MAX_CONTROL_LAYOUT_ITEMS = 1000;
+    private final Object mImportLock = new Object();
+    private volatile int mImportRequestId = 0;
+"""
+    replace_block(old_fields, new_fields, "import request state and size limits")
+
+    old_resume = """        //Import and verify thread
+        //Kill the app if the file isn't valid.
+        new Thread(() -> {
+            importControlFile();
+
+            if(verify())mIsFileVerified = true;
+            else runOnUiThread(() -> {
+                Toast.makeText(
+                        ImportControlActivity.this,
+                        getText(R.string.import_control_invalid_file),
+                        Toast.LENGTH_SHORT).show();
+                finishAndRemoveTask();
+            });
+        }).start();
+"""
+    new_resume = """        // Process one import at a time. Each worker captures its own Uri and request
+        // number so rapid external intents cannot swap the source under an active copy.
+        final Uri requestedUri = mUriData;
+        final int requestId = ++mImportRequestId;
+        new Thread(() -> {
+            boolean valid;
+            synchronized (mImportLock) {
+                if (requestId != mImportRequestId) return;
+                valid = importControlFile(requestedUri) && verify();
+            }
+            if (requestId != mImportRequestId) return;
+            if (valid) {
+                mIsFileVerified = true;
+            } else {
+                runOnUiThread(() -> {
+                    if (requestId != mImportRequestId) return;
+                    new File(Tools.CTRLMAP_PATH, "TMP_IMPORT_FILE.json").delete();
+                    Toast.makeText(
+                            ImportControlActivity.this,
+                            getText(R.string.import_control_invalid_file),
+                            Toast.LENGTH_SHORT).show();
+                    finishAndRemoveTask();
+                });
+            }
+        }).start();
+"""
+    replace_block(old_resume, new_resume, "serialized control-file import lifecycle")
+
+    old_start = """        new File(Tools.CTRLMAP_PATH + "/TMP_IMPORT_FILE.json").renameTo(new File(Tools.CTRLMAP_PATH + "/" + fileName + ".json"));
+        Toast.makeText(getApplicationContext(), getText(R.string.import_control_done), Toast.LENGTH_SHORT).show();
+        finishAndRemoveTask();
+"""
+    new_start = """        File controlDirectory = new File(Tools.CTRLMAP_PATH);
+        File stagedFile = new File(controlDirectory, "TMP_IMPORT_FILE.json");
+        File destinationFile = new File(controlDirectory, fileName + ".json");
+        try {
+            String rootPath = controlDirectory.getCanonicalPath();
+            String destinationPath = destinationFile.getCanonicalPath();
+            if (!stagedFile.isFile()
+                    || destinationFile.exists()
+                    || !destinationPath.startsWith(rootPath + File.separator)
+                    || !stagedFile.renameTo(destinationFile)) {
+                Toast.makeText(this, getText(R.string.import_control_invalid_file), Toast.LENGTH_SHORT).show();
+                return;
+            }
+        } catch (IOException | SecurityException exception) {
+            Toast.makeText(this, getText(R.string.import_control_invalid_file), Toast.LENGTH_SHORT).show();
+            return;
+        }
+        Toast.makeText(getApplicationContext(), getText(R.string.import_control_done), Toast.LENGTH_SHORT).show();
+        finishAndRemoveTask();
+"""
+    replace_block(old_start, new_start, "checked control-file finalization")
+
+    old_name_validation = """    private static boolean isFileNameValid(String fileName){
+        fileName = trimFileName(fileName);
+
+        if(fileName.isEmpty()) return false;
+        return !FileUtils.exists(Tools.CTRLMAP_PATH + "/" + fileName + ".json");
+    }
+"""
+    new_name_validation = """    private static boolean isFileNameValid(String fileName){
+        fileName = trimFileName(fileName);
+
+        if (fileName.isEmpty()
+                || fileName.length() > 80
+                || fileName.equals(".")
+                || fileName.equals("..")
+                || fileName.endsWith(".")
+                || fileName.matches(".*[\\\\p{Cntrl}/\\\\\\\\].*")) {
+            return false;
+        }
+        return !FileUtils.exists(Tools.CTRLMAP_PATH + "/" + fileName + ".json");
+    }
+"""
+    replace_block(old_name_validation, new_name_validation, "control-layout filename validation")
+
+    old_import = """    private void importControlFile(){
+        InputStream is;
+        try {
+            is = getContentResolver().openInputStream(mUriData);
+            OutputStream os = new FileOutputStream(Tools.CTRLMAP_PATH + "/" + "TMP_IMPORT_FILE" + ".json");
+            IOUtils.copy(is, os);
+
+            os.close();
+            is.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+"""
+    new_import = """    private boolean importControlFile(Uri sourceUri) {
+        File controlDirectory = new File(Tools.CTRLMAP_PATH);
+        File targetFile = new File(controlDirectory, "TMP_IMPORT_FILE.json");
+        File stagingFile = new File(controlDirectory, "TMP_IMPORT_FILE.json.part");
+
+        if (!controlDirectory.isDirectory() && !controlDirectory.mkdirs()) return false;
+        if (targetFile.exists() && !targetFile.delete()) return false;
+        if (stagingFile.exists() && !stagingFile.delete()) return false;
+
+        try {
+            if (sourceUri == null || !"content".equalsIgnoreCase(sourceUri.getScheme())) {
+                throw new IOException("Unsupported control-layout source");
+            }
+
+            try (InputStream input = getContentResolver().openInputStream(sourceUri)) {
+                if (input == null) throw new IOException("Unable to open control-layout source");
+                try (OutputStream output = new FileOutputStream(stagingFile)) {
+                    byte[] buffer = new byte[8192];
+                    long totalBytes = 0;
+                    int read;
+                    while ((read = input.read(buffer)) != -1) {
+                        totalBytes += read;
+                        if (totalBytes > MAX_CONTROL_LAYOUT_BYTES) {
+                            throw new IOException("Control layout exceeds the import size limit");
+                        }
+                        output.write(buffer, 0, read);
+                    }
+                    output.flush();
+                }
+            }
+
+            if (!stagingFile.isFile()
+                    || stagingFile.length() == 0
+                    || stagingFile.length() > MAX_CONTROL_LAYOUT_BYTES
+                    || targetFile.exists()
+                    || !stagingFile.renameTo(targetFile)) {
+                throw new IOException("Unable to finalize imported control layout");
+            }
+            return true;
+        } catch (IOException | SecurityException exception) {
+            if (targetFile.exists()) targetFile.delete();
+            return false;
+        } finally {
+            if (stagingFile.exists()) stagingFile.delete();
+        }
+    }
+"""
+    replace_block(old_import, new_import, "bounded staged control-layout copy")
+
+    old_verify = """    private static boolean verify(){
+        try{
+            String jsonLayoutData = Tools.read(Tools.CTRLMAP_PATH + "/TMP_IMPORT_FILE.json");
+            JSONObject layoutJobj = new JSONObject(jsonLayoutData);
+            return layoutJobj.has("version") && layoutJobj.has("mControlDataList");
+        }catch (JSONException | IOException e) {
+            e.printStackTrace();
+            return false;
+        }
+    }
+"""
+    new_verify = """    private static boolean verify(){
+        File importedFile = new File(Tools.CTRLMAP_PATH, "TMP_IMPORT_FILE.json");
+        if (!importedFile.isFile()
+                || !importedFile.canRead()
+                || importedFile.length() <= 0
+                || importedFile.length() > MAX_CONTROL_LAYOUT_BYTES) {
+            return false;
+        }
+
+        try {
+            String jsonLayoutData = Tools.read(importedFile.getAbsolutePath());
+            JSONObject layoutJobj = new JSONObject(jsonLayoutData);
+            Object controlsValue = layoutJobj.opt("mControlDataList");
+            if (!(controlsValue instanceof JSONArray)) return false;
+
+            JSONArray controls = (JSONArray) controlsValue;
+            int totalItems = controls.length();
+            if (totalItems > MAX_CONTROL_LAYOUT_ITEMS) return false;
+            for (int i = 0; i < controls.length(); i++) {
+                if (!(controls.opt(i) instanceof JSONObject)) return false;
+            }
+
+            // V1 layouts predate the version field. Newer supported formats are 2-8.
+            boolean hasVersion = layoutJobj.has("version");
+            int version = 1;
+            if (hasVersion) {
+                Object versionValue = layoutJobj.opt("version");
+                if (!(versionValue instanceof Number)) return false;
+                double numericVersion = ((Number) versionValue).doubleValue();
+                if (Double.isNaN(numericVersion)
+                        || Double.isInfinite(numericVersion)
+                        || numericVersion != Math.rint(numericVersion)) {
+                    return false;
+                }
+                version = (int) numericVersion;
+                if (version < 2 || version > 8) return false;
+            } else if (!(layoutJobj.opt("scaledAt") instanceof Number)) {
+                return false;
+            }
+
+            Object drawersValue = layoutJobj.opt("mDrawerDataList");
+            Object joysticksValue = layoutJobj.opt("mJoystickDataList");
+            if (hasVersion && !(drawersValue instanceof JSONArray)) return false;
+            if (version >= 6 && !(joysticksValue instanceof JSONArray)) return false;
+
+            if (drawersValue != null) {
+                if (!(drawersValue instanceof JSONArray)) return false;
+                JSONArray drawers = (JSONArray) drawersValue;
+                totalItems += drawers.length();
+                if (totalItems > MAX_CONTROL_LAYOUT_ITEMS) return false;
+                for (int i = 0; i < drawers.length(); i++) {
+                    Object drawerValue = drawers.opt(i);
+                    if (!(drawerValue instanceof JSONObject)) return false;
+                    JSONObject drawer = (JSONObject) drawerValue;
+                    if (!(drawer.opt("properties") instanceof JSONObject)) return false;
+                    Object subButtonsValue = drawer.opt("buttonProperties");
+                    if (subButtonsValue != null) {
+                        if (!(subButtonsValue instanceof JSONArray)) return false;
+                        JSONArray subButtons = (JSONArray) subButtonsValue;
+                        totalItems += subButtons.length();
+                        if (totalItems > MAX_CONTROL_LAYOUT_ITEMS) return false;
+                        for (int j = 0; j < subButtons.length(); j++) {
+                            if (!(subButtons.opt(j) instanceof JSONObject)) return false;
+                        }
+                    }
+                }
+            }
+
+            if (joysticksValue != null) {
+                if (!(joysticksValue instanceof JSONArray)) return false;
+                JSONArray joysticks = (JSONArray) joysticksValue;
+                totalItems += joysticks.length();
+                if (totalItems > MAX_CONTROL_LAYOUT_ITEMS) return false;
+                for (int i = 0; i < joysticks.length(); i++) {
+                    if (!(joysticks.opt(i) instanceof JSONObject)) return false;
+                }
+            }
+            return true;
+        } catch (JSONException | IOException e) {
+            return false;
+        }
+    }
+"""
+    replace_block(old_verify, new_verify, "bounded control-layout JSON validation")
+
+    required_guards = (
+        "MAX_CONTROL_LAYOUT_BYTES = 2L * 1024L * 1024L",
+        "requestId != mImportRequestId",
+        "totalBytes > MAX_CONTROL_LAYOUT_BYTES",
+        "MAX_CONTROL_LAYOUT_ITEMS",
+        'if (version < 2 || version > 8) return false;',
+        "!stagedFile.renameTo(destinationFile)",
+        "destinationFile.exists()",
+    )
+    missing = [guard for guard in required_guards if guard not in text]
+    forbidden = (
+        "IOUtils.copy(is, os)",
+        "return layoutJobj.has(\"version\") && layoutJobj.has(\"mControlDataList\")",
+        'new File(Tools.CTRLMAP_PATH + "/TMP_IMPORT_FILE.json").renameTo',
+    )
+    remaining = [fragment for fragment in forbidden if fragment in text]
+    if missing or remaining:
+        raise ValueError(
+            f"Control-layout import hardening is incomplete; missing={missing}, remainingUnsafe={remaining}"
+        )
+    source.write_text(text, encoding="utf-8")
+
+
 def patch_upstream(upstream: Path) -> None:
     gradle = upstream / "app_pojavlauncher" / "build.gradle"
     strings = upstream / "app_pojavlauncher" / "src" / "main" / "res" / "values" / "strings.xml"
@@ -3398,6 +3725,8 @@ def patch_upstream(upstream: Path) -> None:
     if "if (deviceRam <= 2048) return 512;" not in preferences_text:
         raise ValueError("The 1.5–2 GB RAM tier must default to a 512 MB heap")
     launcher_preferences.write_text(preferences_text, encoding="utf-8")
+
+    patch_control_layout_import(upstream)
 
     validate_xml_files((
         strings,
