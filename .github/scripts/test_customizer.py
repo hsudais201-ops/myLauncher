@@ -1306,7 +1306,7 @@ class ProfileTypeSelectFragment {
             self.assertIn("R.string.main_config_reset_no_values", menu)
 
             reset_start = menu.index("private static final String[] MYLAUNCHER_INTERFACE_RESET_KEYS")
-            reset_end = menu.index("\\n    };", reset_start)
+            reset_end = menu.index("\n    };", reset_start)
             reset_keys = menu[reset_start:reset_end]
             for expected in (
                 '"buttonscale"', '"mousescale"', '"mousespeed"', '"ignoreNotch"',
