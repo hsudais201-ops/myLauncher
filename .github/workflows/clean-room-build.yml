@@ -8,6 +8,7 @@ on:
     paths:
       - 'voidcraft-android/**'
       - 'CLEAN_ROOM_POLICY.md'
+      - 'COPYRIGHT_AND_LICENSE_AUDIT.md'
       - '.github/workflows/clean-room-build.yml'
   pull_request:
     paths:
