@@ -47,7 +47,17 @@ jobs:
           java-version: '17'
 
       - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
+        uses: android-actions/setup-android@v4
+        with:
+          # Avoid the obsolete SDK package named "tools"; install exact packages below.
+          accept-android-sdk-licenses: false
+          packages: ''
+
+      - name: Accept Android SDK licenses
+        run: |
+          set +o pipefail
+          yes | sdkmanager --licenses
+          set -o pipefail
 
       - name: Install Android SDK platform
         run: sdkmanager --install 'platforms;android-35' 'build-tools;35.0.0'
