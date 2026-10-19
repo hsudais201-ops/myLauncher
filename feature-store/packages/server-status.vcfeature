@@ -11,5 +11,12 @@
     "title": "Minecraft Server Status",
     "description": "Enter a Java Edition server address to see live online/offline status, server icon/logo, MOTD, online/max player count, and version. Uses mcsrvstat.us and requires internet access.",
     "defaultHost": "mc.hypixel.net"
-  }
+  },
+  "capabilities": [
+    "HTTPS lookup of an entered Minecraft server host",
+    "Save server entries in app-private storage"
+  ],
+  "minAndroidApi": 21,
+  "maxAndroidApi": 100,
+  "dataUse": "Refresh sends the entered host to the HTTPS status provider. The saved list remains local."
 }

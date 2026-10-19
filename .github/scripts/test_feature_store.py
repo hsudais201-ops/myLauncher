@@ -14,7 +14,7 @@ class FeatureStoreTests(unittest.TestCase):
         catalog_path = feature_store.REPO_ROOT / "feature-store" / "catalog.json"
         catalog = json.loads(catalog_path.read_text(encoding="utf-8"))
         self.assertEqual(catalog["schemaVersion"], 1)
-        self.assertGreaterEqual(len(catalog["features"]), 4)
+        self.assertGreaterEqual(len(catalog["features"]), 20)
         seen = set()
         for entry in catalog["features"]:
             self.assertNotIn(entry["id"], seen)
@@ -28,6 +28,13 @@ class FeatureStoreTests(unittest.TestCase):
             package = json.loads(raw.decode("utf-8"))
             self.assertEqual(package["schemaVersion"], 1)
             self.assertEqual(package["id"], entry["id"])
+            for metadata_key in ("capabilities", "minAndroidApi", "maxAndroidApi", "dataUse"):
+                self.assertEqual(entry.get(metadata_key), package.get(metadata_key), metadata_key)
+            screen = package.get("screen", {})
+            self.assertIn(screen.get("type"), {"page", "theme", "server_status", "social", "workspace", "device_report"})
+            if screen.get("type") == "workspace":
+                self.assertGreaterEqual(len(screen.get("fields", [])), 1)
+                self.assertLessEqual(len(screen.get("fields", [])), 8)
             self.assertTrue(entry["packageUrl"].startswith("https://"))
             self.assertNotIn("category", package)
             self.assertIn(package["owner"], ("VoidCraft Launcher", "VoidCraft Community"))
@@ -160,6 +167,22 @@ class FeatureStoreTests(unittest.TestCase):
         self.assertNotIn('optString("category"', activity)
         self.assertNotIn('put("category"', activity)
 
+
+
+    def test_new_store_screens_and_install_review_are_wired(self):
+        store = feature_store.REPO_ROOT / "feature-store"
+        catalog = json.loads((store / "catalog.json").read_text(encoding="utf-8"))
+        ids = {entry["id"] for entry in catalog["features"]}
+        expected = {"voidcraft.performance-advisor", "voidcraft.device-compatibility", "voidcraft.storage-inspector", "voidcraft.scratchpad", "voidcraft.personal-goals", "voidcraft.build-planner", "voidcraft.world-waypoints", "voidcraft.play-journal", "voidcraft.server-guidebook", "voidcraft.server-maintenance", "voidcraft.server-events", "voidcraft.playtime-log", "voidcraft.mod-collection-builder", "voidcraft.launch-preset-notes", "voidcraft.config-change-log", "voidcraft.screenshot-albums", "voidcraft.profile-card-draft", "voidcraft.feedback-drafts"}
+        self.assertTrue(expected.issubset(ids))
+        activity = (store / "src/main/java/net/kdt/pojavlaunch/FeatureStoreActivity.java").read_text(encoding="utf-8")
+        for marker in ("renderWorkspaceScreen", "renderDeviceReportScreen", "showInstallReview",
+                       "Declared capabilities", "validCompatibility", "sameCapabilities",
+                       "No saved entries yet.", "Copy all", "Delete data & uninstall",
+                       "Search features by name, description, or creator"):
+            self.assertIn(marker, activity)
+        self.assertIn('"workspace".equals(type)', activity)
+        self.assertIn('"device_report".equals(type)', activity)
 
 if __name__ == "__main__":
     unittest.main()

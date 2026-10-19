@@ -1,0 +1,43 @@
+{
+  "schemaVersion": 1,
+  "id": "voidcraft.server-events",
+  "name": "Server Event Calendar",
+  "version": "1.0.0",
+  "author": "VoidCraft Launcher",
+  "owner": "VoidCraft Launcher",
+  "description": "Keep manual event names, dates, timezone notes and details. Calendar sync and notification scheduling are not included.",
+  "capabilities": [
+    "Save and manage user-entered local records in app-private storage"
+  ],
+  "minAndroidApi": 21,
+  "maxAndroidApi": 100,
+  "dataUse": "User-entered records stay local unless explicitly copied out. No automatic online sync or upload.",
+  "screen": {
+    "type": "workspace",
+    "title": "Server Event Calendar",
+    "description": "Keep manual event names, dates, timezone notes and details. Calendar sync and notification scheduling are not included.",
+    "entryLabel": "Save entry",
+    "emptyLabel": "No entries saved yet.",
+    "maxEntries": 100,
+    "fields": [
+      {
+        "id": "event",
+        "label": "Event name",
+        "required": true,
+        "maxLength": 160
+      },
+      {
+        "id": "date",
+        "label": "Date / time / timezone",
+        "required": true,
+        "maxLength": 140
+      },
+      {
+        "id": "details",
+        "label": "Details",
+        "multiline": true,
+        "maxLength": 2400
+      }
+    ]
+  }
+}

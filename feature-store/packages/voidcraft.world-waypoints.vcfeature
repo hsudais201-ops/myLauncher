@@ -1,0 +1,48 @@
+{
+  "schemaVersion": 1,
+  "id": "voidcraft.world-waypoints",
+  "name": "World Notes & Waypoints",
+  "version": "1.0.0",
+  "author": "VoidCraft Launcher",
+  "owner": "VoidCraft Launcher",
+  "description": "Record a world's name, waypoint label, coordinates and notes manually. It does not read or modify saves.",
+  "capabilities": [
+    "Save and manage user-entered local records in app-private storage"
+  ],
+  "minAndroidApi": 21,
+  "maxAndroidApi": 100,
+  "dataUse": "User-entered records stay local unless explicitly copied out. No automatic online sync or upload.",
+  "screen": {
+    "type": "workspace",
+    "title": "World Notes & Waypoints",
+    "description": "Record a world's name, waypoint label, coordinates and notes manually. It does not read or modify saves.",
+    "entryLabel": "Save entry",
+    "emptyLabel": "No entries saved yet.",
+    "maxEntries": 100,
+    "fields": [
+      {
+        "id": "world",
+        "label": "World name",
+        "required": true,
+        "maxLength": 120
+      },
+      {
+        "id": "waypoint",
+        "label": "Waypoint label",
+        "required": true,
+        "maxLength": 120
+      },
+      {
+        "id": "coordinates",
+        "label": "Coordinates (x, y, z)",
+        "maxLength": 120
+      },
+      {
+        "id": "notes",
+        "label": "Notes",
+        "multiline": true,
+        "maxLength": 1800
+      }
+    ]
+  }
+}

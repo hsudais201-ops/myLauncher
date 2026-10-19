@@ -181,6 +181,37 @@ def _validate_store_catalog() -> None:
         if not all(isinstance(manifest.get(key), str) and manifest[key].strip()
                    for key in ("name", "version", "author", "owner")):
             raise ValueError(f"Feature metadata is incomplete: {feature_id}")
+        if entry.get("capabilities") != manifest.get("capabilities"):
+            raise ValueError(f"Catalog capabilities do not match package: {feature_id}")
+        if entry.get("minAndroidApi", 21) != manifest.get("minAndroidApi", 21) or entry.get("maxAndroidApi", 100) != manifest.get("maxAndroidApi", 100):
+            raise ValueError(f"Catalog Android compatibility does not match package: {feature_id}")
+        if entry.get("dataUse", "") != manifest.get("dataUse", ""):
+            raise ValueError(f"Catalog data-use statement does not match package: {feature_id}")
+        capabilities = manifest.get("capabilities", [])
+        if not isinstance(capabilities, list) or len(capabilities) > 20 or any(not isinstance(item, str) or not item.strip() or len(item) > 180 for item in capabilities):
+            raise ValueError(f"Feature capabilities are invalid: {feature_id}")
+        minimum_api, maximum_api = manifest.get("minAndroidApi", 21), manifest.get("maxAndroidApi", 100)
+        if not isinstance(minimum_api, int) or not isinstance(maximum_api, int) or minimum_api < 1 or maximum_api < minimum_api or maximum_api > 100:
+            raise ValueError(f"Feature Android compatibility is invalid: {feature_id}")
+        screen = manifest.get("screen")
+        if not isinstance(screen, dict) or screen.get("type") not in {"page", "theme", "server_status", "social", "workspace", "device_report"}:
+            raise ValueError(f"Feature screen type is unsupported: {feature_id}")
+        if screen.get("type") == "workspace":
+            fields = screen.get("fields")
+            if not isinstance(fields, list) or not 1 <= len(fields) <= 8:
+                raise ValueError(f"Workspace fields are invalid: {feature_id}")
+            field_ids = set()
+            for field in fields:
+                if not isinstance(field, dict) or not re.fullmatch(r"[a-z0-9][a-z0-9._-]{1,79}", field.get("id", "")) or field.get("id") in field_ids:
+                    raise ValueError(f"Workspace field id is invalid: {feature_id}")
+                field_ids.add(field["id"])
+                if not isinstance(field.get("label"), str) or not field["label"].strip() or len(field["label"]) > 80:
+                    raise ValueError(f"Workspace field label is invalid: {feature_id}")
+                length = field.get("maxLength", 500)
+                if not isinstance(length, int) or not 1 <= length <= 5000:
+                    raise ValueError(f"Workspace field length is invalid: {feature_id}")
+        if screen.get("type") == "device_report" and screen.get("mode") not in {"performance", "compatibility", "storage"}:
+            raise ValueError(f"Device report mode is invalid: {feature_id}")
 
 
 def patch_upstream(upstream: Path, repo_root: Path = REPO_ROOT) -> None:

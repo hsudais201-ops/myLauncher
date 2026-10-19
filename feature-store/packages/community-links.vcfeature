@@ -31,5 +31,11 @@
         "url": "https://github.com/hsudais201-ops/myLauncher"
       }
     ]
-  }
+  },
+  "capabilities": [
+    "Open HTTPS resource links when tapped"
+  ],
+  "minAndroidApi": 21,
+  "maxAndroidApi": 100,
+  "dataUse": "The feature itself stores no personal data; a chosen external website receives normal request metadata."
 }

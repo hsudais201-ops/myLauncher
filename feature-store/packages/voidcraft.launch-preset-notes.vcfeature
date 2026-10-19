@@ -1,0 +1,42 @@
+{
+  "schemaVersion": 1,
+  "id": "voidcraft.launch-preset-notes",
+  "name": "Launch Preset Notes",
+  "version": "1.0.0",
+  "author": "VoidCraft Launcher",
+  "owner": "VoidCraft Launcher",
+  "description": "Document named launch setups, versions, Java choices and notes. Not an automatic settings or JVM-argument applier.",
+  "capabilities": [
+    "Save and manage user-entered local records in app-private storage"
+  ],
+  "minAndroidApi": 21,
+  "maxAndroidApi": 100,
+  "dataUse": "User-entered records stay local unless explicitly copied out. No automatic online sync or upload.",
+  "screen": {
+    "type": "workspace",
+    "title": "Launch Preset Notes",
+    "description": "Document named launch setups, versions, Java choices and notes. Not an automatic settings or JVM-argument applier.",
+    "entryLabel": "Save entry",
+    "emptyLabel": "No entries saved yet.",
+    "maxEntries": 100,
+    "fields": [
+      {
+        "id": "preset",
+        "label": "Preset name",
+        "required": true,
+        "maxLength": 120
+      },
+      {
+        "id": "version",
+        "label": "Minecraft version / loader",
+        "maxLength": 160
+      },
+      {
+        "id": "notes",
+        "label": "Runtime, memory and argument notes",
+        "multiline": true,
+        "maxLength": 2400
+      }
+    ]
+  }
+}

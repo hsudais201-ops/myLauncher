@@ -11,5 +11,11 @@
     "mode": "local_preview",
     "title": "Social Hub",
     "description": "Create a launcher social username and preview friend requests, contacts, and chat conversations. This does not change your Minecraft account. Online service and provider sign-in are not connected."
-  }
+  },
+  "capabilities": [
+    "Save local profile, friend request, friend and chat preview data"
+  ],
+  "minAndroidApi": 21,
+  "maxAndroidApi": 100,
+  "dataUse": "Social Hub is local-only. Requests and messages are not delivered online; provider credentials or tokens are not stored."
 }

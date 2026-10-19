@@ -1,0 +1,42 @@
+{
+  "schemaVersion": 1,
+  "id": "voidcraft.screenshot-albums",
+  "name": "Screenshot Album Organizer",
+  "version": "1.0.0",
+  "author": "VoidCraft Launcher",
+  "owner": "VoidCraft Launcher",
+  "description": "Create local album names, tags and notes. Does not move, delete or automatically index image files.",
+  "capabilities": [
+    "Save and manage user-entered local records in app-private storage"
+  ],
+  "minAndroidApi": 21,
+  "maxAndroidApi": 100,
+  "dataUse": "User-entered records stay local unless explicitly copied out. No automatic online sync or upload.",
+  "screen": {
+    "type": "workspace",
+    "title": "Screenshot Album Organizer",
+    "description": "Create local album names, tags and notes. Does not move, delete or automatically index image files.",
+    "entryLabel": "Save entry",
+    "emptyLabel": "No entries saved yet.",
+    "maxEntries": 100,
+    "fields": [
+      {
+        "id": "album",
+        "label": "Album name",
+        "required": true,
+        "maxLength": 120
+      },
+      {
+        "id": "tags",
+        "label": "Tags / filenames (manual)",
+        "maxLength": 300
+      },
+      {
+        "id": "notes",
+        "label": "Notes",
+        "multiline": true,
+        "maxLength": 1600
+      }
+    ]
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "id": "voidcraft.device-compatibility",
+  "name": "Device Compatibility Report",
+  "version": "1.0.0",
+  "author": "VoidCraft Launcher",
+  "owner": "VoidCraft Launcher",
+  "description": "Review Android version, CPU ABIs, memory and storage while separating device facts from unverified Minecraft, Java, mod and renderer compatibility.",
+  "capabilities": [
+    "Read basic device model, Android API, CPU ABI, memory and storage statistics"
+  ],
+  "minAndroidApi": 21,
+  "maxAndroidApi": 100,
+  "dataUse": "Measurements are displayed locally and are not uploaded automatically.",
+  "screen": {
+    "type": "device_report",
+    "mode": "compatibility",
+    "title": "Device Compatibility Report",
+    "description": "Review Android version, CPU ABIs, memory and storage while separating device facts from unverified Minecraft, Java, mod and renderer compatibility."
+  }
+}

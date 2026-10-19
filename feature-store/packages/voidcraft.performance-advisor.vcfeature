@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "id": "voidcraft.performance-advisor",
+  "name": "Performance Advisor",
+  "version": "1.0.0",
+  "author": "VoidCraft Launcher",
+  "owner": "VoidCraft Launcher",
+  "description": "Review device memory, storage, ABI and thermal conditions and get cautious pre-launch suggestions. Does not edit game settings or measure live FPS.",
+  "capabilities": [
+    "Read basic device environment and thermal statistics"
+  ],
+  "minAndroidApi": 21,
+  "maxAndroidApi": 100,
+  "dataUse": "Reads a local pre-launch snapshot. Does not upload device data, change Minecraft options or measure reliable live FPS.",
+  "screen": {
+    "type": "device_report",
+    "mode": "performance",
+    "title": "Performance Advisor",
+    "description": "Review device memory, storage, ABI and thermal conditions and get cautious pre-launch suggestions. Does not edit game settings or measure live FPS."
+  }
+}

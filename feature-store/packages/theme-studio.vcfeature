@@ -36,5 +36,11 @@
         "text": "#FFF2E8"
       }
     ]
-  }
+  },
+  "capabilities": [
+    "Apply colors to supported launcher UI screens"
+  ],
+  "minAndroidApi": 21,
+  "maxAndroidApi": 100,
+  "dataUse": "Applies colors to supported launcher screens only; it does not alter Minecraft's renderer."
 }

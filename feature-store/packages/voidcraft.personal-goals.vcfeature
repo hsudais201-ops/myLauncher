@@ -1,0 +1,42 @@
+{
+  "schemaVersion": 1,
+  "id": "voidcraft.personal-goals",
+  "name": "Personal Goal Tracker",
+  "version": "1.0.0",
+  "author": "VoidCraft Launcher",
+  "owner": "VoidCraft Launcher",
+  "description": "Create gameplay goals and mark progress manually. It does not monitor Minecraft game state.",
+  "capabilities": [
+    "Save and manage user-entered local records in app-private storage"
+  ],
+  "minAndroidApi": 21,
+  "maxAndroidApi": 100,
+  "dataUse": "User-entered records stay local unless explicitly copied out. No automatic online sync or upload.",
+  "screen": {
+    "type": "workspace",
+    "title": "Personal Goal Tracker",
+    "description": "Create gameplay goals and mark progress manually. It does not monitor Minecraft game state.",
+    "entryLabel": "Save entry",
+    "emptyLabel": "No entries saved yet.",
+    "maxEntries": 100,
+    "fields": [
+      {
+        "id": "title",
+        "label": "Goal",
+        "required": true,
+        "maxLength": 160
+      },
+      {
+        "id": "status",
+        "label": "Status (planned / active / done)",
+        "maxLength": 40
+      },
+      {
+        "id": "notes",
+        "label": "Notes",
+        "multiline": true,
+        "maxLength": 2000
+      }
+    ]
+  }
+}

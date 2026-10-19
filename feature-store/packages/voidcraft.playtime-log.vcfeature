@@ -1,0 +1,43 @@
+{
+  "schemaVersion": 1,
+  "id": "voidcraft.playtime-log",
+  "name": "Manual Playtime Log",
+  "version": "1.0.0",
+  "author": "VoidCraft Launcher",
+  "owner": "VoidCraft Launcher",
+  "description": "Record session duration manually. It does not measure or automatically track Minecraft playtime.",
+  "capabilities": [
+    "Save and manage user-entered local records in app-private storage"
+  ],
+  "minAndroidApi": 21,
+  "maxAndroidApi": 100,
+  "dataUse": "User-entered records stay local unless explicitly copied out. No automatic online sync or upload.",
+  "screen": {
+    "type": "workspace",
+    "title": "Manual Playtime Log",
+    "description": "Record session duration manually. It does not measure or automatically track Minecraft playtime.",
+    "entryLabel": "Save entry",
+    "emptyLabel": "No entries saved yet.",
+    "maxEntries": 100,
+    "fields": [
+      {
+        "id": "session",
+        "label": "Session / date",
+        "required": true,
+        "maxLength": 140
+      },
+      {
+        "id": "duration",
+        "label": "Duration (manual)",
+        "required": true,
+        "maxLength": 60
+      },
+      {
+        "id": "notes",
+        "label": "Notes",
+        "multiline": true,
+        "maxLength": 1800
+      }
+    ]
+  }
+}
