@@ -107,7 +107,7 @@ class CleanRoomBoundaryTests(unittest.TestCase):
             with self.subTest(source=relative):
                 self.assertIn(relative, provenance)
 
-        self.assertIn("not legal clearance", provenance)
+        self.assertIn("not a legal opinion", provenance)
         self.assertIn("not cleared by this record", provenance)
 
     def test_clean_room_subtree_does_not_vendor_runtime_binaries(self):
