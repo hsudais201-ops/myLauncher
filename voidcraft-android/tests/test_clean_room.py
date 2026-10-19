@@ -69,7 +69,7 @@ class CleanRoomBoundaryTests(unittest.TestCase):
         self.assertIn("https://piston-meta.mojang.com/mc/game/version_manifest_v2.json", client)
         self.assertIn('OFFICIAL_MANIFEST_HOST = "piston-meta.mojang.com"', client)
         self.assertIn("MAX_MANIFEST_BYTES = 8 * 1024 * 1024", client)
-        self.assertIn("getInstanceFollowRedirects(false)", client)
+        self.assertIn("setInstanceFollowRedirects(false)", client)
         self.assertIn("startsWith(\"/v1/packages/\")", client)
         self.assertIn("The version manifest exceeded the permitted size.", client)
         self.assertIn("public static Manifest parse(String json)", client)
