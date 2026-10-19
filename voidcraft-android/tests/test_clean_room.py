@@ -134,10 +134,16 @@ class CleanRoomBoundaryTests(unittest.TestCase):
             self.assertIsNone(forbidden.search(source.read_text(encoding="utf-8")), str(source))
 
     def test_copyright_audit_clearly_marks_legacy_path_not_cleared(self):
-        audit = (PROJECT.parent / "COPYRIGHT_AND_LICENSE_AUDIT.md").read_text(encoding="utf-8")
+        root = PROJECT.parent
+        audit = (root / "COPYRIGHT_AND_LICENSE_AUDIT.md").read_text(encoding="utf-8")
+        readme = (root / "README.md").read_text(encoding="utf-8")
+        legacy_workflow = (root / ".github" / "workflows" / "build.yml").read_text(encoding="utf-8")
         self.assertIn("INCOMPLETE", audit)
         self.assertIn("330c6eae3164df64bdc4828e946a9e62cc5169e4", audit)
         self.assertIn("not a clean-room build", audit)
+        self.assertIn("not a wholly first-party or copyright-cleared build", readme)
+        self.assertIn("Fetch pinned Amethyst engine and submodules", legacy_workflow)
+        self.assertIn("330c6eae3164df64bdc4828e946a9e62cc5169e4", legacy_workflow)
 
     def test_dependency_inventory_exists_and_marks_unimplemented_runtime(self):
         inventory_path = PROJECT / "DEPENDENCY_INVENTORY.md"
