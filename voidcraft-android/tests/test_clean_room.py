@@ -110,6 +110,21 @@ class CleanRoomBoundaryTests(unittest.TestCase):
         self.assertIn("not a legal opinion", provenance)
         self.assertIn("not cleared by this record", provenance)
 
+    def test_app_resources_and_build_configuration_have_provenance_records(self):
+        provenance = (PROJECT / "SOURCE_PROVENANCE.md").read_text(encoding="utf-8")
+        candidates = list((PROJECT / "app" / "src" / "main").rglob("*.xml"))
+        candidates.extend([
+            PROJECT / "app" / "build.gradle",
+            PROJECT / "build.gradle",
+            PROJECT / "settings.gradle",
+            PROJECT / "gradle.properties",
+            PROJECT / "tests" / "test_clean_room.py",
+        ])
+        for source in candidates:
+            with self.subTest(source=str(source.relative_to(PROJECT))):
+                self.assertTrue(source.is_file())
+                self.assertIn(source.relative_to(PROJECT).as_posix(), provenance)
+
     def test_clean_room_subtree_does_not_vendor_runtime_binaries(self):
         forbidden_suffixes = {".jar", ".aar", ".so", ".dex", ".class", ".dll", ".dylib"}
         offenders = [
