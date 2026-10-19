@@ -119,6 +119,8 @@ jobs:
           echo "Built commit: $(git -C upstream rev-parse HEAD)" >> upstream/VOIDCRAFT_LAUNCHER_BUILD_INFO.txt
           echo "Display name: VoidCraft Launcher" >> upstream/VOIDCRAFT_LAUNCHER_BUILD_INFO.txt
           echo "Owner: MF" >> upstream/VOIDCRAFT_LAUNCHER_BUILD_INFO.txt
+          echo "Copyright / dependency audit status: INCOMPLETE (evidence inventory is not legal clearance)" >> upstream/VOIDCRAFT_LAUNCHER_BUILD_INFO.txt
+          echo "This APK is built from Amethyst-Android plus third-party components; verify all applicable licenses, notices, and redistribution permissions before distributing." >> upstream/VOIDCRAFT_LAUNCHER_BUILD_INFO.txt
           echo "Custom app ID: com.mf.mylauncher (debug: com.mf.mylauncher.debug)" >> upstream/VOIDCRAFT_LAUNCHER_BUILD_INFO.txt
 
       - name: Build GLFW support and debug APK
