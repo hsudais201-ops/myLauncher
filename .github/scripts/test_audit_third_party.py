@@ -95,6 +95,16 @@ class ThirdPartyAuditTests(unittest.TestCase):
             )
             self.assertIn("https://example.com/angle", credits[0]["source_urls"])
 
+    def test_blocked_minecraft_ten_asset_name_is_detected_anywhere_in_apk(self) -> None:
+        self.assertEqual(
+            audit.blocked_apk_asset_paths([
+                {"path": "res/font/minecraft_ten.ttf"},
+                {"path": "assets/font/Minecraft_Ten.ttf"},
+                {"path": "res/font/noto_sans_bold.ttf"},
+            ]),
+            ["assets/font/Minecraft_Ten.ttf", "res/font/minecraft_ten.ttf"],
+        )
+
     def test_apk_inventory_hashes_native_and_notice_entries(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
             apk = Path(temp) / "sample.apk"
@@ -121,6 +131,7 @@ class ThirdPartyAuditTests(unittest.TestCase):
             self.assertIn("limitations", report)
             self.assertEqual(len(report["apk_sha256"]), 64)
             self.assertEqual(len(report["apk_selected_entries"]), 1)
+            self.assertEqual(report["blocked_asset_paths"], [])
 
     def test_gradle_scan_ignores_comments_and_non_dependency_log_strings(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
