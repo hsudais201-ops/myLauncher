@@ -21,7 +21,7 @@
       "description": "Check whether a Java Edition server is online, its player count, and version.",
       "asset": "packages/server-status.vcfeature",
       "packageUrl": "https://raw.githubusercontent.com/hsudais201-ops/myLauncher/main/feature-store/packages/server-status.vcfeature",
-      "sha256": "b10cf7156c810c9e613275763baa87e587fbfbdc5a194d6cc3496d1951d2d64d"
+      "sha256": "cd873e53e40ebd04ea5c111bb1b208359cf37c66b3489e77904c16277bcd06c9"
     },
     {
       "id": "community.community-links",
