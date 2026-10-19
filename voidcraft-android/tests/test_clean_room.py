@@ -67,6 +67,15 @@ class CleanRoomBoundaryTests(unittest.TestCase):
         self.assertIn("Server Status uninstalled; saved servers were kept.", source)
         self.assertIn("community-uploaded features can be added later", source)
 
+    def test_in_app_legal_notices_distinguish_clean_room_and_legacy_builds(self):
+        source = MAIN_ACTIVITY.read_text(encoding="utf-8")
+        self.assertIn('else if ("About & Legal".equals(currentRoute))', source)
+        self.assertIn('button("About & legal notices"', source)
+        self.assertIn("not affiliated with, endorsed by, or sponsored by Mojang Studios or Microsoft", source)
+        self.assertIn("does not bundle Minecraft client JARs", source)
+        self.assertIn("repository-wide audit is still incomplete", source)
+        self.assertIn("not a playable Minecraft launcher", source)
+
     def test_server_status_queries_real_java_protocol_and_renders_details(self):
         source = MAIN_ACTIVITY.read_text(encoding="utf-8")
         client = (JAVA_ROOT / "com" / "voidcraft" / "launcher" / "MinecraftServerStatusClient.java").read_text(encoding="utf-8")
