@@ -261,6 +261,25 @@ public final class MainActivity extends Activity {
                 .show();
     }
 
+    private void buildDashboard() {
+        addCard("Your Minecraft workspace",
+                "An independent VoidCraft Android foundation with its own package, UI, preferences, and navigation.");
+        addStatus("Clean-room foundation • 0.1.0", COLOR_ACCENT);
+
+        addCard("Runtime integration",
+                "Minecraft has not been connected to this app yet. Play remains disabled until a tested runtime and launch pipeline are available.");
+        Button play = button("PLAY — NOT AVAILABLE YET", null, false);
+        play.setEnabled(false);
+        play.setAlpha(0.7f);
+        LinearLayout.LayoutParams playParams = new LinearLayout.LayoutParams(-1, dp(50));
+        playParams.topMargin = dp(4);
+        pageContent.addView(play, playParams);
+
+        addShortcut("Installations", "Manage game profiles and versions");
+        addShortcut("Feature Store", "Choose and manage optional launcher features");
+        addShortcut("Servers", "Maintain a saved server list");
+    }
+
     private void buildSettings() {
         addCard("Device-friendly options",
                 "These preferences are local to this clean-room app. They do not change Java heap size or game rendering until a runtime integration exists.");
