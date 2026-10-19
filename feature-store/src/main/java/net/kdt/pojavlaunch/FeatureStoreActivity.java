@@ -222,6 +222,8 @@ public final class FeatureStoreActivity extends BaseActivity {
         if (empty(entry.optString("name")) || empty(entry.optString("author"))
                 || empty(entry.optString("owner")) || empty(entry.optString("version"))) return false;
         if (!SHA256.matcher(entry.optString("sha256")).matches()) return false;
+        if (!validCompatibility(entry) || !validCapabilities(entry.optJSONArray("capabilities"))
+                || entry.optString("dataUse", "").length() > 400) return false;
         String url = entry.optString("packageUrl", "");
         return !empty(url) && isHttpsUrl(url);
     }
@@ -267,13 +269,14 @@ public final class FeatureStoreActivity extends BaseActivity {
         addTextTo(card, "Version " + item.optString("version", "1.0.0"), 12, false);
         addTextTo(card, item.optString("description", ""), 14, false);
         addTextTo(card, "Owner: " + item.optString("owner", item.optString("author", "Unknown")), 12, false);
+        addTextTo(card, "Declared access: " + capabilitySummary(item.optJSONArray("capabilities")), 12, false);
         LinearLayout actions = horizontalRow();
         if (installed) {
             addButtonTo(actions, "Open", v -> openInstalled(item.optString("id")));
-            addButtonTo(actions, "Update", v -> installCatalogFeature(item));
+            addButtonTo(actions, "Update", v -> showInstallReview(item));
             addButtonTo(actions, "Uninstall", v -> confirmUninstall(item.optString("id"), item.optString("name")));
         } else {
-            addButtonTo(actions, "Install", v -> installCatalogFeature(item));
+            addButtonTo(actions, "Install", v -> showInstallReview(item));
         }
         card.addView(actions);
         pageBody.addView(card);
@@ -1557,9 +1560,89 @@ public final class FeatureStoreActivity extends BaseActivity {
         }
     }
 
+    private String capabilitySummary(JSONArray capabilities) {
+        if (capabilities == null || capabilities.length() == 0) return "No extra capabilities declared";
+        ArrayList<String> values = new ArrayList<>();
+        for (int i = 0; i < Math.min(capabilities.length(), 2); i++) {
+            String value = capabilities.optString(i, "").trim();
+            if (!value.isEmpty()) values.add(value);
+        }
+        String summary = android.text.TextUtils.join("; ", values);
+        if (capabilities.length() > 2) summary += "; +" + (capabilities.length() - 2) + " more";
+        return summary;
+    }
+
+    private void showInstallReview(JSONObject entry) {
+        if (!validCatalogEntry(entry)) {
+            showError("Invalid catalog entry", new IllegalArgumentException("Catalog metadata did not pass validation"));
+            return;
+        }
+        int minApi = entry.optInt("minAndroidApi", 21);
+        int maxApi = entry.optInt("maxAndroidApi", 100);
+        if (android.os.Build.VERSION.SDK_INT < minApi || android.os.Build.VERSION.SDK_INT > maxApi) {
+            showError("Feature is not compatible", new IllegalArgumentException(
+                    "Supported Android API: " + minApi + "–" + maxApi + ". This device is API " + android.os.Build.VERSION.SDK_INT + "."));
+            return;
+        }
+        StringBuilder summary = new StringBuilder(entry.optString("description", "Optional feature."));
+        summary.append("\n\nDeclared capabilities:\n");
+        JSONArray capabilities = entry.optJSONArray("capabilities");
+        if (capabilities == null || capabilities.length() == 0) {
+            summary.append("- No additional capabilities declared.");
+        } else {
+            for (int i = 0; i < Math.min(capabilities.length(), 20); i++) {
+                summary.append("- ").append(capabilities.optString(i, "Unknown")).append("\n");
+            }
+        }
+        summary.append("\nData use: ").append(entry.optString("dataUse", "No data-use statement was supplied."));
+        summary.append("\n\nAndroid compatibility: API ").append(minApi).append("–").append(maxApi)
+                .append(" (this device: API ").append(android.os.Build.VERSION.SDK_INT).append(").");
+        summary.append("\n\nPackage SHA-256 is checked before activation. Packages are declarative JSON, not executable plug-in code.");
+        boolean update = isInstalled(entry.optString("id"));
+        new AlertDialog.Builder(this)
+                .setTitle((update ? "Review feature update: " : "Review feature install: ") + entry.optString("name", "Feature"))
+                .setMessage(summary.toString())
+                .setNegativeButton(android.R.string.cancel, null)
+                .setPositiveButton(update ? "Update" : "Install", (dialog, which) -> installCatalogFeature(entry))
+                .show();
+    }
+
+    private boolean validCompatibility(JSONObject object) {
+        int minApi = object.optInt("minAndroidApi", 21);
+        int maxApi = object.optInt("maxAndroidApi", 100);
+        return minApi >= 1 && maxApi >= minApi && maxApi <= 100;
+    }
+
+    private boolean validCapabilities(JSONArray capabilities) {
+        if (capabilities == null) return true;
+        if (capabilities.length() > 20) return false;
+        for (int i = 0; i < capabilities.length(); i++) {
+            Object item = capabilities.opt(i);
+            if (!(item instanceof String)) return false;
+            String value = ((String) item).trim();
+            if (value.isEmpty() || value.length() > 180) return false;
+        }
+        return true;
+    }
+
+    private boolean sameCapabilities(JSONArray a, JSONArray b) {
+        JSONArray first = a == null ? new JSONArray() : a;
+        JSONArray second = b == null ? new JSONArray() : b;
+        if (first.length() != second.length()) return false;
+        for (int i = 0; i < first.length(); i++) {
+            if (!first.optString(i, "").equals(second.optString(i, ""))) return false;
+        }
+        return true;
+    }
+
     private void installCatalogFeature(JSONObject entry) {
         if (!validCatalogEntry(entry)) {
             showError("Invalid catalog entry", new IllegalArgumentException("Catalog metadata did not pass validation"));
+            return;
+        }
+        if (!validCompatibility(entry) || android.os.Build.VERSION.SDK_INT < entry.optInt("minAndroidApi", 21)
+                || android.os.Build.VERSION.SDK_INT > entry.optInt("maxAndroidApi", 100)) {
+            showError("Feature is not compatible", new IllegalArgumentException("The current Android API is outside the supported range."));
             return;
         }
         Toast.makeText(this, "Downloading and validating feature…", Toast.LENGTH_SHORT).show();
@@ -1576,6 +1659,12 @@ public final class FeatureStoreActivity extends BaseActivity {
                 JSONObject feature = validateFeature(new JSONObject(packageText));
                 if (!entry.optString("id").equals(feature.optString("id"))) {
                     throw new IllegalArgumentException("Catalog id does not match package id");
+                }
+                if (!sameCapabilities(entry.optJSONArray("capabilities"), feature.optJSONArray("capabilities"))
+                        || entry.optInt("minAndroidApi", 21) != feature.optInt("minAndroidApi", 21)
+                        || entry.optInt("maxAndroidApi", 100) != feature.optInt("maxAndroidApi", 100)
+                        || !entry.optString("dataUse", "").equals(feature.optString("dataUse", ""))) {
+                    throw new IllegalArgumentException("Catalog and package capability/compatibility metadata do not match");
                 }
                 saveInstalledFeature(feature);
                 runOnUiThread(() -> {
@@ -1606,6 +1695,9 @@ public final class FeatureStoreActivity extends BaseActivity {
             throw new IllegalArgumentException("Feature owner/author is required");
         }
         if (description.length() > 400) throw new IllegalArgumentException("Feature description is too long");
+        if (!validCompatibility(feature)) throw new IllegalArgumentException("Feature Android compatibility range is invalid");
+        if (!validCapabilities(feature.optJSONArray("capabilities"))) throw new IllegalArgumentException("Feature capabilities are invalid");
+        if (feature.optString("dataUse", "").length() > 400) throw new IllegalArgumentException("Feature data-use statement is too long");
         JSONObject screen = feature.optJSONObject("screen");
         if (screen == null) throw new IllegalArgumentException("Feature screen is missing");
         String type = screen.optString("type", "");
