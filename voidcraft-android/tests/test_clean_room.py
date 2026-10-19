@@ -33,5 +33,27 @@ class CleanRoomBoundaryTests(unittest.TestCase):
         self.assertIn("Minecraft has not been connected to this app yet", source)
 
 
+    def test_server_manager_supports_local_crud_without_claiming_live_status(self):
+        source = (JAVA_ROOT / "com" / "voidcraft" / "launcher" / "MainActivity.java").read_text(encoding="utf-8")
+        store = (JAVA_ROOT / "com" / "voidcraft" / "launcher" / "SavedServerStore.java").read_text(encoding="utf-8")
+
+        for label in ("Add server", "Edit server", "Remove", "Refresh saved list"):
+            with self.subTest(label=label):
+                self.assertIn(label, source)
+
+        self.assertIn("serverStore.add(name, address)", source)
+        self.assertIn("serverStore.update(existing.id, name, address)", source)
+        self.assertIn("serverStore.remove(entry.id)", source)
+        self.assertIn("SharedPreferences", store)
+        self.assertIn("new JSONArray(encoded)", store)
+        self.assertIn("UUID.randomUUID()", store)
+        self.assertIn("Live status: not checked", source)
+        self.assertIn("Live status checks are not connected", source)
+
+    def test_clean_room_app_does_not_request_network_permission_yet(self):
+        manifest = MANIFEST.read_text(encoding="utf-8")
+        self.assertNotIn('android.permission.INTERNET', manifest)
+
+
 if __name__ == "__main__":
     unittest.main()
