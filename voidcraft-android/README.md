@@ -27,16 +27,17 @@ A dedicated GitHub Actions workflow builds this subtree and runs boundary checks
 - Locally persisted low-memory and reduced-motion preferences.
 - Locally saved server entries with add, edit, remove, and refresh-list actions.
 - Saved server names and addresses persist across app restarts.
-- Live Minecraft: Java Edition status queries, including online/reachable state, MOTD, player counts, reported version, and server-provided favicon when available.
+- An optional **Server Status** feature that can be installed/uninstalled from the category-free Feature Store and opens on its own screen.
+- Live Minecraft: Java Edition status queries inside the installed feature, including online/reachable state, MOTD, player counts, reported version, and server-provided favicon when available.
 - Server requests run off the UI thread with bounded connect/read timeouts and capped status-packet size.
 - API 28 minimum Android version.
 - Play action intentionally disabled until a tested runtime integration is available.
 
 ## Not implemented yet
 
-This is a foundation, not a playable Minecraft launcher. It does not yet contain or integrate a Java runtime, a game downloader, renderer/native libraries, loader installers, account authentication, world/profile management, or a remote Feature Store catalog.
+This is a foundation, not a playable Minecraft launcher. It does not yet contain or integrate a Java runtime, a game downloader, renderer/native libraries, loader installers, account authentication, world/profile management, or a remote Feature Store catalog/community upload service.
 
-The Servers page queries Minecraft: Java Edition status using the saved hostname/IP and optional port (default 25565). Successful responses can show online status, MOTD, online/max player counts, reported server version, and the server-provided PNG favicon. Queries are read-only; they do not log in to or join the server. The protocol client caps packets at 1 MiB and uses 3-second connect/read timeouts. “Offline / unreachable” means the query did not complete successfully and is not definitive proof that a server process is stopped. Bedrock status and automatic DNS SRV record discovery are not implemented.
+The optional Server Status feature appears in the category-free Feature Store. Installing it enables its own screen to query saved Minecraft: Java Edition servers using a hostname/IP and optional port (default 25565). Successful responses can show online status, MOTD, online/max player counts, reported server version, and the server-provided PNG favicon. Queries are read-only; they do not log in to or join the server. Uninstalling the feature keeps saved server names and addresses. The protocol client caps packets at 1 MiB and uses 3-second connect/read timeouts. “Offline / unreachable” means the query did not complete successfully and is not definitive proof that a server process is stopped. Bedrock status and automatic DNS SRV record discovery are not implemented.
 
 ## Clean-room boundary
 
