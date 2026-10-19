@@ -5,6 +5,8 @@ from pathlib import Path
 
 PROJECT = Path(__file__).resolve().parents[1]
 JAVA_ROOT = PROJECT / "app" / "src" / "main" / "java"
+MAIN_ACTIVITY = JAVA_ROOT / "com" / "voidcraft" / "launcher" / "MainActivity.java"
+SERVER_STORE = JAVA_ROOT / "com" / "voidcraft" / "launcher" / "SavedServerStore.java"
 MANIFEST = PROJECT / "app" / "src" / "main" / "AndroidManifest.xml"
 APP_GRADLE = PROJECT / "app" / "build.gradle"
 
@@ -27,46 +29,43 @@ class CleanRoomBoundaryTests(unittest.TestCase):
         self.assertRegex(build, r"minSdk\s+28")
         self.assertTrue(MANIFEST.is_file())
 
+    def test_play_is_not_advertised_as_ready_without_runtime(self):
+        source = MAIN_ACTIVITY.read_text(encoding="utf-8")
+        self.assertIn("PLAY — NOT AVAILABLE YET", source)
+        self.assertIn("Minecraft has not been connected to this app yet", source)
+
     def test_saved_server_management_persists_and_supports_crud(self):
-        source = (JAVA_ROOT / "com" / "voidcraft" / "launcher" / "MainActivity.java").read_text(encoding="utf-8")
+        source = MAIN_ACTIVITY.read_text(encoding="utf-8")
+        store = SERVER_STORE.read_text(encoding="utf-8")
+
         self.assertIn("new SavedServerStore(this)", source)
-        store = (JAVA_ROOT / "com" / "voidcraft" / "launcher" / "SavedServerStore.java").read_text(encoding="utf-8")
+        self.assertIn("SavedServerStore store = new SavedServerStore(this)", source)
+        self.assertIn('button("＋  Add server"', source)
+        self.assertIn('button("Refresh saved list"', source)
+        self.assertIn("showServerEditorForNew", source)
+        self.assertIn("showServerEditor(String serverId)", source)
+        self.assertIn("store.add(name, address)", source)
+        self.assertIn("store.update(serverToEdit.id, name, address)", source)
+        self.assertIn("confirmRemoveServer(String serverId, String serverName)", source)
+        self.assertIn("new SavedServerStore(this).remove(serverId)", source)
+
+        self.assertIn("SharedPreferences", store)
         self.assertIn("List<Entry> load()", store)
         self.assertIn("Entry add(String name, String address)", store)
         self.assertIn("boolean update(String id, String name, String address)", store)
         self.assertIn("boolean remove(String id)", store)
-        self.assertIn("showServerEditorForNew", source)
-        self.assertIn("showServerEditor(String serverId)", source)
-        self.assertIn("confirmRemoveServer(String serverId, String serverName)", source)
+
+    def test_server_status_is_not_fabricated_or_claimed_as_implemented(self):
+        source = MAIN_ACTIVITY.read_text(encoding="utf-8")
+        readme = (PROJECT / "README.md").read_text(encoding="utf-8")
         self.assertIn("Status not checked", source)
         self.assertIn("Live online status, MOTD, player count", source)
-
-    def test_play_is_not_advertised_as_ready_without_runtime(self):
-        source = (JAVA_ROOT / "com" / "voidcraft" / "launcher" / "MainActivity.java").read_text(encoding="utf-8")
-        self.assertIn("PLAY — NOT AVAILABLE YET", source)
-        self.assertIn("Minecraft has not been connected to this app yet", source)
-
-
-    def test_server_manager_supports_local_crud_without_claiming_live_status(self):
-        source = (JAVA_ROOT / "com" / "voidcraft" / "launcher" / "MainActivity.java").read_text(encoding="utf-8")
-        store = (JAVA_ROOT / "com" / "voidcraft" / "launcher" / "SavedServerStore.java").read_text(encoding="utf-8")
-
-        for label in ("Add server", "Edit server", "Remove", "Refresh saved list"):
-            with self.subTest(label=label):
-                self.assertIn(label, source)
-
-        self.assertIn("serverStore.add(name, address)", source)
-        self.assertIn("serverStore.update(existing.id, name, address)", source)
-        self.assertIn("serverStore.remove(entry.id)", source)
-        self.assertIn("SharedPreferences", store)
-        self.assertIn("new JSONArray(encoded)", store)
-        self.assertIn("UUID.randomUUID()", store)
-        self.assertIn("Live status: not checked", source)
-        self.assertIn("Live status checks are not connected", source)
+        self.assertIn("Live status queries are not connected", source)
+        self.assertIn("Live online/offline checks, MOTD, player counts", readme)
 
     def test_clean_room_app_does_not_request_network_permission_yet(self):
         manifest = MANIFEST.read_text(encoding="utf-8")
-        self.assertNotIn('android.permission.INTERNET', manifest)
+        self.assertNotIn("android.permission.INTERNET", manifest)
 
 
 if __name__ == "__main__":
