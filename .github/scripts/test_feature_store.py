@@ -177,7 +177,7 @@ class FeatureStoreTests(unittest.TestCase):
         self.assertTrue(expected.issubset(ids))
         activity = (store / "src/main/java/net/kdt/pojavlaunch/FeatureStoreActivity.java").read_text(encoding="utf-8")
         for marker in ("renderWorkspaceScreen", "renderDeviceReportScreen", "showInstallReview",
-                       "Declared capabilities", "validCompatibility", "sameCapabilities",
+                       "Declared capabilities", "validCompatibility", "sameCapabilities", "showImportedFeatureReview",
                        "No saved entries yet.", "Copy all", "Delete data & uninstall",
                        "Search features by name, description, or creator"):
             self.assertIn(marker, activity)
