@@ -31,13 +31,13 @@ class MainActivity : Activity() {
         super.onCreate(savedInstanceState)
         window.statusBarColor = background
         window.navigationBarColor = background
-        window.decorView.systemUiVisibility = View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR.inv()
+        window.decorView.systemUiVisibility = 0
         setContentView(buildDashboard())
     }
 
     private fun buildDashboard(): View {
         val scroll = ScrollView(this).apply {
-            setBackgroundColor(background)
+            setBackgroundColor(this@MainActivity.background)
             isFillViewport = true
         }
         val page = LinearLayout(this).apply {
