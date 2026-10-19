@@ -586,7 +586,7 @@ public final class MainActivity extends Activity {
                 "This clean-room foundation does not bundle Minecraft client JARs, game assets, Java runtime binaries, renderer/native libraries, or loader binaries. It cannot launch Minecraft yet. Obtain any future game downloads only through authorized sources and follow the applicable Minecraft account, EULA, and usage terms.");
 
         addCard("Code and third-party licenses",
-                "This independent app has its own source-provenance record and dependency inventory. Android platform APIs and build tools have their own terms. The separate legacy APK workflow in this repository builds from Amethyst-Android and has distinct LGPL and third-party license obligations; the repository-wide audit is still incomplete.");
+                "This independent app has its own source-provenance record and dependency inventory. Android platform APIs and build tools have their own terms. The separate legacy APK workflow in this repository builds from a third-party launcher engine and has distinct LGPL and component-license obligations; the repository-wide audit is still incomplete.");
 
         addStatus("This build is a foundation, not a playable Minecraft launcher.", COLOR_WARNING);
     }
