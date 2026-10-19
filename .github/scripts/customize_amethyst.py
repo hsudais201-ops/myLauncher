@@ -972,7 +972,7 @@ def patch_upstream(upstream: Path) -> None:
                 app:layout_constraintTop_toBottomOf="@id/mylauncher_performance_button" />
 
 """
-            performance_pattern = re.compile(r'(<com\.kdt\.mcgui\.LauncherMenuButton\s+android:id="@\+id/mylauncher_repair_version_button".*?/>\s*)', re.DOTALL)
+            performance_pattern = re.compile(r'(<com\.kdt\.mcgui\.LauncherMenuButton\s+android:id="@\+id/mylauncher_performance_button".*?/>\s*)', re.DOTALL)
             performance_match = performance_pattern.search(layout_text)
             if not performance_match:
                 raise ValueError(f"Could not find mylauncher_performance_button in {layout_path}")
