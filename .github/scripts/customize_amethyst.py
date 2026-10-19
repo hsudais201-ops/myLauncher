@@ -969,15 +969,15 @@ def patch_upstream(upstream: Path) -> None:
                 android:layout_width="match_parent"
                 android:drawableStart="@android:drawable/ic_menu_myplaces"
                 android:text="@string/main_add_account"
-                app:layout_constraintTop_toBottomOf="@id/mylauncher_repair_version_button" />
+                app:layout_constraintTop_toBottomOf="@id/mylauncher_performance_button" />
 
 """
-            repair_version_pattern = re.compile(r'(<com\.kdt\.mcgui\.LauncherMenuButton\s+android:id="@\+id/mylauncher_repair_version_button".*?/>\s*)', re.DOTALL)
-            repair_version_match = repair_version_pattern.search(layout_text)
-            if not repair_version_match:
-                raise ValueError(f"Could not find mylauncher_repair_version_button in {layout_path}")
-            block = repair_version_match.group(1) + "\n" + account_button
-            layout_text = layout_text[:repair_version_match.start(1)] + block + layout_text[repair_version_match.end(1):]
+            performance_pattern = re.compile(r'(<com\.kdt\.mcgui\.LauncherMenuButton\s+android:id="@\+id/mylauncher_repair_version_button".*?/>\s*)', re.DOTALL)
+            performance_match = performance_pattern.search(layout_text)
+            if not performance_match:
+                raise ValueError(f"Could not find mylauncher_performance_button in {layout_path}")
+            block = performance_match.group(1) + "\n" + account_button
+            layout_text = layout_text[:performance_match.start(1)] + block + layout_text[performance_match.end(1):]
 
         account_pattern = re.compile(r'<com\.kdt\.mcgui\.LauncherMenuButton\s+android:id="@\+id/mylauncher_account_button".*?/>', re.DOTALL)
         account_match = account_pattern.search(layout_text)
@@ -1036,6 +1036,11 @@ def patch_upstream(upstream: Path) -> None:
         )
         repair_version_match = re.search(
             r'<com\.kdt\.mcgui\.LauncherMenuButton\s+android:id="@\+id/mylauncher_repair_version_button".*?/>',
+            layout_text,
+            flags=re.DOTALL,
+        )
+        performance_match = re.search(
+            r'<com\.kdt\.mcgui\.LauncherMenuButton\s+android:id="@\+id/mylauncher_performance_button".*?/>',
             layout_text,
             flags=re.DOTALL,
         )
@@ -1104,13 +1109,20 @@ def patch_upstream(upstream: Path) -> None:
             or 'android:drawableStart="@android:drawable/ic_popup_sync"' not in repair_version_match.group(0)
             or 'android:text="@string/main_repair_version"' not in repair_version_match.group(0)
             or 'app:layout_constraintTop_toBottomOf="@id/mylauncher_shaderpacks_button"' not in repair_version_match.group(0)
+            or not performance_match
+            or performance_match.group(0).count('android:id="@+id/mylauncher_performance_button"') != 1
+            or 'style="@style/LauncherMenuButton.Universal"' not in performance_match.group(0)
+            or 'android:layout_width="match_parent"' not in performance_match.group(0)
+            or 'android:drawableStart="@android:drawable/ic_menu_info_details"' not in performance_match.group(0)
+            or 'android:text="@string/main_performance_advisor"' not in performance_match.group(0)
+            or 'app:layout_constraintTop_toBottomOf="@id/mylauncher_repair_version_button"' not in performance_match.group(0)
             or not account_match
             or account_match.group(0).count('android:id="@+id/mylauncher_account_button"') != 1
             or 'style="@style/LauncherMenuButton.Universal"' not in account_match.group(0)
             or 'android:layout_width="match_parent"' not in account_match.group(0)
             or 'android:drawableStart="@android:drawable/ic_menu_myplaces"' not in account_match.group(0)
             or 'android:text="@string/main_add_account"' not in account_match.group(0)
-            or 'app:layout_constraintTop_toBottomOf="@id/mylauncher_repair_version_button"' not in account_match.group(0)
+            or 'app:layout_constraintTop_toBottomOf="@id/mylauncher_performance_button"' not in account_match.group(0)
             or open_files_index < 0
             or open_files_index > mods_match.start()
             or mods_match.start() > resourcepacks_match.start()
@@ -1121,9 +1133,10 @@ def patch_upstream(upstream: Path) -> None:
             or crash_reports_match.start() > config_match.start()
             or config_match.start() > shaderpacks_match.start()
             or shaderpacks_match.start() > repair_version_match.start()
-            or repair_version_match.start() > account_match.start()
+            or repair_version_match.start() > performance_match.start()
+            or performance_match.start() > account_match.start()
         ):
-            raise ValueError(f"myLauncher mods/resource-packs/world-saves/logs/screenshots/crash-reports/config/shader-packs/repair-version/account shortcuts are incomplete in {layout_path}")
+            raise ValueError(f"myLauncher mods/resource-packs/world-saves/logs/screenshots/crash-reports/config/shader-packs/repair-version/performance/account shortcuts are incomplete in {layout_path}")
 
         title_match = re.search(
             r'<TextView\s+android:id="@\+id/mylauncher_hero_title".*?/>',
