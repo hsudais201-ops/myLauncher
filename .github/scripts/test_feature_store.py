@@ -90,6 +90,23 @@ class FeatureStoreTests(unittest.TestCase):
                 self.assertEqual(text.count('android:id="@+id/mylauncher_feature_store_button"'), 1)
                 self.assertIn('app:layout_constraintTop_toBottomOf="@id/mylauncher_account_button"', text)
 
+    def test_server_status_source_has_live_fields_and_safe_icon_checks(self):
+        root = feature_store.REPO_ROOT / "feature-store"
+        catalog = json.loads((root / "catalog.json").read_text(encoding="utf-8"))
+        entry = next(x for x in catalog["features"] if x["id"] == "community.server-status")
+        package = json.loads((root / entry["asset"]).read_text(encoding="utf-8"))
+        self.assertEqual(package["screen"]["type"], "server_status")
+        self.assertIn("online/offline", package["description"].lower())
+        self.assertIn("server icon", package["description"].lower())
+        self.assertIn("MOTD", package["screen"]["description"])
+        self.assertIn("player count", package["screen"]["description"].lower())
+        activity = (root / "src/main/java/net/kdt/pojavlaunch/FeatureStoreActivity.java").read_text(encoding="utf-8")
+        for marker in ("decodeServerIcon", "fetchHttpsBytes", "Players online:", "MOTD:",
+                       "● ONLINE", "● OFFLINE", "UNKNOWN", "api.mcsrvstat.us/3/",
+                       "api.mcsrvstat.us/icon/", "BitmapFactory.Options",
+                       "setInstanceFollowRedirects(false)"):
+            self.assertIn(marker, activity)
+
     def test_social_hub_is_catalogued_as_explicit_local_preview(self):
         catalog_path = feature_store.REPO_ROOT / "feature-store" / "catalog.json"
         catalog = json.loads(catalog_path.read_text(encoding="utf-8"))
