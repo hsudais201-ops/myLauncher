@@ -160,7 +160,7 @@ def gradle_dependency_lines(root: Path) -> list[dict[str, str]]:
             stripped = line.strip()
             if not stripped or stripped.startswith("//") or stripped.startswith("*") or stripped.startswith("/*"):
                 continue
-            if re.match(r"^(implementation|api|runtimeOnly|compileOnly|classpath|kapt|annotationProcessor)\s*(?:\(|['\"])", stripped):
+            if re.match(r"^(implementation|api|runtimeOnly|compileOnly|classpath|kapt|annotationProcessor)\b(?:\s+|\s*\()", stripped):
                 results.append({"path": path.relative_to(root).as_posix(), "line": str(number), "text": stripped[:300]})
     return results
 
