@@ -15,6 +15,46 @@ See [FEATURE_ROADMAP.md](FEATURE_ROADMAP.md) for the complete 23-section feature
 - Built-in low-memory defaults: for devices reporting at most 2,048 MB total RAM, the allocator uses 296 MB below 1,024 MB, 448 MB below 1,536 MB, and a reduced 512 MB heap from 1,536–2,048 MB. The default resolution scaler targets a 480-pixel short screen edge for that RAM tier when the physical edge is larger than 480 pixels; scaling is rounded upward to the next supported 5% step. Saved preferences still take priority, so users can change the values afterward.
 - Suggested Minecraft settings: use 1.8.9 or 1.12.2, render distance 4–6 chunks, Fast graphics, and no shaders. Set these in Minecraft; this project does not force in-game settings.
 
+## Security, restrictions, and staged testing
+
+VoidCraft uses a security-first development process. The full policy is in [SECURITY_POLICY.md](SECURITY_POLICY.md), and the test-stage checklist is in [DEVELOPMENT_TESTING.md](DEVELOPMENT_TESTING.md).
+
+### Security baseline
+
+- Preserve the existing Amethyst engine, Java runtimes, native libraries, renderer, version downloader, loaders, worlds, and user configurations. Security work must not replace or silently delete these components.
+- Follow least privilege. Optional features must request only the capabilities they need, explain those capabilities, and require explicit approval for sensitive actions.
+- Treat uploaded features, downloads, modpacks, archives, imported settings, crash reports, logs, and URLs as untrusted input. Validate paths, types, sizes, integrity, and compatibility before use.
+- Keep passwords, Microsoft/Xbox/session tokens, cookies, private keys, and signing credentials out of source code, extension packages, logs, and bug reports.
+- Verify package provenance, APK signature, and SHA-256 before test distribution. A checksum proves file integrity only when the expected checksum is obtained through a trusted channel.
+- Back up important data before destructive operations; do not silently overwrite worlds, backups, profiles, or configuration files.
+- The future Feature Store must not execute arbitrary uploaded code. Start with reviewed declarative manifests and a restricted, host-enforced capability allowlist.
+
+### Restricted and prohibited capabilities
+
+The following are not allowed in VoidCraft built-in features, future Feature Store extensions, uploaded packages, or test tooling:
+
+1. Credential theft, password/token/cookie collection, account impersonation, or access to another player's account.
+2. Silent upload of worlds, screenshots, account data, private logs, device identifiers, or other personal data. Diagnostics must be disclosed, opt-in, previewable, redacted where possible, size-limited, and cancellable.
+3. Arbitrary uploaded or downloaded executable code, shell commands, remote code loading, self-modifying modules, or unrestricted JAR/DEX/native-library execution.
+4. Root or exploit attempts, Android permission bypass, bypassing integrity checks, or access outside user-approved file scopes.
+5. Bypassing Minecraft ownership, Microsoft/Xbox authentication, licensing, service security controls, or provider API terms and rate limits.
+6. Silent deletion/overwrite, path traversal, symlink escape, unsafe archive extraction, or actions that put worlds and backups at risk.
+7. Unverified downloads, unsigned updates, hidden persistence, or unexplained background network activity.
+8. Hidden telemetry, fingerprinting, undisclosed tracking, or ad injection.
+9. Malicious, deceptive, unreviewed, or impersonating community submissions; store publishers and permissions must be visible, with review, reporting, disable, and rollback controls.
+10. Undocumented provider endpoints or direct-loading methods that bypass access controls or provider terms. Any future content-provider integration needs a separate documented security and policy review.
+11. Ransomware, data wiping, denial-of-service activity, unauthorized scanning, or other abusive behavior.
+
+### Developer testing stages and access
+
+**Stage 1 — computer testing (required first).** Run source and regression/security tests, verify patch idempotence and generated XML, build the APK, check the signature and SHA-256, then install and launch the APK in the Android 9/API 28 emulator. Continue with physical Android/Chromebook gameplay acceptance tests; emulator launch alone is not proof that every feature works.
+
+**Stage 2 — private online beta (not active).** Only the owner and individually approved support testers should be allowed in. Use a genuinely access-controlled private repository or authenticated storage/site, named accounts, least-privilege roles, revocable access, and auditable downloads. Support testers may install approved builds and submit reports, but do not need release-signing keys, production secrets, or other users' private data.
+
+**Stage 3 — public web portal (future).** A separate website is not implemented yet. Before launch it needs server-enforced login and roles, upload/download controls, rate limits, audit logs, privacy and retention rules, secure sessions, vulnerability reporting, moderation, and rollback. Do not claim that a private test portal is live until its access controls have been configured and tested.
+
+**Important distribution rule:** this repository is public. Public Actions artifacts are not a private testing channel, so the build workflow validates the APK but does not publish the debug APK artifact. This Developer & Testing screen is informational only; it does not execute computer tests on the phone or enforce remote tester permissions.
+
 ## Account support and interface
 
 - The launcher retains Amethyst's Microsoft account sign-in and local/offline profile flow. The custom patch removes the online-account gate in the account selector and the local-login screen, so a local profile can be created without first adding a Microsoft account. The local username field is configured as a username field.
@@ -51,9 +91,9 @@ For an explicit check without launching the game, select the profile and press *
 ## Build the APK
 
 1. Open the Actions tab in this GitHub repository.
-2. Build validation runs automatically on pushes to `main` and pull requests when `.github/workflows/build.yml` or `.github/scripts/**` changes. You can also run **Build VoidCraft Launcher APK** manually using **Run workflow** in the Actions tab.
-3. Open the completed workflow run and download its **voidcraft-launcher-debug-apk** artifact. The artifact includes the APK and a `.sha256` checksum sidecar.
-4. Before installing, verify the transfer on Linux with `sha256sum -c <apk-filename>.sha256` from the directory containing the APK and sidecar. Then transfer the APK to Android, install it, and allow installation from your download source if Android asks.
+2. Build validation runs automatically on pushes to main and pull requests when the workflow or scripts change. You can also run **Build VoidCraft Launcher APK** manually using **Run workflow** in the Actions tab.
+3. The workflow runs regression checks, builds and verifies the APK, then installs and launches it in an Android 9 emulator. Because this repository is public, the workflow deliberately does not upload the debug APK as a downloadable Actions artifact.
+4. To install the APK for your own device testing, follow the **Local build** instructions below. Keep the APK and its SHA-256 sidecar together and verify the checksum before transferring the file. A private online beta needs a separate access-controlled host; a public artifact or hidden URL is not private.
 
 The workflow fetches the exact Amethyst commit `330c6eae3164df64bdc4828e946a9e62cc5169e4` and its submodules, rewrites SSH-style public GitHub submodule URLs to HTTPS for hosted runners, validates submodule checkout status, runs the customization regression suite before installing the Android toolchain, adds Maven Central to the plugin-management repositories required for Android Gradle Plugin transitive dependencies, applies the launcher customizations, applies the guarded Minecraft 26.3 MobileGlues compatibility workaround, validates and applies the Android vector icon, then builds and verifies the debug APK. The emulator smoke test checks that the launcher is resumed and captures diagnostics/screenshots. The source pin is independent of branch movement; update it deliberately when adopting a newer upstream version.
 
@@ -68,7 +108,10 @@ The workflow fetches the exact Amethyst commit `330c6eae3164df64bdc4828e946a9e62
 - `.github/scripts/emulator_smoke_test.sh` — installs the APK, launches the launcher entry point, checks foreground activity state, and captures emulator screenshots and diagnostics.
 - `.github/scripts/prepare_emulator_kvm.sh` — verifies and enables KVM access for hosted emulator runs.
 - `.github/scripts/test_customizer.py` — regression tests for the source patcher, account validation/submission, launcher actions, XML well-formedness, safe file handling, idempotency, build safeguards, and emulator-smoke expectations.
+- `.github/scripts/customize_developer.py` and `.github/scripts/test_developer.py` — add and test the read-only Developer & Testing policy screen. It explains security restrictions and staged access; it does not implement a remote permission server.
 - `FEATURE_ROADMAP.md` — tracks source-confirmed features separately from planned work and device/gameplay acceptance still needed.
+- `SECURITY_POLICY.md` — defines prohibited capabilities, package rules, access roles, and incident response.
+- `DEVELOPMENT_TESTING.md` — documents computer-first testing, private-beta access gates, and future web-portal requirements.
 
 ## Local build
 
@@ -92,6 +135,10 @@ Then fetch the pinned upstream source and build:
     git -C upstream diff --check
     python3 .github/scripts/patch_renderpearl_workaround.py upstream
     git -C upstream diff --check
+    python3 .github/scripts/customize_ui.py upstream
+    git -C upstream diff --check
+    python3 .github/scripts/customize_developer.py upstream
+    git -C upstream diff --check
     python3 .github/scripts/apply_logo.py upstream
     cd upstream
     ./gradlew --no-daemon :jre_lwjgl3glfw:build :app_pojavlauncher:assembleDebug --stacktrace
@@ -108,7 +155,7 @@ The world backup/restore change in [PR #15 workflow run #39052725546](https://gi
 
 The shipped folder shortcuts open each selected profile's `mods/`, `resourcepacks/`, and `saves/` directories and create them if missing. The Mods shortcut also supports a long-press toggle for top-level JAR files; this is not a mod installer or conflict/compatibility checker. World saves supports timestamped ZIP backups and guarded restore of a chosen backup. Full mod/resource-pack installation, mod conflict detection, resource-pack activation, scheduled/cloud backups, and cloud sync remain unimplemented.
 
-The source patcher is regression-tested and the current `main` APK is signature-verified by CI. The project still builds upstream Amethyst pinned at `330c6eae3164df64bdc4828e946a9e62cc5169e4`; VoidCraft Launcher customizes that runtime rather than replacing its Java VM or game engine. Review [FEATURE_ROADMAP.md](FEATURE_ROADMAP.md) to distinguish inherited engine features, VoidCraft Launcher-specific changes, and planned features.
+The source patcher is regression-tested and the APK built by CI is signature-verified before emulator testing. This public-repository workflow no longer uploads the APK artifact; use the local build path for personal device tests and a separate authenticated host for any private beta. The project still builds upstream Amethyst pinned at `330c6eae3164df64bdc4828e946a9e62cc5169e4`; VoidCraft Launcher customizes that runtime rather than replacing its Java VM or game engine. Review [FEATURE_ROADMAP.md](FEATURE_ROADMAP.md) to distinguish inherited engine features, VoidCraft Launcher-specific changes, and planned features.
 
 ### Missing-version metadata recovery
 
