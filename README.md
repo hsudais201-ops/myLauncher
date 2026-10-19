@@ -68,8 +68,9 @@ The workflow fetches the exact Amethyst commit `330c6eae3164df64bdc4828e946a9e62
 - `.github/scripts/emulator_smoke_test.sh` — installs the APK, launches the launcher entry point, checks foreground activity state, and captures emulator screenshots and diagnostics.
 - `.github/scripts/prepare_emulator_kvm.sh` — verifies and enables KVM access for hosted emulator runs.
 - `.github/scripts/test_customizer.py` — regression tests for the source patcher, account validation/submission, launcher actions, XML well-formedness, safe file handling, idempotency, build safeguards, and emulator-smoke expectations.
+- `.github/scripts/test_feature_store_spec.py` — checks that the Feature Store specification lists items 1–70 exactly once, preserves the five built-in-only features, retains the no-category design, and documents core safety constraints. This is a documentation-integrity test, not a runtime test of all planned features.
 - `FEATURE_ROADMAP.md` — tracks source-confirmed features separately from planned work and device/gameplay acceptance still needed.
-- `FEATURE_STORE_SPEC.md` — defines Feature Store extensions, the five built-in-only features, the no-category Store UX, extension security, and implementation gates.
+- `FEATURE_STORE_SPEC.md` — defines the 70-item Feature Store plan, the five built-in-only features, the no-category Store UX, extension security, and implementation gates.
 
 ## Local build
 
