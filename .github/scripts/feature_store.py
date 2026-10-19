@@ -153,7 +153,6 @@ def _validate_store_catalog() -> None:
         if "category" in entry:
             raise ValueError("Feature categories are not part of the catalog schema")
         feature_id = entry.get("id", "")
-        asset = entry.get("asset", "")
         expected = entry.get("sha256", "")
         package_url = entry.get("packageUrl", "")
         if not isinstance(package_url, str) or not package_url.startswith("https://"):
@@ -163,11 +162,12 @@ def _validate_store_catalog() -> None:
         if feature_id in seen:
             raise ValueError(f"Duplicate catalog feature id: {feature_id}")
         seen.add(feature_id)
-        if not re.fullmatch(r"packages/[A-Za-z0-9._-]{1,100}\.vcfeature", asset):
-            raise ValueError(f"Unsafe package source path for {feature_id}")
+        package_name = package_url.split("?", 1)[0].rsplit("/", 1)[-1]
+        if not re.fullmatch(r"[A-Za-z0-9._-]{1,100}\.vcfeature", package_name):
+            raise ValueError(f"Unsafe package filename in URL for {feature_id}")
         if not re.fullmatch(r"[a-fA-F0-9]{64}", expected):
             raise ValueError(f"Invalid SHA-256 in catalog for {feature_id}")
-        package_path = source_assets / asset
+        package_path = packages_path / package_name
         if not package_path.is_file() or package_path.stat().st_size > MAX_PACKAGE_BYTES:
             raise ValueError(f"Feature package is missing or too large: {package_path}")
         raw = package_path.read_bytes()
