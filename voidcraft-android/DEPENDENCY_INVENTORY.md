@@ -5,6 +5,7 @@
 | Component | Version / source in this project | Role | Included in app APK? | License / clearance status |
 |---|---|---|---|---|
 | Android platform APIs | compile SDK 35; minimum API 28; target API 35 | UI, preferences, dialogs, JSON parsing | Android framework is provided by the OS; this project does not vendor framework source | Android platform terms apply; no Android framework sources are copied into this project |
+| Mojang public Java Edition version manifest | `https://piston-meta.mojang.com/mc/game/version_manifest_v2.json` | Fetches version IDs, types, release times, and latest release/snapshot metadata at user request | No (endpoint URL only; JSON held in memory) | External metadata service, not a software dependency. The client pins requests to the official HTTPS host and caps response size. This does not authorize redistribution of Minecraft game content. |
 | Android Gradle Plugin | `com.android.application` 8.7.3 from Google Maven | Build-time plugin | No | Build-only dependency. Verify publisher license metadata when maintaining the SBOM; not a runtime library |
 | Gradle | 8.9 in the documented CI build | Build orchestration | No | Build-only tool. Its own distribution terms apply |
 | Android SDK Platform / Build Tools | Platform 35, Build Tools 35.0.0 | Compile/package | No | SDK package terms accepted by CI; not packaged as launcher runtime code |
