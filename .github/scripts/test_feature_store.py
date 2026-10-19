@@ -112,7 +112,7 @@ class FeatureStoreTests(unittest.TestCase):
         for marker in ("serverStorageKey", "loadSavedServers", "saveServerList", "showServerEditor",
                        "confirmRemoveServer", "refreshServerStatus", "validServerHost",
                        "＋ Add server", "Remove server", "Server updated", "Server added",
-                       "setText(original.optString(\"host\", \"\"))",
+                       "if (existing != null) hostInput.setText(existing.optString(\"host\", \"\"))",
                        "getSharedPreferences(\"voidcraft_feature_store\", MODE_PRIVATE)",
                        "Math.min(stored.length(), 100)"):
             self.assertIn(marker, activity)
