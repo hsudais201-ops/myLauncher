@@ -323,17 +323,6 @@ public final class MainActivity extends Activity {
 
             addServerStatusText(card, serverStatuses.get(server.id), server.id);
 
-            LinearLayout actions = new LinearLayout(this);
-            actions.setOrientation(LinearLayout.HORIZONTAL);
-            Button edit = button("Edit", () -> navigate("Servers"), false);
-            Button remove = button("Remove", () -> navigate("Servers"), false);
-            LinearLayout.LayoutParams actionParams = new LinearLayout.LayoutParams(0, dp(42), 1f);
-            actionParams.setMargins(0, dp(8), dp(5), 0);
-            actions.addView(edit, actionParams);
-            LinearLayout.LayoutParams removeParams = new LinearLayout.LayoutParams(0, dp(42), 1f);
-            removeParams.setMargins(dp(5), dp(8), 0, 0);
-            actions.addView(remove, removeParams);
-            card.addView(actions);
             addCardView(card);
         }
     }
@@ -383,7 +372,7 @@ public final class MainActivity extends Activity {
                 } else {
                     serverStatuses.remove(server.id);
                 }
-                if ("Servers".equals(currentRoute)) {
+                if ("Server Status".equals(currentRoute)) {
                     render();
                 }
             });
