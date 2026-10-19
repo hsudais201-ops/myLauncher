@@ -3,21 +3,31 @@ package com.voidcraft.launcher;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.SharedPreferences;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.graphics.Color;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
 import android.os.Bundle;
+import android.util.Base64;
 import android.view.Gravity;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.HorizontalScrollView;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.Switch;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 /**
  * First-party VoidCraft navigation and dashboard foundation.
@@ -37,9 +47,14 @@ public final class MainActivity extends Activity {
     private static final int COLOR_TEXT = Color.rgb(246, 243, 255);
     private static final int COLOR_MUTED = Color.rgb(184, 177, 208);
     private static final int COLOR_WARNING = Color.rgb(251, 191, 36);
+    private static final int COLOR_SUCCESS = Color.rgb(74, 222, 128);
+    private static final int COLOR_OFFLINE = Color.rgb(248, 113, 113);
 
     private SharedPreferences preferences;
     private SavedServerStore serverStore;
+    private final Map<String, MinecraftServerStatusClient.Result> serverStatuses = new HashMap<>();
+    private final Set<String> serverQueriesInFlight = new HashSet<>();
+    private ExecutorService serverStatusExecutor;
     private String currentRoute = "Dashboard";
     private LinearLayout pageContent;
 
@@ -48,9 +63,18 @@ public final class MainActivity extends Activity {
         super.onCreate(savedInstanceState);
         preferences = getSharedPreferences(PREFS, MODE_PRIVATE);
         serverStore = new SavedServerStore(this);
+        serverStatusExecutor = Executors.newFixedThreadPool(3);
         getWindow().setStatusBarColor(COLOR_BACKGROUND);
         getWindow().setNavigationBarColor(COLOR_BACKGROUND);
         render();
+    }
+
+    @Override
+    protected void onDestroy() {
+        if (serverStatusExecutor != null) {
+            serverStatusExecutor.shutdownNow();
+        }
+        super.onDestroy();
     }
 
     @Override
@@ -144,32 +168,43 @@ public final class MainActivity extends Activity {
     private void buildServers() {
         java.util.List<SavedServerStore.Entry> servers = serverStore.load();
         addCard("Saved servers",
-                "Manage server name and address entries on this device. Live online status, MOTD, player count, version, and icon require a query service and are not guessed here.");
+                "Live status uses a read-only Minecraft: Java Edition status request. It can show reachability, MOTD, player counts, version, and a server-provided icon; it does not join the server.");
+
         Button add = button("＋  Add server", this::showServerEditorForNew, true);
         LinearLayout.LayoutParams addParams = new LinearLayout.LayoutParams(-1, dp(46));
-        addParams.bottomMargin = dp(12);
+        addParams.bottomMargin = dp(8);
         pageContent.addView(add, addParams);
 
         Button refresh = button("Refresh saved list", () -> {
             render();
-            Toast.makeText(this, "Saved list refreshed. Live status checks are not connected.", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "Saved server list reloaded.", Toast.LENGTH_SHORT).show();
         }, false);
         LinearLayout.LayoutParams refreshParams = new LinearLayout.LayoutParams(-1, dp(44));
-        refreshParams.bottomMargin = dp(12);
+        refreshParams.bottomMargin = dp(8);
         pageContent.addView(refresh, refreshParams);
 
+        Button checkAll = button("Check all server statuses", this::refreshAllServerStatuses, true);
+        LinearLayout.LayoutParams checkParams = new LinearLayout.LayoutParams(-1, dp(44));
+        checkParams.bottomMargin = dp(12);
+        pageContent.addView(checkAll, checkParams);
+
         if (servers.isEmpty()) {
-            addStatus("No saved servers yet", COLOR_MUTED);
+            addStatus("No saved servers yet. Add a server to start checking status.", COLOR_MUTED);
         }
         for (SavedServerStore.Entry server : servers) {
+            startServerStatusCheckIfNeeded(server);
+
             LinearLayout card = cardContainer();
+            addServerFavicon(card, serverStatuses.get(server.id));
             card.addView(text(server.name, 17, COLOR_TEXT, true));
+
             TextView addressText = text(server.address, 14, COLOR_MUTED, false);
             addressText.setTextIsSelectable(true);
             LinearLayout.LayoutParams addressParams = new LinearLayout.LayoutParams(-1, -2);
             addressParams.topMargin = dp(5);
             card.addView(addressText, addressParams);
-            card.addView(text("Live status: not checked", 13, COLOR_WARNING, true));
+
+            addServerStatusText(card, serverStatuses.get(server.id), server.id);
 
             LinearLayout actions = new LinearLayout(this);
             actions.setOrientation(LinearLayout.HORIZONTAL);
@@ -184,7 +219,118 @@ public final class MainActivity extends Activity {
             card.addView(actions);
             addCardView(card);
         }
-        addStatus("Live status checks are not connected", COLOR_WARNING);
+    }
+
+    private void refreshAllServerStatuses() {
+        java.util.List<SavedServerStore.Entry> servers = serverStore.load();
+        for (SavedServerStore.Entry server : servers) {
+            serverStatuses.remove(server.id);
+        }
+        for (SavedServerStore.Entry server : servers) {
+            startServerStatusCheckIfNeeded(server);
+        }
+        render();
+        Toast.makeText(this, "Checking saved Java Edition servers…", Toast.LENGTH_SHORT).show();
+    }
+
+    private void startServerStatusCheckIfNeeded(SavedServerStore.Entry server) {
+        if (serverStatuses.containsKey(server.id)
+                || serverQueriesInFlight.contains(server.id)
+                || serverStatusExecutor == null
+                || serverStatusExecutor.isShutdown()) {
+            return;
+        }
+
+        serverQueriesInFlight.add(server.id);
+        serverStatusExecutor.execute(() -> {
+            MinecraftServerStatusClient.Result result = MinecraftServerStatusClient.query(server.address);
+            runOnUiThread(() -> {
+                serverQueriesInFlight.remove(server.id);
+                if (isFinishing() || isDestroyed()) {
+                    return;
+                }
+
+                boolean unchangedSavedEntry = false;
+                for (SavedServerStore.Entry current : serverStore.load()) {
+                    if (current.id.equals(server.id) && current.address.equals(server.address)) {
+                        unchangedSavedEntry = true;
+                        break;
+                    }
+                }
+                if (unchangedSavedEntry) {
+                    serverStatuses.put(server.id, result);
+                } else {
+                    serverStatuses.remove(server.id);
+                }
+                if ("Servers".equals(currentRoute)) {
+                    render();
+                }
+            });
+        });
+    }
+
+    private void addServerStatusText(LinearLayout card,
+                                    MinecraftServerStatusClient.Result result,
+                                    String serverId) {
+        if (result == null) {
+            String message = serverQueriesInFlight.contains(serverId)
+                    ? "Checking server status…"
+                    : "Status not checked";
+            card.addView(text(message, 13, COLOR_MUTED, true));
+            return;
+        }
+
+        if (!result.online) {
+            card.addView(text("● OFFLINE / UNREACHABLE", 13, COLOR_OFFLINE, true));
+            TextView detail = text(result.message, 13, COLOR_MUTED, false);
+            detail.setLineSpacing(dp(2), 1f);
+            LinearLayout.LayoutParams detailParams = new LinearLayout.LayoutParams(-1, -2);
+            detailParams.topMargin = dp(4);
+            card.addView(detail, detailParams);
+            return;
+        }
+
+        card.addView(text("● ONLINE", 13, COLOR_SUCCESS, true));
+        card.addView(text("MOTD: " + result.motd, 14, COLOR_TEXT, false));
+
+        String players = result.playersOnline >= 0 && result.playersMax >= 0
+                ? "Players: " + result.playersOnline + " / " + result.playersMax
+                : "Players: not reported";
+        card.addView(text(players, 13, COLOR_MUTED, false));
+
+        String version = result.version.isEmpty() ? "Version: not reported" : "Version: " + result.version;
+        card.addView(text(version, 13, COLOR_MUTED, false));
+    }
+
+    private void addServerFavicon(LinearLayout card, MinecraftServerStatusClient.Result result) {
+        if (result == null || result.faviconDataUri == null) {
+            return;
+        }
+
+        final String prefix = "data:image/png;base64,";
+        if (!result.faviconDataUri.startsWith(prefix)) {
+            return;
+        }
+        try {
+            byte[] imageBytes = Base64.decode(
+                    result.faviconDataUri.substring(prefix.length()), Base64.DEFAULT);
+            if (imageBytes.length == 0 || imageBytes.length > 150_000) {
+                return;
+            }
+            Bitmap bitmap = BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.length);
+            if (bitmap == null) {
+                return;
+            }
+            ImageView favicon = new ImageView(this);
+            favicon.setImageBitmap(bitmap);
+            favicon.setScaleType(ImageView.ScaleType.FIT_CENTER);
+            favicon.setContentDescription("Server icon");
+            LinearLayout.LayoutParams iconParams = new LinearLayout.LayoutParams(dp(48), dp(48));
+            iconParams.bottomMargin = dp(6);
+            card.addView(favicon, 0, iconParams);
+        } catch (IllegalArgumentException ignored) {
+            // A malformed server-provided favicon should not break the server list.
+        }
     }
 
     private void showServerEditorForNew() {
@@ -305,7 +451,7 @@ public final class MainActivity extends Activity {
         pageContent.addView(reducedMotion);
 
         addCard("Privacy",
-                "This foundation makes no network requests and does not ask for Microsoft, Google, or other account credentials.");
+                "Opening Servers or selecting Check all server statuses sends short read-only status requests to the saved addresses. The app does not log in to or join servers.");
     }
 
     private void addShortcut(String route, String description) {
