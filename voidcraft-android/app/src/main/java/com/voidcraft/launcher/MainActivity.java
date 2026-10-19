@@ -83,6 +83,9 @@ public final class MainActivity extends Activity {
         if ("Server Status".equals(currentRoute)) {
             currentRoute = "Feature Store";
             render();
+        } else if ("About & Legal".equals(currentRoute)) {
+            currentRoute = "Settings";
+            render();
         } else if (!"Dashboard".equals(currentRoute)) {
             currentRoute = "Dashboard";
             render();
@@ -165,6 +168,8 @@ public final class MainActivity extends Activity {
             buildServerStatusFeature();
         } else if ("Settings".equals(currentRoute)) {
             buildSettings();
+        } else if ("About & Legal".equals(currentRoute)) {
+            buildLegalNotices();
         }
     }
 
@@ -565,7 +570,25 @@ public final class MainActivity extends Activity {
         pageContent.addView(reducedMotion);
 
         addCard("Privacy",
-                "Opening Servers or selecting Check all server statuses sends short read-only status requests to the saved addresses. The app does not log in to or join servers.");
+                "Opening the installed Server Status feature sends short read-only status requests to the saved addresses. The app does not log in to or join servers.");
+
+        Button legal = button("About & legal notices", () -> navigate("About & Legal"), false);
+        LinearLayout.LayoutParams legalParams = new LinearLayout.LayoutParams(-1, dp(44));
+        legalParams.topMargin = dp(12);
+        pageContent.addView(legal, legalParams);
+    }
+
+    private void buildLegalNotices() {
+        addCard("Independent community project",
+                "VoidCraft Launcher is a third-party project. It is not affiliated with, endorsed by, or sponsored by Mojang Studios or Microsoft. Minecraft names are used only to describe compatibility; do not interpret this app as an official Minecraft product.");
+
+        addCard("Game files are not included",
+                "This clean-room foundation does not bundle Minecraft client JARs, game assets, Java runtime binaries, renderer/native libraries, or loader binaries. It cannot launch Minecraft yet. Obtain any future game downloads only through authorized sources and follow the applicable Minecraft account, EULA, and usage terms.");
+
+        addCard("Code and third-party licenses",
+                "This independent app has its own source-provenance record and dependency inventory. Android platform APIs and build tools have their own terms. The separate legacy APK workflow in this repository builds from Amethyst-Android and has distinct LGPL and third-party license obligations; the repository-wide audit is still incomplete.");
+
+        addStatus("This build is a foundation, not a playable Minecraft launcher.", COLOR_WARNING);
     }
 
     private void addShortcut(String route, String description) {
