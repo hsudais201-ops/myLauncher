@@ -1593,6 +1593,8 @@ class BuildWorkflowTests(unittest.TestCase):
             ".github/scripts/patch_renderpearl_workaround.py",
             ".github/scripts/test_customizer.py",
             ".github/scripts/test_renderpearl_workaround.py",
+            ".github/scripts/customize_developer.py",
+            ".github/scripts/test_developer.py",
         ):
             self.assertIn(required_script, py_compile_lines[0])
         self.assertIn("sh -n .github/scripts/prepare_emulator_kvm.sh", self.workflow)
