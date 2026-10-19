@@ -107,6 +107,19 @@ class FeatureStoreTests(unittest.TestCase):
                        "setInstanceFollowRedirects(false)"):
             self.assertIn(marker, activity)
 
+    def test_server_status_supports_saved_servers_edit_remove_and_refresh(self):
+        activity = (feature_store.REPO_ROOT / "feature-store" / "src/main/java/net/kdt/pojavlaunch/FeatureStoreActivity.java").read_text(encoding="utf-8")
+        for marker in ("serverStorageKey", "loadSavedServers", "saveServerList", "showServerEditor",
+                       "confirmRemoveServer", "refreshServerStatus", "validServerHost",
+                       "＋ Add server", "Remove server", "Server updated", "Server added",
+                       "setText(original.optString(\"host\", \"\"))",
+                       "getSharedPreferences(\"voidcraft_feature_store\", MODE_PRIVATE)",
+                       "Math.min(stored.length(), 100)"):
+            self.assertIn(marker, activity)
+        self.assertIn("server_status.", activity)
+        self.assertIn('saved.put("name", name)', activity)
+        self.assertIn('saved.put("host", host)', activity)
+
     def test_social_hub_is_catalogued_as_explicit_local_preview(self):
         catalog_path = feature_store.REPO_ROOT / "feature-store" / "catalog.json"
         catalog = json.loads(catalog_path.read_text(encoding="utf-8"))
