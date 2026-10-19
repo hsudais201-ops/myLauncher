@@ -56,6 +56,26 @@ class CleanRoomBoundaryTests(unittest.TestCase):
         self.assertIn("boolean update(String id, String name, String address)", store)
         self.assertIn("boolean remove(String id)", store)
 
+    def test_official_version_metadata_browser_is_not_a_game_downloader(self):
+        source = MAIN_ACTIVITY.read_text(encoding="utf-8")
+        client_path = JAVA_ROOT / "com" / "voidcraft" / "launcher" / "MinecraftVersionManifestClient.java"
+        client = client_path.read_text(encoding="utf-8")
+
+        self.assertIn('else if ("Minecraft Versions".equals(currentRoute))', source)
+        self.assertIn('button("Browse Minecraft versions"', source)
+        self.assertIn("MinecraftVersionManifestClient.fetch()", source)
+        self.assertIn("serverStatusExecutor.execute", source)
+        self.assertIn("Metadata only", source)
+        self.assertIn("https://piston-meta.mojang.com/mc/game/version_manifest_v2.json", client)
+        self.assertIn('OFFICIAL_MANIFEST_HOST = "piston-meta.mojang.com"', client)
+        self.assertIn("MAX_MANIFEST_BYTES = 8 * 1024 * 1024", client)
+        self.assertIn("getInstanceFollowRedirects(false)", client)
+        self.assertIn("startsWith(\"/v1/packages/\")", client)
+        self.assertIn("The version manifest exceeded the permitted size.", client)
+        self.assertIn("public static Manifest parse(String json)", client)
+        self.assertNotIn("net.kdt.pojavlaunch", client)
+        self.assertNotIn("Amethyst", client)
+
     def test_server_status_is_an_optional_installable_feature_with_its_own_page(self):
         source = MAIN_ACTIVITY.read_text(encoding="utf-8")
         self.assertIn("KEY_FEATURE_SERVER_STATUS_INSTALLED", source)
