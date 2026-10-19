@@ -2184,7 +2184,7 @@ def patch_upstream(upstream: Path) -> None:
             requested.put("graphicsMode", "0");
             requested.put("fancyGraphics", "false");
             requested.put("particles", "2");
-            requested.put("maxFps", "30");
+            requested.put("maxFps", "260");
             requested.put("enableVsync", "false");
             requested.put("mipmapLevels", "0");
             requested.put("ao", "0");
@@ -2196,8 +2196,8 @@ def patch_upstream(upstream: Path) -> None:
             requested.put("graphicsMode", "0");
             requested.put("fancyGraphics", "false");
             requested.put("particles", "1");
-            requested.put("maxFps", "60");
-            requested.put("enableVsync", "true");
+            requested.put("maxFps", "260");
+            requested.put("enableVsync", "false");
             requested.put("mipmapLevels", "2");
             requested.put("ao", "1");
             requested.put("entityDistanceScaling", "0.75");
@@ -2208,8 +2208,8 @@ def patch_upstream(upstream: Path) -> None:
             requested.put("graphicsMode", "1");
             requested.put("fancyGraphics", "true");
             requested.put("particles", "0");
-            requested.put("maxFps", "120");
-            requested.put("enableVsync", "true");
+            requested.put("maxFps", "260");
+            requested.put("enableVsync", "false");
             requested.put("mipmapLevels", "4");
             requested.put("ao", "2");
             requested.put("entityDistanceScaling", "1.0");
