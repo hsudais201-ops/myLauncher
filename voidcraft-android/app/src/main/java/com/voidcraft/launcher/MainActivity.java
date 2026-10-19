@@ -149,6 +149,16 @@ public final class MainActivity extends Activity {
         addParams.bottomMargin = dp(12);
         pageContent.addView(add, addParams);
 
+        Button refresh = button("Refresh saved list", () -> {
+            navigate("Servers");
+            Toast.makeText(this,
+                    "Saved server list reloaded. Live status queries are not connected.",
+                    Toast.LENGTH_SHORT).show();
+        }, false);
+        LinearLayout.LayoutParams refreshParams = new LinearLayout.LayoutParams(-1, dp(44));
+        refreshParams.bottomMargin = dp(12);
+        pageContent.addView(refresh, refreshParams);
+
         if (servers.isEmpty()) {
             addStatus("No saved servers yet", COLOR_MUTED);
         }
