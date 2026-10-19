@@ -64,6 +64,26 @@ class CleanRoomBoundaryTests(unittest.TestCase):
         self.assertIn("Live status checks are not connected", source)
         self.assertIn("Live online/offline checks, MOTD, player counts", readme)
 
+    def test_clean_room_workflow_does_not_fetch_legacy_launcher(self):
+        workflow = (PROJECT.parent.parent / ".github" / "workflows" / "clean-room-build.yml").read_text(encoding="utf-8")
+        for forbidden in ("Amethyst-Android.git", "PojavLauncher.git", "git -C upstream", "app_pojavlauncher"):
+            with self.subTest(forbidden=forbidden):
+                self.assertNotIn(forbidden, workflow)
+
+    def test_clean_room_project_has_no_declared_external_runtime_libraries(self):
+        build = APP_GRADLE.read_text(encoding="utf-8")
+        self.assertNotIn("dependencies {", build)
+        sources = list(JAVA_ROOT.rglob("*.java"))
+        forbidden = re.compile(r"\b(?:Amethyst|PojavLauncher)\b|net\.kdt\.pojavlaunch", re.IGNORECASE)
+        for source in sources:
+            self.assertIsNone(forbidden.search(source.read_text(encoding="utf-8")), str(source))
+
+    def test_copyright_audit_clearly_marks_legacy_path_not_cleared(self):
+        audit = (PROJECT.parent / "COPYRIGHT_AND_LICENSE_AUDIT.md").read_text(encoding="utf-8")
+        self.assertIn("INCOMPLETE", audit)
+        self.assertIn("330c6eae3164df64bdc4828e946a9e62cc5169e4", audit)
+        self.assertIn("not a clean-room build", audit)
+
     def test_clean_room_app_does_not_request_network_permission_yet(self):
         manifest = MANIFEST.read_text(encoding="utf-8")
         self.assertNotIn("android.permission.INTERNET", manifest)
