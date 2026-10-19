@@ -26,6 +26,7 @@ class FeatureStoreTests(unittest.TestCase):
             package = json.loads(raw.decode("utf-8"))
             self.assertEqual(package["schemaVersion"], 1)
             self.assertEqual(package["id"], entry["id"])
+            self.assertTrue(entry["packageUrl"].startswith("https://"))
             self.assertNotIn("category", package)
             self.assertIn(package["owner"], ("VoidCraft Launcher", "VoidCraft Community"))
 
@@ -84,11 +85,29 @@ class FeatureStoreTests(unittest.TestCase):
             self.assertEqual(base.count("FeatureTheme.apply(this);"), 1)
             self.assertTrue((package / "FeatureStoreActivity.java").is_file())
             self.assertTrue((package / "FeatureTheme.java").is_file())
-            self.assertTrue((app / "assets" / "feature-store" / "catalog.json").is_file())
+            self.assertFalse((app / "assets" / "feature-store").exists(),
+                             "Available feature packages/catalog must not be copied into APK assets")
             for relative in ("res/layout/fragment_launcher.xml", "res/layout-land/fragment_launcher.xml"):
                 text = (app / relative).read_text(encoding="utf-8")
                 self.assertEqual(text.count('android:id="@+id/mylauncher_feature_store_button"'), 1)
                 self.assertIn('app:layout_constraintTop_toBottomOf="@id/mylauncher_account_button"', text)
+
+    def test_optional_features_are_downloaded_only_after_install(self):
+        root = feature_store.REPO_ROOT
+        script = (root / ".github/scripts/feature_store.py").read_text(encoding="utf-8")
+        activity = (root / "feature-store/src/main/java/net/kdt/pojavlaunch/FeatureStoreActivity.java").read_text(encoding="utf-8")
+
+        self.assertIn("_validate_store_catalog()", script)
+        self.assertIn("Feature Store catalog/packages must not be bundled into APK assets", script)
+        self.assertNotIn("shutil.copyfile(SOURCE_ROOT / \"catalog.json\"", script)
+        self.assertNotIn("packages_destination", script)
+        self.assertIn("loadCachedCatalog();", activity)
+        self.assertIn("cacheCatalog(raw);", activity)
+        self.assertIn("String packageText = fetchHttps(url, MAX_PACKAGE_BYTES);", activity)
+        self.assertIn("Never load a feature from APK assets", activity)
+        self.assertNotIn("loadBundledCatalog", activity)
+        self.assertNotIn("readAsset(", activity)
+        self.assertNotIn("getAssets().open", activity)
 
     def test_server_status_source_has_live_fields_and_safe_icon_checks(self):
         root = feature_store.REPO_ROOT / "feature-store"
