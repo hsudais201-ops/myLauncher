@@ -65,7 +65,7 @@ class CleanRoomBoundaryTests(unittest.TestCase):
         self.assertIn("Live online/offline checks, MOTD, player counts", readme)
 
     def test_clean_room_workflow_does_not_fetch_legacy_launcher(self):
-        workflow = (PROJECT.parent.parent / ".github" / "workflows" / "clean-room-build.yml").read_text(encoding="utf-8")
+        workflow = (PROJECT.parent / ".github" / "workflows" / "clean-room-build.yml").read_text(encoding="utf-8")
         for forbidden in ("Amethyst-Android.git", "PojavLauncher.git", "git -C upstream", "app_pojavlauncher"):
             with self.subTest(forbidden=forbidden):
                 self.assertNotIn(forbidden, workflow)
