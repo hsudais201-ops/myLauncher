@@ -58,6 +58,9 @@ class CustomizeAmethystTests(unittest.TestCase):
 ''',
             encoding="utf-8",
         )
+        restricted_font = app / "src/main/res/font/minecraft_ten.ttf"
+        restricted_font.parent.mkdir(parents=True, exist_ok=True)
+        restricted_font.write_bytes(b"fixture font data requiring removal")
         (app / "src/main/res/values/colors.xml").write_text(
             '<resources><color name="primary_text">#FFFFFF</color>'
             '<color name="secondary_text">#B2B2B2</color></resources>\n',
@@ -532,6 +535,18 @@ class ProfileTypeSelectFragment {
                 self.assertIn('android:text="@string/main_repair_version"', layout)
                 self.assertIn('app:layout_constraintTop_toBottomOf="@id/mylauncher_shaderpacks_button"', layout)
                 self.assertIn('app:layout_constraintTop_toBottomOf="@id/mylauncher_repair_version_button"', layout)
+
+    def test_unlicensed_minecraft_ten_font_is_removed_from_legacy_build_source(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            self.fixture(root)
+            font = root / "app_pojavlauncher/src/main/res/font/minecraft_ten.ttf"
+            self.assertTrue(font.is_file())
+
+            customizer.patch_upstream(root)
+
+            self.assertFalse(font.exists(), "Unverified Mojang Minecraft Ten font must not enter the APK")
+            self.assertFalse(font.is_symlink())
 
     def test_patches_branding_and_ids(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
