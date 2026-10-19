@@ -16,16 +16,18 @@ Feature packages are data, not executable Java, DEX, shell, or scripts. This kee
 4. Add a catalog entry to `feature-store/catalog.json` with its id, title, version, author/owner, description, package asset path, HTTPS download URL, and SHA-256 of the exact package bytes.
 5. Keep the package id identical in the catalog and package manifest. Do not publish secrets, tokens, personal data, or executable payloads.
 
-The launcher includes a bundled catalog for offline browsing and checks the public catalog URL for newer entries. Downloaded packages must use HTTPS, match their SHA-256, pass schema validation, and remain within the size limit. Owners can publish through normal repository review; the app does not contain a personal access token or silently write to GitHub. Direct one-tap upload to a shared public service would require a separately hosted authenticated publishing endpoint.
+The APK contains the Feature Store manager and its safe declarative renderer only. It does **not** bundle the public catalog or any optional `.vcfeature` package, and no sample feature is preinstalled. When the user opens the store, it fetches catalog metadata over HTTPS and saves only that metadata as a private cache for later offline browsing. Each package is downloaded from its HTTPS `packageUrl` only after the user taps **Install** or **Update**; the SHA-256 is checked before schema validation and storage under the app-private `files/feature-store/installed/` directory. Opening an installed feature reads that separately installed package.
 
-## Current sample features
+A cached catalog is only a list of available items, not installed functionality. On a first launch without internet and without a saved catalog cache, the store can still show its manager and allow local package import, but it cannot fetch the online list or install online features. Uninstall removes the selected installed package; it does not remove launcher/runtime files, worlds, accounts, or other features. Owners can publish new entries through a reviewed repository change; the app does not contain a personal access token or silently write to GitHub. Direct one-tap publishing to a shared public store requires a separately hosted authenticated publishing endpoint.
+
+## Available sample packages in the remote catalog (not preinstalled)
+
+These entries are offered by the remote store and appear in **Installed features** only after a user explicitly installs them.
 
 - **Theme Studio** — changes supported launcher UI colors with named palettes.
-- **Server Status** — save multiple Java Edition servers, add each with a display name and host/IP, refresh an individual server, edit its name/address, or remove it from the list. Status cards show ONLINE, OFFLINE, or UNKNOWN, current/max player counts, MOTD, version, and server icon/logo when supplied. Uses the public mcsrvstat.us service over HTTPS.
-- **Community Resources** — a separate feature screen linking to Modrinth, CurseForge, and the project.
+- **Server Status** — save multiple Java Edition servers, add each with a display name and host/IP, refresh an individual server, edit its name/address, or remove it from the saved list. Status cards show ONLINE, OFFLINE, or UNKNOWN, current/max player counts, MOTD, version, and server icon/logo when supplied. Uses the public mcsrvstat.us service over HTTPS.
+- **Community Resources** — a separate feature screen linking to mod discovery and launcher project resources.
 - **Social Hub (Preview)** — profile username, provider-choice UI, local friend-request workflow, contact removal, and local chat previews. This currently stores data on this device only; it does not deliver real friend requests/messages or authenticate with Microsoft/Xbox, Google, or other providers.
-
-The catalog is an additive option; existing launcher pages and integrations stay available.
 
 ## Social Hub: what is and is not connected
 
