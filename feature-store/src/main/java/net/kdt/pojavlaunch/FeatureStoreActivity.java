@@ -469,6 +469,266 @@ public final class FeatureStoreActivity extends BaseActivity {
         }
     }
 
+    private String workspaceEntriesKey() {
+        return "workspace." + (currentFeature == null ? "unknown" : currentFeature.optString("id", "unknown")) + ".entries";
+    }
+
+    private JSONArray readWorkspaceEntries() {
+        try {
+            JSONArray saved = new JSONArray(getSharedPreferences("voidcraft_feature_store", MODE_PRIVATE)
+                    .getString(workspaceEntriesKey(), "[]"));
+            JSONArray safe = new JSONArray();
+            for (int i = 0; i < Math.min(saved.length(), 200); i++) {
+                JSONObject item = saved.optJSONObject(i);
+                if (item != null && item.optJSONObject("values") != null) safe.put(item);
+            }
+            return safe;
+        } catch (JSONException ignored) {
+            return new JSONArray();
+        }
+    }
+
+    private boolean writeWorkspaceEntries(JSONArray entries) {
+        String content = entries.toString();
+        if (content.length() > 512 * 1024) {
+            showError("Workspace storage limit reached", new IllegalArgumentException("Copy or delete older entries before adding more."));
+            return false;
+        }
+        getSharedPreferences("voidcraft_feature_store", MODE_PRIVATE).edit()
+                .putString(workspaceEntriesKey(), content).apply();
+        return true;
+    }
+
+    private void renderWorkspaceScreen(JSONObject screen) {
+        addText(screen.optString("description", "Manage local entries for this feature."), 14, false);
+        addText("Entries stay in app-private storage on this device. They are not uploaded automatically.", 12, false);
+        JSONArray fields = screen.optJSONArray("fields");
+        if (fields == null || fields.length() < 1 || fields.length() > 8) {
+            addText("This workspace has no valid fields.", 13, false);
+            return;
+        }
+        LinkedHashMap<String, EditText> inputs = new LinkedHashMap<>();
+        for (int i = 0; i < fields.length(); i++) {
+            JSONObject field = fields.optJSONObject(i);
+            if (field == null) continue;
+            String fieldId = field.optString("id", "");
+            String label = field.optString("label", fieldId);
+            if (!isSafeId(fieldId) || empty(label)) continue;
+            addText(label, 14, true);
+            EditText input = editField(label);
+            boolean multiline = field.optBoolean("multiline", false);
+            input.setSingleLine(!multiline);
+            int maxLength = Math.max(1, Math.min(field.optInt("maxLength", 500), 5000));
+            input.setFilters(new android.text.InputFilter[]{new android.text.InputFilter.LengthFilter(maxLength)});
+            if (multiline) input.setInputType(android.text.InputType.TYPE_CLASS_TEXT
+                    | android.text.InputType.TYPE_TEXT_FLAG_MULTI_LINE
+                    | android.text.InputType.TYPE_TEXT_FLAG_CAP_SENTENCES);
+            pageBody.addView(input, matchWrap());
+            inputs.put(fieldId, input);
+        }
+        int maxEntries = Math.max(1, Math.min(screen.optInt("maxEntries", 100), 200));
+        addButtonRow(screen.optString("entryLabel", "Save entry"), v -> {
+            JSONObject values = new JSONObject();
+            boolean anyValue = false;
+            try {
+                for (int i = 0; i < fields.length(); i++) {
+                    JSONObject field = fields.optJSONObject(i);
+                    if (field == null) continue;
+                    String fieldId = field.optString("id", "");
+                    EditText input = inputs.get(fieldId);
+                    if (input == null) continue;
+                    String value = input.getText().toString().trim();
+                    if (field.optBoolean("required", false) && value.isEmpty()) {
+                        Toast.makeText(this, "Fill required field: " + field.optString("label", fieldId), Toast.LENGTH_LONG).show();
+                        return;
+                    }
+                    if (!value.isEmpty()) anyValue = true;
+                    values.put(fieldId, value);
+                }
+                if (!anyValue) {
+                    Toast.makeText(this, "Enter something before saving.", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+                JSONArray entries = readWorkspaceEntries();
+                if (entries.length() >= maxEntries) {
+                    showError("Workspace is full", new IllegalArgumentException("The limit of " + maxEntries + " entries was reached."));
+                    return;
+                }
+                JSONObject entry = new JSONObject();
+                entry.put("createdAt", System.currentTimeMillis());
+                entry.put("values", values);
+                entries.put(entry);
+                if (writeWorkspaceEntries(entries)) {
+                    Toast.makeText(this, "Entry saved locally", Toast.LENGTH_SHORT).show();
+                    showFeature(currentFeature);
+                }
+            } catch (JSONException error) {
+                showError("Could not save entry", error);
+            }
+        }, "Copy all", v -> copyPlainText("VoidCraft workspace export", readWorkspaceEntries().toString()));
+        JSONArray saved = readWorkspaceEntries();
+        addText("Saved entries (" + saved.length() + ")", 18, true);
+        if (saved.length() == 0) addText(screen.optString("emptyLabel", "No saved entries yet."), 13, false);
+        for (int i = saved.length() - 1; i >= 0; i--) {
+            JSONObject entry = saved.optJSONObject(i);
+            if (entry == null) continue;
+            JSONObject values = entry.optJSONObject("values");
+            if (values == null) continue;
+            final int entryIndex = i;
+            LinearLayout card = newCard();
+            StringBuilder copy = new StringBuilder(screen.optString("title", "Workspace"));
+            for (int j = 0; j < fields.length(); j++) {
+                JSONObject field = fields.optJSONObject(j);
+                if (field == null) continue;
+                String fieldId = field.optString("id", "");
+                String value = values.optString(fieldId, "");
+                if (!value.isEmpty()) {
+                    addTextTo(card, field.optString("label", fieldId) + ": " + value, 14, false);
+                    copy.append("\n").append(field.optString("label", fieldId)).append(": ").append(value);
+                }
+            }
+            LinearLayout buttons = horizontalRow();
+            final String copyValue = copy.toString();
+            addButtonTo(buttons, "Copy", v -> copyPlainText("VoidCraft feature entry", copyValue));
+            addButtonTo(buttons, "Delete", v -> new AlertDialog.Builder(this)
+                    .setTitle("Delete saved entry")
+                    .setMessage("Remove this entry from this local workspace?")
+                    .setNegativeButton(android.R.string.cancel, null)
+                    .setPositiveButton("Delete", (dialog, which) -> deleteWorkspaceEntry(entryIndex))
+                    .show());
+            card.addView(buttons);
+        }
+    }
+
+    private void deleteWorkspaceEntry(int index) {
+        JSONArray saved = readWorkspaceEntries();
+        if (index < 0 || index >= saved.length()) return;
+        JSONArray replacement = new JSONArray();
+        for (int i = 0; i < saved.length(); i++) {
+            if (i != index) replacement.put(saved.opt(i));
+        }
+        if (writeWorkspaceEntries(replacement)) showFeature(currentFeature);
+    }
+
+    private void copyPlainText(String label, String content) {
+        ClipboardManager clipboard = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
+        if (clipboard == null) {
+            Toast.makeText(this, "Clipboard is unavailable", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        clipboard.setPrimaryClip(ClipData.newPlainText(label, content == null ? "" : content));
+        Toast.makeText(this, "Copied to clipboard", Toast.LENGTH_SHORT).show();
+    }
+
+    private String formatBytes(long bytes) {
+        if (bytes < 0) return "unknown";
+        if (bytes >= 1024L * 1024L * 1024L) return String.format(Locale.ROOT, "%.1f GB", bytes / (1024d * 1024d * 1024d));
+        if (bytes >= 1024L * 1024L) return String.format(Locale.ROOT, "%.1f MB", bytes / (1024d * 1024d));
+        if (bytes >= 1024L) return String.format(Locale.ROOT, "%.1f KB", bytes / 1024d);
+        return bytes + " bytes";
+    }
+
+    private long measurePrivateDirectory(File target, int depth, int[] visited, String canonicalRoot) {
+        if (target == null || !target.exists() || depth > 16 || visited[0]++ > 20000) return 0L;
+        try {
+            String path = target.getCanonicalPath();
+            if (!path.equals(canonicalRoot) && !path.startsWith(canonicalRoot + File.separator)) return 0L;
+        } catch (Exception ignored) {
+            return 0L;
+        }
+        if (target.isFile()) return Math.max(0L, target.length());
+        File[] children = target.listFiles();
+        if (children == null) return 0L;
+        long total = 0L;
+        for (File child : children) {
+            long size = measurePrivateDirectory(child, depth + 1, visited, canonicalRoot);
+            if (Long.MAX_VALUE - total < size) return Long.MAX_VALUE;
+            total += size;
+        }
+        return total;
+    }
+
+    private String buildDeviceReport(String mode) {
+        StringBuilder report = new StringBuilder();
+        report.append("Device: ").append(android.os.Build.MANUFACTURER).append(" ").append(android.os.Build.MODEL).append("\n");
+        report.append("Android: ").append(android.os.Build.VERSION.RELEASE).append(" (API ").append(android.os.Build.VERSION.SDK_INT).append(")\n");
+        String[] abis = android.os.Build.SUPPORTED_ABIS;
+        report.append("CPU ABI: ").append(abis == null || abis.length == 0 ? "unknown" : android.text.TextUtils.join(", ", abis)).append("\n");
+        android.app.ActivityManager manager = (android.app.ActivityManager) getSystemService(Context.ACTIVITY_SERVICE);
+        android.app.ActivityManager.MemoryInfo memory = new android.app.ActivityManager.MemoryInfo();
+        if (manager != null) {
+            manager.getMemoryInfo(memory);
+            if (memory.totalMem > 0) report.append("Total RAM: ").append(formatBytes(memory.totalMem)).append("\n");
+            report.append("Available RAM: ").append(formatBytes(memory.availMem)).append("\n");
+            report.append("Low-memory state: ").append(memory.lowMemory ? "yes" : "no").append("\n");
+        } else {
+            report.append("Memory: unavailable\n");
+        }
+        try {
+            android.os.StatFs stats = new android.os.StatFs(android.os.Environment.getDataDirectory().getPath());
+            report.append("Internal storage free: ").append(formatBytes(stats.getAvailableBytes()))
+                    .append(" of ").append(formatBytes(stats.getTotalBytes())).append("\n");
+        } catch (Exception ignored) {
+            report.append("Internal storage: unavailable\n");
+        }
+        String thermal = "not exposed by this Android version";
+        if (android.os.Build.VERSION.SDK_INT >= 29) {
+            try {
+                android.os.PowerManager power = (android.os.PowerManager) getSystemService(Context.POWER_SERVICE);
+                if (power != null) {
+                    switch (power.getCurrentThermalStatus()) {
+                        case android.os.PowerManager.THERMAL_STATUS_NONE: thermal = "normal"; break;
+                        case android.os.PowerManager.THERMAL_STATUS_LIGHT: thermal = "light"; break;
+                        case android.os.PowerManager.THERMAL_STATUS_MODERATE: thermal = "moderate"; break;
+                        case android.os.PowerManager.THERMAL_STATUS_SEVERE: thermal = "severe"; break;
+                        case android.os.PowerManager.THERMAL_STATUS_CRITICAL: thermal = "critical"; break;
+                        case android.os.PowerManager.THERMAL_STATUS_EMERGENCY: thermal = "emergency"; break;
+                        case android.os.PowerManager.THERMAL_STATUS_SHUTDOWN: thermal = "shutdown"; break;
+                        default: thermal = "unknown";
+                    }
+                }
+            } catch (Exception ignored) {
+                thermal = "unavailable";
+            }
+        }
+        report.append("Thermal status: ").append(thermal).append("\n");
+        if ("storage".equals(mode)) {
+            long bytes = 0L;
+            try {
+                File root = storeDirectory();
+                if (root.exists()) bytes = measurePrivateDirectory(root, 0, new int[] {0}, root.getCanonicalPath());
+            } catch (Exception ignored) {
+                bytes = 0L;
+            }
+            report.append("Feature Store private files: ").append(formatBytes(bytes)).append("\n");
+            report.append("Scope: does not include every Minecraft profile, world, screenshot, or external-storage directory.\n");
+        } else if ("performance".equals(mode)) {
+            long ramMb = memory.totalMem / (1024L * 1024L);
+            String recommendation = ramMb > 0 && ramMb <= 2048
+                    ? "Low-End: start with reduced render distance and lower resolution scaling"
+                    : ramMb <= 4096
+                    ? "Balanced: start with moderate graphics and render distance"
+                    : "Balanced or Visual Quality: increase settings gradually while monitoring heat";
+            report.append("Suggested starting point: ").append(recommendation).append("\n");
+            report.append("Limit: pre-launch snapshot only. Reliable live FPS/frame-time is unavailable here; no settings are changed and no FPS gain is promised.\n");
+            if ("severe".equals(thermal) || "critical".equals(thermal) || "emergency".equals(thermal) || "shutdown".equals(thermal)) {
+                report.append("Thermal advice: let the device cool before launching or raising graphics settings.\n");
+            }
+        } else {
+            report.append("Compatibility scope: environment facts only. Exact Minecraft version, Java runtime, mod, and renderer compatibility remains unknown until the combination is tested.\n");
+        }
+        return report.toString();
+    }
+
+    private void renderDeviceReportScreen(JSONObject screen) {
+        String mode = screen.optString("mode", "compatibility");
+        addText(screen.optString("description", "Review basic device diagnostics."), 14, false);
+        addText(buildDeviceReport(mode), 14, false);
+        addButtonRow("Copy report", v -> copyPlainText("VoidCraft device report", buildDeviceReport(mode)),
+                "Refresh", v -> showFeature(currentFeature));
+        addText("No additional Android runtime permission is requested. Values are snapshots, not an FPS or compatibility guarantee.", 12, false);
+    }
+
     private void renderThemeScreen(JSONObject screen) {
         addText(screen.optString("description", "Choose a launcher palette."), 14, false);
         JSONArray presets = screen.optJSONArray("presets");
