@@ -96,6 +96,29 @@ class CleanRoomBoundaryTests(unittest.TestCase):
         self.assertIn("The optional Server Status feature appears in the category-free Feature Store.", readme)
         self.assertIn("Bedrock status", readme)
 
+    def test_every_java_source_has_a_provenance_record(self):
+        provenance_path = PROJECT / "SOURCE_PROVENANCE.md"
+        self.assertTrue(provenance_path.is_file())
+        provenance = provenance_path.read_text(encoding="utf-8")
+        sources = list(JAVA_ROOT.rglob("*.java"))
+        self.assertTrue(sources, "Expected first-party Java sources")
+        for source in sources:
+            relative = source.relative_to(JAVA_ROOT).as_posix()
+            with self.subTest(source=relative):
+                self.assertIn(relative, provenance)
+
+        self.assertIn("not legal clearance", provenance)
+        self.assertIn("not cleared by this record", provenance)
+
+    def test_clean_room_subtree_does_not_vendor_runtime_binaries(self):
+        forbidden_suffixes = {".jar", ".aar", ".so", ".dex", ".class", ".dll", ".dylib"}
+        offenders = [
+            path.relative_to(PROJECT).as_posix()
+            for path in PROJECT.rglob("*")
+            if path.is_file() and path.suffix.lower() in forbidden_suffixes
+        ]
+        self.assertEqual(offenders, [], f"Unexpected vendored runtime/build binaries: {offenders}")
+
     def test_clean_room_workflow_does_not_fetch_legacy_launcher(self):
         workflow = (PROJECT.parent / ".github" / "workflows" / "clean-room-build.yml").read_text(encoding="utf-8")
         for forbidden in ("Amethyst-Android.git", "PojavLauncher.git", "git -C upstream", "app_pojavlauncher"):
