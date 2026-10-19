@@ -56,6 +56,17 @@ class CleanRoomBoundaryTests(unittest.TestCase):
         self.assertIn("boolean update(String id, String name, String address)", store)
         self.assertIn("boolean remove(String id)", store)
 
+    def test_server_status_is_an_optional_installable_feature_with_its_own_page(self):
+        source = MAIN_ACTIVITY.read_text(encoding="utf-8")
+        self.assertIn("KEY_FEATURE_SERVER_STATUS_INSTALLED", source)
+        self.assertIn('button("Install Server Status"', source)
+        self.assertIn('button("Open Server Status"', source)
+        self.assertIn('button("Uninstall feature"', source)
+        self.assertIn('else if ("Server Status".equals(currentRoute))', source)
+        self.assertIn("Your saved server names and addresses will remain", source)
+        self.assertIn("Server Status uninstalled; saved servers were kept.", source)
+        self.assertIn("community-uploaded features can be added later", source)
+
     def test_server_status_queries_real_java_protocol_and_renders_details(self):
         source = MAIN_ACTIVITY.read_text(encoding="utf-8")
         client = (JAVA_ROOT / "com" / "voidcraft" / "launcher" / "MinecraftServerStatusClient.java").read_text(encoding="utf-8")
