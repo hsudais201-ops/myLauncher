@@ -93,7 +93,7 @@ class CleanRoomBoundaryTests(unittest.TestCase):
         self.assertIn("writeVarInt(request, 0)", client)
         self.assertIn("new JSONObject(json)", client)
 
-        self.assertIn("The Servers page queries Minecraft: Java Edition status", readme)
+        self.assertIn("The optional Server Status feature appears in the category-free Feature Store.", readme)
         self.assertIn("Bedrock status", readme)
 
     def test_clean_room_workflow_does_not_fetch_legacy_launcher(self):
