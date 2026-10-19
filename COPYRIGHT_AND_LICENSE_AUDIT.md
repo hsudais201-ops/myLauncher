@@ -1,0 +1,79 @@
+# Copyright, provenance, and license audit
+
+**Audit status: INCOMPLETE — do not describe the whole repository or current APK as copyright-free or fully clean-room.**
+
+This is an engineering inventory, not legal advice or a legal clearance opinion. It records what was verified from the tracked repository and identifies what still needs source-level, dependency-level, and legal review.
+
+## Executive summary
+
+The repository currently contains two distinct paths:
+
+1. **Legacy APK path:** `.github/workflows/build.yml` fetches the exact Amethyst-Android commit `330c6eae3164df64bdc4828e946a9e62cc5169e4`, initializes its Git submodules, then runs the VoidCraft customizer and UI/logo patches before building `:app_pojavlauncher:assembleDebug`. This path is derived from an external launcher codebase. It is not a clean-room build.
+2. **Independent foundation:** `voidcraft-android/` is a separate Android Gradle project using package `com.voidcraft.launcher` and tracked first-party Java/UI code. At this milestone it is a shell with local settings and saved-server CRUD; it does not run Minecraft, download game files, authenticate accounts, install loaders, or query live server status.
+
+No root-level license file was present in the audited repository tree. Absence of a license does not put code in the public domain or give others blanket permission to reuse it. See [GitHub's licensing documentation](https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/licensing-a-repository).
+
+## Evidence and known risks
+
+| Area | Evidence observed | Consequence / required action |
+|---|---|---|
+| Legacy build source | `.github/workflows/build.yml` pins and clones Amethyst-Android, initializes submodules, then patches and builds it. | Must remain clearly labeled as legacy while present. It must not be represented as independent first-party implementation. |
+| Upstream license | The pinned upstream repository contains a `LICENSE` file; Amethyst's README describes Amethyst as GNU LGPLv3. | Follow the actual license at the exact pinned revision and review its applicability with counsel. Preserve required notices/source obligations for any distribution using this path. |
+| Upstream ancestry/dependencies | Upstream identifies itself as based on PojavLauncher and lists multiple third-party components. Its published credits flag some component terms as unknown or “All Rights Reserved.” | Make a component-by-component inventory from the exact pinned tree and every submodule. An upstream project's license must not be assumed to cover every bundled component. Do not redistribute components whose rights or conditions are unclear. |
+| Patch/customizer scripts | `.github/scripts/customize_amethyst.py` is a large script that modifies upstream files; other scripts patch the upstream UI, renderer workaround, and branding. | Review the scripts' commit history and contents for copied source blocks, snippets, constants, assets, or derived implementations. A text scan alone cannot determine provenance. |
+| Independent Android app | `voidcraft-android/` has its own Gradle project, app ID, Java package, manifest, screens, settings, and local server store. | Maintain source provenance and keep it isolated from legacy source. Existing string-based boundary tests are useful guardrails but do not prove independent authorship. |
+| Build tooling | The independent project uses Android Gradle Plugin 8.7.3, Android SDK Platform 35, Gradle 8.9, and Java/Android platform APIs. | Keep build-tool and SDK license records. These tools and APIs have their own terms; this does not make every component copyright-free. |
+| Minecraft content | The current app can eventually interact with Minecraft metadata, game files, assets, Java runtimes, native renderers, and loader installers. Mojang's official [EULA](https://www.minecraft.net/en-us/eula) says Minecraft software/content must not be redistributed without permission and that third-party tools must not imply official approval. | Do not check game JARs/assets, proprietary runtime files, authenticated session data, or extracted Minecraft resources into this repository or bundle them in releases without verified permission. Fetch only from authorized sources and respect user entitlement and applicable terms. |
+| Branding | The repository has a VoidCraft logo; the app is a third-party launcher. | Do not use Mojang/Microsoft/Minecraft logos or visual identity in a way that implies official status or endorsement. Keep a clear third-party disclaimer. Review any logo/font/icon source and its license. |
+| Public license | The audited root tree has no root `LICENSE` file. | Do not add MIT/Apache/CC0 to the entire repository until the rights and provenance of all included and generated material are established. Choose a license only for material whose copyright holders can grant it. |
+
+## Meaning of “copyright-free”
+
+“Copyright-free” can mean different things:
+
+- **No unauthorized copying / copyright-compliant:** the actual target for this migration. Write independent code from documented functional requirements, keep provenance, and use only original or lawfully licensed components.
+- **Open source:** the author still owns copyright but grants reuse under a chosen license.
+- **Public domain / CC0:** a different, intentional rights dedication. It cannot be applied on behalf of third-party authors, and contributor ownership/consent must be resolved first.
+
+This project should target a **clean-room, rights-cleared launcher**, not promise that the whole product has no copyright at all. Android, runtimes, libraries, Minecraft files, and third-party assets each have their own rights and terms.
+
+## Required migration plan
+
+### Gate 1 — Build a traceable source inventory
+- [ ] Record the upstream URL, exact commit, license file hash, and submodule revisions used by the legacy workflow.
+- [ ] Inventory every submodule, Maven/Gradle dependency, native library, JRE, renderer, loader, font, image, and generated/bundled asset actually included in an APK.
+- [ ] Record component name, version, source URL, SPDX license expression where verifiable, redistribution obligations, notices, and whether it is bundled.
+- [ ] Resolve any “unknown,” “All Rights Reserved,” or unlicensed component before redistribution.
+- [ ] Review the patch/customizer scripts against their history and upstream sources; preserve the audit result.
+
+### Gate 2 — Grow the independent implementation
+- [ ] Build a full first-party launcher UI and data model in `voidcraft-android/`; do not copy, mechanically translate, rename, or extract upstream implementation code.
+- [ ] Keep all extension-store code and downloaded feature packages separate. Establish source provenance, license metadata, publisher identity, integrity checks, uninstall, and permissions before executing or loading third-party features.
+- [ ] Implement version metadata parsing/downloads using authorized metadata and download URLs; do not commit or redistribute Minecraft client files/assets.
+- [ ] Choose a Java runtime and renderer strategy whose components have verified redistribution rights and compatible licenses. Open-source alternatives may be used only with their license terms observed; “open source” does not mean “copyright-free.”
+- [ ] Implement loader integration from public specifications or properly licensed installer interfaces; document each dependency and test each supported loader/version.
+- [ ] Implement Microsoft/Xbox sign-in through documented supported flows; never collect user passwords directly or label local profiles as authenticated accounts.
+- [ ] Implement server status querying and local server management without implying an online result when a query fails.
+- [ ] Preserve user data with an explicit migration format and backup/restore tests. Do not delete the existing engine path until the replacement passes acceptance tests.
+
+### Gate 3 — Compliance and release controls
+- [ ] Produce a machine-readable SBOM plus human-readable third-party notices for each release artifact.
+- [ ] Make CI fail when an unapproved dependency or vendored binary is added.
+- [ ] Generate and archive build provenance, source revision, dependency versions, license scan, test results, and APK hashes.
+- [ ] Add tests that prove the standalone build does not fetch the Amethyst/PojavLauncher repositories. Keep this separate from the legacy build while migration remains incomplete.
+- [ ] Audit repository history, assets, generated sources, tests, screenshots, and documentation—not just the current Java files.
+- [ ] Run emulator/device tests, installation/launch tests, and data migration tests; review distribution terms with a qualified lawyer before claiming legal clearance.
+- [ ] Decide whether to license only independently authored code permissively, dedicate eligible code to CC0, or keep some portions unlicensed. Do not relicense contributors' or upstream authors' code without authority.
+
+## Acceptance criteria before removing the legacy build
+
+The root/default release path can switch away from Amethyst only after all of the following are true:
+
+1. The independent app builds reproducibly with no upstream launcher checkout or patching step.
+2. The launcher can safely manage installations, versions, downloads, accounts, runtime, renderer, loaders, and user data using original or properly licensed components.
+3. Each shipped dependency and asset has a recorded, compatible license and required notices.
+4. No Minecraft game files or other restricted content are bundled unless redistribution is explicitly authorized.
+5. CI, emulator/device tests, upgrade/migration tests, and release documentation pass.
+6. Source provenance has been reviewed. Automated keyword scans alone are not a certificate of originality.
+
+**Current decision:** keep the current engine-based build labelled as legacy, keep the clean-room app isolated, and do not claim copyright-free status yet. This document should be updated as evidence is collected and implementation gates are passed.
