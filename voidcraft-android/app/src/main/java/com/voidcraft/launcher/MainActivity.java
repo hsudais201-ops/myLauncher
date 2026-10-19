@@ -18,7 +18,6 @@ import android.widget.Switch;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import java.util.List;
 
 /**
  * First-party VoidCraft navigation and dashboard foundation.
@@ -40,7 +39,6 @@ public final class MainActivity extends Activity {
     private static final int COLOR_WARNING = Color.rgb(251, 191, 36);
 
     private SharedPreferences preferences;
-    private SavedServerStore serverStore;
     private String currentRoute = "Dashboard";
     private LinearLayout pageContent;
 
@@ -48,7 +46,6 @@ public final class MainActivity extends Activity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         preferences = getSharedPreferences(PREFS, MODE_PRIVATE);
-        serverStore = new SavedServerStore(this);
         getWindow().setStatusBarColor(COLOR_BACKGROUND);
         getWindow().setNavigationBarColor(COLOR_BACKGROUND);
         render();
