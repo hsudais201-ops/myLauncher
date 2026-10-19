@@ -340,6 +340,44 @@ def patch_upstream(upstream: Path) -> None:
             strings_text,
         ):
             raise ValueError(f"Log-diagnosis resource is missing or invalid: {string_name}")
+    performance_advisor_strings = {
+        "main_performance_advisor": "Performance Advisor",
+        "main_performance_button_hint": "Check device performance and apply a reversible Minecraft settings profile.",
+        "main_performance_low": "Low-End (30 FPS cap)",
+        "main_performance_balanced": "Balanced (60 FPS cap)",
+        "main_performance_quality": "Visual Quality (120 FPS cap)",
+        "main_performance_restore": "Restore previous settings",
+        "main_performance_apply_title": "Apply performance profile?",
+        "main_performance_low_message": "Prioritizes smoother play on low-memory devices: 4-chunk render distance, minimal particles, lower resolution scaling, and a 30 FPS cap where the installed Minecraft version supports those options. Shaders are not removed automatically.",
+        "main_performance_balanced_message": "Uses moderate render and simulation distances, a 75% launcher resolution scale, and a 60 FPS cap where supported. Results vary by device and Minecraft version.",
+        "main_performance_quality_message": "Raises render distance and graphics quality, uses full launcher resolution scaling, and permits up to 120 FPS where supported. This can reduce performance or increase heat on weaker devices.",
+        "main_performance_apply_confirm": "Close Minecraft before applying. Supported settings in the selected profile’s options.txt and the launcher resolution scale will be changed. The original options.txt and prior launcher settings are backed up once until you restore them. Restart Minecraft to use the changes. Higher FPS is not guaranteed.",
+        "main_performance_applied": "Profile applied: %1$d supported Minecraft setting(s) updated. Restart Minecraft to use the changes; actual FPS depends on device, renderer, mods and version.",
+        "main_performance_no_options": "The selected profile has no readable options.txt yet. Launch that Minecraft profile once, close the game, then try again. No settings were changed.",
+        "main_performance_apply_failed": "The performance profile could not be applied safely. Check the selected profile and Game logs; any created backup was left in place.",
+        "main_performance_restore_title": "Restore previous performance settings?",
+        "main_performance_restore_message": "Restore the options.txt and launcher values saved before the first performance profile was applied? Changes made after that backup will be replaced.",
+        "main_performance_restore_success": "Previous performance settings restored.",
+        "main_performance_restore_failed": "Could not restore every previous setting. The backup was kept where possible.",
+        "main_performance_live_fps_note": "FPS and frame-time are not exposed reliably to the launcher process. Use Minecraft’s in-game debug display where supported; the device figures below are a pre-launch snapshot.",
+    }
+    for string_name, string_value in performance_advisor_strings.items():
+        if not re.search(r'<string\s+name="' + re.escape(string_name) + r'"', strings_text):
+            performance_anchor = re.search(
+                r'(?m)^([ \t]*<string\s+name="main_repair_version_failure"[^>]*>.*?</string>)[ \t]*$',
+                strings_text,
+            )
+            if not performance_anchor:
+                raise ValueError("Could not find the version-repair resource to add performance-advisor messages")
+            indent = re.match(r"[ \t]*", performance_anchor.group(1)).group(0)
+            new_string = indent + '<string name="' + string_name + '">' + string_value + '</string>'
+            strings_text = strings_text[:performance_anchor.end()] + "\n" + new_string + strings_text[performance_anchor.end():]
+        if not re.search(
+            r'<string\s+name="' + re.escape(string_name) + r'"[^>]*>\s*' + re.escape(string_value) + r'\s*</string>',
+            strings_text,
+        ):
+            raise ValueError(f"Performance-advisor resource is missing or invalid: {string_name}")
+
     config_export_strings = {
         "main_config_export_hint": "Config folder. Long-press to export, import or reset interface settings.",
         "main_config_export_subject": "VoidCraft Launcher safe settings export",
@@ -907,6 +945,23 @@ def patch_upstream(upstream: Path) -> None:
             block = shaderpacks_match.group(1) + "\n" + repair_version_button
             layout_text = layout_text[:shaderpacks_match.start(1)] + block + layout_text[shaderpacks_match.end(1):]
 
+        if "mylauncher_performance_button" not in layout_text:
+            performance_button = """            <com.kdt.mcgui.LauncherMenuButton
+                android:id="@+id/mylauncher_performance_button"
+                style="@style/LauncherMenuButton.Universal"
+                android:layout_width="match_parent"
+                android:drawableStart="@android:drawable/ic_menu_info_details"
+                android:text="@string/main_performance_advisor"
+                app:layout_constraintTop_toBottomOf="@id/mylauncher_repair_version_button" />
+
+"""
+            repair_pattern = re.compile(r'(<com\.kdt\.mcgui\.LauncherMenuButton\s+android:id="@\+id/mylauncher_repair_version_button".*?/>\s*)', re.DOTALL)
+            repair_match = repair_pattern.search(layout_text)
+            if not repair_match:
+                raise ValueError(f"Could not find the version-repair button to add Performance Advisor in {layout_path}")
+            block = repair_match.group(1) + "\n" + performance_button
+            layout_text = layout_text[:repair_match.start(1)] + block + layout_text[repair_match.end(1):]
+
         if "mylauncher_account_button" not in layout_text:
             account_button = """            <com.kdt.mcgui.LauncherMenuButton
                 android:id="@+id/mylauncher_account_button"
@@ -914,25 +969,25 @@ def patch_upstream(upstream: Path) -> None:
                 android:layout_width="match_parent"
                 android:drawableStart="@android:drawable/ic_menu_myplaces"
                 android:text="@string/main_add_account"
-                app:layout_constraintTop_toBottomOf="@id/mylauncher_repair_version_button" />
+                app:layout_constraintTop_toBottomOf="@id/mylauncher_performance_button" />
 
 """
-            repair_version_pattern = re.compile(r'(<com\.kdt\.mcgui\.LauncherMenuButton\s+android:id="@\+id/mylauncher_repair_version_button".*?/>\s*)', re.DOTALL)
-            repair_version_match = repair_version_pattern.search(layout_text)
-            if not repair_version_match:
-                raise ValueError(f"Could not find mylauncher_repair_version_button in {layout_path}")
-            block = repair_version_match.group(1) + "\n" + account_button
-            layout_text = layout_text[:repair_version_match.start(1)] + block + layout_text[repair_version_match.end(1):]
+            performance_pattern = re.compile(r'(<com\.kdt\.mcgui\.LauncherMenuButton\s+android:id="@\+id/mylauncher_performance_button".*?/>\s*)', re.DOTALL)
+            performance_match = performance_pattern.search(layout_text)
+            if not performance_match:
+                raise ValueError(f"Could not find mylauncher_performance_button in {layout_path}")
+            block = performance_match.group(1) + "\n" + account_button
+            layout_text = layout_text[:performance_match.start(1)] + block + layout_text[performance_match.end(1):]
 
         account_pattern = re.compile(r'<com\.kdt\.mcgui\.LauncherMenuButton\s+android:id="@\+id/mylauncher_account_button".*?/>', re.DOTALL)
         account_match = account_pattern.search(layout_text)
         if account_match:
-            for prior_anchor in ("open_files_button", "mylauncher_mods_button", "mylauncher_resourcepacks_button", "mylauncher_world_saves_button", "mylauncher_logs_button", "mylauncher_screenshots_button", "mylauncher_crash_reports_button", "mylauncher_config_button", "mylauncher_shaderpacks_button"):
+            for prior_anchor in ("mylauncher_repair_version_button", "open_files_button", "mylauncher_mods_button", "mylauncher_resourcepacks_button", "mylauncher_world_saves_button", "mylauncher_logs_button", "mylauncher_screenshots_button", "mylauncher_crash_reports_button", "mylauncher_config_button", "mylauncher_shaderpacks_button"):
                 prior_constraint = 'app:layout_constraintTop_toBottomOf="@id/' + prior_anchor + '"'
                 if prior_constraint in account_match.group(0):
                     updated_account = account_match.group(0).replace(
                         prior_constraint,
-                        'app:layout_constraintTop_toBottomOf="@id/mylauncher_repair_version_button"',
+                        'app:layout_constraintTop_toBottomOf="@id/mylauncher_performance_button"',
                         1,
                     )
                     layout_text = layout_text[:account_match.start()] + updated_account + layout_text[account_match.end():]
@@ -981,6 +1036,11 @@ def patch_upstream(upstream: Path) -> None:
         )
         repair_version_match = re.search(
             r'<com\.kdt\.mcgui\.LauncherMenuButton\s+android:id="@\+id/mylauncher_repair_version_button".*?/>',
+            layout_text,
+            flags=re.DOTALL,
+        )
+        performance_match = re.search(
+            r'<com\.kdt\.mcgui\.LauncherMenuButton\s+android:id="@\+id/mylauncher_performance_button".*?/>',
             layout_text,
             flags=re.DOTALL,
         )
@@ -1049,13 +1109,20 @@ def patch_upstream(upstream: Path) -> None:
             or 'android:drawableStart="@android:drawable/ic_popup_sync"' not in repair_version_match.group(0)
             or 'android:text="@string/main_repair_version"' not in repair_version_match.group(0)
             or 'app:layout_constraintTop_toBottomOf="@id/mylauncher_shaderpacks_button"' not in repair_version_match.group(0)
+            or not performance_match
+            or performance_match.group(0).count('android:id="@+id/mylauncher_performance_button"') != 1
+            or 'style="@style/LauncherMenuButton.Universal"' not in performance_match.group(0)
+            or 'android:layout_width="match_parent"' not in performance_match.group(0)
+            or 'android:drawableStart="@android:drawable/ic_menu_info_details"' not in performance_match.group(0)
+            or 'android:text="@string/main_performance_advisor"' not in performance_match.group(0)
+            or 'app:layout_constraintTop_toBottomOf="@id/mylauncher_repair_version_button"' not in performance_match.group(0)
             or not account_match
             or account_match.group(0).count('android:id="@+id/mylauncher_account_button"') != 1
             or 'style="@style/LauncherMenuButton.Universal"' not in account_match.group(0)
             or 'android:layout_width="match_parent"' not in account_match.group(0)
             or 'android:drawableStart="@android:drawable/ic_menu_myplaces"' not in account_match.group(0)
             or 'android:text="@string/main_add_account"' not in account_match.group(0)
-            or 'app:layout_constraintTop_toBottomOf="@id/mylauncher_repair_version_button"' not in account_match.group(0)
+            or 'app:layout_constraintTop_toBottomOf="@id/mylauncher_performance_button"' not in account_match.group(0)
             or open_files_index < 0
             or open_files_index > mods_match.start()
             or mods_match.start() > resourcepacks_match.start()
@@ -1066,9 +1133,10 @@ def patch_upstream(upstream: Path) -> None:
             or crash_reports_match.start() > config_match.start()
             or config_match.start() > shaderpacks_match.start()
             or shaderpacks_match.start() > repair_version_match.start()
-            or repair_version_match.start() > account_match.start()
+            or repair_version_match.start() > performance_match.start()
+            or performance_match.start() > account_match.start()
         ):
-            raise ValueError(f"myLauncher mods/resource-packs/world-saves/logs/screenshots/crash-reports/config/shader-packs/repair-version/account shortcuts are incomplete in {layout_path}")
+            raise ValueError(f"myLauncher mods/resource-packs/world-saves/logs/screenshots/crash-reports/config/shader-packs/repair-version/performance/account shortcuts are incomplete in {layout_path}")
 
         title_match = re.search(
             r'<TextView\s+android:id="@\+id/mylauncher_hero_title".*?/>',
@@ -1995,6 +2063,340 @@ def patch_upstream(upstream: Path) -> None:
     elif "MYLAUNCHER_PORTABLE_INTEGER_SETTING_KEYS" not in main_menu_text:
         raise ValueError("Portable settings import constants are incomplete")
 
+    performance_helper_source = """    private static final String MYLAUNCHER_PERFORMANCE_BACKUP_PRESENT = "voidcraft_performance_backup_present";
+    private static final String MYLAUNCHER_PERFORMANCE_HAD_ALLOCATION = "voidcraft_performance_had_allocation";
+    private static final String MYLAUNCHER_PERFORMANCE_PREVIOUS_ALLOCATION = "voidcraft_performance_previous_allocation";
+    private static final String MYLAUNCHER_PERFORMANCE_HAD_RESOLUTION = "voidcraft_performance_had_resolution";
+    private static final String MYLAUNCHER_PERFORMANCE_PREVIOUS_RESOLUTION = "voidcraft_performance_previous_resolution";
+
+    private void showMyLauncherPerformanceAdvisor() {
+        if (!isAdded()) return;
+        java.io.File profileDirectory = getCurrentProfileDirectory();
+        java.io.File backupFile = profileDirectory == null ? null : new java.io.File(profileDirectory, "options.txt.voidcraft-performance-backup");
+        android.content.SharedPreferences preferences = net.kdt.pojavlaunch.prefs.LauncherPreferences.DEFAULT_PREF;
+        boolean hasBackup = (backupFile != null && backupFile.isFile())
+                || preferences.getBoolean(MYLAUNCHER_PERFORMANCE_BACKUP_PRESENT, false);
+        String[] actions = hasBackup
+                ? new String[] { getString(R.string.main_performance_low), getString(R.string.main_performance_balanced),
+                    getString(R.string.main_performance_quality), getString(R.string.main_performance_restore) }
+                : new String[] { getString(R.string.main_performance_low), getString(R.string.main_performance_balanced),
+                    getString(R.string.main_performance_quality) };
+        StringBuilder status = new StringBuilder();
+        status.append("Device: ").append(android.os.Build.MANUFACTURER).append(" ").append(android.os.Build.MODEL).append("\\n");
+        int totalRamMb = Tools.getTotalDeviceMemory(requireContext());
+        status.append("RAM: ").append(totalRamMb > 0 ? totalRamMb + " MB total" : "unknown total");
+        android.app.ActivityManager manager = (android.app.ActivityManager) requireContext()
+                .getSystemService(android.content.Context.ACTIVITY_SERVICE);
+        if (manager != null) {
+            android.app.ActivityManager.MemoryInfo memoryInfo = new android.app.ActivityManager.MemoryInfo();
+            manager.getMemoryInfo(memoryInfo);
+            status.append(", ").append(Math.max(0L, memoryInfo.availMem / (1024L * 1024L))).append(" MB currently available");
+        }
+        status.append("\\nCPU ABI: ");
+        String[] abis = android.os.Build.SUPPORTED_ABIS;
+        if (abis == null || abis.length == 0) status.append("unknown");
+        else {
+            for (int index = 0; index < abis.length; index++) {
+                if (index > 0) status.append(", ");
+                status.append(abis[index]);
+            }
+        }
+        try {
+            android.os.StatFs storage = new android.os.StatFs(android.os.Environment.getDataDirectory().getAbsolutePath());
+            status.append("\\nFree device storage: ").append(storage.getAvailableBytes() / (1024L * 1024L)).append(" MB");
+        } catch (RuntimeException ignored) {
+            status.append("\\nFree device storage: unavailable");
+        }
+        String thermalStatus = "unavailable on this Android version";
+        if (android.os.Build.VERSION.SDK_INT >= 29) {
+            android.os.PowerManager powerManager = (android.os.PowerManager) requireContext()
+                    .getSystemService(android.content.Context.POWER_SERVICE);
+            if (powerManager != null) {
+                switch (powerManager.getCurrentThermalStatus()) {
+                    case android.os.PowerManager.THERMAL_STATUS_NONE: thermalStatus = "normal"; break;
+                    case android.os.PowerManager.THERMAL_STATUS_LIGHT: thermalStatus = "light"; break;
+                    case android.os.PowerManager.THERMAL_STATUS_MODERATE: thermalStatus = "moderate"; break;
+                    case android.os.PowerManager.THERMAL_STATUS_SEVERE: thermalStatus = "severe"; break;
+                    case android.os.PowerManager.THERMAL_STATUS_CRITICAL: thermalStatus = "critical"; break;
+                    case android.os.PowerManager.THERMAL_STATUS_EMERGENCY: thermalStatus = "emergency"; break;
+                    case android.os.PowerManager.THERMAL_STATUS_SHUTDOWN: thermalStatus = "shutdown"; break;
+                    default: thermalStatus = "unknown"; break;
+                }
+            }
+        }
+        status.append("\\nThermal status: ").append(thermalStatus);
+        if (totalRamMb > 0 && totalRamMb <= 2048) {
+            status.append("\\nRecommendation: start with Low-End or Balanced, keep shaders off, and close background apps.");
+        } else {
+            status.append("\\nRecommendation: start with Balanced, then increase distance only if frame pacing stays stable.");
+        }
+        if ("severe".equals(thermalStatus) || "critical".equals(thermalStatus)
+                || "emergency".equals(thermalStatus) || "shutdown".equals(thermalStatus)) {
+            status.append("\\nWarning: device thermal state is high. Reduce graphics load and let the device cool.");
+        }
+        status.append("\\n").append(getString(R.string.main_performance_live_fps_note));
+        new AlertDialog.Builder(requireContext())
+                .setTitle(R.string.main_performance_advisor)
+                .setMessage(status.toString())
+                .setItems(actions, (dialog, which) -> {
+                    if (which >= 0 && which <= 2) {
+                        showMyLauncherPerformanceProfileConfirmation(which);
+                    } else if (which == 3 && hasBackup) {
+                        new AlertDialog.Builder(requireContext())
+                                .setTitle(R.string.main_performance_restore_title)
+                                .setMessage(R.string.main_performance_restore_message)
+                                .setNegativeButton(android.R.string.cancel, null)
+                                .setPositiveButton(R.string.main_performance_restore, (confirmDialog, confirmWhich) ->
+                                        restoreMyLauncherPerformanceSettings())
+                                .show();
+                    }
+                })
+                .show();
+    }
+
+    private void showMyLauncherPerformanceProfileConfirmation(int profile) {
+        int messageResource = profile == 0 ? R.string.main_performance_low_message
+                : (profile == 1 ? R.string.main_performance_balanced_message : R.string.main_performance_quality_message);
+        new AlertDialog.Builder(requireContext())
+                .setTitle(R.string.main_performance_apply_title)
+                .setMessage(getString(messageResource) + "\\n\\n" + getString(R.string.main_performance_apply_confirm))
+                .setNegativeButton(android.R.string.cancel, null)
+                .setPositiveButton(android.R.string.ok, (dialog, which) -> applyMyLauncherPerformanceProfile(profile))
+                .show();
+    }
+
+    private void applyMyLauncherPerformanceProfile(int profile) {
+        if (Tools.isDemoProfile(requireContext())) {
+            hasNoOnlineProfileDialog(getActivity(), getString(R.string.demo_unsupported), getString(R.string.change_account));
+            return;
+        }
+        java.io.File profileDirectory = getCurrentProfileDirectory();
+        java.io.File optionsFile = profileDirectory == null ? null : new java.io.File(profileDirectory, "options.txt");
+        java.io.File backupFile = profileDirectory == null ? null : new java.io.File(profileDirectory, "options.txt.voidcraft-performance-backup");
+        if (optionsFile == null || !optionsFile.isFile() || !optionsFile.canRead()) {
+            Toast.makeText(requireContext(), R.string.main_performance_no_options, Toast.LENGTH_LONG).show();
+            return;
+        }
+        java.util.Map<String, String> requested = new java.util.LinkedHashMap<>();
+        if (profile == 0) {
+            requested.put("renderDistance", "4");
+            requested.put("simulationDistance", "5");
+            requested.put("graphicsMode", "0");
+            requested.put("fancyGraphics", "false");
+            requested.put("particles", "2");
+            requested.put("maxFps", "30");
+            requested.put("enableVsync", "false");
+            requested.put("mipmapLevels", "0");
+            requested.put("ao", "0");
+            requested.put("entityDistanceScaling", "0.5");
+            requested.put("biomeBlendRadius", "0");
+        } else if (profile == 1) {
+            requested.put("renderDistance", "6");
+            requested.put("simulationDistance", "6");
+            requested.put("graphicsMode", "0");
+            requested.put("fancyGraphics", "false");
+            requested.put("particles", "1");
+            requested.put("maxFps", "60");
+            requested.put("enableVsync", "true");
+            requested.put("mipmapLevels", "2");
+            requested.put("ao", "1");
+            requested.put("entityDistanceScaling", "0.75");
+            requested.put("biomeBlendRadius", "2");
+        } else {
+            requested.put("renderDistance", "10");
+            requested.put("simulationDistance", "8");
+            requested.put("graphicsMode", "1");
+            requested.put("fancyGraphics", "true");
+            requested.put("particles", "0");
+            requested.put("maxFps", "120");
+            requested.put("enableVsync", "true");
+            requested.put("mipmapLevels", "4");
+            requested.put("ao", "2");
+            requested.put("entityDistanceScaling", "1.0");
+            requested.put("biomeBlendRadius", "5");
+        }
+        java.util.List<String> originalLines = new java.util.ArrayList<>();
+        java.util.List<String> updatedLines = new java.util.ArrayList<>();
+        int matchedKeys = 0;
+        try (java.io.BufferedReader reader = new java.io.BufferedReader(
+                new java.io.InputStreamReader(new FileInputStream(optionsFile), "UTF-8"))) {
+            String line;
+            while ((line = reader.readLine()) != null) originalLines.add(line);
+        } catch (Exception error) {
+            Toast.makeText(requireContext(), R.string.main_performance_apply_failed, Toast.LENGTH_LONG).show();
+            return;
+        }
+        for (String line : originalLines) {
+            int colon = line.indexOf(':');
+            if (colon > 0) {
+                String key = line.substring(0, colon);
+                String value = requested.get(key);
+                String currentValue = line.substring(colon + 1).trim();
+                if (value != null) {
+                    if ("ao".equals(key)) {
+                        if ("true".equalsIgnoreCase(currentValue) || "false".equalsIgnoreCase(currentValue)) {
+                            value = profile == 0 ? "false" : "true";
+                        } else if (currentValue.matches("[0-2]")) {
+                            value = profile == 0 ? "0" : (profile == 1 ? "1" : "2");
+                        } else {
+                            value = null;
+                        }
+                    } else if ("graphicsMode".equals(key) && !currentValue.matches("[0-2]")) {
+                        value = null;
+                    } else if ("fancyGraphics".equals(key)
+                            && !("true".equalsIgnoreCase(currentValue) || "false".equalsIgnoreCase(currentValue))) {
+                        value = null;
+                    }
+                    if (value != null) {
+                        updatedLines.add(line.substring(0, colon + 1) + value);
+                        matchedKeys++;
+                        continue;
+                    }
+                }
+            }
+            updatedLines.add(line);
+        }
+        if (matchedKeys == 0) {
+            Toast.makeText(requireContext(), R.string.main_performance_apply_failed, Toast.LENGTH_LONG).show();
+            return;
+        }
+        try {
+            if (!backupFile.isFile() && !copyMyLauncherPerformanceFile(optionsFile, backupFile)) {
+                throw new java.io.IOException("Could not preserve the original options.txt");
+            }
+            android.content.SharedPreferences preferences = net.kdt.pojavlaunch.prefs.LauncherPreferences.DEFAULT_PREF;
+            if (!preferences.getBoolean(MYLAUNCHER_PERFORMANCE_BACKUP_PRESENT, false)) {
+                android.content.SharedPreferences.Editor backupEditor = preferences.edit()
+                        .putBoolean(MYLAUNCHER_PERFORMANCE_BACKUP_PRESENT, true)
+                        .putBoolean(MYLAUNCHER_PERFORMANCE_HAD_ALLOCATION, preferences.contains("allocation"))
+                        .putBoolean(MYLAUNCHER_PERFORMANCE_HAD_RESOLUTION, preferences.contains("resolutionRatio"));
+                if (preferences.contains("allocation")) {
+                    backupEditor.putInt(MYLAUNCHER_PERFORMANCE_PREVIOUS_ALLOCATION, preferences.getInt("allocation", 0));
+                }
+                if (preferences.contains("resolutionRatio")) {
+                    backupEditor.putInt(MYLAUNCHER_PERFORMANCE_PREVIOUS_RESOLUTION, preferences.getInt("resolutionRatio", 100));
+                }
+                if (!backupEditor.commit()) throw new java.io.IOException("Could not back up launcher performance preferences");
+            }
+            int resolutionRatio = profile == 0 ? 50 : (profile == 1 ? 75 : 100);
+            boolean preferencesSaved = preferences.edit()
+                    .putInt("allocation", recommendedPortableAllocation(requireContext()))
+                    .putInt("resolutionRatio", resolutionRatio)
+                    .commit();
+            if (!preferencesSaved) throw new java.io.IOException("Could not save launcher performance preferences");
+            writeMyLauncherPerformanceLines(optionsFile, updatedLines);
+            Toast.makeText(requireContext(), getString(R.string.main_performance_applied, matchedKeys), Toast.LENGTH_LONG).show();
+        } catch (Exception error) {
+            Toast.makeText(requireContext(), R.string.main_performance_apply_failed, Toast.LENGTH_LONG).show();
+        }
+    }
+
+    private void restoreMyLauncherPerformanceSettings() {
+        java.io.File profileDirectory = getCurrentProfileDirectory();
+        java.io.File optionsFile = profileDirectory == null ? null : new java.io.File(profileDirectory, "options.txt");
+        java.io.File backupFile = profileDirectory == null ? null : new java.io.File(profileDirectory, "options.txt.voidcraft-performance-backup");
+        try {
+            if (backupFile != null && backupFile.isFile()) {
+                if (optionsFile == null || !copyMyLauncherPerformanceFile(backupFile, optionsFile)) {
+                    throw new java.io.IOException("Could not restore the previous options.txt");
+                }
+            }
+            android.content.SharedPreferences preferences = net.kdt.pojavlaunch.prefs.LauncherPreferences.DEFAULT_PREF;
+            if (preferences.getBoolean(MYLAUNCHER_PERFORMANCE_BACKUP_PRESENT, false)) {
+                android.content.SharedPreferences.Editor editor = preferences.edit();
+                if (preferences.getBoolean(MYLAUNCHER_PERFORMANCE_HAD_ALLOCATION, false)) {
+                    editor.putInt("allocation", preferences.getInt(MYLAUNCHER_PERFORMANCE_PREVIOUS_ALLOCATION, 0));
+                } else {
+                    editor.remove("allocation");
+                }
+                if (preferences.getBoolean(MYLAUNCHER_PERFORMANCE_HAD_RESOLUTION, false)) {
+                    editor.putInt("resolutionRatio", preferences.getInt(MYLAUNCHER_PERFORMANCE_PREVIOUS_RESOLUTION, 100));
+                } else {
+                    editor.remove("resolutionRatio");
+                }
+                editor.remove(MYLAUNCHER_PERFORMANCE_BACKUP_PRESENT)
+                        .remove(MYLAUNCHER_PERFORMANCE_HAD_ALLOCATION)
+                        .remove(MYLAUNCHER_PERFORMANCE_PREVIOUS_ALLOCATION)
+                        .remove(MYLAUNCHER_PERFORMANCE_HAD_RESOLUTION)
+                        .remove(MYLAUNCHER_PERFORMANCE_PREVIOUS_RESOLUTION);
+                if (!editor.commit()) throw new java.io.IOException("Could not restore launcher preferences");
+            }
+            if (backupFile != null && backupFile.exists() && !backupFile.delete()) {
+                throw new java.io.IOException("Could not remove the used performance backup");
+            }
+            Toast.makeText(requireContext(), R.string.main_performance_restore_success, Toast.LENGTH_LONG).show();
+        } catch (Exception error) {
+            Toast.makeText(requireContext(), R.string.main_performance_restore_failed, Toast.LENGTH_LONG).show();
+        }
+    }
+
+    private static boolean copyMyLauncherPerformanceFile(File source, File destination) throws java.io.IOException {
+        if (source == null || destination == null || !source.isFile()) return false;
+        File parent = destination.getAbsoluteFile().getParentFile();
+        if (parent == null || !parent.isDirectory()) return false;
+        File temporary = new File(parent, destination.getName() + ".voidcraft-tmp");
+        boolean moved = false;
+        try {
+            try (FileInputStream input = new FileInputStream(source);
+                 FileOutputStream output = new FileOutputStream(temporary, false)) {
+                byte[] buffer = new byte[8192];
+                int read;
+                while ((read = input.read(buffer)) != -1) output.write(buffer, 0, read);
+                output.flush();
+                output.getFD().sync();
+            }
+            if (!temporary.isFile() || temporary.length() != source.length()) {
+                throw new java.io.IOException("Performance settings copy failed verification");
+            }
+            if (!temporary.renameTo(destination)) {
+                throw new java.io.IOException("Could not safely replace " + destination.getName());
+            }
+            moved = true;
+            return destination.isFile() && destination.length() == source.length();
+        } finally {
+            if (!moved && temporary.exists() && !temporary.delete()) {
+                temporary.deleteOnExit();
+            }
+        }
+    }
+
+    private static void writeMyLauncherPerformanceLines(File destination, java.util.List<String> lines) throws java.io.IOException {
+        if (destination == null || lines == null) throw new java.io.IOException("Missing options file or settings");
+        File parent = destination.getAbsoluteFile().getParentFile();
+        if (parent == null || !parent.isDirectory()) throw new java.io.IOException("Missing options directory");
+        File temporary = new File(parent, destination.getName() + ".voidcraft-tmp");
+        boolean moved = false;
+        try {
+            try (java.io.BufferedWriter writer = new java.io.BufferedWriter(
+                    new java.io.OutputStreamWriter(new FileOutputStream(temporary, false), "UTF-8"))) {
+                for (String line : lines) {
+                    writer.write(line);
+                    writer.newLine();
+                }
+                writer.flush();
+            }
+            try (FileOutputStream syncOutput = new FileOutputStream(temporary, true)) {
+                syncOutput.getFD().sync();
+            }
+            if (!temporary.isFile() || temporary.length() == 0L) {
+                throw new java.io.IOException("Temporary options file failed verification");
+            }
+            if (!temporary.renameTo(destination)) {
+                throw new java.io.IOException("Could not safely replace Minecraft options.txt");
+            }
+            moved = true;
+        } finally {
+            if (!moved && temporary.exists() && !temporary.delete()) temporary.deleteOnExit();
+        }
+    }
+
+"""
+    performance_helper_anchor = "    private static final int MYLAUNCHER_SETTINGS_IMPORT_REQUEST_CODE = 7418;"
+    if "private void showMyLauncherPerformanceAdvisor()" not in main_menu_text:
+        if performance_helper_anchor not in main_menu_text:
+            raise ValueError("Could not find MainMenuFragment class constants to add Performance Advisor helpers")
+        main_menu_text = main_menu_text.replace(performance_helper_anchor, performance_helper_source + "\n" + performance_helper_anchor, 1)
+
     config_long_listener = """mMyLauncherConfigButton.setOnLongClickListener(v -> {
             if (Tools.isDemoProfile(v.getContext())) {
                 hasNoOnlineProfileDialog(getActivity(), getString(R.string.demo_unsupported), getString(R.string.change_account));
@@ -2345,6 +2747,35 @@ def patch_upstream(upstream: Path) -> None:
         or r"\n\n        mMyLauncherRepairVersionButton.setOnClickListener" in main_menu_text
     ):
         raise ValueError("The selected-version repair action is missing validation, confirmation, callbacks or a no-launch guarantee")
+
+    performance_binding = "Button mMyLauncherPerformanceButton = view.findViewById(R.id.mylauncher_performance_button);"
+    if performance_binding not in main_menu_text:
+        main_menu_text = main_menu_text.replace(repair_version_binding, repair_version_binding + "\n        " + performance_binding, 1)
+    performance_hint_binding = "mMyLauncherPerformanceButton.setContentDescription(getString(R.string.main_performance_button_hint));"
+    if performance_hint_binding not in main_menu_text:
+        main_menu_text = main_menu_text.replace(performance_binding, performance_binding + "\n        " + performance_hint_binding, 1)
+    performance_listener = "mMyLauncherPerformanceButton.setOnClickListener(v -> showMyLauncherPerformanceAdvisor());"
+    if performance_listener not in main_menu_text:
+        if repair_version_listener not in main_menu_text:
+            raise ValueError("Could not find the version-repair listener to add Performance Advisor")
+        main_menu_text = main_menu_text.replace(repair_version_listener, repair_version_listener + "\n\n        " + performance_listener, 1)
+    if (
+        main_menu_text.count(performance_binding) != 1
+        or main_menu_text.count(performance_hint_binding) != 1
+        or main_menu_text.count(performance_listener) != 1
+        or "private void showMyLauncherPerformanceAdvisor()" not in main_menu_text
+        or "private void applyMyLauncherPerformanceProfile(int profile)" not in main_menu_text
+        or "private void restoreMyLauncherPerformanceSettings()" not in main_menu_text
+        or "options.txt.voidcraft-performance-backup" not in main_menu_text
+        or "recommendedPortableAllocation(requireContext())" not in main_menu_text
+        or "Tools.getTotalDeviceMemory(requireContext())" not in main_menu_text
+        or "getCurrentThermalStatus()" not in main_menu_text
+        or "renderDistance" not in main_menu_text
+        or "simulationDistance" not in main_menu_text
+        or "maxFps" not in main_menu_text
+        or "main_performance_live_fps_note" not in main_menu_text
+    ):
+        raise ValueError("The Performance Advisor is missing its binding, device diagnostics, reversible profile changes, or version-aware settings handling")
 
     required_backup_imports = (
         "import java.io.FileInputStream;",
@@ -3415,6 +3846,7 @@ def patch_upstream(upstream: Path) -> None:
     print("  application ID: com.mf.mylauncher (debug adds .debug)")
     print("  storage/share authorities: customized")
     print("  low-memory defaults: 296/448/512 MB RAM tiers and ~480 px short-edge target for <=2 GB")
+    print("  built-in Performance Advisor: reversible graphics presets and device pre-launch diagnostics")
 
 
 def main(argv: list[str]) -> int:
