@@ -17,7 +17,7 @@ Build a first-party VoidCraft Launcher codebase from functional requirements, wi
 
 The existing root workflow still fetches a pinned Amethyst-Android source checkout and applies VoidCraft modifications. It is **not** a clean-room build.
 
-The `voidcraft-android/` subtree is the new independent application foundation. Its dedicated CI job builds this subtree without fetching the upstream launcher repository. It currently provides a first-party navigation/dashboard shell only; it does not launch Minecraft yet.
+The `voidcraft-android/` subtree is the new independent application foundation. Its dedicated CI job builds this subtree without fetching the upstream launcher repository. It provides a first-party navigation/dashboard shell, local settings, and on-device saved-server CRUD (add/edit/remove/reload). It does not launch Minecraft or perform live server status queries yet; these boundaries are documented in the app README and UI.
 
 ## Completion criteria
 
