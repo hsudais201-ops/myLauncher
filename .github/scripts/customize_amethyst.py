@@ -955,7 +955,7 @@ def patch_upstream(upstream: Path) -> None:
                 app:layout_constraintTop_toBottomOf="@id/mylauncher_repair_version_button" />
 
 """
-            repair_pattern = re.compile(r'(<com\\.kdt\\.mcgui\\.LauncherMenuButton\\s+android:id="@\\+id/mylauncher_repair_version_button".*?/>\\s*)', re.DOTALL)
+            repair_pattern = re.compile(r'(<com\.kdt\.mcgui\.LauncherMenuButton\s+android:id="@\+id/mylauncher_repair_version_button".*?/>\s*)', re.DOTALL)
             repair_match = repair_pattern.search(layout_text)
             if not repair_match:
                 raise ValueError(f"Could not find the version-repair button to add Performance Advisor in {layout_path}")
