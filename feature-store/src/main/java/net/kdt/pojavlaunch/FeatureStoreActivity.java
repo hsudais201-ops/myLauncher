@@ -1880,6 +1880,48 @@ public final class FeatureStoreActivity extends BaseActivity {
         editor.apply();
     }
 
+    private void showImportedFeatureReview(JSONObject feature) {
+        int minApi = feature.optInt("minAndroidApi", 21);
+        int maxApi = feature.optInt("maxAndroidApi", 100);
+        if (android.os.Build.VERSION.SDK_INT < minApi || android.os.Build.VERSION.SDK_INT > maxApi) {
+            showError("Imported feature is not compatible", new IllegalArgumentException(
+                    "Supported Android API: " + minApi + "–" + maxApi
+                            + ". This device is API " + android.os.Build.VERSION.SDK_INT + "."));
+            return;
+        }
+        StringBuilder summary = new StringBuilder(feature.optString("description", "Imported declarative feature."));
+        summary.append("\n\nDeclared capabilities:\n");
+        JSONArray capabilities = feature.optJSONArray("capabilities");
+        if (capabilities == null || capabilities.length() == 0) {
+            summary.append("- This package declares no capability metadata. Treat its source as unverified.");
+        } else {
+            for (int i = 0; i < Math.min(capabilities.length(), 20); i++) {
+                summary.append("- ").append(capabilities.optString(i, "Unknown")).append("\n");
+            }
+        }
+        summary.append("\nData use: ").append(feature.optString("dataUse",
+                "No data-use statement supplied by this package."));
+        summary.append("\n\nCompatibility: Android API ").append(minApi).append("–").append(maxApi)
+                .append(" (this device: API ").append(android.os.Build.VERSION.SDK_INT).append(").");
+        summary.append("\n\nThis package was selected from a local document, not verified against the remote catalog. The package schema and supported declarative actions are validated; SHA-256 trust is not available for a standalone imported file.");
+        new AlertDialog.Builder(this)
+                .setTitle("Review imported feature: " + feature.optString("name", "Feature"))
+                .setMessage(summary.toString())
+                .setNegativeButton(android.R.string.cancel, null)
+                .setPositiveButton("Install imported feature", (dialog, which) -> io.execute(() -> {
+                    try {
+                        saveInstalledFeature(feature);
+                        runOnUiThread(() -> {
+                            Toast.makeText(this, "Imported " + feature.optString("name"), Toast.LENGTH_LONG).show();
+                            showInstalled();
+                        });
+                    } catch (Exception error) {
+                        runOnUiThread(() -> showError("Import installation failed", error));
+                    }
+                }))
+                .show();
+    }
+
     private void importPackage() {
         Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
         intent.addCategory(Intent.CATEGORY_OPENABLE);
@@ -1915,11 +1957,7 @@ public final class FeatureStoreActivity extends BaseActivity {
                 try (InputStream input = getContentResolver().openInputStream(uri)) {
                     if (input == null) throw new IllegalArgumentException("Could not read selected package");
                     JSONObject feature = validateFeature(new JSONObject(readLimited(input, MAX_PACKAGE_BYTES)));
-                    saveInstalledFeature(feature);
-                    runOnUiThread(() -> {
-                        Toast.makeText(this, "Imported " + feature.optString("name"), Toast.LENGTH_LONG).show();
-                        showInstalled();
-                    });
+                    runOnUiThread(() -> showImportedFeatureReview(feature));
                 } catch (Exception error) {
                     runOnUiThread(() -> showError("Import rejected", error));
                 }
