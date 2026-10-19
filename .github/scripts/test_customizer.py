@@ -561,6 +561,15 @@ class ProfileTypeSelectFragment {
             self.assertIn('currentValue.matches("[0-2]")', menu)
             self.assertNotIn('requested.put("graphics",', menu)
             self.assertIn("writeMyLauncherPerformanceLines(optionsFile, updatedLines);", menu)
+            self.assertIn('new java.io.File(profileDirectory, "options.txt.voidcraft-performance-rollback")', menu)
+            self.assertIn("copyMyLauncherPerformanceFile(optionsFile, rollbackFile)", menu)
+            self.assertIn("copyMyLauncherPerformanceFile(rollbackFile, optionsFile)", menu)
+            self.assertIn("if (deviceRam <= 2048) return 512;", menu)
+            self.assertNotIn("if (deviceRam < 2048) return 656;", menu)
+            self.assertLess(
+                menu.index("writeMyLauncherPerformanceLines(optionsFile, updatedLines);"),
+                menu.index('putInt("allocation", recommendedPortableAllocation(requireContext()))'),
+            )
             self.assertIn("voidcraft-tmp", menu)
             self.assertIn('putInt("resolutionRatio", resolutionRatio)', menu)
             self.assertIn('new java.io.File(profileDirectory, "options.txt.voidcraft-performance-backup")', menu)
