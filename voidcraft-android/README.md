@@ -23,14 +23,16 @@ A dedicated GitHub Actions workflow builds this subtree and runs boundary checks
 ## What currently works
 
 - Original dashboard and six-page navigation shell.
-- Installations, Downloads, Feature Store, Servers, and Settings information pages.
+- Installations, Downloads, Feature Store, Servers, and Settings navigation.
 - Locally persisted low-memory and reduced-motion preferences.
+- Locally saved server entries with add, edit, remove, and refresh-list actions.
+- Saved server names and addresses persist across app restarts.
 - API 28 minimum Android version.
 - Play action intentionally disabled until a tested runtime integration is available.
 
 ## Not implemented yet
 
-This is a foundation, not a playable Minecraft launcher. It does not yet contain or integrate a Java runtime, a game downloader, renderer/native libraries, loader installers, account authentication, world/profile management, remote Feature Store catalog, or live server querying. The UI says so rather than displaying fabricated status.
+This is a foundation, not a playable Minecraft launcher. It does not yet contain or integrate a Java runtime, a game downloader, renderer/native libraries, loader installers, account authentication, world/profile management, or a remote Feature Store catalog. Server management currently stores names and addresses locally; refreshing reloads the local list only. Live online/offline checks, MOTD, player counts, versions, and server icons are not implemented. The UI says so rather than displaying fabricated status.
 
 ## Clean-room boundary
 
