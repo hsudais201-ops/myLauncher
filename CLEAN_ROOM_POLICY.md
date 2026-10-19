@@ -18,7 +18,7 @@ Build a first-party VoidCraft Launcher codebase from functional requirements, wi
 
 The existing root workflow still fetches a pinned Amethyst-Android source checkout and applies VoidCraft modifications. It is **not** a clean-room build. The repository does not currently have a verified, repository-wide copyright clearance or a top-level license covering all files.
 
-The `voidcraft-android/` subtree is the new independent application foundation. Its dedicated CI job builds this subtree without fetching the upstream launcher repository. It provides a first-party navigation/dashboard shell, local settings, on-device saved-server CRUD, and a bounded Minecraft: Java Edition status query for saved servers. It does not launch Minecraft; live status is only a read-only protocol query and is not gameplay validation.
+The `voidcraft-android/` subtree is the new independent application foundation. Its dedicated CI job builds this subtree without fetching the upstream launcher repository. It provides a first-party navigation/dashboard shell, local settings, on-device saved-server CRUD, and an optional installable Server Status feature with its own screen. The feature performs bounded, read-only Minecraft: Java Edition status queries. The app does not launch Minecraft; live server status is not gameplay validation. Remote community catalog, upload, publisher verification, and package signing remain unimplemented.
 
 See [COPYRIGHT_AND_LICENSE_AUDIT.md](COPYRIGHT_AND_LICENSE_AUDIT.md) for the current evidence, component-risk inventory, and migration gates.
 
