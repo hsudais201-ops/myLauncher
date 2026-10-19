@@ -56,13 +56,31 @@ class CleanRoomBoundaryTests(unittest.TestCase):
         self.assertIn("boolean update(String id, String name, String address)", store)
         self.assertIn("boolean remove(String id)", store)
 
-    def test_server_status_is_not_fabricated_or_claimed_as_implemented(self):
+    def test_server_status_queries_real_java_protocol_and_renders_details(self):
         source = MAIN_ACTIVITY.read_text(encoding="utf-8")
+        client = (JAVA_ROOT / "com" / "voidcraft" / "launcher" / "MinecraftServerStatusClient.java").read_text(encoding="utf-8")
         readme = (PROJECT / "README.md").read_text(encoding="utf-8")
-        self.assertIn("Live status: not checked", source)
-        self.assertIn("Live online status, MOTD, player count", source)
-        self.assertIn("Live status checks are not connected", source)
-        self.assertIn("Live online/offline checks, MOTD, player counts", readme)
+
+        self.assertIn("MinecraftServerStatusClient.query(server.address)", source)
+        self.assertIn('button("Check all server statuses"', source)
+        self.assertIn("● ONLINE", source)
+        self.assertIn("● OFFLINE / UNREACHABLE", source)
+        self.assertIn("result.motd", source)
+        self.assertIn("result.playersOnline", source)
+        self.assertIn("result.playersMax", source)
+        self.assertIn("result.version", source)
+        self.assertIn("result.faviconDataUri", source)
+
+        self.assertIn("new InetSocketAddress(endpoint.host, endpoint.port)", client)
+        self.assertIn("CONNECT_TIMEOUT_MS = 3_000", client)
+        self.assertIn("READ_TIMEOUT_MS = 3_000", client)
+        self.assertIn("MAX_PACKET_BYTES = 1_048_576", client)
+        self.assertIn("writeVarInt(handshake, 0)", client)
+        self.assertIn("writeVarInt(request, 0)", client)
+        self.assertIn("new JSONObject(json)", client)
+
+        self.assertIn("Minecraft: Java Edition status request", readme)
+        self.assertIn("Bedrock status", readme)
 
     def test_clean_room_workflow_does_not_fetch_legacy_launcher(self):
         workflow = (PROJECT.parent / ".github" / "workflows" / "clean-room-build.yml").read_text(encoding="utf-8")
@@ -92,9 +110,9 @@ class CleanRoomBoundaryTests(unittest.TestCase):
         self.assertIn("not cleared by this table", inventory)
         self.assertIn("UNKNOWN", inventory)
 
-    def test_clean_room_app_does_not_request_network_permission_yet(self):
+    def test_clean_room_app_declares_network_permission_for_server_status(self):
         manifest = MANIFEST.read_text(encoding="utf-8")
-        self.assertNotIn("android.permission.INTERNET", manifest)
+        self.assertIn("android.permission.INTERNET", manifest)
 
 
 if __name__ == "__main__":
