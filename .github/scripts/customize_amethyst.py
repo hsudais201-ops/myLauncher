@@ -343,9 +343,9 @@ def patch_upstream(upstream: Path) -> None:
     performance_advisor_strings = {
         "main_performance_advisor": "Performance Advisor",
         "main_performance_button_hint": "Check device performance and apply a reversible Minecraft settings profile.",
-        "main_performance_low": "Low-End (30 FPS target)",
-        "main_performance_balanced": "Balanced (60 FPS target)",
-        "main_performance_quality": "Visual Quality (up to 120 FPS target)",
+        "main_performance_low": "Low-End (30 FPS cap)",
+        "main_performance_balanced": "Balanced (60 FPS cap)",
+        "main_performance_quality": "Visual Quality (120 FPS cap)",
         "main_performance_restore": "Restore previous settings",
         "main_performance_apply_title": "Apply performance profile?",
         "main_performance_low_message": "Prioritizes smoother play on low-memory devices: 4-chunk render distance, minimal particles, lower resolution scaling, and a 30 FPS cap where the installed Minecraft version supports those options. Shaders are not removed automatically.",
@@ -2167,8 +2167,8 @@ def patch_upstream(upstream: Path) -> None:
         java.util.Map<String, String> requested = new java.util.LinkedHashMap<>();
         if (profile == 0) {
             requested.put("renderDistance", "4");
-            requested.put("simulationDistance", "4");
-            requested.put("graphics", "0");
+            requested.put("simulationDistance", "5");
+            requested.put("graphicsMode", "0");
             requested.put("fancyGraphics", "false");
             requested.put("particles", "2");
             requested.put("maxFps", "30");
@@ -2180,7 +2180,7 @@ def patch_upstream(upstream: Path) -> None:
         } else if (profile == 1) {
             requested.put("renderDistance", "6");
             requested.put("simulationDistance", "6");
-            requested.put("graphics", "0");
+            requested.put("graphicsMode", "0");
             requested.put("fancyGraphics", "false");
             requested.put("particles", "1");
             requested.put("maxFps", "60");
@@ -2192,7 +2192,7 @@ def patch_upstream(upstream: Path) -> None:
         } else {
             requested.put("renderDistance", "10");
             requested.put("simulationDistance", "8");
-            requested.put("graphics", "2");
+            requested.put("graphicsMode", "1");
             requested.put("fancyGraphics", "true");
             requested.put("particles", "0");
             requested.put("maxFps", "120");
@@ -2218,10 +2218,27 @@ def patch_upstream(upstream: Path) -> None:
             if (colon > 0) {
                 String key = line.substring(0, colon);
                 String value = requested.get(key);
+                String currentValue = line.substring(colon + 1).trim();
                 if (value != null) {
-                    updatedLines.add(line.substring(0, colon + 1) + value);
-                    matchedKeys++;
-                    continue;
+                    if ("ao".equals(key)) {
+                        if ("true".equalsIgnoreCase(currentValue) || "false".equalsIgnoreCase(currentValue)) {
+                            value = profile == 0 ? "false" : "true";
+                        } else if (currentValue.matches("[0-2]")) {
+                            value = profile == 0 ? "0" : (profile == 1 ? "1" : "2");
+                        } else {
+                            value = null;
+                        }
+                    } else if ("graphicsMode".equals(key) && !currentValue.matches("[0-2]")) {
+                        value = null;
+                    } else if ("fancyGraphics".equals(key)
+                            && !("true".equalsIgnoreCase(currentValue) || "false".equalsIgnoreCase(currentValue))) {
+                        value = null;
+                    }
+                    if (value != null) {
+                        updatedLines.add(line.substring(0, colon + 1) + value);
+                        matchedKeys++;
+                        continue;
+                    }
                 }
             }
             updatedLines.add(line);
@@ -2308,13 +2325,32 @@ def patch_upstream(upstream: Path) -> None:
 
     private static boolean copyMyLauncherPerformanceFile(File source, File destination) throws java.io.IOException {
         if (source == null || destination == null || !source.isFile()) return false;
-        try (FileInputStream input = new FileInputStream(source); FileOutputStream output = new FileOutputStream(destination, false)) {
-            byte[] buffer = new byte[8192];
-            int read;
-            while ((read = input.read(buffer)) != -1) output.write(buffer, 0, read);
-            output.flush();
+        File parent = destination.getAbsoluteFile().getParentFile();
+        if (parent == null || !parent.isDirectory()) return false;
+        File temporary = new File(parent, destination.getName() + ".voidcraft-tmp");
+        boolean moved = false;
+        try {
+            try (FileInputStream input = new FileInputStream(source);
+                 FileOutputStream output = new FileOutputStream(temporary, false)) {
+                byte[] buffer = new byte[8192];
+                int read;
+                while ((read = input.read(buffer)) != -1) output.write(buffer, 0, read);
+                output.flush();
+                output.getFD().sync();
+            }
+            if (!temporary.isFile() || temporary.length() != source.length()) {
+                throw new java.io.IOException("Performance settings copy failed verification");
+            }
+            if (!temporary.renameTo(destination)) {
+                throw new java.io.IOException("Could not safely replace " + destination.getName());
+            }
+            moved = true;
+            return destination.isFile() && destination.length() == source.length();
+        } finally {
+            if (!moved && temporary.exists() && !temporary.delete()) {
+                temporary.deleteOnExit();
+            }
         }
-        return destination.isFile() && destination.length() == source.length();
     }
 
 """
