@@ -19,8 +19,10 @@ class FeatureStoreTests(unittest.TestCase):
         for entry in catalog["features"]:
             self.assertNotIn(entry["id"], seen)
             self.assertNotIn("category", entry)
+            self.assertNotIn("asset", entry)
             seen.add(entry["id"])
-            package_path = catalog_path.parent / entry["asset"]
+            package_name = entry["packageUrl"].split("?", 1)[0].rsplit("/", 1)[-1]
+            package_path = catalog_path.parent / "packages" / package_name
             raw = package_path.read_bytes()
             self.assertEqual(hashlib.sha256(raw).hexdigest(), entry["sha256"])
             package = json.loads(raw.decode("utf-8"))
@@ -113,7 +115,8 @@ class FeatureStoreTests(unittest.TestCase):
         root = feature_store.REPO_ROOT / "feature-store"
         catalog = json.loads((root / "catalog.json").read_text(encoding="utf-8"))
         entry = next(x for x in catalog["features"] if x["id"] == "community.server-status")
-        package = json.loads((root / entry["asset"]).read_text(encoding="utf-8"))
+        package_name = entry["packageUrl"].split("?", 1)[0].rsplit("/", 1)[-1]
+        package = json.loads((root / "packages" / package_name).read_text(encoding="utf-8"))
         self.assertEqual(package["screen"]["type"], "server_status")
         self.assertIn("online/offline", package["description"].lower())
         self.assertIn("server icon", package["description"].lower())
@@ -143,7 +146,8 @@ class FeatureStoreTests(unittest.TestCase):
         catalog_path = feature_store.REPO_ROOT / "feature-store" / "catalog.json"
         catalog = json.loads(catalog_path.read_text(encoding="utf-8"))
         entry = next(item for item in catalog["features"] if item["id"] == "voidcraft.social-hub")
-        package_path = catalog_path.parent / entry["asset"]
+        package_name = entry["packageUrl"].split("?", 1)[0].rsplit("/", 1)[-1]
+        package_path = catalog_path.parent / "packages" / package_name
         package = json.loads(package_path.read_text(encoding="utf-8"))
         self.assertEqual(package["screen"]["type"], "social")
         self.assertEqual(package["screen"]["mode"], "local_preview")
