@@ -37,6 +37,8 @@ No root-level license file was present in the audited repository tree. Absence o
 
 This project should target a **clean-room, rights-cleared launcher**, not promise that the whole product has no copyright at all. Android, runtimes, libraries, Minecraft files, and third-party assets each have their own rights and terms.
 
+The independent app's current build/runtime dependency list is maintained in [voidcraft-android/DEPENDENCY_INVENTORY.md](voidcraft-android/DEPENDENCY_INVENTORY.md). It explicitly does not cover the legacy APK's fetched source or submodules.
+
 ## Required migration plan
 
 ### Gate 1 — Build a traceable source inventory
