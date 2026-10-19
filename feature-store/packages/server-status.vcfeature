@@ -5,11 +5,11 @@
   "version": "1.0.0",
   "author": "VoidCraft Community",
   "owner": "VoidCraft Community",
-  "description": "Check whether a Java Edition server is online, its player count, and version.",
+  "description": "Check a Java Edition server's online/offline state, server icon, MOTD, current/max players, and version.",
   "screen": {
     "type": "server_status",
     "title": "Minecraft Server Status",
-    "description": "Enter a Java server address. Status lookup uses mcsrvstat.us and requires internet access.",
+    "description": "Enter a Java Edition server address to see live online/offline status, server icon/logo, MOTD, online/max player count, and version. Uses mcsrvstat.us and requires internet access.",
     "defaultHost": "mc.hypixel.net"
   }
 }
