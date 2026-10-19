@@ -10,9 +10,9 @@ See [FEATURE_ROADMAP.md](FEATURE_ROADMAP.md) for the complete 23-section feature
 
 ## Copyright and clean-room status
 
-The current default APK workflow still builds from a pinned Amethyst-Android checkout and applies VoidCraft patches. It is not a wholly first-party or copyright-cleared build. The separate [clean-room Android foundation](voidcraft-android/README.md) is not playable yet and must not be described as a complete launcher.
+The current default APK workflow still builds from a pinned Amethyst-Android checkout and applies VoidCraft patches. It is not a wholly first-party or copyright-cleared build. The separate [clean-room Android foundation](voidcraft-android/README.md) now has source-provenance records and CI guardrails, plus a category-free local Feature Store prototype with an optional Server Status screen. It is still not playable and must not be described as a complete Minecraft launcher.
 
-See [COPYRIGHT_AND_LICENSE_AUDIT.md](COPYRIGHT_AND_LICENSE_AUDIT.md) for evidence and the gates required before claiming copyright compliance or changing the repository license. The absence of a license file is not a public-domain dedication.
+See [COPYRIGHT_AND_LICENSE_AUDIT.md](COPYRIGHT_AND_LICENSE_AUDIT.md), [the independent source-provenance record](voidcraft-android/SOURCE_PROVENANCE.md), and [the independent dependency inventory](voidcraft-android/DEPENDENCY_INVENTORY.md). A repository-wide copyright clearance has not been established; the absence of a license file is not a public-domain dedication, and no blanket license should be applied to code whose ownership/provenance has not been verified.
 
 ## Device target
 
