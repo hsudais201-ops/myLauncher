@@ -13,7 +13,7 @@ Feature packages are data, not executable Java, DEX, shell, or scripts. This kee
 1. Create and test a feature in the launcher's **Feature Store → Create** screen.
 2. Export/share the resulting `.vcfeature` package.
 3. Add the package under `feature-store/packages/` in a pull request.
-4. Add a catalog entry to `feature-store/catalog.json` with its id, title, version, author/owner, description, package asset path, HTTPS download URL, and SHA-256 of the exact package bytes.
+4. Add a catalog entry to `feature-store/catalog.json` with its id, title, version, author/owner, description, HTTPS `packageUrl`, and SHA-256 of the exact package bytes. The catalog carries metadata and a download URL only; it does not embed the package.
 5. Keep the package id identical in the catalog and package manifest. Do not publish secrets, tokens, personal data, or executable payloads.
 
 The APK contains the Feature Store manager and its safe declarative renderer only. It does **not** bundle the public catalog or any optional `.vcfeature` package, and no sample feature is preinstalled. When the user opens the store, it fetches catalog metadata over HTTPS and saves only that metadata as a private cache for later offline browsing. Each package is downloaded from its HTTPS `packageUrl` only after the user taps **Install** or **Update**; the SHA-256 is checked before schema validation and storage under the app-private `files/feature-store/installed/` directory. Opening an installed feature reads that separately installed package.
