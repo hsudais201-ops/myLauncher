@@ -72,5 +72,40 @@ jobs:
       - name: Build standalone debug APK
         run: gradle -p voidcraft-android --no-daemon :app:assembleDebug --stacktrace
 
-      - name: Verify APK exists
-        run: test -s voidcraft-android/app/build/outputs/apk/debug/app-debug.apk
+      - name: Verify APK metadata, signature, and checksum
+        run: |
+          APK="voidcraft-android/app/build/outputs/apk/debug/app-debug.apk"
+          test -s "$APK"
+          APKSIGNER=$(find "${ANDROID_HOME}/build-tools" -type f -name apksigner -print -quit)
+          AAPT=$(find "${ANDROID_HOME}/build-tools" -type f -name aapt -print -quit)
+          test -n "$APKSIGNER"
+          test -n "$AAPT"
+          "$APKSIGNER" verify --verbose "$APK"
+          "$AAPT" dump badging "$APK" > /tmp/voidcraft-clean-room-badging.txt
+          grep -q "package: name='com.voidcraft.launcher.debug'" /tmp/voidcraft-clean-room-badging.txt
+          grep -q "application-label:'VoidCraft Launcher'" /tmp/voidcraft-clean-room-badging.txt
+          MIN_SDK=$(sed -n "s/^sdkVersion:'\\([0-9][0-9]*\\)'.*/\\1/p" /tmp/voidcraft-clean-room-badging.txt)
+          test "$MIN_SDK" -eq 28
+          SHA_FILE="${APK}.sha256"
+          (cd "$(dirname "$APK")" && sha256sum "$(basename "$APK")" > "$(basename "$APK").sha256")
+          {
+            echo "Build path: clean-room project voidcraft-android/"
+            echo "Source commit: $GITHUB_SHA"
+            echo "Application ID: com.voidcraft.launcher.debug"
+            echo "Minimum Android SDK: $MIN_SDK"
+            echo "Copyright / dependency status: INCOMPLETE — independent foundation, not legal clearance"
+            echo "Playability: not playable; no game downloader/runtime/renderer is integrated"
+            echo "APK SHA-256: $(cut -d ' ' -f1 "$SHA_FILE")"
+          } > voidcraft-android/CLEAN_ROOM_BUILD_INFO.txt
+          echo "Verified standalone APK metadata and SHA-256."
+
+      - name: Upload clean-room debug APK and build information
+        uses: actions/upload-artifact@v4
+        with:
+          name: voidcraft-clean-room-debug-apk
+          path: |
+            voidcraft-android/app/build/outputs/apk/debug/app-debug.apk
+            voidcraft-android/app/build/outputs/apk/debug/app-debug.apk.sha256
+            voidcraft-android/CLEAN_ROOM_BUILD_INFO.txt
+          if-no-files-found: error
+          retention-days: 14
