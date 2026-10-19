@@ -29,9 +29,12 @@ class CleanRoomBoundaryTests(unittest.TestCase):
 
     def test_saved_server_management_persists_and_supports_crud(self):
         source = (JAVA_ROOT / "com" / "voidcraft" / "launcher" / "MainActivity.java").read_text(encoding="utf-8")
-        self.assertIn('KEY_SAVED_SERVERS = "saved_servers_json"', source)
-        self.assertIn("private JSONArray readServers()", source)
-        self.assertIn("private void saveServers(JSONArray servers)", source)
+        self.assertIn("new SavedServerStore(this)", source)
+        store = (JAVA_ROOT / "com" / "voidcraft" / "launcher" / "SavedServerStore.java").read_text(encoding="utf-8")
+        self.assertIn("List<Entry> load()", store)
+        self.assertIn("Entry add(String name, String address)", store)
+        self.assertIn("boolean update(String id, String name, String address)", store)
+        self.assertIn("boolean remove(String id)", store)
         self.assertIn("showServerEditorForNew", source)
         self.assertIn("showServerEditor(String serverId)", source)
         self.assertIn("confirmRemoveServer(String serverId, String serverName)", source)
