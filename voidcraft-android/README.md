@@ -38,4 +38,4 @@ This is a foundation, not a playable Minecraft launcher. It does not yet contain
 
 Do not copy or mechanically translate other launcher source files into this subtree. Before introducing external components, document the source, exact version, license, required notices, and why the dependency is needed. The existing root build remains a separate legacy build while this independent implementation is developed and verified.
 
-See [../CLEAN_ROOM_POLICY.md](../CLEAN_ROOM_POLICY.md).
+See [DEPENDENCY_INVENTORY.md](DEPENDENCY_INVENTORY.md) for the audited build/runtime dependency surface. See [../CLEAN_ROOM_POLICY.md](../CLEAN_ROOM_POLICY.md).
