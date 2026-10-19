@@ -9,13 +9,14 @@
 | Gradle | 8.9 in the documented CI build | Build orchestration | No | Build-only tool. Its own distribution terms apply |
 | Android SDK Platform / Build Tools | Platform 35, Build Tools 35.0.0 | Compile/package | No | SDK package terms accepted by CI; not packaged as launcher runtime code |
 | Eclipse Temurin JDK | Java 17 in the independent CI workflow | Compiles Java source | No | Build-only tool; not bundled as the game's Java runtime |
+| GitHub Actions | `actions/checkout@v4`, `actions/setup-python@v5`, `actions/setup-java@v4`, `android-actions/setup-android@v4`, `gradle/actions/setup-gradle@v4` | CI automation | No | Workflow-only dependencies; not part of the APK. Review the license/terms of each referenced action separately for repository distribution. |
 | Application Java source | `com.voidcraft.launcher` | Original UI shell, local settings, saved-server persistence | Yes | Written for this independent subtree. Provenance is not certified by keyword tests alone |
 | Minecraft runtime / game files | Not integrated | Java runtime, game JAR/assets, native renderer, loader installers | No | Not present in this app milestone; requires separate technical and license review before integration/distribution |
 | Third-party runtime libraries | No explicit `dependencies { ... }` block in `app/build.gradle` at this revision | None | No | No third-party runtime library currently declared by the app module |
 
 ## Release-time rules
 
-Every new item must be added to this inventory before merging and must include:
+Every new item—including CI actions and build plugins—must be added to this inventory before merging and must include:
 
 - Exact name, upstream source URL, pinned release/version and checksum.
 - SPDX license identifier only where verified against the exact source/release; otherwise write `UNKNOWN`.
