@@ -1,6 +1,7 @@
 package com.voidcraft.launcher;
 
 import android.app.Activity;
+import android.app.AlertDialog;
 import android.content.SharedPreferences;
 import android.graphics.Color;
 import android.graphics.Typeface;
@@ -9,11 +10,15 @@ import android.os.Bundle;
 import android.view.Gravity;
 import android.view.View;
 import android.widget.Button;
+import android.widget.EditText;
 import android.widget.HorizontalScrollView;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.Switch;
 import android.widget.TextView;
+import android.widget.Toast;
+
+import java.util.List;
 
 /**
  * First-party VoidCraft navigation and dashboard foundation.
@@ -35,6 +40,7 @@ public final class MainActivity extends Activity {
     private static final int COLOR_WARNING = Color.rgb(251, 191, 36);
 
     private SharedPreferences preferences;
+    private SavedServerStore serverStore;
     private String currentRoute = "Dashboard";
     private LinearLayout pageContent;
 
@@ -42,6 +48,7 @@ public final class MainActivity extends Activity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         preferences = getSharedPreferences(PREFS, MODE_PRIVATE);
+        serverStore = new SavedServerStore(this);
         getWindow().setStatusBarColor(COLOR_BACKGROUND);
         getWindow().setNavigationBarColor(COLOR_BACKGROUND);
         render();
@@ -129,12 +136,147 @@ public final class MainActivity extends Activity {
             addStatus("Remote catalog not connected", COLOR_WARNING);
             addAction("Installed features", "No feature packages are installed in this clean-room app.");
         } else if ("Servers".equals(currentRoute)) {
-            addCard("Saved servers",
-                    "The server manager will support adding, editing, refreshing, and removing server name/address entries, plus online status, MOTD, player counts, version, and icon when a status source is implemented.");
-            addStatus("Server query service not connected", COLOR_WARNING);
+            buildServers();
         } else if ("Settings".equals(currentRoute)) {
             buildSettings();
         }
+    }
+
+    private void buildServers() {
+        addCard("Saved servers",
+                "Add and maintain your server name and address list. Refresh reloads saved entries from local storage; live online status, MOTD, player counts, and server icons are not available until a query service is integrated.");
+
+        Button add = button("Add server", () -> showServerEditor(null), true);
+        LinearLayout.LayoutParams addParams = new LinearLayout.LayoutParams(-1, dp(46));
+        addParams.bottomMargin = dp(8);
+        pageContent.addView(add, addParams);
+
+        Button refresh = button("Refresh saved list", () -> {
+            navigate("Servers");
+            Toast.makeText(this,
+                    "Saved server list refreshed. Live status checks are not connected.",
+                    Toast.LENGTH_SHORT).show();
+        }, false);
+        LinearLayout.LayoutParams refreshParams = new LinearLayout.LayoutParams(-1, dp(44));
+        refreshParams.bottomMargin = dp(12);
+        pageContent.addView(refresh, refreshParams);
+
+        List<SavedServerStore.Entry> entries = serverStore.load();
+        if (entries.isEmpty()) {
+            addStatus("No saved servers yet. Select Add server to create one.", COLOR_MUTED);
+            return;
+        }
+
+        for (SavedServerStore.Entry entry : entries) {
+            LinearLayout card = cardContainer();
+            card.addView(text(entry.name, 18, COLOR_TEXT, true));
+
+            TextView address = text(entry.address, 14, COLOR_MUTED, false);
+            address.setTextIsSelectable(true);
+            LinearLayout.LayoutParams addressParams = new LinearLayout.LayoutParams(-1, -2);
+            addressParams.topMargin = dp(5);
+            card.addView(address, addressParams);
+
+            TextView status = text("Live status: not checked", 12, COLOR_WARNING, true);
+            LinearLayout.LayoutParams statusParams = new LinearLayout.LayoutParams(-1, -2);
+            statusParams.topMargin = dp(8);
+            card.addView(status, statusParams);
+
+            LinearLayout actions = new LinearLayout(this);
+            actions.setOrientation(LinearLayout.HORIZONTAL);
+            actions.setGravity(Gravity.CENTER_VERTICAL);
+
+            Button edit = button("Edit", () -> showServerEditor(entry), true);
+            LinearLayout.LayoutParams editParams = new LinearLayout.LayoutParams(0, dp(42), 1f);
+            editParams.topMargin = dp(12);
+            editParams.rightMargin = dp(5);
+            actions.addView(edit, editParams);
+
+            Button remove = button("Remove", () -> confirmRemoveServer(entry), false);
+            LinearLayout.LayoutParams removeParams = new LinearLayout.LayoutParams(0, dp(42), 1f);
+            removeParams.topMargin = dp(12);
+            removeParams.leftMargin = dp(5);
+            actions.addView(remove, removeParams);
+
+            LinearLayout.LayoutParams actionsParams = new LinearLayout.LayoutParams(-1, -2);
+            actionsParams.topMargin = dp(2);
+            card.addView(actions, actionsParams);
+            addCardView(card);
+        }
+    }
+
+    private void showServerEditor(SavedServerStore.Entry existing) {
+        LinearLayout fields = new LinearLayout(this);
+        fields.setOrientation(LinearLayout.VERTICAL);
+        fields.setPadding(dp(20), dp(10), dp(20), 0);
+
+        EditText nameInput = new EditText(this);
+        nameInput.setSingleLine(true);
+        nameInput.setHint("Server name");
+        nameInput.setTextColor(COLOR_TEXT);
+        nameInput.setHintTextColor(COLOR_MUTED);
+        fields.addView(nameInput, new LinearLayout.LayoutParams(-1, -2));
+
+        EditText addressInput = new EditText(this);
+        addressInput.setSingleLine(true);
+        addressInput.setHint("Address or hostname (optionally :port)");
+        addressInput.setTextColor(COLOR_TEXT);
+        addressInput.setHintTextColor(COLOR_MUTED);
+        addressInput.setInputType(android.text.InputType.TYPE_CLASS_TEXT
+                | android.text.InputType.TYPE_TEXT_VARIATION_URI);
+        LinearLayout.LayoutParams addressInputParams = new LinearLayout.LayoutParams(-1, -2);
+        addressInputParams.topMargin = dp(8);
+        fields.addView(addressInput, addressInputParams);
+
+        if (existing != null) {
+            nameInput.setText(existing.name);
+            addressInput.setText(existing.address);
+        }
+
+        AlertDialog dialog = new AlertDialog.Builder(this)
+                .setTitle(existing == null ? "Add server" : "Edit server")
+                .setView(fields)
+                .setNegativeButton("Cancel", null)
+                .setPositiveButton(existing == null ? "Add" : "Save", null)
+                .create();
+
+        dialog.setOnShowListener(ignored -> dialog.getButton(AlertDialog.BUTTON_POSITIVE)
+                .setOnClickListener(view -> {
+                    String name = nameInput.getText().toString().trim();
+                    String address = addressInput.getText().toString().trim();
+                    if (name.isEmpty() || address.isEmpty()) {
+                        Toast.makeText(this, "Enter both a server name and address.",
+                                Toast.LENGTH_SHORT).show();
+                        return;
+                    }
+                    if (address.contains(" ") || address.contains("://")) {
+                        Toast.makeText(this, "Enter a hostname or IP address, optionally with a port.",
+                                Toast.LENGTH_LONG).show();
+                        return;
+                    }
+
+                    if (existing == null) {
+                        serverStore.add(name, address);
+                    } else if (!serverStore.update(existing.id, name, address)) {
+                        Toast.makeText(this, "That saved server could not be found.",
+                                Toast.LENGTH_SHORT).show();
+                    }
+                    dialog.dismiss();
+                    navigate("Servers");
+                }));
+        dialog.show();
+    }
+
+    private void confirmRemoveServer(SavedServerStore.Entry entry) {
+        new AlertDialog.Builder(this)
+                .setTitle("Remove saved server?")
+                .setMessage("Remove \"" + entry.name + "\" from this device? This does not affect the actual server.")
+                .setNegativeButton("Cancel", null)
+                .setPositiveButton("Remove", (dialog, which) -> {
+                    serverStore.remove(entry.id);
+                    navigate("Servers");
+                })
+                .show();
     }
 
     private void buildDashboard() {
