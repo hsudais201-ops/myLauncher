@@ -15,6 +15,13 @@ See [FEATURE_ROADMAP.md](FEATURE_ROADMAP.md) for the complete 23-section feature
 - Built-in low-memory defaults: for devices reporting at most 2,048 MB total RAM, the allocator uses 296 MB below 1,024 MB, 448 MB below 1,536 MB, and a reduced 512 MB heap from 1,536–2,048 MB. The default resolution scaler targets a 480-pixel short screen edge for that RAM tier when the physical edge is larger than 480 pixels; scaling is rounded upward to the next supported 5% step. Saved preferences still take priority, so users can change the values afterward.
 - Suggested Minecraft settings: use 1.8.9 or 1.12.2, render distance 4–6 chunks, Fast graphics, and no shaders. Set these in Minecraft; this project does not force in-game settings.
 
+
+## Optional Feature Store
+
+The Feature Store manager is built into VoidCraft Launcher, but **its listed features are not bundled or preinstalled**. The store fetches the available-feature catalog over HTTPS and can cache that small metadata listing for offline viewing. Each feature package is downloaded, SHA-256-checked and installed into app-private storage only after the user taps **Install**. Installed add-ons have their own pages and can be updated or uninstalled independently.
+
+The launcher engine, native libraries, Java runtimes, renderers, Minecraft version/download system, loader support and existing integrations remain core app components; they are not Feature Store packages and are not removed when an add-on is uninstalled. If the store has no cached listing, an internet connection is needed to browse the online catalog. Users can still import a local `.vcfeature` package from the file picker.
+
 ## Account support and interface
 
 - The launcher retains Amethyst's Microsoft account sign-in and local/offline profile flow. The custom patch removes the online-account gate in the account selector and the local-login screen, so a local profile can be created without first adding a Microsoft account. The local username field is configured as a username field.
