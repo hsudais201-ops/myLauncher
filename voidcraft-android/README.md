@@ -22,7 +22,7 @@ A dedicated GitHub Actions workflow builds this subtree and runs boundary checks
 
 ## What currently works
 
-- Original dashboard and six-page navigation shell.
+- Original dashboard and six-page navigation shell, including an About & Legal Notices page explaining third-party status and the limits of this clean-room build.
 - Installations, Downloads, Feature Store, Servers, and Settings navigation.
 - Locally persisted low-memory and reduced-motion preferences.
 - Locally saved server entries with add, edit, remove, and refresh-list actions.
