@@ -8,6 +8,12 @@ A personal Minecraft: Java Edition launcher build for Android, customized for lo
 
 See [FEATURE_ROADMAP.md](FEATURE_ROADMAP.md) for the complete 23-section feature scope, current source audit, and staged delivery plan. Items in that list are tracked requirements, not claims that every feature is implemented or runtime-verified.
 
+## Copyright and clean-room status
+
+The current default APK workflow still builds from a pinned Amethyst-Android checkout and applies VoidCraft patches. It is not a wholly first-party or copyright-cleared build. The separate [clean-room Android foundation](voidcraft-android/README.md) now has source-provenance records and CI guardrails, plus a category-free local Feature Store prototype with an optional Server Status screen. It is still not playable and must not be described as a complete Minecraft launcher.
+
+See [COPYRIGHT_AND_LICENSE_AUDIT.md](COPYRIGHT_AND_LICENSE_AUDIT.md), [the independent source-provenance record](voidcraft-android/SOURCE_PROVENANCE.md), and [the independent dependency inventory](voidcraft-android/DEPENDENCY_INVENTORY.md). A repository-wide copyright clearance has not been established; the absence of a license file is not a public-domain dedication, and no blanket license should be applied to code whose ownership/provenance has not been verified.
+
 ## Device target
 
 - Android 9 (API 28) and newer. Upstream Amethyst declares a lower minimum Android SDK, so this build does not raise it.

@@ -26,6 +26,35 @@ def validate_xml_files(paths: tuple[Path, ...]) -> None:
             raise ValueError(f"Generated Android XML is invalid at {path}: {exc}") from exc
 
 
+def remove_unlicensed_minecraft_ten_font(upstream: Path) -> None:
+    """Keep the legacy APK from bundling the font with no verified redistribution grant.
+
+    The resource metadata in the built APK identifies Mojang AB as the copyright
+    holder and says all rights reserved. This removes only that cosmetic font
+    resource from the temporary upstream checkout; it does not touch the
+    launcher runtime, Minecraft download pipeline, or any license/notice files.
+    The Gradle build and regression suite must still confirm that no required
+    source reference depends on this resource.
+    """
+    font_asset = (
+        upstream
+        / "app_pojavlauncher"
+        / "src"
+        / "main"
+        / "res"
+        / "font"
+        / "minecraft_ten.ttf"
+    )
+    if font_asset.is_symlink():
+        font_asset.unlink()
+    elif font_asset.exists():
+        if not font_asset.is_file():
+            raise ValueError(f"Unexpected Minecraft Ten font resource type: {font_asset}")
+        font_asset.unlink()
+    if font_asset.exists() or font_asset.is_symlink():
+        raise OSError(f"Could not remove unverified Minecraft Ten font resource: {font_asset}")
+
+
 def patch_upstream(upstream: Path) -> None:
     gradle = upstream / "app_pojavlauncher" / "build.gradle"
     strings = upstream / "app_pojavlauncher" / "src" / "main" / "res" / "values" / "strings.xml"
@@ -3398,6 +3427,8 @@ def patch_upstream(upstream: Path) -> None:
     if "if (deviceRam <= 2048) return 512;" not in preferences_text:
         raise ValueError("The 1.5–2 GB RAM tier must default to a 512 MB heap")
     launcher_preferences.write_text(preferences_text, encoding="utf-8")
+
+    remove_unlicensed_minecraft_ten_font(upstream)
 
     validate_xml_files((
         strings,
