@@ -21,7 +21,7 @@ The launcher includes a bundled catalog for offline browsing and checks the publ
 ## Current sample features
 
 - **Theme Studio** — changes supported launcher UI colors with named palettes.
-- **Server Status** — queries the public mcsrvstat.us service for an entered Java server.
+- **Server Status** — checks a Java Edition server and displays ONLINE, OFFLINE, or UNKNOWN; current/max player counts; MOTD; version; and the server icon/logo when supplied. Uses the public mcsrvstat.us service over HTTPS.
 - **Community Resources** — a separate feature screen linking to Modrinth, CurseForge, and the project.
 - **Social Hub (Preview)** — profile username, provider-choice UI, local friend-request workflow, contact removal, and local chat previews. This currently stores data on this device only; it does not deliver real friend requests/messages or authenticate with Microsoft/Xbox, Google, or other providers.
 
