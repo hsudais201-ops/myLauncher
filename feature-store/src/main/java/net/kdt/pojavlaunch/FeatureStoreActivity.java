@@ -79,6 +79,7 @@ public final class FeatureStoreActivity extends BaseActivity {
     private JSONObject currentFeature;
     private JSONObject pendingExport;
     private boolean remoteCatalogLoaded;
+    private String catalogSearchQuery = "";
     private int socialTab = 0;
     private String activeChatFriend;
 
@@ -228,7 +229,13 @@ public final class FeatureStoreActivity extends BaseActivity {
     private void showBrowse() {
         currentPage = "browse";
         currentFeature = null;
-        beginPage("Browse features", "Optional add-ons with their own screens. Core launcher systems stay installed.");
+        beginPage("Browse features", "One searchable catalog. Optional add-ons stay separate from core launcher systems.");
+        EditText search = editField("Search features by name, description, or creator");
+        search.setSingleLine(true);
+        search.setText(catalogSearchQuery);
+        pageBody.addView(search, matchWrap());
+        addButtonRow("Search", v -> { catalogSearchQuery = search.getText().toString().trim().toLowerCase(Locale.ROOT); showBrowse(); },
+                "Clear", v -> { catalogSearchQuery = ""; showBrowse(); });
         addButtonRow("Refresh catalog", v -> {
             addText("Refreshing the public catalog…", 13, false);
             refreshRemoteCatalog();
@@ -245,7 +252,12 @@ public final class FeatureStoreActivity extends BaseActivity {
             addText("No saved catalog listing is available. Connect to the internet and tap Refresh, or import a .vcfeature package you already have.", 15, false);
             return;
         }
-        for (JSONObject item : catalog) addCatalogCard(item);
+        int matchCount = 0;
+        for (JSONObject item : catalog) {
+            String searchable = (item.optString("name", "") + " " + item.optString("description", "") + " " + item.optString("author", "") + " " + item.optString("owner", "")).toLowerCase(Locale.ROOT);
+            if (empty(catalogSearchQuery) || searchable.contains(catalogSearchQuery)) { addCatalogCard(item); matchCount++; }
+        }
+        if (matchCount == 0) addText("No features match this search. Try another name or clear the search.", 14, false);
     }
 
     private void addCatalogCard(JSONObject item) {
