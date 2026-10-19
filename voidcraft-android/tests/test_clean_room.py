@@ -103,7 +103,7 @@ class CleanRoomBoundaryTests(unittest.TestCase):
         sources = list(JAVA_ROOT.rglob("*.java"))
         self.assertTrue(sources, "Expected first-party Java sources")
         for source in sources:
-            relative = source.relative_to(JAVA_ROOT).as_posix()
+            relative = source.relative_to(PROJECT).as_posix()
             with self.subTest(source=relative):
                 self.assertIn(relative, provenance)
 
