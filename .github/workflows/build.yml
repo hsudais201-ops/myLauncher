@@ -31,7 +31,7 @@ jobs:
 
       - name: Validate customizer and regression suite
         run: |
-          python3 -m py_compile .github/scripts/customize_amethyst.py .github/scripts/apply_logo.py .github/scripts/patch_renderpearl_workaround.py .github/scripts/test_customizer.py .github/scripts/test_renderpearl_workaround.py .github/scripts/customize_ui.py .github/scripts/test_ui_customizer.py
+          python3 -m py_compile .github/scripts/customize_amethyst.py .github/scripts/apply_logo.py .github/scripts/patch_renderpearl_workaround.py .github/scripts/test_customizer.py .github/scripts/test_renderpearl_workaround.py .github/scripts/customize_ui.py .github/scripts/test_ui_customizer.py .github/scripts/customize_developer.py .github/scripts/test_developer.py
           sh -n .github/scripts/prepare_emulator_kvm.sh
           sh -n .github/scripts/emulator_smoke_test.sh
           python3 -m unittest discover -s .github/scripts -p 'test_*.py' -v
@@ -108,6 +108,11 @@ jobs:
           python3 .github/scripts/customize_ui.py upstream
           git -C upstream diff --check
 
+      - name: Apply Developer & Testing security screen
+        run: |
+          python3 .github/scripts/customize_developer.py upstream
+          git -C upstream diff --check
+
       - name: Apply VoidCraft Launcher logo
         run: python3 .github/scripts/apply_logo.py upstream
 
@@ -147,10 +152,8 @@ jobs:
           test "$MIN_SDK" -le 28
           echo "Verified APK metadata (min SDK: $MIN_SDK):"
           grep -E "^(package: name=|application-label:)" /tmp/mylauncher-badging.txt
-          APK_SHA256_PATH="${APK}.sha256"
           (cd "$(dirname "$APK")" && sha256sum "$(basename "$APK")" > "$(basename "$APK").sha256")
-          echo "APK_SHA256_PATH=$APK_SHA256_PATH" >> "$GITHUB_ENV"
-          echo "APK SHA-256: $(cut -d ' ' -f1 "$APK_SHA256_PATH")" >> upstream/VOIDCRAFT_LAUNCHER_BUILD_INFO.txt
+          echo "APK SHA-256: $(sha256sum "$APK" | cut -d ' ' -f1)" >> upstream/VOIDCRAFT_LAUNCHER_BUILD_INFO.txt
 
       - name: Stop Gradle daemons before emulator startup
         working-directory: upstream
@@ -173,16 +176,9 @@ jobs:
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -no-snapshot -camera-back none -camera-front none
           script: sh .github/scripts/emulator_smoke_test.sh "$APK_PATH"
 
-      - name: Upload debug APK
-        if: ${{ always() && env.APK_PATH != '' }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: voidcraft-launcher-debug-apk
-          path: |
-            ${{ env.APK_PATH }}
-            ${{ env.APK_SHA256_PATH }}
-          if-no-files-found: error
-          retention-days: 14
+      # Do not upload the debug APK artifact: this repository is public, so the artifact would
+      # not be restricted to the owner and support testers. Private beta distribution needs
+      # a separate authenticated host and an explicitly approved access list.
 
       - name: Upload upstream build notes
         if: ${{ always() && hashFiles('upstream/VOIDCRAFT_LAUNCHER_BUILD_INFO.txt') != '' }}
