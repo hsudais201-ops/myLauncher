@@ -416,148 +416,340 @@ public final class FeatureStoreActivity extends BaseActivity {
         addText("Theme changes affect supported launcher screens and buttons; the Minecraft renderer and in-game controls are left alone.", 12, false);
     }
 
-    private void renderServerStatus(JSONObject screen) {
-        addText(screen.optString("description", "Check a Minecraft Java Edition server."), 14, false);
-        EditText host = editField(screen.optString("defaultHost", "example.org"));
-        host.setSingleLine(true);
-        pageBody.addView(host);
+    private String serverStorageKey() {
+        String featureId = currentFeature == null ? "default" : currentFeature.optString("id", "default");
+        return "server_status." + featureId + ".servers";
+    }
 
-        LinearLayout statusCard = newCard();
+    private android.content.SharedPreferences serverPreferences() {
+        return getSharedPreferences("voidcraft_feature_store", MODE_PRIVATE);
+    }
+
+    private JSONArray loadSavedServers() {
+        JSONArray stored;
+        try {
+            stored = new JSONArray(serverPreferences().getString(serverStorageKey(), "[]"));
+        } catch (JSONException ignored) {
+            return new JSONArray();
+        }
+        JSONArray valid = new JSONArray();
+        for (int i = 0; i < Math.min(stored.length(), 100); i++) {
+            JSONObject server = stored.optJSONObject(i);
+            if (server == null) continue;
+            String id = server.optString("id", "");
+            String name = server.optString("name", "").trim();
+            String host = server.optString("host", "").trim();
+            if (empty(id) || empty(name) || name.length() > 80 || !validServerHost(host)) continue;
+            JSONObject clean = new JSONObject();
+            try {
+                clean.put("id", id);
+                clean.put("name", name);
+                clean.put("host", host);
+                valid.put(clean);
+            } catch (JSONException ignored) {
+                // Skip malformed stored entries and keep the rest of the list usable.
+            }
+        }
+        return valid;
+    }
+
+    private void saveServerList(JSONArray servers) {
+        serverPreferences().edit().putString(serverStorageKey(), servers.toString()).apply();
+    }
+
+    private boolean validServerHost(String host) {
+        return host != null && host.length() <= 253
+                && SAFE_HOST.matcher(host).matches() && !host.contains("..")
+                && !host.startsWith(".") && !host.endsWith(".");
+    }
+
+    private boolean serverIdExists(JSONArray servers, String id) {
+        for (int i = 0; i < servers.length(); i++) {
+            JSONObject item = servers.optJSONObject(i);
+            if (item != null && id.equals(item.optString("id", ""))) return true;
+        }
+        return false;
+    }
+
+    private void renderServerStatus(JSONObject screen) {
+        addText(screen.optString("description",
+                "Save Minecraft Java Edition servers and check their live status."), 14, false);
+        addButtonRow("＋ Add server",
+                v -> showServerEditor(null, screen.optString("defaultHost", "")));
+        JSONArray servers = loadSavedServers();
+        if (servers.length() == 0) {
+            addText("No servers saved yet. Add a server with a display name and host/IP to start monitoring it.", 15, false);
+        }
+        for (int i = 0; i < servers.length(); i++) {
+            JSONObject server = servers.optJSONObject(i);
+            if (server != null) renderSavedServerCard(server);
+        }
+        addText("Status and player counts come from mcsrvstat.us over HTTPS. Results may be cached by that service. A failed lookup is UNKNOWN, not automatically OFFLINE.", 12, false);
+    }
+
+    private void renderSavedServerCard(JSONObject server) {
+        final String id = server.optString("id");
+        final String name = server.optString("name", "Minecraft server");
+        final String address = server.optString("host", "");
+        LinearLayout card = newCard();
+        addTextTo(card, name, 18, true);
+        addTextTo(card, address, 13, false);
+
         LinearLayout header = horizontalRow();
         ImageView logo = new ImageView(this);
         logo.setImageResource(android.R.drawable.ic_menu_gallery);
         logo.setScaleType(ImageView.ScaleType.CENTER_CROP);
-        logo.setContentDescription("Minecraft server icon");
+        logo.setContentDescription(name + " server icon");
         LinearLayout.LayoutParams logoParams = new LinearLayout.LayoutParams(dp(64), dp(64));
         logoParams.setMargins(0, 0, dp(12), 0);
         header.addView(logo, logoParams);
 
         LinearLayout summary = new LinearLayout(this);
         summary.setOrientation(LinearLayout.VERTICAL);
-        TextView state = addTextTo(summary, "NOT CHECKED", 18, true);
-        TextView playersLabel = addTextTo(summary, "Players online: —", 15, true);
+        TextView state = addTextTo(summary, "NOT CHECKED", 17, true);
+        TextView playersLabel = addTextTo(summary, "Players online: —", 14, true);
         TextView versionLabel = addTextTo(summary, "Version: —", 12, false);
-        header.addView(summary, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
-        statusCard.addView(header);
+        header.addView(summary, new LinearLayout.LayoutParams(
+                0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        card.addView(header);
 
-        TextView motd = addTextTo(statusCard, "MOTD: Not checked yet.", 14, false);
-        TextView detail = addTextTo(statusCard, "Enter a server address and press Check status.", 12, false);
+        TextView motd = addTextTo(card, "MOTD: Not checked yet.", 14, false);
+        TextView detail = addTextTo(card, "Tap Refresh to check this server.", 12, false);
 
-        Button check = makeButton("Check status");
-        check.setOnClickListener(v -> {
-            String address = host.getText().toString().trim();
-            if (!SAFE_HOST.matcher(address).matches() || address.contains("..")) {
-                detail.setText("Enter a valid host name or host:port without spaces or a URL.");
+        LinearLayout actions = horizontalRow();
+        Button refresh = makeButton("Refresh");
+        refresh.setOnClickListener(v -> refreshServerStatus(
+                address, state, playersLabel, versionLabel, motd, detail, logo, refresh));
+        LinearLayout.LayoutParams actionParams = new LinearLayout.LayoutParams(
+                0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
+        actionParams.setMargins(dp(3), dp(4), dp(3), dp(4));
+        actions.addView(refresh, actionParams);
+        addButtonTo(actions, "Edit", v -> showServerEditor(id, address));
+        addButtonTo(actions, "Remove", v -> confirmRemoveServer(id, name));
+        card.addView(actions);
+    }
+
+    private void showServerEditor(String serverId, String defaultHost) {
+        JSONArray servers = loadSavedServers();
+        JSONObject existing = null;
+        if (!empty(serverId)) {
+            for (int i = 0; i < servers.length(); i++) {
+                JSONObject item = servers.optJSONObject(i);
+                if (item != null && serverId.equals(item.optString("id", ""))) {
+                    existing = item;
+                    break;
+                }
+            }
+            if (existing == null) {
+                Toast.makeText(this, "This saved server could not be found.", Toast.LENGTH_SHORT).show();
+                showFeature(currentFeature);
                 return;
             }
-            check.setEnabled(false);
-            state.setText("CHECKING…");
-            state.setTextColor(Color.parseColor("#B8A7F7"));
-            playersLabel.setText("Players online: Checking…");
-            versionLabel.setText("Version: —");
-            motd.setText("MOTD: Checking…");
-            detail.setText(address);
+        }
+        if (existing == null && servers.length() >= 100) {
+            Toast.makeText(this, "You can save up to 100 servers in this feature.", Toast.LENGTH_LONG).show();
+            return;
+        }
 
-            io.execute(() -> {
-                boolean online = false;
-                String playerCount = "Players online: unavailable";
-                String serverVersion = "Version: unavailable";
-                String motdText = "MOTD: Not provided by this server.";
-                String details = address;
-                Bitmap serverIcon = null;
-                boolean lookupSucceeded = false;
-                try {
-                    JSONObject response = new JSONObject(fetchHttps(
-                            "https://api.mcsrvstat.us/3/" + URLEncoder.encode(address, "UTF-8"), 256 * 1024));
-                    lookupSucceeded = true;
-                    online = response.optBoolean("online", false);
+        LinearLayout form = new LinearLayout(this);
+        form.setOrientation(LinearLayout.VERTICAL);
+        form.setPadding(dp(20), dp(4), dp(20), dp(4));
+        addTextTo(form, "Display name", 14, true);
+        EditText nameInput = editField("e.g. My Survival Server");
+        nameInput.setSingleLine(true);
+        if (existing != null) nameInput.setText(existing.optString("name", ""));
+        form.addView(nameInput, matchWrap());
+        addTextTo(form, "Server IP / address", 14, true);
+        EditText hostInput = editField("play.example.net or 192.0.2.10:25565");
+        hostInput.setSingleLine(true);
+        hostInput.setInputType(android.text.InputType.TYPE_CLASS_TEXT
+                | android.text.InputType.TYPE_TEXT_VARIATION_URI);
+        if (existing != null) hostInput.setText(existing.optString("host", ""));
+        else if (!empty(defaultHost)) hostInput.setText(defaultHost);
+        form.addView(hostInput, matchWrap());
 
-                    if (online) {
-                        JSONObject players = response.optJSONObject("players");
-                        if (players != null && players.has("online")) {
-                            int onlinePlayers = Math.max(0, players.optInt("online", 0));
-                            if (players.has("max")) {
-                                playerCount = "Players online: " + onlinePlayers + " / "
-                                        + Math.max(0, players.optInt("max", 0));
-                            } else {
-                                playerCount = "Players online: " + onlinePlayers;
-                            }
-                        }
-                        String versionText = response.optString("version", "");
-                        JSONObject protocol = response.optJSONObject("protocol");
-                        if (empty(versionText) && protocol != null) {
-                            versionText = protocol.optString("name", "");
-                        }
-                        if (!empty(versionText)) serverVersion = "Version: " + versionText;
-
-                        JSONObject motdObject = response.optJSONObject("motd");
-                        JSONArray clean = motdObject == null ? null : motdObject.optJSONArray("clean");
-                        JSONArray raw = motdObject == null ? null : motdObject.optJSONArray("raw");
-                        JSONArray selectedLines = clean != null ? clean : raw;
-                        if (selectedLines != null && selectedLines.length() > 0) {
-                            StringBuilder text = new StringBuilder("MOTD: ");
-                            for (int i = 0; i < Math.min(selectedLines.length(), 3); i++) {
-                                if (i > 0) text.append('\n');
-                                text.append(selectedLines.optString(i));
-                            }
-                            motdText = text.toString();
-                            if (motdText.length() > 500) motdText = motdText.substring(0, 497) + "…";
-                        }
+        AlertDialog dialog = new AlertDialog.Builder(this)
+                .setTitle(existing == null ? "Add server" : "Edit server")
+                .setView(form)
+                .setNegativeButton(android.R.string.cancel, null)
+                .setPositiveButton("Save", null)
+                .create();
+        final JSONObject original = existing;
+        dialog.setOnShowListener(ignored -> dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v -> {
+            String name = nameInput.getText().toString().trim();
+            String host = hostInput.getText().toString().trim();
+            if (name.length() < 1 || name.length() > 80) {
+                nameInput.setError("Name must be 1–80 characters");
+                return;
+            }
+            if (!validServerHost(host)) {
+                hostInput.setError("Enter a valid host name or IP, optionally with :port. Do not enter a URL.");
+                return;
+            }
+            try {
+                String id = original == null ? "server-" + Long.toHexString(System.currentTimeMillis())
+                        : original.optString("id");
+                while (original == null && serverIdExists(servers, id)) id += "x";
+                JSONObject saved = new JSONObject();
+                saved.put("id", id);
+                saved.put("name", name);
+                saved.put("host", host);
+                JSONArray updated = new JSONArray();
+                boolean replaced = false;
+                for (int i = 0; i < servers.length(); i++) {
+                    JSONObject item = servers.optJSONObject(i);
+                    if (item == null) continue;
+                    if (!empty(serverId) && serverId.equals(item.optString("id", ""))) {
+                        updated.put(saved);
+                        replaced = true;
                     } else {
-                        details = address + "\nNo status response is currently reporting this server online.";
+                        updated.put(item);
                     }
+                }
+                if (!replaced) updated.put(saved);
+                saveServerList(updated);
+                dialog.dismiss();
+                showFeature(currentFeature);
+                Toast.makeText(this, original == null ? "Server added" : "Server updated", Toast.LENGTH_SHORT).show();
+            } catch (Exception error) {
+                showError("Could not save server", error);
+            }
+        }));
+        dialog.show();
+    }
 
-                    serverIcon = decodeServerIcon(response.optString("icon", ""));
-                    if (serverIcon == null) {
-                        try {
-                            byte[] png = fetchHttpsBytes(
-                                    "https://api.mcsrvstat.us/icon/" + URLEncoder.encode(address, "UTF-8"),
-                                    64 * 1024);
-                            serverIcon = decodeServerPng(png);
-                        } catch (Exception ignored) {
-                            // Keep a neutral placeholder when no server icon is available.
+    private void confirmRemoveServer(String serverId, String serverName) {
+        new AlertDialog.Builder(this)
+                .setTitle("Remove server")
+                .setMessage("Remove \"" + serverName + "\" from this saved server list? This does not change the actual Minecraft server.")
+                .setNegativeButton(android.R.string.cancel, null)
+                .setPositiveButton("Remove", (dialog, which) -> {
+                    JSONArray saved = loadSavedServers();
+                    JSONArray updated = new JSONArray();
+                    boolean removed = false;
+                    for (int i = 0; i < saved.length(); i++) {
+                        JSONObject item = saved.optJSONObject(i);
+                        if (item == null) continue;
+                        if (serverId.equals(item.optString("id", ""))) removed = true;
+                        else updated.put(item);
+                    }
+                    saveServerList(updated);
+                    showFeature(currentFeature);
+                    Toast.makeText(this, removed ? "Server removed" : "Server was already removed",
+                            Toast.LENGTH_SHORT).show();
+                }).show();
+    }
+
+    private void refreshServerStatus(String address, TextView state, TextView playersLabel,
+                                     TextView versionLabel, TextView motd, TextView detail,
+                                     ImageView logo, Button refresh) {
+        if (!validServerHost(address)) {
+            detail.setText("This saved address is invalid. Edit the server to fix it.");
+            return;
+        }
+        refresh.setEnabled(false);
+        state.setText("CHECKING…");
+        state.setTextColor(Color.parseColor("#B8A7F7"));
+        playersLabel.setText("Players online: Checking…");
+        versionLabel.setText("Version: —");
+        motd.setText("MOTD: Checking…");
+        detail.setText(address);
+
+        io.execute(() -> {
+            boolean online = false;
+            boolean lookupSucceeded = false;
+            String playerCount = "Players online: unavailable";
+            String serverVersion = "Version: unavailable";
+            String motdText = "MOTD: Not provided by this server.";
+            String details = address;
+            Bitmap serverIcon = null;
+            try {
+                JSONObject response = new JSONObject(fetchHttps(
+                        "https://api.mcsrvstat.us/3/" + URLEncoder.encode(address, "UTF-8"), 256 * 1024));
+                lookupSucceeded = response.has("online");
+                online = response.optBoolean("online", false);
+                if (online) {
+                    JSONObject players = response.optJSONObject("players");
+                    if (players != null && players.has("online")) {
+                        int onlinePlayers = Math.max(0, players.optInt("online", 0));
+                        if (players.has("max")) {
+                            playerCount = "Players online: " + onlinePlayers + " / "
+                                    + Math.max(0, players.optInt("max", 0));
+                        } else {
+                            playerCount = "Players online: " + onlinePlayers;
                         }
                     }
-                } catch (Exception error) {
-                    details = "Status lookup failed. Check the address and internet connection.";
+                    String versionText = response.optString("version", "");
+                    JSONObject protocol = response.optJSONObject("protocol");
+                    if (empty(versionText) && protocol != null) versionText = protocol.optString("name", "");
+                    if (!empty(versionText)) serverVersion = "Version: " + versionText;
+
+                    JSONObject motdObject = response.optJSONObject("motd");
+                    JSONArray clean = motdObject == null ? null : motdObject.optJSONArray("clean");
+                    JSONArray raw = motdObject == null ? null : motdObject.optJSONArray("raw");
+                    JSONArray selectedLines = clean != null ? clean : raw;
+                    if (selectedLines != null && selectedLines.length() > 0) {
+                        StringBuilder text = new StringBuilder("MOTD: ");
+                        for (int i = 0; i < Math.min(selectedLines.length(), 3); i++) {
+                            if (i > 0) text.append('\n');
+                            text.append(selectedLines.optString(i));
+                        }
+                        motdText = text.toString();
+                        if (motdText.length() > 500) motdText = motdText.substring(0, 497) + "…";
+                    }
+                } else {
+                    details = address + "\nNo status response is currently reporting this server online.";
                 }
 
-                final boolean finalOnline = online;
-                final boolean finalLookupSucceeded = lookupSucceeded;
-                final String finalPlayerCount = playerCount;
-                final String finalVersion = serverVersion;
-                final String finalMotd = motdText;
-                final String finalDetails = details;
-                final Bitmap finalIcon = serverIcon;
-                runOnUiThread(() -> {
-                    check.setEnabled(true);
-                    if (!finalLookupSucceeded) {
-                        state.setText("UNKNOWN");
-                        state.setTextColor(Color.parseColor("#F0B35A"));
-                        playersLabel.setText("Players online: unavailable");
-                        versionLabel.setText("Version: unavailable");
-                        motd.setText("MOTD: unavailable");
-                    } else if (finalOnline) {
-                        state.setText("● ONLINE");
-                        state.setTextColor(Color.parseColor("#35D07F"));
-                        playersLabel.setText(finalPlayerCount);
-                        versionLabel.setText(finalVersion);
-                        motd.setText(finalMotd);
-                    } else {
-                        state.setText("● OFFLINE");
-                        state.setTextColor(Color.parseColor("#FF7777"));
-                        playersLabel.setText("Players online: unavailable while offline");
-                        versionLabel.setText("Version: unavailable");
-                        motd.setText("MOTD: unavailable while offline");
+                serverIcon = decodeServerIcon(response.optString("icon", ""));
+                if (serverIcon == null) {
+                    try {
+                        byte[] png = fetchHttpsBytes(
+                                "https://api.mcsrvstat.us/icon/" + URLEncoder.encode(address, "UTF-8"),
+                                64 * 1024);
+                        serverIcon = decodeServerPng(png);
+                    } catch (Exception ignored) {
+                        // Use the neutral placeholder when an icon is not available.
                     }
-                    detail.setText(finalDetails);
-                    if (finalIcon != null) logo.setImageBitmap(finalIcon);
-                    else logo.setImageResource(android.R.drawable.ic_menu_gallery);
-                });
+                }
+            } catch (Exception error) {
+                lookupSucceeded = false;
+                details = "Status lookup failed. Check the address and internet connection.";
+            }
+
+            final boolean finalOnline = online;
+            final boolean finalLookupSucceeded = lookupSucceeded;
+            final String finalPlayerCount = playerCount;
+            final String finalVersion = serverVersion;
+            final String finalMotd = motdText;
+            final String finalDetails = details;
+            final Bitmap finalIcon = serverIcon;
+            runOnUiThread(() -> {
+                refresh.setEnabled(true);
+                if (!finalLookupSucceeded) {
+                    state.setText("UNKNOWN");
+                    state.setTextColor(Color.parseColor("#F0B35A"));
+                    playersLabel.setText("Players online: unavailable");
+                    versionLabel.setText("Version: unavailable");
+                    motd.setText("MOTD: unavailable");
+                } else if (finalOnline) {
+                    state.setText("● ONLINE");
+                    state.setTextColor(Color.parseColor("#35D07F"));
+                    playersLabel.setText(finalPlayerCount);
+                    versionLabel.setText(finalVersion);
+                    motd.setText(finalMotd);
+                } else {
+                    state.setText("● OFFLINE");
+                    state.setTextColor(Color.parseColor("#FF7777"));
+                    playersLabel.setText("Players online: unavailable while offline");
+                    versionLabel.setText("Version: unavailable");
+                    motd.setText("MOTD: unavailable while offline");
+                }
+                detail.setText(finalDetails);
+                if (finalIcon != null) logo.setImageBitmap(finalIcon);
+                else logo.setImageResource(android.R.drawable.ic_menu_gallery);
             });
         });
-        pageBody.addView(check);
-        addText("Live status, player counts, MOTD, and server icon are read from the mcsrvstat.us API. Data is only as fresh as that service's cache; a failed lookup is shown as UNKNOWN, not falsely marked offline.", 12, false);
     }
 
     private Bitmap decodeServerIcon(String dataUri) {
