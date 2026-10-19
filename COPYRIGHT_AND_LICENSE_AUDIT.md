@@ -44,7 +44,10 @@ The independent app's current build/runtime dependency list is maintained in [vo
 ## Required migration plan
 
 ### Gate 1 — Build a traceable source inventory
+
+The legacy build workflow now generates `VOIDCRAFT_THIRD_PARTY_AUDIT.md` and a machine-readable JSON companion after the APK is built, and uploads both as the `voidcraft-third-party-evidence` artifact. The script is `.github/scripts/audit_third_party.py`; its unit tests cover hashing, submodule states, APK entry inventory, and explicit incomplete status. Review the actual artifact before treating any inventory item as verified. The artifact is not an SPDX SBOM and is not legal clearance.
 - [x] Record the upstream URL, exact pinned commit, and Git blob IDs of the top-level `LICENSE`, `README.md`, and `.gitmodules` files.
+- [ ] Review the generated legacy third-party evidence artifact from CI: it records recursive submodule commit IDs, SHA-256 hashes for license/notice candidates, Gradle dependency declaration candidates, and selected APK entry hashes. This is evidence collection only; it does not identify every binary or decide license compatibility.
 - [ ] Archive the actual recursive submodule commit IDs used by the legacy workflow, calculate SHA-256 for every bundled component license/notice, and reconcile incomplete or conflicting credits (including Boardwalk, LWJGLX, ANGLE, and PFFFT).
 - [ ] Inventory every submodule, Maven/Gradle dependency, native library, JRE, renderer, loader, font, image, and generated/bundled asset actually included in an APK.
 - [ ] Record component name, version, source URL, SPDX license expression where verifiable, redistribution obligations, notices, and whether it is bundled.
