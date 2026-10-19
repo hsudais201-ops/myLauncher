@@ -48,6 +48,16 @@ The successful legacy APK workflow [#39265982186](https://github.com/hsudais201-
 
 The audit script now also parses the upstream README's Credits & Dependencies list, searches license/notice filenames including suffix-style names inside license directories, and compares `.gitmodules` declarations with the submodule checkout-status report. This makes mismatches and explicit "Unknown"/"All Rights Reserved"/"ARR" claims visible for manual resolution. A human must still map each binary and source file to the exact component version and check the real license terms.
 
+### Findings in the generated legacy APK evidence (workflow #39269864074)
+
+- The evidence report recorded APK SHA-256 `f89da3feb010ea72d2fd7da8838367fec5dac2f68c9a9530dd08219100c956aa` and 693 selected package entries, including 174 `.so`, 37 `.jar`, 18 `.dex`, and 364 `.png` entries. Counts are for the script's selected entry set, not necessarily every ZIP entry.
+- The pinned `.gitmodules` declares five submodule paths, but the captured recursive status output listed only two checked-out paths: `MioLibPatcher` and `androidnsbypass`. `MobileGlues`, `SDL`, and `sdl2-compat` had no status record in that output. This is an unresolved source-tree/configuration discrepancy; the inventory does not establish whether those pieces are unused, represented elsewhere, or were omitted from the checkout.
+- The packaged APK inventory identifies separate `ANGLE_LICENSE`, `OPENAL-SOFT_GPL2`, and `PFFFT_LICENSE` entries. These need to be mapped to the exact origin and shipped binaries. The upstream README's credit block contains review flags for Boardwalk's ambiguous license description, LWJGLX's unknown license, PFFFT marked ARR, and ANGLE described as “All Rights Reserved.” The actual tracked ANGLE notice contains source/binary redistribution conditions, so its README shorthand and the notice should be reconciled rather than treating either label alone as a final legal conclusion.
+- The APK includes `res/font/minecraft_ten.ttf` (127,504 bytes; SHA-256 `fc34c190dbfae5fe2f27adb45a93425f502388191854a6a0c2ac2f7c594a688f`). A separate Open Font License notice under `assets/font/LICENSE_OFL.txt` must not automatically be assumed to cover this different font file. Verify this font's exact provenance and grant; if unclear, remove it from the legacy distribution and replace its UI use with system typography or a font with verified redistribution rights.
+
+This workflow completed the APK build/package checks and generated the inventory, but its emulator-startup step was cancelled when newer commits arrived. The earlier [workflow #39265982186](https://github.com/hsudais201-ops/myLauncher/actions/runs/39265982186) passed the emulator startup smoke test with the previous audit-script version. This difference is deliberate: don't treat a cancelled smoke step as a successful current validation.
+
+
 ## Required migration plan
 
 ### Gate 1 — Build a traceable source inventory
