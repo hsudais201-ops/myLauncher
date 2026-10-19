@@ -84,6 +84,14 @@ class CleanRoomBoundaryTests(unittest.TestCase):
         self.assertIn("330c6eae3164df64bdc4828e946a9e62cc5169e4", audit)
         self.assertIn("not a clean-room build", audit)
 
+    def test_dependency_inventory_exists_and_marks_unimplemented_runtime(self):
+        inventory_path = PROJECT / "DEPENDENCY_INVENTORY.md"
+        self.assertTrue(inventory_path.is_file())
+        inventory = inventory_path.read_text(encoding="utf-8")
+        self.assertIn("No third-party runtime library currently declared", inventory)
+        self.assertIn("not cleared by this table", inventory)
+        self.assertIn("UNKNOWN", inventory)
+
     def test_clean_room_app_does_not_request_network_permission_yet(self):
         manifest = MANIFEST.read_text(encoding="utf-8")
         self.assertNotIn("android.permission.INTERNET", manifest)
