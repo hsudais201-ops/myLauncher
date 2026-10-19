@@ -163,7 +163,7 @@ def _validate_store_catalog() -> None:
         if feature_id in seen:
             raise ValueError(f"Duplicate catalog feature id: {feature_id}")
         seen.add(feature_id)
-        if not re.fullmatch(r"packages/[A-Za-z0-9._-]{1,100}\\.vcfeature", asset):
+        if not re.fullmatch(r"packages/[A-Za-z0-9._-]{1,100}\.vcfeature", asset):
             raise ValueError(f"Unsafe package source path for {feature_id}")
         if not re.fullmatch(r"[a-fA-F0-9]{64}", expected):
             raise ValueError(f"Invalid SHA-256 in catalog for {feature_id}")
