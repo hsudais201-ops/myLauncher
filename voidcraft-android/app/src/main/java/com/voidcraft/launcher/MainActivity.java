@@ -331,7 +331,7 @@ public final class MainActivity extends Activity {
             LinearLayout.LayoutParams addressParams = new LinearLayout.LayoutParams(-1, -2);
             addressParams.topMargin = dp(5);
             card.addView(addressText, addressParams);
-            addStatus("Status not checked", COLOR_WARNING);
+            card.addView(text("Status not checked", 13, COLOR_WARNING, true));
 
             LinearLayout actions = new LinearLayout(this);
             actions.setOrientation(LinearLayout.HORIZONTAL);
