@@ -6,6 +6,12 @@
 
 This document tracks the complete requested feature scope. A feature appearing in this list does **not** by itself mean the feature is implemented or has passed a runtime test. The project builds the pinned [Amethyst-Android engine](https://github.com/AngelAuraMC/Amethyst-Android) and applies VoidCraft Launcher patches; existing engine features should be audited and exposed before reimplementing them. Every unverified item below needs a source check and/or an acceptance test before it is described as shipped.
 
+## Feature placement decision (2026-10-19)
+
+The placement rules in [FEATURE_STORE_SPEC.md](FEATURE_STORE_SPEC.md) are the source of truth for the new Feature Store. **Feature Store extensions:** Server Status Monitor, VoidCraft Friends & Chat, Mod Manager Plus, Theme Studio, enhanced World Backup Manager, Resource Pack Manager, Download Center Plus, Shader Compatibility Assistant, Dashboard Widget Maker, and Community Feature Creator. **Built into the launcher, not installable from the Store:** Crash Assistant (item 4), Touch Control Designer (item 7), Device Compatibility Checker (item 8), Modpack Import & Export (item 9), and Performance Advisor (item 11). Do not add a Store category system. These are placement requirements, not claims of implementation.
+
+The Feature Store is additive and must preserve the pinned engine, Java runtimes, native libraries, renderer/input, downloader, loaders, authentication, and existing user data. The new Store must not be built around direct Modrinth/CurseForge API browsing or direct CurseForge file loading. Built-in modpack import/export is local-file-first and limited to documented supported formats. Audit existing upstream integration code separately before changing or removing it.
+
 ## Current source audit
 
 | Area | Current evidence | Status |
@@ -118,11 +124,10 @@ These links point to the pinned upstream source that the build uses. They establ
 - Mod file export
 - Mod descriptions and author information
 - Modpack management
-- Modrinth integration
-- CurseForge integration
-- Modpack ZIP import
-- Modpack export
-- Modpack updates
+- Built-in local modpack archive import (documented supported formats only; see FEATURE_STORE_SPEC.md)
+- Built-in modpack export (documented portable format; see FEATURE_STORE_SPEC.md)
+- No new Feature Store based on direct Modrinth/CurseForge API browsing or direct CurseForge file loading
+- Audit existing upstream catalog/integration code separately before modifying or removing it; preserve shared loaders and downloader
 
 ## 5. Game Profiles and Instances
 
