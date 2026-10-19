@@ -70,9 +70,9 @@ class DeveloperScreenCustomizerTests(unittest.TestCase):
             self.assertIn("voidcraft_dev_restrict_files", page_xml)
             self.assertIn("voidcraft_dev_restrict_sources", page_xml)
             self.assertIn("voidcraft_dev_privacy", page_xml)
-            self.assertIn("information only", fragment_java.lower())
-            self.assertIn("not configured", strings_xml)
-            self.assertIn("not implemented", strings_xml)
+            self.assertIn("read-only explanation", fragment_java.lower())
+            self.assertIn("not configured", strings_xml.lower())
+            self.assertIn("not implemented", strings_xml.lower())
             self.assertIn("not private", strings_xml.lower())
 
             parsed_strings = ET.parse(files[2]).getroot()
