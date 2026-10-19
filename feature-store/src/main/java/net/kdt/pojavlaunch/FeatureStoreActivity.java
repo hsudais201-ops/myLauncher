@@ -69,7 +69,6 @@ public final class FeatureStoreActivity extends BaseActivity {
     private static final int MAX_CATALOG_BYTES = 1024 * 1024;
     private static final Pattern SAFE_ID = Pattern.compile("[a-z0-9][a-z0-9._-]{1,79}");
     private static final Pattern SAFE_HOST = Pattern.compile("[A-Za-z0-9._:-]{1,253}");
-    private static final Pattern SAFE_ASSET = Pattern.compile("packages/[A-Za-z0-9._-]{1,100}\\.vcfeature");
     private static final Pattern SHA256 = Pattern.compile("[a-fA-F0-9]{64}");
 
     private final ExecutorService io = Executors.newSingleThreadExecutor();
@@ -91,7 +90,7 @@ public final class FeatureStoreActivity extends BaseActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        loadBundledCatalog();
+        loadCachedCatalog();
         showBrowse();
         refreshRemoteCatalog();
     }
@@ -102,8 +101,16 @@ public final class FeatureStoreActivity extends BaseActivity {
         super.onDestroy();
     }
 
+    private File storeDirectory() {
+        return new File(getFilesDir(), "feature-store");
+    }
+
     private File installedDirectory() {
-        return new File(new File(getFilesDir(), "feature-store"), "installed");
+        return new File(storeDirectory(), "installed");
+    }
+
+    private File catalogCacheFile() {
+        return new File(storeDirectory(), "catalog-cache.json");
     }
 
     private File installedFile(String id) {
@@ -115,12 +122,14 @@ public final class FeatureStoreActivity extends BaseActivity {
         return id != null && SAFE_ID.matcher(id).matches() && !id.contains("..");
     }
 
-    private void loadBundledCatalog() {
-        try {
-            JSONObject document = new JSONObject(readAsset("feature-store/catalog.json", MAX_CATALOG_BYTES));
-            addCatalogEntries(document.optJSONArray("features"), false);
+    private void loadCachedCatalog() {
+        File cache = catalogCacheFile();
+        if (!cache.isFile() || cache.length() > MAX_CATALOG_BYTES) return;
+        try (InputStream input = new FileInputStream(cache)) {
+            JSONObject document = validateCatalogDocument(readLimited(input, MAX_CATALOG_BYTES));
+            addCatalogEntries(document.optJSONArray("features"), true);
         } catch (Exception ignored) {
-            // A bad optional catalog must not affect game launching or other launcher systems.
+            // The cached listing is optional metadata; a corrupt cache must not block the store.
         }
     }
 
@@ -128,34 +137,78 @@ public final class FeatureStoreActivity extends BaseActivity {
         io.execute(() -> {
             try {
                 String raw = fetchHttps(CATALOG_URL, MAX_CATALOG_BYTES);
-                JSONObject document = new JSONObject(raw);
-                if (document.optInt("schemaVersion", -1) != 1) {
-                    throw new IllegalArgumentException("Unsupported catalog schema");
-                }
+                JSONObject document = validateCatalogDocument(raw);
+                cacheCatalog(raw);
                 JSONArray entries = document.optJSONArray("features");
-                if (entries == null || entries.length() > 500) {
-                    throw new IllegalArgumentException("Invalid catalog feature list");
-                }
                 runOnUiThread(() -> {
                     addCatalogEntries(entries, true);
                     remoteCatalogLoaded = true;
                     if ("browse".equals(currentPage)) showBrowse();
                 });
             } catch (Exception ignored) {
-                // Keep bundled catalog available offline; remote browsing is best-effort.
+                // Keep a previously cached listing if the network is unavailable.
+                runOnUiThread(() -> {
+                    if ("browse".equals(currentPage)) showBrowse();
+                });
             }
         });
+    }
+
+    private JSONObject validateCatalogDocument(String raw) throws JSONException {
+        JSONObject document = new JSONObject(raw);
+        if (document.optInt("schemaVersion", -1) != 1) {
+            throw new IllegalArgumentException("Unsupported catalog schema");
+        }
+        JSONArray entries = document.optJSONArray("features");
+        if (entries == null || entries.length() > 500) {
+            throw new IllegalArgumentException("Invalid catalog feature list");
+        }
+        ArrayList<String> ids = new ArrayList<>();
+        for (int i = 0; i < entries.length(); i++) {
+            JSONObject entry = entries.optJSONObject(i);
+            if (!validCatalogEntry(entry)) {
+                throw new IllegalArgumentException("Catalog entry " + i + " did not pass validation");
+            }
+            String id = entry.optString("id");
+            if (ids.contains(id)) throw new IllegalArgumentException("Duplicate catalog feature id: " + id);
+            ids.add(id);
+        }
+        return document;
+    }
+
+    private void cacheCatalog(String raw) throws Exception {
+        byte[] bytes = raw.getBytes("UTF-8");
+        if (bytes.length > MAX_CATALOG_BYTES) throw new IllegalArgumentException("Catalog exceeds size limit");
+        File directory = storeDirectory();
+        if (!directory.isDirectory() && !directory.mkdirs()) {
+            throw new IllegalStateException("Could not create Feature Store metadata directory");
+        }
+        File temporary = new File(directory, "catalog-cache.json.tmp");
+        try (FileOutputStream stream = new FileOutputStream(temporary)) {
+            stream.write(bytes);
+            stream.getFD().sync();
+        }
+        File destination = catalogCacheFile();
+        if (destination.exists() && !destination.delete()) {
+            temporary.delete();
+            throw new IllegalStateException("Could not replace the cached catalog");
+        }
+        if (!temporary.renameTo(destination)) {
+            temporary.delete();
+            throw new IllegalStateException("Could not save the cached catalog");
+        }
     }
 
     private void addCatalogEntries(JSONArray entries, boolean replace) {
         if (entries == null) return;
         Map<String, JSONObject> merged = new LinkedHashMap<>();
-        for (JSONObject current : catalog) merged.put(current.optString("id"), current);
+        if (!replace) {
+            for (JSONObject current : catalog) merged.put(current.optString("id"), current);
+        }
         for (int i = 0; i < entries.length(); i++) {
             JSONObject entry = entries.optJSONObject(i);
             if (!validCatalogEntry(entry)) continue;
-            String id = entry.optString("id");
-            if (replace || !merged.containsKey(id)) merged.put(id, entry);
+            merged.put(entry.optString("id"), entry);
         }
         catalog.clear();
         catalog.addAll(merged.values());
@@ -164,14 +217,12 @@ public final class FeatureStoreActivity extends BaseActivity {
     }
 
     private boolean validCatalogEntry(JSONObject entry) {
-        if (entry == null || !isSafeId(entry.optString("id"))) return false;
+        if (entry == null || entry.has("category") || !isSafeId(entry.optString("id"))) return false;
         if (empty(entry.optString("name")) || empty(entry.optString("author"))
                 || empty(entry.optString("owner")) || empty(entry.optString("version"))) return false;
         if (!SHA256.matcher(entry.optString("sha256")).matches()) return false;
-        String asset = entry.optString("asset", "");
         String url = entry.optString("packageUrl", "");
-        return (SAFE_ASSET.matcher(asset).matches() || !empty(url))
-                && (empty(url) || isHttpsUrl(url));
+        return !empty(url) && isHttpsUrl(url);
     }
 
     private void showBrowse() {
@@ -183,11 +234,15 @@ public final class FeatureStoreActivity extends BaseActivity {
             refreshRemoteCatalog();
             Toast.makeText(this, "Catalog refresh started", Toast.LENGTH_SHORT).show();
         }, "Import package", v -> importPackage());
-        if (!remoteCatalogLoaded) {
-            addText("Showing the bundled catalog. New community entries appear when the public catalog is reachable.", 12, false);
+        if (remoteCatalogLoaded) {
+            addText("This is the online catalog. Feature packages are downloaded only when you tap Install.", 12, false);
+        } else if (!catalog.isEmpty()) {
+            addText("Showing the last saved catalog listing. Refresh when online to check for new features.", 12, false);
+        } else {
+            addText("The catalog contains feature listings only; it does not install features automatically. Connect to the internet to browse available add-ons.", 12, false);
         }
         if (catalog.isEmpty()) {
-            addText("No catalog entries are available yet. Connect to the internet or import a .vcfeature package.", 15, false);
+            addText("No saved catalog listing is available. Connect to the internet and tap Refresh, or import a .vcfeature package you already have.", 15, false);
             return;
         }
         for (JSONObject item : catalog) addCatalogCard(item);
@@ -1220,19 +1275,10 @@ public final class FeatureStoreActivity extends BaseActivity {
         io.execute(() -> {
             try {
                 String expectedHash = entry.getString("sha256").toLowerCase(Locale.ROOT);
-                String packageText = null;
-                String asset = entry.optString("asset", "");
-                if (SAFE_ASSET.matcher(asset).matches()) {
-                    try {
-                        String local = readAsset("feature-store/" + asset, MAX_PACKAGE_BYTES);
-                        if (sha256(local).equals(expectedHash)) packageText = local;
-                    } catch (Exception ignored) { }
-                }
-                if (packageText == null) {
-                    String url = entry.optString("packageUrl", "");
-                    if (!isHttpsUrl(url)) throw new IllegalArgumentException("Feature package URL must use HTTPS");
-                    packageText = fetchHttps(url, MAX_PACKAGE_BYTES);
-                }
+                String url = entry.optString("packageUrl", "");
+                if (!isHttpsUrl(url)) throw new IllegalArgumentException("Feature package URL must use HTTPS");
+                // Never load a feature from APK assets: every catalog installation is an explicit download.
+                String packageText = fetchHttps(url, MAX_PACKAGE_BYTES);
                 if (!sha256(packageText).equals(expectedHash)) {
                     throw new IllegalArgumentException("Feature package SHA-256 did not match the catalog");
                 }
@@ -1463,12 +1509,6 @@ public final class FeatureStoreActivity extends BaseActivity {
             } finally {
                 pendingExport = null;
             }
-        }
-    }
-
-    private String readAsset(String path, int limit) throws Exception {
-        try (InputStream input = getAssets().open(path)) {
-            return readLimited(input, limit);
         }
     }
 
