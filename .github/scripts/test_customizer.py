@@ -555,9 +555,8 @@ class ProfileTypeSelectFragment {
             self.assertIn("private void applyMyLauncherPerformanceProfile(int profile)", menu)
             self.assertIn('requested.put("renderDistance", "4");', menu)
             self.assertIn('requested.put("maxFps", "60");', menu)
-            self.assertIn('requested.put("resolutionRatio",', menu) if False else None
             self.assertIn('putInt("resolutionRatio", resolutionRatio)', menu)
-            self.assertIn('new File(profileDirectory, "options.txt.voidcraft-performance-backup")', menu)
+            self.assertIn('new java.io.File(profileDirectory, "options.txt.voidcraft-performance-backup")', menu)
             self.assertIn("private void restoreMyLauncherPerformanceSettings()", menu)
             self.assertIn("copyMyLauncherPerformanceFile(backupFile, optionsFile)", menu)
             self.assertIn("if (value != null)", menu)
