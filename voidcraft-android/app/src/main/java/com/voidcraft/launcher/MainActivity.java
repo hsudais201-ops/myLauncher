@@ -2,7 +2,6 @@ package com.voidcraft.launcher;
 
 import android.app.Activity;
 import android.app.AlertDialog;
-import android.app.AlertDialog;
 import android.content.SharedPreferences;
 import android.graphics.Color;
 import android.graphics.Typeface;
@@ -12,17 +11,11 @@ import android.view.Gravity;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
-import android.widget.EditText;
 import android.widget.HorizontalScrollView;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.Switch;
 import android.widget.TextView;
-import android.widget.Toast;
-import org.json.JSONArray;
-import org.json.JSONException;
-import org.json.JSONObject;
-import java.util.ArrayList;
 import android.widget.Toast;
 
 import java.util.List;
@@ -37,7 +30,6 @@ public final class MainActivity extends Activity {
     private static final String PREFS = "voidcraft_clean_room_settings";
     private static final String KEY_LOW_MEMORY = "low_memory_mode";
     private static final String KEY_REDUCED_MOTION = "reduced_ui_motion";
-    private static final String KEY_SAVED_SERVERS = "saved_servers_json";
 
     private static final int COLOR_BACKGROUND = Color.rgb(13, 11, 24);
     private static final int COLOR_SURFACE = Color.rgb(25, 21, 43);
@@ -258,7 +250,8 @@ public final class MainActivity extends Activity {
                         return;
                     }
                     if (address.contains(" ") || address.contains("://")) {
-                        Toast.makeText(this, "Enter a hostname or IP address, optionally with a port.",
+                        Toast.makeText(this,
+                                "Enter a hostname or IP address, optionally with a port.",
                                 Toast.LENGTH_LONG).show();
                         return;
                     }
@@ -278,7 +271,8 @@ public final class MainActivity extends Activity {
     private void confirmRemoveServer(SavedServerStore.Entry entry) {
         new AlertDialog.Builder(this)
                 .setTitle("Remove saved server?")
-                .setMessage("Remove \"" + entry.name + "\" from this device? This does not affect the actual server.")
+                .setMessage("Remove \"" + entry.name
+                        + "\" from this device? This does not affect the actual server.")
                 .setNegativeButton("Cancel", null)
                 .setPositiveButton("Remove", (dialog, which) -> {
                     serverStore.remove(entry.id);
@@ -304,162 +298,6 @@ public final class MainActivity extends Activity {
         addShortcut("Installations", "Manage game profiles and versions");
         addShortcut("Feature Store", "Choose and manage optional launcher features");
         addShortcut("Servers", "Maintain a saved server list");
-    }
-
-    private void buildServers() {
-        addCard("Saved servers",
-                "Add and maintain server addresses on this device. Live online status, MOTD, player count, version, and icon require a query service and are not guessed here.");
-        Button add = button("＋  Add server", this::showServerEditorForNew, true);
-        LinearLayout.LayoutParams addParams = new LinearLayout.LayoutParams(-1, dp(46));
-        addParams.bottomMargin = dp(12);
-        pageContent.addView(add, addParams);
-
-        JSONArray servers = readServers();
-        if (servers.length() == 0) {
-            addStatus("No saved servers yet", COLOR_MUTED);
-        }
-        for (int i = 0; i < servers.length(); i++) {
-            JSONObject server = servers.optJSONObject(i);
-            if (server == null) continue;
-            final String id = server.optString("id", "");
-            String name = server.optString("name", "Minecraft server");
-            String address = server.optString("address", "");
-            LinearLayout card = cardContainer();
-            card.addView(text(name, 17, COLOR_TEXT, true));
-            TextView addressText = text(address, 14, COLOR_MUTED, false);
-            addressText.setTextIsSelectable(true);
-            LinearLayout.LayoutParams addressParams = new LinearLayout.LayoutParams(-1, -2);
-            addressParams.topMargin = dp(5);
-            card.addView(addressText, addressParams);
-            card.addView(text("Status not checked", 13, COLOR_WARNING, true));
-
-            LinearLayout actions = new LinearLayout(this);
-            actions.setOrientation(LinearLayout.HORIZONTAL);
-            Button edit = button("Edit", () -> showServerEditor(id), true);
-            Button remove = button("Remove", () -> confirmRemoveServer(id, name), false);
-            LinearLayout.LayoutParams actionParams = new LinearLayout.LayoutParams(0, dp(42), 1f);
-            actionParams.setMargins(0, dp(8), dp(5), 0);
-            actions.addView(edit, actionParams);
-            LinearLayout.LayoutParams removeParams = new LinearLayout.LayoutParams(0, dp(42), 1f);
-            removeParams.setMargins(dp(5), dp(8), 0, 0);
-            actions.addView(remove, removeParams);
-            card.addView(actions);
-            addCardView(card);
-        }
-    }
-
-    private JSONArray readServers() {
-        String stored = preferences.getString(KEY_SAVED_SERVERS, "[]");
-        try {
-            return new JSONArray(stored);
-        } catch (JSONException error) {
-            // Corrupt local data should not crash the Servers page.
-            return new JSONArray();
-        }
-    }
-
-    private void saveServers(JSONArray servers) {
-        preferences.edit().putString(KEY_SAVED_SERVERS, servers.toString()).apply();
-    }
-
-    private void showServerEditorForNew() {
-        showServerEditor(null);
-    }
-
-    private void showServerEditor(String serverId) {
-        JSONObject existing = null;
-        JSONArray servers = readServers();
-        if (serverId != null) {
-            for (int i = 0; i < servers.length(); i++) {
-                JSONObject item = servers.optJSONObject(i);
-                if (item != null && serverId.equals(item.optString("id", ""))) {
-                    existing = item;
-                    break;
-                }
-            }
-        }
-
-        final JSONObject serverToEdit = existing;
-        EditText nameInput = new EditText(this);
-        nameInput.setSingleLine(true);
-        nameInput.setHint("Server name");
-        EditText addressInput = new EditText(this);
-        addressInput.setSingleLine(true);
-        addressInput.setHint("Address or hostname (example: play.example.net)");
-        if (serverToEdit != null) {
-            nameInput.setText(serverToEdit.optString("name", ""));
-            addressInput.setText(serverToEdit.optString("address", ""));
-        }
-
-        LinearLayout form = new LinearLayout(this);
-        form.setOrientation(LinearLayout.VERTICAL);
-        form.setPadding(dp(20), dp(8), dp(20), 0);
-        form.addView(nameInput, new LinearLayout.LayoutParams(-1, -2));
-        form.addView(addressInput, new LinearLayout.LayoutParams(-1, -2));
-
-        AlertDialog dialog = new AlertDialog.Builder(this)
-                .setTitle(serverToEdit == null ? "Add server" : "Edit server")
-                .setView(form)
-                .setNegativeButton("Cancel", null)
-                .setPositiveButton("Save", null)
-                .create();
-        dialog.setOnShowListener(ignored -> dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(view -> {
-            String name = nameInput.getText().toString().trim();
-            String address = addressInput.getText().toString().trim();
-            if (name.isEmpty() || address.isEmpty()) {
-                Toast.makeText(this, "Enter both a server name and address.", Toast.LENGTH_SHORT).show();
-                return;
-            }
-            if (address.contains("://") || address.contains("/") || address.contains(" ")) {
-                Toast.makeText(this, "Enter a hostname or host:port, not a URL.", Toast.LENGTH_SHORT).show();
-                return;
-            }
-            try {
-                JSONObject saved = serverToEdit == null ? new JSONObject() : new JSONObject(serverToEdit.toString());
-                saved.put("id", serverToEdit == null ? java.util.UUID.randomUUID().toString()
-                        : serverToEdit.optString("id", java.util.UUID.randomUUID().toString()));
-                saved.put("name", name);
-                saved.put("address", address);
-                saved.put("status", "unknown");
-                if (serverToEdit == null) {
-                    servers.put(saved);
-                } else {
-                    for (int i = 0; i < servers.length(); i++) {
-                        JSONObject item = servers.optJSONObject(i);
-                        if (item != null && saved.optString("id").equals(item.optString("id"))) {
-                            servers.put(i, saved);
-                            break;
-                        }
-                    }
-                }
-                saveServers(servers);
-                dialog.dismiss();
-                render();
-            } catch (JSONException error) {
-                Toast.makeText(this, "Could not save this server.", Toast.LENGTH_SHORT).show();
-            }
-        }));
-        dialog.show();
-    }
-
-    private void confirmRemoveServer(String serverId, String serverName) {
-        new AlertDialog.Builder(this)
-                .setTitle("Remove server?")
-                .setMessage("Remove " + serverName + " from your saved list? This does not affect the server itself.")
-                .setNegativeButton("Cancel", null)
-                .setPositiveButton("Remove", (dialog, which) -> {
-                    JSONArray current = readServers();
-                    JSONArray remaining = new JSONArray();
-                    for (int i = 0; i < current.length(); i++) {
-                        JSONObject item = current.optJSONObject(i);
-                        if (item != null && !serverId.equals(item.optString("id", ""))) {
-                            remaining.put(item);
-                        }
-                    }
-                    saveServers(remaining);
-                    render();
-                })
-                .show();
     }
 
     private void buildSettings() {
