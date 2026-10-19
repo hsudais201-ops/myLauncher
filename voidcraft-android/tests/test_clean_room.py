@@ -39,15 +39,15 @@ class CleanRoomBoundaryTests(unittest.TestCase):
         store = SERVER_STORE.read_text(encoding="utf-8")
 
         self.assertIn("new SavedServerStore(this)", source)
-        self.assertIn("SavedServerStore store = new SavedServerStore(this)", source)
+        self.assertIn("serverStore = new SavedServerStore(this)", source)
         self.assertIn('button("＋  Add server"', source)
         self.assertIn('button("Refresh saved list"', source)
         self.assertIn("showServerEditorForNew", source)
         self.assertIn("showServerEditor(String serverId)", source)
-        self.assertIn("store.add(name, address)", source)
-        self.assertIn("store.update(serverToEdit.id, name, address)", source)
+        self.assertIn("serverStore.add(name, address)", source)
+        self.assertIn("serverStore.update(serverToEdit.id, name, address)", source)
         self.assertIn("confirmRemoveServer(String serverId, String serverName)", source)
-        self.assertIn("new SavedServerStore(this).remove(serverId)", source)
+        self.assertIn("serverStore.remove(serverId)", source)
 
         self.assertIn("SharedPreferences", store)
         self.assertIn("List<Entry> load()", store)
@@ -58,9 +58,9 @@ class CleanRoomBoundaryTests(unittest.TestCase):
     def test_server_status_is_not_fabricated_or_claimed_as_implemented(self):
         source = MAIN_ACTIVITY.read_text(encoding="utf-8")
         readme = (PROJECT / "README.md").read_text(encoding="utf-8")
-        self.assertIn("Status not checked", source)
+        self.assertIn("Live status: not checked", source)
         self.assertIn("Live online status, MOTD, player count", source)
-        self.assertIn("Live status queries are not connected", source)
+        self.assertIn("Live status checks are not connected", source)
         self.assertIn("Live online/offline checks, MOTD, player counts", readme)
 
     def test_clean_room_app_does_not_request_network_permission_yet(self):
