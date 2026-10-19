@@ -39,6 +39,7 @@ public final class MainActivity extends Activity {
     private static final String PREFS = "voidcraft_clean_room_settings";
     private static final String KEY_LOW_MEMORY = "low_memory_mode";
     private static final String KEY_REDUCED_MOTION = "reduced_ui_motion";
+    private static final String KEY_FEATURE_SERVER_STATUS_INSTALLED = "feature_server_status_installed";
 
     private static final int COLOR_BACKGROUND = Color.rgb(13, 11, 24);
     private static final int COLOR_SURFACE = Color.rgb(25, 21, 43);
@@ -79,7 +80,10 @@ public final class MainActivity extends Activity {
 
     @Override
     public void onBackPressed() {
-        if (!"Dashboard".equals(currentRoute)) {
+        if ("Server Status".equals(currentRoute)) {
+            currentRoute = "Feature Store";
+            render();
+        } else if (!"Dashboard".equals(currentRoute)) {
             currentRoute = "Dashboard";
             render();
         } else {
@@ -154,21 +158,82 @@ public final class MainActivity extends Activity {
                     "The independent download queue, resume logic, file verification, and storage accounting have not been implemented yet.");
             addAction("Download service status", "No game download service is connected.");
         } else if ("Feature Store".equals(currentRoute)) {
-            addCard("Choose your features",
-                    "The intended store is category-free: browse feature cards, install only the features you choose, and open each installed feature on its own page.");
-            addStatus("Remote catalog not connected", COLOR_WARNING);
-            addAction("Installed features", "No feature packages are installed in this clean-room app.");
+            buildFeatureStore();
         } else if ("Servers".equals(currentRoute)) {
             buildServers();
+        } else if ("Server Status".equals(currentRoute)) {
+            buildServerStatusFeature();
         } else if ("Settings".equals(currentRoute)) {
             buildSettings();
         }
     }
 
+    private void buildFeatureStore() {
+        addCard("Optional launcher features",
+                "Browse individual features without fixed categories. Install only the tools you want; installed features get their own screen.");
+
+        boolean installed = preferences.getBoolean(KEY_FEATURE_SERVER_STATUS_INSTALLED, false);
+        LinearLayout statusFeature = cardContainer();
+        statusFeature.addView(text("Server Status", 18, COLOR_TEXT, true));
+        TextView detail = text(
+                "Check saved Minecraft: Java Edition servers for reachability, MOTD, player count, version, and server icon.",
+                14, COLOR_MUTED, false);
+        detail.setLineSpacing(dp(3), 1f);
+        LinearLayout.LayoutParams detailParams = new LinearLayout.LayoutParams(-1, -2);
+        detailParams.topMargin = dp(8);
+        statusFeature.addView(detail, detailParams);
+        statusFeature.addView(text(
+                installed ? "Installed on this device" : "Not installed",
+                13, installed ? COLOR_SUCCESS : COLOR_MUTED, true));
+
+        if (installed) {
+            Button open = button("Open Server Status", () -> navigate("Server Status"), true);
+            LinearLayout.LayoutParams openParams = new LinearLayout.LayoutParams(-1, dp(44));
+            openParams.topMargin = dp(12);
+            statusFeature.addView(open, openParams);
+
+            Button uninstall = button("Uninstall feature", this::confirmUninstallServerStatusFeature, false);
+            LinearLayout.LayoutParams uninstallParams = new LinearLayout.LayoutParams(-1, dp(44));
+            uninstallParams.topMargin = dp(8);
+            statusFeature.addView(uninstall, uninstallParams);
+        } else {
+            Button install = button("Install Server Status", () -> {
+                preferences.edit().putBoolean(KEY_FEATURE_SERVER_STATUS_INSTALLED, true).apply();
+                Toast.makeText(this, "Server Status installed.", Toast.LENGTH_SHORT).show();
+                navigate("Feature Store");
+            }, true);
+            LinearLayout.LayoutParams installParams = new LinearLayout.LayoutParams(-1, dp(44));
+            installParams.topMargin = dp(12);
+            statusFeature.addView(install, installParams);
+        }
+        addCardView(statusFeature);
+
+        addCard("More features",
+                "Custom themes and community-uploaded features can be added later. The remote catalog, upload service, publisher verification, and package-signature checks are not connected yet.");
+    }
+
+    private void confirmUninstallServerStatusFeature() {
+        new AlertDialog.Builder(this)
+                .setTitle("Uninstall Server Status?")
+                .setMessage("This removes the optional status screen. Your saved server names and addresses will remain on this device.")
+                .setNegativeButton("Cancel", null)
+                .setPositiveButton("Uninstall", (dialog, which) -> {
+                    preferences.edit().putBoolean(KEY_FEATURE_SERVER_STATUS_INSTALLED, false).apply();
+                    serverStatuses.clear();
+                    if ("Server Status".equals(currentRoute)) {
+                        navigate("Feature Store");
+                    } else {
+                        render();
+                    }
+                    Toast.makeText(this, "Server Status uninstalled; saved servers were kept.", Toast.LENGTH_SHORT).show();
+                })
+                .show();
+    }
+
     private void buildServers() {
         java.util.List<SavedServerStore.Entry> servers = serverStore.load();
         addCard("Saved servers",
-                "Live status uses a read-only Minecraft: Java Edition status request. It can show reachability, MOTD, player counts, version, and a server-provided icon; it does not join the server.");
+                "This list stores server names and host addresses on this device. Add, edit, remove, or refresh the saved list here. Live status is an optional feature available in the Feature Store.");
 
         Button add = button("＋  Add server", this::showServerEditorForNew, true);
         LinearLayout.LayoutParams addParams = new LinearLayout.LayoutParams(-1, dp(46));
@@ -180,8 +245,60 @@ public final class MainActivity extends Activity {
             Toast.makeText(this, "Saved server list reloaded.", Toast.LENGTH_SHORT).show();
         }, false);
         LinearLayout.LayoutParams refreshParams = new LinearLayout.LayoutParams(-1, dp(44));
-        refreshParams.bottomMargin = dp(8);
+        refreshParams.bottomMargin = dp(12);
         pageContent.addView(refresh, refreshParams);
+
+        if (preferences.getBoolean(KEY_FEATURE_SERVER_STATUS_INSTALLED, false)) {
+            Button openStatus = button("Open Server Status feature", () -> navigate("Server Status"), true);
+            LinearLayout.LayoutParams statusParams = new LinearLayout.LayoutParams(-1, dp(44));
+            statusParams.bottomMargin = dp(12);
+            pageContent.addView(openStatus, statusParams);
+        }
+
+        if (servers.isEmpty()) {
+            addStatus("No saved servers yet. Select Add server to create one.", COLOR_MUTED);
+        }
+        for (SavedServerStore.Entry server : servers) {
+            LinearLayout card = cardContainer();
+            card.addView(text(server.name, 17, COLOR_TEXT, true));
+            TextView addressText = text(server.address, 14, COLOR_MUTED, false);
+            addressText.setTextIsSelectable(true);
+            LinearLayout.LayoutParams addressParams = new LinearLayout.LayoutParams(-1, -2);
+            addressParams.topMargin = dp(5);
+            card.addView(addressText, addressParams);
+
+            LinearLayout actions = new LinearLayout(this);
+            actions.setOrientation(LinearLayout.HORIZONTAL);
+            Button edit = button("Edit", () -> showServerEditor(server.id), true);
+            Button remove = button("Remove", () -> confirmRemoveServer(server.id, server.name), false);
+            LinearLayout.LayoutParams actionParams = new LinearLayout.LayoutParams(0, dp(42), 1f);
+            actionParams.setMargins(0, dp(8), dp(5), 0);
+            actions.addView(edit, actionParams);
+            LinearLayout.LayoutParams removeParams = new LinearLayout.LayoutParams(0, dp(42), 1f);
+            removeParams.setMargins(dp(5), dp(8), 0, 0);
+            actions.addView(remove, removeParams);
+            card.addView(actions);
+            addCardView(card);
+        }
+    }
+
+    private void buildServerStatusFeature() {
+        if (!preferences.getBoolean(KEY_FEATURE_SERVER_STATUS_INSTALLED, false)) {
+            addCard("Server Status is not installed",
+                    "Open the Feature Store to install this optional feature. Your saved servers have not been deleted.");
+            Button store = button("Open Feature Store", () -> navigate("Feature Store"), true);
+            pageContent.addView(store, new LinearLayout.LayoutParams(-1, dp(44)));
+            return;
+        }
+
+        java.util.List<SavedServerStore.Entry> servers = serverStore.load();
+        addCard("Server Status",
+                "Read-only Minecraft: Java Edition status. A successful response can include MOTD, online/max players, reported version, and the server-provided icon. The app does not log in to or join the server.");
+
+        Button manage = button("Manage saved servers", () -> navigate("Servers"), false);
+        LinearLayout.LayoutParams manageParams = new LinearLayout.LayoutParams(-1, dp(44));
+        manageParams.bottomMargin = dp(8);
+        pageContent.addView(manage, manageParams);
 
         Button checkAll = button("Check all server statuses", this::refreshAllServerStatuses, true);
         LinearLayout.LayoutParams checkParams = new LinearLayout.LayoutParams(-1, dp(44));
@@ -189,7 +306,7 @@ public final class MainActivity extends Activity {
         pageContent.addView(checkAll, checkParams);
 
         if (servers.isEmpty()) {
-            addStatus("No saved servers yet. Add a server to start checking status.", COLOR_MUTED);
+            addStatus("No saved servers yet. Use Manage saved servers to add one.", COLOR_MUTED);
         }
         for (SavedServerStore.Entry server : servers) {
             startServerStatusCheckIfNeeded(server);
@@ -208,8 +325,8 @@ public final class MainActivity extends Activity {
 
             LinearLayout actions = new LinearLayout(this);
             actions.setOrientation(LinearLayout.HORIZONTAL);
-            Button edit = button("Edit", () -> showServerEditor(server.id), true);
-            Button remove = button("Remove", () -> confirmRemoveServer(server.id, server.name), false);
+            Button edit = button("Edit", () -> navigate("Servers"), false);
+            Button remove = button("Remove", () -> navigate("Servers"), false);
             LinearLayout.LayoutParams actionParams = new LinearLayout.LayoutParams(0, dp(42), 1f);
             actionParams.setMargins(0, dp(8), dp(5), 0);
             actions.addView(edit, actionParams);
@@ -247,6 +364,10 @@ public final class MainActivity extends Activity {
             runOnUiThread(() -> {
                 serverQueriesInFlight.remove(server.id);
                 if (isFinishing() || isDestroyed()) {
+                    return;
+                }
+                if (!preferences.getBoolean(KEY_FEATURE_SERVER_STATUS_INSTALLED, false)) {
+                    serverStatuses.remove(server.id);
                     return;
                 }
 
