@@ -43,4 +43,4 @@ The optional Server Status feature appears in the category-free Feature Store. I
 
 Do not copy or mechanically translate other launcher source files into this subtree. Before introducing external components, document the source, exact version, license, required notices, and why the dependency is needed. The existing root build remains a separate legacy build while this independent implementation is developed and verified.
 
-See [DEPENDENCY_INVENTORY.md](DEPENDENCY_INVENTORY.md) for the audited build/runtime dependency surface. See [../CLEAN_ROOM_POLICY.md](../CLEAN_ROOM_POLICY.md).
+See [DEPENDENCY_INVENTORY.md](DEPENDENCY_INVENTORY.md) for the audited build/runtime dependency surface and [SOURCE_PROVENANCE.md](SOURCE_PROVENANCE.md) for source-by-source provenance notes and the rules for adding new code/assets. These records are maintainers' evidence, not legal certification. See [../CLEAN_ROOM_POLICY.md](../CLEAN_ROOM_POLICY.md) and [../COPYRIGHT_AND_LICENSE_AUDIT.md](../COPYRIGHT_AND_LICENSE_AUDIT.md).
