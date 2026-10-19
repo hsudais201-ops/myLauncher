@@ -55,6 +55,7 @@ class ThirdPartyAuditTests(unittest.TestCase):
             report = audit.build_report(root, apk, " " + ("b" * 40) + " lib/module (main)")
             self.assertIn("INCOMPLETE", report["legal_status"])
             self.assertIn("limitations", report)
+            self.assertEqual(len(report["apk_sha256"]), 64)
             self.assertEqual(len(report["apk_selected_entries"]), 1)
 
     def test_gradle_declaration_scan_finds_dependencies(self) -> None:
