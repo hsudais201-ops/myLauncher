@@ -5,10 +5,13 @@ import android.content.ClipData;
 import android.content.ClipboardManager;
 import android.content.Context;
 import android.content.Intent;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.graphics.Color;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
 import android.net.Uri;
+import android.util.Base64;
 import android.os.Bundle;
 import android.view.Gravity;
 import android.view.View;
@@ -16,6 +19,7 @@ import android.view.ViewGroup;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.Spinner;
@@ -417,54 +421,201 @@ public final class FeatureStoreActivity extends BaseActivity {
         EditText host = editField(screen.optString("defaultHost", "example.org"));
         host.setSingleLine(true);
         pageBody.addView(host);
-        TextView result = addText("Enter a server address and press Check status.", 14, false);
+
+        LinearLayout statusCard = newCard();
+        LinearLayout header = horizontalRow();
+        ImageView logo = new ImageView(this);
+        logo.setImageResource(android.R.drawable.ic_menu_gallery);
+        logo.setScaleType(ImageView.ScaleType.CENTER_CROP);
+        logo.setContentDescription("Minecraft server icon");
+        LinearLayout.LayoutParams logoParams = new LinearLayout.LayoutParams(dp(64), dp(64));
+        logoParams.setMargins(0, 0, dp(12), 0);
+        header.addView(logo, logoParams);
+
+        LinearLayout summary = new LinearLayout(this);
+        summary.setOrientation(LinearLayout.VERTICAL);
+        TextView state = addTextTo(summary, "NOT CHECKED", 18, true);
+        TextView playersLabel = addTextTo(summary, "Players online: —", 15, true);
+        TextView versionLabel = addTextTo(summary, "Version: —", 12, false);
+        header.addView(summary, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        statusCard.addView(header);
+
+        TextView motd = addTextTo(statusCard, "MOTD: Not checked yet.", 14, false);
+        TextView detail = addTextTo(statusCard, "Enter a server address and press Check status.", 12, false);
+
         Button check = makeButton("Check status");
         check.setOnClickListener(v -> {
             String address = host.getText().toString().trim();
             if (!SAFE_HOST.matcher(address).matches() || address.contains("..")) {
-                result.setText("Enter a valid host name or host:port without spaces or a URL.");
+                detail.setText("Enter a valid host name or host:port without spaces or a URL.");
                 return;
             }
             check.setEnabled(false);
-            result.setText("Checking " + address + "…");
+            state.setText("CHECKING…");
+            state.setTextColor(Color.parseColor("#B8A7F7"));
+            playersLabel.setText("Players online: Checking…");
+            versionLabel.setText("Version: —");
+            motd.setText("MOTD: Checking…");
+            detail.setText(address);
+
             io.execute(() -> {
-                String status;
+                boolean online = false;
+                String playerCount = "Players online: unavailable";
+                String serverVersion = "Version: unavailable";
+                String motdText = "MOTD: Not provided by this server.";
+                String details = address;
+                Bitmap serverIcon = null;
+                boolean lookupSucceeded = false;
                 try {
                     JSONObject response = new JSONObject(fetchHttps(
                             "https://api.mcsrvstat.us/3/" + URLEncoder.encode(address, "UTF-8"), 256 * 1024));
-                    if (!response.optBoolean("online", false)) {
-                        status = "Offline or not reachable: " + address;
-                    } else {
+                    lookupSucceeded = true;
+                    online = response.optBoolean("online", false);
+
+                    if (online) {
                         JSONObject players = response.optJSONObject("players");
-                        JSONObject version = response.optJSONObject("version");
-                        String count = players == null ? "Player count unavailable"
-                                : players.optInt("online", 0) + " / " + players.optInt("max", 0) + " players";
-                        String versionText = version == null ? "" : version.optString("name", "");
-                        status = "ONLINE\n" + address + "\n" + count
-                                + (empty(versionText) ? "" : "\nVersion: " + versionText);
-                        JSONObject motd = response.optJSONObject("motd");
-                        JSONArray clean = motd == null ? null : motd.optJSONArray("clean");
-                        if (clean != null && clean.length() > 0) {
-                            StringBuilder lines = new StringBuilder();
-                            for (int i = 0; i < Math.min(clean.length(), 3); i++) {
-                                if (lines.length() > 0) lines.append('\n');
-                                lines.append(clean.optString(i));
+                        if (players != null && players.has("online")) {
+                            int onlinePlayers = Math.max(0, players.optInt("online", 0));
+                            if (players.has("max")) {
+                                playerCount = "Players online: " + onlinePlayers + " / "
+                                        + Math.max(0, players.optInt("max", 0));
+                            } else {
+                                playerCount = "Players online: " + onlinePlayers;
                             }
-                            status += "\n" + lines;
+                        }
+                        String versionText = response.optString("version", "");
+                        JSONObject protocol = response.optJSONObject("protocol");
+                        if (empty(versionText) && protocol != null) {
+                            versionText = protocol.optString("name", "");
+                        }
+                        if (!empty(versionText)) serverVersion = "Version: " + versionText;
+
+                        JSONObject motdObject = response.optJSONObject("motd");
+                        JSONArray clean = motdObject == null ? null : motdObject.optJSONArray("clean");
+                        JSONArray raw = motdObject == null ? null : motdObject.optJSONArray("raw");
+                        JSONArray selectedLines = clean != null ? clean : raw;
+                        if (selectedLines != null && selectedLines.length() > 0) {
+                            StringBuilder text = new StringBuilder("MOTD: ");
+                            for (int i = 0; i < Math.min(selectedLines.length(), 3); i++) {
+                                if (i > 0) text.append('\n');
+                                text.append(selectedLines.optString(i));
+                            }
+                            motdText = text.toString();
+                            if (motdText.length() > 500) motdText = motdText.substring(0, 497) + "…";
+                        }
+                    } else {
+                        details = address + "\nNo status response is currently reporting this server online.";
+                    }
+
+                    serverIcon = decodeServerIcon(response.optString("icon", ""));
+                    if (serverIcon == null) {
+                        try {
+                            byte[] png = fetchHttpsBytes(
+                                    "https://api.mcsrvstat.us/icon/" + URLEncoder.encode(address, "UTF-8"),
+                                    64 * 1024);
+                            serverIcon = decodeServerPng(png);
+                        } catch (Exception ignored) {
+                            // Keep a neutral placeholder when no server icon is available.
                         }
                     }
                 } catch (Exception error) {
-                    status = "Status lookup failed. Check the address and internet connection.";
+                    details = "Status lookup failed. Check the address and internet connection.";
                 }
-                final String finalStatus = status;
+
+                final boolean finalOnline = online;
+                final boolean finalLookupSucceeded = lookupSucceeded;
+                final String finalPlayerCount = playerCount;
+                final String finalVersion = serverVersion;
+                final String finalMotd = motdText;
+                final String finalDetails = details;
+                final Bitmap finalIcon = serverIcon;
                 runOnUiThread(() -> {
                     check.setEnabled(true);
-                    result.setText(finalStatus);
+                    if (!finalLookupSucceeded) {
+                        state.setText("UNKNOWN");
+                        state.setTextColor(Color.parseColor("#F0B35A"));
+                        playersLabel.setText("Players online: unavailable");
+                        versionLabel.setText("Version: unavailable");
+                        motd.setText("MOTD: unavailable");
+                    } else if (finalOnline) {
+                        state.setText("● ONLINE");
+                        state.setTextColor(Color.parseColor("#35D07F"));
+                        playersLabel.setText(finalPlayerCount);
+                        versionLabel.setText(finalVersion);
+                        motd.setText(finalMotd);
+                    } else {
+                        state.setText("● OFFLINE");
+                        state.setTextColor(Color.parseColor("#FF7777"));
+                        playersLabel.setText("Players online: unavailable while offline");
+                        versionLabel.setText("Version: unavailable");
+                        motd.setText("MOTD: unavailable while offline");
+                    }
+                    detail.setText(finalDetails);
+                    if (finalIcon != null) logo.setImageBitmap(finalIcon);
+                    else logo.setImageResource(android.R.drawable.ic_menu_gallery);
                 });
             });
         });
         pageBody.addView(check);
-        addText("Status is fetched from the third-party mcsrvstat.us service. Do not enter passwords or account tokens.", 12, false);
+        addText("Live status, player counts, MOTD, and server icon are read from the mcsrvstat.us API. Data is only as fresh as that service's cache; a failed lookup is shown as UNKNOWN, not falsely marked offline.", 12, false);
+    }
+
+    private Bitmap decodeServerIcon(String dataUri) {
+        if (empty(dataUri) || dataUri.length() > 96 * 1024
+                || !dataUri.startsWith("data:image/png;base64,")) return null;
+        try {
+            String encoded = dataUri.substring("data:image/png;base64,".length());
+            byte[] bytes = Base64.decode(encoded, Base64.DEFAULT);
+            return decodeServerPng(bytes);
+        } catch (IllegalArgumentException ignored) {
+            return null;
+        }
+    }
+
+    private Bitmap decodeServerPng(byte[] bytes) {
+        if (bytes == null || bytes.length < 24 || bytes.length > 64 * 1024) return null;
+        if ((bytes[0] & 0xff) != 0x89 || bytes[1] != 'P' || bytes[2] != 'N'
+                || bytes[3] != 'G' || bytes[4] != 0x0d || bytes[5] != 0x0a
+                || bytes[6] != 0x1a || bytes[7] != 0x0a) return null;
+        BitmapFactory.Options bounds = new BitmapFactory.Options();
+        bounds.inJustDecodeBounds = true;
+        BitmapFactory.decodeByteArray(bytes, 0, bytes.length, bounds);
+        if (bounds.outWidth < 1 || bounds.outHeight < 1 || bounds.outWidth > 256
+                || bounds.outHeight > 256 || (long) bounds.outWidth * bounds.outHeight > 65536) return null;
+        return BitmapFactory.decodeByteArray(bytes, 0, bytes.length);
+    }
+
+    private static byte[] fetchHttpsBytes(String address, int limit) throws Exception {
+        if (!isHttpsUrl(address)) throw new IllegalArgumentException("Only HTTPS URLs are allowed");
+        HttpURLConnection connection = null;
+        try {
+            URL url = new URL(address);
+            connection = (HttpURLConnection) url.openConnection();
+            connection.setConnectTimeout(7000);
+            connection.setReadTimeout(9000);
+            connection.setInstanceFollowRedirects(false);
+            connection.setRequestMethod("GET");
+            connection.setRequestProperty("User-Agent", "VoidCraft-FeatureStore/1");
+            connection.setRequestProperty("Accept", "image/png");
+            int status = connection.getResponseCode();
+            if (status != HttpURLConnection.HTTP_OK) throw new IllegalStateException("Icon service returned HTTP " + status);
+            long length = connection.getContentLengthLong();
+            if (length > limit) throw new IllegalArgumentException("Server icon exceeds size limit");
+            try (InputStream input = connection.getInputStream();
+                 ByteArrayOutputStream output = new ByteArrayOutputStream()) {
+                byte[] buffer = new byte[4096];
+                int total = 0;
+                int read;
+                while ((read = input.read(buffer)) != -1) {
+                    total += read;
+                    if (total > limit) throw new IllegalArgumentException("Server icon exceeds size limit");
+                    output.write(buffer, 0, read);
+                }
+                return output.toByteArray();
+            }
+        } finally {
+            if (connection != null) connection.disconnect();
+        }
     }
 
     private android.content.SharedPreferences socialPreferences() {
