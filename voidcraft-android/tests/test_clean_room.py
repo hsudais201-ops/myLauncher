@@ -27,6 +27,17 @@ class CleanRoomBoundaryTests(unittest.TestCase):
         self.assertRegex(build, r"minSdk\s+28")
         self.assertTrue(MANIFEST.is_file())
 
+    def test_saved_server_management_persists_and_supports_crud(self):
+        source = (JAVA_ROOT / "com" / "voidcraft" / "launcher" / "MainActivity.java").read_text(encoding="utf-8")
+        self.assertIn('KEY_SAVED_SERVERS = "saved_servers_json"', source)
+        self.assertIn("private JSONArray readServers()", source)
+        self.assertIn("private void saveServers(JSONArray servers)", source)
+        self.assertIn("showServerEditorForNew", source)
+        self.assertIn("showServerEditor(String serverId)", source)
+        self.assertIn("confirmRemoveServer(String serverId, String serverName)", source)
+        self.assertIn("Status not checked", source)
+        self.assertIn("Live online status, MOTD, player count", source)
+
     def test_play_is_not_advertised_as_ready_without_runtime(self):
         source = (JAVA_ROOT / "com" / "voidcraft" / "launcher" / "MainActivity.java").read_text(encoding="utf-8")
         self.assertIn("PLAY — NOT AVAILABLE YET", source)
