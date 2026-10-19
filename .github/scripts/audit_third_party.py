@@ -14,7 +14,8 @@ import zipfile
 from pathlib import Path
 from typing import Any
 
-LICENSE_NAMES = ("license", "copying", "notice", "copyright", "patents")
+LICENSE_MARKERS = ("license", "licence", "copying", "notice", "copyright", "patent")
+LICENSE_DIR_NAMES = {"license", "licenses", "notices", "copyright", "copyrights"}
 SKIP_DIRS = {".git", ".gradle", "build", ".idea", ".kotlin"}
 APK_EXTENSIONS = {".so", ".jar", ".dex", ".ttf", ".otf", ".png", ".webp", ".jpg", ".jpeg", ".json"}
 
@@ -27,15 +28,22 @@ def sha256_file(path: Path) -> str:
     return digest.hexdigest()
 
 
+def is_license_candidate(path: Path) -> bool:
+    lowered = path.name.lower()
+    if any(part.lower() in LICENSE_DIR_NAMES for part in path.parts[:-1]):
+        return True
+    marker_pattern = r"(^|[._-])(" + "|".join(LICENSE_MARKERS) + r"s?)([._-]|$)"
+    return bool(re.search(marker_pattern, lowered))
+
+
 def license_inventory(root: Path) -> list[dict[str, str]]:
     items: list[dict[str, str]] = []
     for current, dirs, files in os.walk(root):
         dirs[:] = sorted(name for name in dirs if name not in SKIP_DIRS)
         for name in sorted(files):
-            lowered = name.lower()
-            if not any(lowered == prefix or lowered.startswith(prefix + ".") or lowered.startswith(prefix + "_") or lowered.startswith(prefix + "-") for prefix in LICENSE_NAMES):
-                continue
             path = Path(current) / name
+            if not is_license_candidate(path):
+                continue
             try:
                 items.append({
                     "path": path.relative_to(root).as_posix(),
@@ -63,6 +71,67 @@ def submodule_inventory(text: str) -> list[dict[str, str]]:
     return results
 
 
+def declared_submodule_inventory(root: Path, status_text: str) -> list[dict[str, str]]:
+    config_path = root / ".gitmodules"
+    if not config_path.is_file():
+        return []
+    declarations: list[dict[str, str]] = []
+    current: dict[str, str] | None = None
+    for line in config_path.read_text(encoding="utf-8", errors="replace").splitlines():
+        section = re.match(r'^\s*\[submodule\s+"([^"]+)"\]\s*$', line)
+        if section:
+            if current is not None:
+                declarations.append(current)
+            current = {"name": section.group(1), "path": "", "url": ""}
+            continue
+        if current is not None:
+            key_value = re.match(r"^\s*(path|url)\s*=\s*(.*?)\s*$", line)
+            if key_value:
+                current[key_value.group(1)] = key_value.group(2)
+    if current is not None:
+        declarations.append(current)
+    observed = {item.get("path", ""): item for item in submodule_inventory(status_text) if item.get("path")}
+    for item in declarations:
+        status = observed.get(item["path"])
+        item["checkout_state"] = status["state"] if status else "declared-but-no-submodule-status-entry"
+        item["checked_out_commit"] = status.get("commit", "UNKNOWN") if status else "UNKNOWN"
+        if not item["path"]:
+            item["checkout_state"] = "invalid-declaration-missing-path"
+    return declarations
+
+
+def upstream_credit_inventory(root: Path) -> list[dict[str, str]]:
+    readme = root / "README.md"
+    if not readme.is_file():
+        return []
+    lines = readme.read_text(encoding="utf-8", errors="replace").splitlines()
+    start = next((i for i, line in enumerate(lines) if re.match(r"^##\s+Credits\s*&\s*Dependencies\s*$", line, re.I)), None)
+    if start is None:
+        return []
+    results: list[dict[str, str]] = []
+    for line in lines[start + 1:]:
+        if re.match(r"^##\s+", line):
+            break
+        match = re.match(r"^\s*[-*]\s+(.+?)\s*$", line)
+        if not match:
+            continue
+        raw = match.group(1).strip()
+        lowered = raw.lower()
+        unresolved = bool(re.search(r"\bunknown\b|all rights reserved|\barr\b", lowered))
+        urls = re.findall(r"\]\((https?://[^)]+)\)", raw)
+        results.append({
+            "entry": raw,
+            "license_review": "review-required" if unresolved else "verify-exact-component-license",
+            "source_urls": "; ".join(urls),
+        })
+    return results
+
+
+def potential_content_review_candidates(entries: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    patterns = re.compile(r"minecraft|mojang|mc-head|angle_license|pffft|openal-soft", re.I)
+    return [entry for entry in entries if patterns.search(str(entry["path"]))]
+
+
 def apk_inventory(apk: Path) -> list[dict[str, Any]]:
     results: list[dict[str, Any]] = []
     with zipfile.ZipFile(apk) as archive:
@@ -88,8 +157,11 @@ def gradle_dependency_lines(root: Path) -> list[dict[str, str]]:
         except OSError:
             continue
         for number, line in enumerate(lines, 1):
-            if re.search(r"\b(implementation|api|runtimeOnly|compileOnly|classpath|kapt|annotationProcessor)\s*(\(|\s)", line):
-                results.append({"path": path.relative_to(root).as_posix(), "line": str(number), "text": line.strip()[:300]})
+            stripped = line.strip()
+            if not stripped or stripped.startswith("//") or stripped.startswith("*") or stripped.startswith("/*"):
+                continue
+            if re.match(r"^(implementation|api|runtimeOnly|compileOnly|classpath|kapt|annotationProcessor)\s*(?:\(|['\"])", stripped):
+                results.append({"path": path.relative_to(root).as_posix(), "line": str(number), "text": stripped[:300]})
     return results
 
 
@@ -101,9 +173,12 @@ def build_report(source: Path, apk: Path, submodule_text: str) -> dict[str, Any]
         "apk": str(apk),
         "apk_sha256": sha256_file(apk),
         "submodules": submodule_inventory(submodule_text),
+        "declared_submodules": declared_submodule_inventory(source, submodule_text),
         "license_notice_files": license_inventory(source),
+        "upstream_credits": upstream_credit_inventory(source),
         "gradle_dependency_declarations": gradle_dependency_lines(source),
         "apk_selected_entries": apk_inventory(apk),
+        "potential_content_review_candidates": potential_content_review_candidates(apk_inventory(apk)),
         "limitations": [
             "Presence of a license file does not prove it applies to every file in that component.",
             "A missing license/notice file does not prove public-domain status or permission.",
