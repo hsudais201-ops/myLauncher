@@ -215,11 +215,24 @@ def render_markdown(report: dict[str, Any]) -> str:
         ))
     if not report["submodules"]:
         lines.append("| No submodule status captured | UNKNOWN | UNKNOWN | Check workflow output |")
+    lines.extend(["", "## Submodules declared by .gitmodules", "", "| Name | Path | URL | Checkout state | Commit |", "|---|---|---|---|---|"])
+    for item in report["declared_submodules"]:
+        lines.append("| " + item.get("name", "").replace("|", "\\|") + " | " + item.get("path", "").replace("|", "\\|") + " | " + item.get("url", "").replace("|", "\\|") + " | " + item.get("checkout_state", "UNKNOWN") + " | " + item.get("checked_out_commit", "UNKNOWN") + " |")
+    if not report["declared_submodules"]:
+        lines.append("| No .gitmodules declarations found | — | — | UNKNOWN | UNKNOWN |")
     lines.extend(["", "## License / notice candidates", "", "| Path | Bytes | SHA-256 |", "|---|---:|---|"])
     for item in report["license_notice_files"]:
         lines.append("| " + item["path"] + " | " + item["bytes"] + " | " + item["sha256"] + " |")
     if not report["license_notice_files"]:
         lines.append("| No matching files found | — | — |")
+    lines.extend(["", "## Upstream README credits and dependency claims", "", "| Review status | Credit / component | Source URL(s) |", "|---|---|---|"])
+    for item in report["upstream_credits"]:
+        entry = item["entry"].replace("|", "\\|")
+        urls = item["source_urls"].replace("|", "\\|")
+        lines.append("| " + item["license_review"] + " | " + entry + " | " + urls + " |")
+    if not report["upstream_credits"]:
+        lines.append("| No Credits & Dependencies section found | — | — |")
+    lines.extend(["", "The status above is a triage flag based on the upstream README wording, not an independent determination that a component is infringing or redistributable. Verify each component's actual license at the exact source revision.", ""])
     lines.extend(["", "## Gradle dependency declaration candidates", "", "| File | Line | Declaration |", "|---|---:|---|"])
     for item in report["gradle_dependency_declarations"]:
         text = item["text"].replace("|", "\\|")
@@ -229,6 +242,13 @@ def render_markdown(report: dict[str, Any]) -> str:
     lines.extend(["", "## Selected APK entries (path, size, SHA-256)", "", "| APK path | Bytes | SHA-256 |", "|---|---:|---|"])
     for item in report["apk_selected_entries"]:
         lines.append("| " + item["path"] + " | " + str(item["bytes"]) + " | " + item["sha256"] + " |")
+    lines.extend(["", "## Potential content / component review candidates", "", "| APK path | Bytes | SHA-256 |", "|---|---:|---|"])
+    for item in report["potential_content_review_candidates"]:
+        lines.append("| " + str(item["path"]).replace("|", "\\|") + " | " + str(item["bytes"]) + " | " + str(item["sha256"]) + " |")
+    if not report["potential_content_review_candidates"]:
+        lines.append("| No filename-based review candidates identified | — | — |")
+    lines.append("")
+    lines.append("Filename matching is only a review aid. A match does not prove a rights violation, and no match does not prove a file is licensed.")
     lines.extend(["", "## Interpretation limits", ""])
     lines.extend("- " + item for item in report["limitations"])
     lines.extend([
