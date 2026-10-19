@@ -22,8 +22,10 @@ import android.widget.Switch;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
@@ -55,6 +57,11 @@ public final class MainActivity extends Activity {
     private SavedServerStore serverStore;
     private final Map<String, MinecraftServerStatusClient.Result> serverStatuses = new HashMap<>();
     private final Set<String> serverQueriesInFlight = new HashSet<>();
+    private MinecraftVersionManifestClient.Manifest versionManifest;
+    private boolean versionManifestLoading;
+    private String versionManifestError;
+    private String versionListFilter = "release";
+    private int versionListLimit = 30;
     private ExecutorService serverStatusExecutor;
     private String currentRoute = "Dashboard";
     private LinearLayout pageContent;
@@ -82,6 +89,9 @@ public final class MainActivity extends Activity {
     public void onBackPressed() {
         if ("Server Status".equals(currentRoute)) {
             currentRoute = "Feature Store";
+            render();
+        } else if ("Minecraft Versions".equals(currentRoute)) {
+            currentRoute = "Installations";
             render();
         } else if ("About & Legal".equals(currentRoute)) {
             currentRoute = "Settings";
@@ -155,7 +165,15 @@ public final class MainActivity extends Activity {
         } else if ("Installations".equals(currentRoute)) {
             addCard("Game installations",
                     "This section will manage isolated game profiles, versions, loader choices, and per-profile settings. No installation engine is connected in this clean-room milestone.");
+            addCard("Official version metadata",
+                    "Browse version IDs and release dates from Mojang’s official public manifest. This does not download Minecraft game files or make an installation playable.");
+            Button browseVersions = button("Browse Minecraft versions", () -> navigate("Minecraft Versions"), true);
+            LinearLayout.LayoutParams browseParams = new LinearLayout.LayoutParams(-1, dp(46));
+            browseParams.bottomMargin = dp(10);
+            pageContent.addView(browseVersions, browseParams);
             addAction("Create installation", "Installation creation is not wired up yet.");
+        } else if ("Minecraft Versions".equals(currentRoute)) {
+            buildMinecraftVersions();
         } else if ("Downloads".equals(currentRoute)) {
             addCard("Download manager",
                     "The independent download queue, resume logic, file verification, and storage accounting have not been implemented yet.");
@@ -543,6 +561,170 @@ public final class MainActivity extends Activity {
         addShortcut("Installations", "Manage game profiles and versions");
         addShortcut("Feature Store", "Choose and manage optional launcher features");
         addShortcut("Servers", "Maintain a saved server list");
+    }
+
+    private void buildMinecraftVersions() {
+        addCard("Official Minecraft: Java Edition versions",
+                "This page reads the public version manifest hosted by Mojang. It lists metadata only; it does not download game JARs, assets, runtimes, or libraries, and it does not launch the game.");
+
+        if (versionManifest == null && !versionManifestLoading) {
+            requestVersionManifest();
+        }
+        if (versionManifestLoading) {
+            addStatus("Loading official version metadata…", COLOR_ACCENT);
+            return;
+        }
+        if (versionManifestError != null) {
+            addStatus("Could not load version metadata: " + versionManifestError, COLOR_WARNING);
+            Button retry = button("Retry version list", () -> {
+                requestVersionManifest();
+                render();
+            }, true);
+            LinearLayout.LayoutParams retryParams = new LinearLayout.LayoutParams(-1, dp(44));
+            retryParams.bottomMargin = dp(10);
+            pageContent.addView(retry, retryParams);
+            return;
+        }
+        if (versionManifest == null) {
+            addStatus("Version metadata is not available.", COLOR_WARNING);
+            return;
+        }
+
+        addStatus("Latest release: " + versionManifest.latestRelease, COLOR_SUCCESS);
+        addStatus("Latest snapshot: " + versionManifest.latestSnapshot, COLOR_ACCENT);
+        Button refresh = button("Refresh official version list", () -> {
+            requestVersionManifest();
+            render();
+        }, false);
+        LinearLayout.LayoutParams refreshParams = new LinearLayout.LayoutParams(-1, dp(44));
+        refreshParams.bottomMargin = dp(12);
+        pageContent.addView(refresh, refreshParams);
+
+        addCard("Filter versions", "Choose which official metadata entries to show.");
+        HorizontalScrollView filterScroll = new HorizontalScrollView(this);
+        filterScroll.setHorizontalScrollBarEnabled(false);
+        LinearLayout filterRow = new LinearLayout(this);
+        filterRow.setOrientation(LinearLayout.HORIZONTAL);
+        filterRow.addView(versionFilterButton("Releases", "release"));
+        filterRow.addView(versionFilterButton("Snapshots / pre-releases", "snapshot"));
+        filterRow.addView(versionFilterButton("Old beta / alpha", "old"));
+        filterRow.addView(versionFilterButton("All types", "all"));
+        filterScroll.addView(filterRow);
+        LinearLayout.LayoutParams filterParams = new LinearLayout.LayoutParams(-1, dp(48));
+        filterParams.bottomMargin = dp(12);
+        pageContent.addView(filterScroll, filterParams);
+
+        List<MinecraftVersionManifestClient.Version> filtered = new ArrayList<>();
+        for (MinecraftVersionManifestClient.Version version : versionManifest.versions) {
+            if (matchesVersionFilter(version)) {
+                filtered.add(version);
+            }
+        }
+        if (filtered.isEmpty()) {
+            addStatus("No versions match this filter.", COLOR_MUTED);
+            return;
+        }
+
+        addStatus("Showing " + Math.min(versionListLimit, filtered.size()) + " of " + filtered.size()
+                + " matching versions. Metadata only; installation is not yet implemented.", COLOR_MUTED);
+        int end = Math.min(versionListLimit, filtered.size());
+        for (int index = 0; index < end; index++) {
+            MinecraftVersionManifestClient.Version version = filtered.get(index);
+            LinearLayout card = cardContainer();
+            card.addView(text(version.id, 17, COLOR_TEXT, true));
+            TextView type = text(displayVersionType(version.type), 13, COLOR_ACCENT, true);
+            LinearLayout.LayoutParams typeParams = new LinearLayout.LayoutParams(-1, -2);
+            typeParams.topMargin = dp(5);
+            card.addView(type, typeParams);
+            TextView date = text("Release time: " + version.releaseTime, 12, COLOR_MUTED, false);
+            LinearLayout.LayoutParams dateParams = new LinearLayout.LayoutParams(-1, -2);
+            dateParams.topMargin = dp(4);
+            card.addView(date, dateParams);
+            addCardView(card);
+        }
+
+        if (end < filtered.size()) {
+            Button more = button("Show next 30 versions", () -> {
+                versionListLimit += 30;
+                render();
+            }, true);
+            LinearLayout.LayoutParams moreParams = new LinearLayout.LayoutParams(-1, dp(44));
+            moreParams.bottomMargin = dp(12);
+            pageContent.addView(more, moreParams);
+        }
+        addCard("Use and distribution",
+                "The version list is fetched from Mojang’s official metadata host. VoidCraft does not include Minecraft game content in this app. A future installer must download only from authorized endpoints and respect applicable account, EULA, and distribution terms.");
+    }
+
+    private Button versionFilterButton(String label, String filter) {
+        Button item = button(label, () -> {
+            versionListFilter = filter;
+            versionListLimit = 30;
+            render();
+        }, filter.equals(versionListFilter));
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(-2, dp(42));
+        params.setMargins(0, 0, dp(6), 0);
+        item.setLayoutParams(params);
+        return item;
+    }
+
+    private boolean matchesVersionFilter(MinecraftVersionManifestClient.Version version) {
+        if ("all".equals(versionListFilter)) {
+            return true;
+        }
+        if ("old".equals(versionListFilter)) {
+            return "old_beta".equals(version.type) || "old_alpha".equals(version.type);
+        }
+        return versionListFilter.equals(version.type);
+    }
+
+    private String displayVersionType(String type) {
+        if ("release".equals(type)) {
+            return "Release";
+        }
+        if ("snapshot".equals(type)) {
+            return "Snapshot / pre-release";
+        }
+        if ("old_beta".equals(type)) {
+            return "Old beta";
+        }
+        if ("old_alpha".equals(type)) {
+            return "Old alpha";
+        }
+        return type;
+    }
+
+    private void requestVersionManifest() {
+        if (versionManifestLoading) {
+            return;
+        }
+        versionManifestLoading = true;
+        versionManifestError = null;
+        serverStatusExecutor.execute(() -> {
+            MinecraftVersionManifestClient.Manifest loaded = null;
+            String error = null;
+            try {
+                loaded = MinecraftVersionManifestClient.fetch();
+            } catch (Exception exception) {
+                error = exception.getMessage();
+                if (error == null || error.trim().isEmpty()) {
+                    error = "A network or metadata error occurred.";
+                }
+            }
+            final MinecraftVersionManifestClient.Manifest result = loaded;
+            final String failure = error;
+            runOnUiThread(() -> {
+                if (isFinishing() || isDestroyed()) {
+                    return;
+                }
+                versionManifest = result;
+                versionManifestError = failure;
+                versionManifestLoading = false;
+                if ("Minecraft Versions".equals(currentRoute)) {
+                    render();
+                }
+            });
+        });
     }
 
     private void buildSettings() {
