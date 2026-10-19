@@ -22,7 +22,8 @@ A dedicated GitHub Actions workflow builds this subtree and runs boundary checks
 
 ## What currently works
 
-- Original dashboard and six-page navigation shell, including an About & Legal Notices page explaining third-party status and the limits of this clean-room build.
+- Original dashboard and navigation shell, including an About & Legal Notices page explaining third-party status and the limits of this clean-room build.
+- A first-party version browser that fetches and validates Mojang’s official Minecraft: Java Edition version manifest, shows latest release/snapshot IDs, supports release/snapshot/old-version filters, and pages through the list. This reads metadata only; it does not download game files.
 - Installations, Downloads, Feature Store, Servers, and Settings navigation.
 - Locally persisted low-memory and reduced-motion preferences.
 - Locally saved server entries with add, edit, remove, and refresh-list actions.
@@ -35,7 +36,7 @@ A dedicated GitHub Actions workflow builds this subtree and runs boundary checks
 
 ## Not implemented yet
 
-This is a foundation, not a playable Minecraft launcher. It does not yet contain or integrate a Java runtime, a game downloader, renderer/native libraries, loader installers, account authentication, world/profile management, or a remote Feature Store catalog/community upload service.
+This is a foundation, not a playable Minecraft launcher. It does not yet contain or integrate a Java runtime, a game-file downloader/installer, renderer/native libraries, loader installers, account authentication, world/profile management, or a remote Feature Store catalog/community upload service. The version browser fetches metadata only and does not download the referenced version JSON, client JARs, libraries, or game assets.
 
 The optional Server Status feature appears in the category-free Feature Store. Installing it enables its own screen to query saved Minecraft: Java Edition servers using a hostname/IP and optional port (default 25565). Successful responses can show online status, MOTD, online/max player counts, reported server version, and the server-provided PNG favicon. Queries are read-only; they do not log in to or join the server. Uninstalling the feature keeps saved server names and addresses. The protocol client caps packets at 1 MiB and uses 3-second connect/read timeouts. “Offline / unreachable” means the query did not complete successfully and is not definitive proof that a server process is stopped. Bedrock status and automatic DNS SRV record discovery are not implemented.
 
