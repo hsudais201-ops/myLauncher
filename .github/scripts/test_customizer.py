@@ -542,6 +542,7 @@ class ProfileTypeSelectFragment {
             menu = menu_path.read_text(encoding="utf-8")
             strings = (root / "app_pojavlauncher/src/main/res/values/strings.xml").read_text(encoding="utf-8")
             self.assertIn('<string name="main_performance_advisor">Performance Advisor</string>', strings)
+            self.assertIn("Close Minecraft before applying.", strings)
             self.assertIn("main_performance_low_message", menu)
             self.assertIn("main_performance_balanced_message", menu)
             self.assertIn("main_performance_quality_message", menu)
