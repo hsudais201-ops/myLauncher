@@ -2170,6 +2170,18 @@ def patch_upstream(upstream: Path) -> None:
             hasNoOnlineProfileDialog(getActivity(), getString(R.string.demo_unsupported), getString(R.string.change_account));
             return;
         }
+        // Avoid applying the higher-load visual preset when Android already reports serious thermal stress.
+        if (profile == 2 && android.os.Build.VERSION.SDK_INT >= 29) {
+            android.os.PowerManager powerManager = (android.os.PowerManager) requireContext()
+                    .getSystemService(android.content.Context.POWER_SERVICE);
+            if (powerManager != null && powerManager.getCurrentThermalStatus()
+                    >= android.os.PowerManager.THERMAL_STATUS_SEVERE) {
+                Toast.makeText(requireContext(),
+                        "Device temperature is high. Let it cool, then use Low-End or Balanced.",
+                        Toast.LENGTH_LONG).show();
+                return;
+            }
+        }
         java.io.File profileDirectory = getCurrentProfileDirectory();
         java.io.File optionsFile = profileDirectory == null ? null : new java.io.File(profileDirectory, "options.txt");
         java.io.File backupFile = profileDirectory == null ? null : new java.io.File(profileDirectory, "options.txt.voidcraft-performance-backup");
@@ -2208,7 +2220,7 @@ def patch_upstream(upstream: Path) -> None:
             requested.put("graphicsMode", "1");
             requested.put("fancyGraphics", "true");
             requested.put("particles", "0");
-            requested.put("maxFps", "120");
+            requested.put("maxFps", "60");
             requested.put("enableVsync", "true");
             requested.put("mipmapLevels", "4");
             requested.put("ao", "2");
