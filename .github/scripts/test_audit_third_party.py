@@ -128,14 +128,16 @@ class ThirdPartyAuditTests(unittest.TestCase):
             (root / "app.gradle").write_text(
                 "dependencies {\n"
                 "    implementation 'group:artifact:1.2.3'\n"
+                "    implementation fileTree(dir: 'libs', include: ['*.jar', '*.aar'])\n"
                 "    // implementation 'commented:out:9.9'\n"
                 "    logger.warn('no implementation dependency here')\n"
                 "}\n",
                 encoding="utf-8",
             )
             found = audit.gradle_dependency_lines(root)
-            self.assertEqual(len(found), 1)
+            self.assertEqual(len(found), 2)
             self.assertIn("group:artifact:1.2.3", found[0]["text"])
+            self.assertIn("fileTree", found[1]["text"])
 
 
 if __name__ == "__main__":
