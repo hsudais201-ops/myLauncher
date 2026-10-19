@@ -65,7 +65,7 @@ class CleanRoomBoundaryTests(unittest.TestCase):
         self.assertIn('button("Browse Minecraft versions"', source)
         self.assertIn("MinecraftVersionManifestClient.fetch()", source)
         self.assertIn("serverStatusExecutor.execute", source)
-        self.assertIn("Metadata only", source)
+        self.assertIn("metadata only", source)
         self.assertIn("https://piston-meta.mojang.com/mc/game/version_manifest_v2.json", client)
         self.assertIn('OFFICIAL_MANIFEST_HOST = "piston-meta.mojang.com"', client)
         self.assertIn("MAX_MANIFEST_BYTES = 8 * 1024 * 1024", client)
