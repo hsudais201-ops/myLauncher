@@ -1,0 +1,64 @@
+name: VoidCraft clean-room Android build
+
+on:
+  push:
+    branches:
+      - main
+      - feature/voidcraft-clean-room-foundation
+    paths:
+      - 'voidcraft-android/**'
+      - 'CLEAN_ROOM_POLICY.md'
+      - '.github/workflows/clean-room-build.yml'
+  pull_request:
+    paths:
+      - 'voidcraft-android/**'
+      - 'CLEAN_ROOM_POLICY.md'
+      - '.github/workflows/clean-room-build.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: voidcraft-clean-room-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test-and-build:
+    name: Verify original source and build standalone APK
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Run clean-room boundary tests
+        run: python3 -m unittest discover -s voidcraft-android/tests -v
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android SDK platform
+        run: sdkmanager --install 'platforms;android-35' 'build-tools;35.0.0'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+
+      - name: Build standalone debug APK
+        run: gradle -p voidcraft-android --no-daemon :app:assembleDebug --stacktrace
+
+      - name: Verify APK exists
+        run: test -s voidcraft-android/app/build/outputs/apk/debug/app-debug.apk
