@@ -84,7 +84,7 @@ class FeatureStoreSpecTests(unittest.TestCase):
             "renderer/input components",
             "Minecraft version metadata/download system",
             "loader installers",
-            "existing user data",
+            "user data",
         ):
             with self.subTest(phrase=phrase):
                 self.assertIn(phrase, self.spec)
