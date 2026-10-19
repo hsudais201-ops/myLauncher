@@ -62,6 +62,9 @@ class CleanRoomBoundaryTests(unittest.TestCase):
         readme = (PROJECT / "README.md").read_text(encoding="utf-8")
 
         self.assertIn("MinecraftServerStatusClient.query(server.address)", source)
+        self.assertIn("serverStatusExecutor.execute", source)
+        self.assertIn("serverStatusExecutor.shutdownNow()", source)
+        self.assertIn("serverStatuses.remove(serverToEdit.id)", source)
         self.assertIn('button("Check all server statuses"', source)
         self.assertIn("● ONLINE", source)
         self.assertIn("● OFFLINE / UNREACHABLE", source)
