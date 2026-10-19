@@ -39,6 +39,7 @@ public final class MainActivity extends Activity {
     private static final int COLOR_WARNING = Color.rgb(251, 191, 36);
 
     private SharedPreferences preferences;
+    private SavedServerStore serverStore;
     private String currentRoute = "Dashboard";
     private LinearLayout pageContent;
 
@@ -46,6 +47,7 @@ public final class MainActivity extends Activity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         preferences = getSharedPreferences(PREFS, MODE_PRIVATE);
+        serverStore = new SavedServerStore(this);
         getWindow().setStatusBarColor(COLOR_BACKGROUND);
         getWindow().setNavigationBarColor(COLOR_BACKGROUND);
         render();
@@ -140,8 +142,7 @@ public final class MainActivity extends Activity {
     }
 
     private void buildServers() {
-        SavedServerStore store = new SavedServerStore(this);
-        java.util.List<SavedServerStore.Entry> servers = store.load();
+        java.util.List<SavedServerStore.Entry> servers = serverStore.load();
         addCard("Saved servers",
                 "Manage server name and address entries on this device. Live online status, MOTD, player count, version, and icon require a query service and are not guessed here.");
         Button add = button("＋  Add server", this::showServerEditorForNew, true);
@@ -150,10 +151,8 @@ public final class MainActivity extends Activity {
         pageContent.addView(add, addParams);
 
         Button refresh = button("Refresh saved list", () -> {
-            navigate("Servers");
-            Toast.makeText(this,
-                    "Saved server list reloaded. Live status queries are not connected.",
-                    Toast.LENGTH_SHORT).show();
+            render();
+            Toast.makeText(this, "Saved list refreshed. Live status checks are not connected.", Toast.LENGTH_SHORT).show();
         }, false);
         LinearLayout.LayoutParams refreshParams = new LinearLayout.LayoutParams(-1, dp(44));
         refreshParams.bottomMargin = dp(12);
@@ -170,7 +169,7 @@ public final class MainActivity extends Activity {
             LinearLayout.LayoutParams addressParams = new LinearLayout.LayoutParams(-1, -2);
             addressParams.topMargin = dp(5);
             card.addView(addressText, addressParams);
-            card.addView(text("Status not checked", 13, COLOR_WARNING, true));
+            card.addView(text("Live status: not checked", 13, COLOR_WARNING, true));
 
             LinearLayout actions = new LinearLayout(this);
             actions.setOrientation(LinearLayout.HORIZONTAL);
@@ -185,6 +184,7 @@ public final class MainActivity extends Activity {
             card.addView(actions);
             addCardView(card);
         }
+        addStatus("Live status checks are not connected", COLOR_WARNING);
     }
 
     private void showServerEditorForNew() {
@@ -192,10 +192,9 @@ public final class MainActivity extends Activity {
     }
 
     private void showServerEditor(String serverId) {
-        SavedServerStore store = new SavedServerStore(this);
         SavedServerStore.Entry existing = null;
         if (serverId != null) {
-            for (SavedServerStore.Entry entry : store.load()) {
+            for (SavedServerStore.Entry entry : serverStore.load()) {
                 if (serverId.equals(entry.id)) {
                     existing = entry;
                     break;
@@ -239,8 +238,8 @@ public final class MainActivity extends Activity {
                 return;
             }
             if (serverToEdit == null) {
-                store.add(name, address);
-            } else if (!store.update(serverToEdit.id, name, address)) {
+                serverStore.add(name, address);
+            } else if (!serverStore.update(serverToEdit.id, name, address)) {
                 Toast.makeText(this, "This saved server no longer exists. Refresh and try again.", Toast.LENGTH_SHORT).show();
                 return;
             }
@@ -256,7 +255,7 @@ public final class MainActivity extends Activity {
                 .setMessage("Remove " + serverName + " from your saved list? This does not affect the server itself.")
                 .setNegativeButton("Cancel", null)
                 .setPositiveButton("Remove", (dialog, which) -> {
-                    new SavedServerStore(this).remove(serverId);
+                    serverStore.remove(serverId);
                     render();
                 })
                 .show();
