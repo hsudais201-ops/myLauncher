@@ -10,7 +10,8 @@
 | Android SDK Platform / Build Tools | Platform 35, Build Tools 35.0.0 | Compile/package | No | SDK package terms accepted by CI; not packaged as launcher runtime code |
 | Eclipse Temurin JDK | Java 17 in the independent CI workflow | Compiles Java source | No | Build-only tool; not bundled as the game's Java runtime |
 | GitHub Actions | `actions/checkout@v4`, `actions/setup-python@v5`, `actions/setup-java@v4`, `android-actions/setup-android@v4`, `gradle/actions/setup-gradle@v4` | CI automation | No | Workflow-only dependencies; not part of the APK. Review the license/terms of each referenced action separately for repository distribution. |
-| Application Java source | `com.voidcraft.launcher` | Original UI shell, local settings, saved-server persistence | Yes | Written for this independent subtree. Provenance is not certified by keyword tests alone |
+| Application Java source | `com.voidcraft.launcher` | Original UI shell, local settings, saved-server persistence, optional Server Status feature UI | Yes | Authored for this independent subtree; see [SOURCE_PROVENANCE.md](SOURCE_PROVENANCE.md). Maintainer provenance notes and keyword checks are not legal clearance |
+| Minecraft Java status client | `MinecraftServerStatusClient.java`; implements the documented read-only Java Edition status handshake/request | Online/reachable result, MOTD, player counts, version, optional server favicon | Yes | Authored for this app from protocol behavior; uses Java sockets/IO and Android `org.json`. No third-party runtime protocol library is declared. Real-server testing is still pending |
 | Minecraft runtime / game files | Not integrated | Java runtime, game JAR/assets, native renderer, loader installers | No | Not present in this app milestone; requires separate technical and license review before integration/distribution |
 | Third-party runtime libraries | No explicit `dependencies { ... }` block in `app/build.gradle` at this revision | None | No | No third-party runtime library currently declared by the app module |
 
@@ -31,4 +32,4 @@ Do not bundle a component marked `UNKNOWN`, “All Rights Reserved,” or not li
 
 The root workflow `.github/workflows/build.yml` fetches Amethyst-Android at commit `330c6eae3164df64bdc4828e946a9e62cc5169e4`, initializes submodules and applies customizations. That output has a separate dependency/provenance surface and is **not cleared by this table**. See [the repository copyright audit](../COPYRIGHT_AND_LICENSE_AUDIT.md).
 
-This inventory does not imply that the current app is playable: there is no game downloader, Java runtime, native renderer, loader installation pipeline, account authentication, or live server query implementation in this subtree yet.
+This inventory does not imply that the current app is playable: there is no game downloader, Java runtime, native renderer, loader installation pipeline, Microsoft/Xbox authentication, or full installation/launch pipeline in this subtree. A read-only Minecraft: Java Edition status query exists as an optional feature, but it is not a game runtime and has not yet been verified against a real server on a device.
