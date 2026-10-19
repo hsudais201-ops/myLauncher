@@ -15,6 +15,14 @@ Public documentation can describe behavior and protocol formats; do not copy exp
 | `app/src/main/java/com/voidcraft/launcher/MainActivity.java` | Dashboard/navigation, preferences, saved-server manager, optional Server Status feature UI | Written for VoidCraft from requirements using Android platform APIs; not intentionally derived from another launcher source | Android framework APIs only; status calls the local client below |
 | `app/src/main/java/com/voidcraft/launcher/SavedServerStore.java` | Local saved-server add/edit/remove/list persistence | Written for VoidCraft using Android SharedPreferences and platform JSON APIs | Android framework APIs and `org.json` from Android |
 | `app/src/main/java/com/voidcraft/launcher/MinecraftServerStatusClient.java` | Read-only Minecraft: Java Edition status handshake/request and bounded response parsing | Written for VoidCraft from the public status protocol behavior; not copied from another launcher implementation | Java networking/IO classes and Android's `org.json`; no third-party runtime library declared |
+| `app/src/main/AndroidManifest.xml` | App entry point, app label/theme, and Internet permission for server status queries | Created for this independent app using Android manifest conventions | Android manifest/platform APIs only |
+| `app/src/main/res/values/strings.xml` | Independent app label | Created for this independent app | Android resource format only |
+| `app/src/main/res/values/styles.xml` | Independent basic dark-violet theme | Created for this independent app from Android theme attributes; no external theme package | Android framework theme only |
+| `app/build.gradle` | App ID, SDK levels, Java language level, and app build configuration | Created for the standalone project | Android Gradle Plugin is build-only; see dependency inventory |
+| `build.gradle` | Pins Android Gradle Plugin version for the standalone project | Created for the standalone project | Build-only plugin from Google Maven |
+| `settings.gradle` | Standalone repository/plugin repositories and `:app` project wiring | Created for the standalone project | Gradle repository metadata only |
+| `gradle.properties` | Standalone Gradle/Android build properties | Created for the standalone project | Build configuration only |
+| `tests/test_clean_room.py` | Regression/source-boundary checks | Written for this repository to prevent accidental boundary regressions; it is not shipped in the APK | Python standard library only |
 
 ## Non-source assets and generated content
 
