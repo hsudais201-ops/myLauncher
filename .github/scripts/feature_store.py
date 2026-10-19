@@ -135,7 +135,8 @@ def _patch_base_activity(path: Path) -> None:
     path.write_text(text, encoding="utf-8")
 
 
-def _copy_assets() -> None:
+def _validate_store_catalog() -> None:
+    """Validate repository-hosted packages for the public catalog; never copy them into the APK."""
     source_assets = SOURCE_ROOT
     catalog_path = source_assets / "catalog.json"
     packages_path = source_assets / "packages"
@@ -143,7 +144,7 @@ def _copy_assets() -> None:
         raise FileNotFoundError("The public feature catalog or package folder is missing")
     catalog = json.loads(catalog_path.read_text(encoding="utf-8"))
     if catalog.get("schemaVersion") != 1 or not isinstance(catalog.get("features"), list):
-        raise ValueError("The bundled Feature Store catalog schema is invalid")
+        raise ValueError("The public Feature Store catalog schema is invalid")
 
     seen: set[str] = set()
     for entry in catalog["features"]:
@@ -154,13 +155,16 @@ def _copy_assets() -> None:
         feature_id = entry.get("id", "")
         asset = entry.get("asset", "")
         expected = entry.get("sha256", "")
+        package_url = entry.get("packageUrl", "")
+        if not isinstance(package_url, str) or not package_url.startswith("https://"):
+            raise ValueError(f"Feature package URL must use HTTPS: {feature_id!r}")
         if not re.fullmatch(r"[a-z0-9][a-z0-9._-]{1,79}", feature_id) or ".." in feature_id:
             raise ValueError(f"Unsafe catalog feature id: {feature_id!r}")
         if feature_id in seen:
             raise ValueError(f"Duplicate catalog feature id: {feature_id}")
         seen.add(feature_id)
-        if not re.fullmatch(r"packages/[A-Za-z0-9._-]{1,100}\.vcfeature", asset):
-            raise ValueError(f"Unsafe package asset path for {feature_id}")
+        if not re.fullmatch(r"packages/[A-Za-z0-9._-]{1,100}\\.vcfeature", asset):
+            raise ValueError(f"Unsafe package source path for {feature_id}")
         if not re.fullmatch(r"[a-fA-F0-9]{64}", expected):
             raise ValueError(f"Invalid SHA-256 in catalog for {feature_id}")
         package_path = source_assets / asset
@@ -177,13 +181,6 @@ def _copy_assets() -> None:
         if not all(isinstance(manifest.get(key), str) and manifest[key].strip()
                    for key in ("name", "version", "author", "owner")):
             raise ValueError(f"Feature metadata is incomplete: {feature_id}")
-
-    destination = SOURCE_ROOT.parent / "feature-store" / "packages"
-    if destination.resolve() != packages_path.resolve():
-        raise ValueError("Unexpected package-source directory")
-    assets_root = REPO_ROOT / ".feature-store-assets-check"
-    # Only the build tree is written below; source and core engine files are not removed.
-    del assets_root
 
 
 def patch_upstream(upstream: Path, repo_root: Path = REPO_ROOT) -> None:
@@ -208,7 +205,7 @@ def patch_upstream(upstream: Path, repo_root: Path = REPO_ROOT) -> None:
             if not path.is_file():
                 raise FileNotFoundError(f"Required Feature Store source file is missing: {path}")
 
-        _copy_assets()
+        _validate_store_catalog()
         for layout in layouts:
             _patch_layout(layout)
         _add_string_resources(strings)
@@ -222,12 +219,10 @@ def patch_upstream(upstream: Path, repo_root: Path = REPO_ROOT) -> None:
         shutil.copyfile(theme_source, java_destination / "FeatureTheme.java")
 
         assets_destination = app / "assets" / "feature-store"
-        assets_destination.mkdir(parents=True, exist_ok=True)
-        shutil.copyfile(SOURCE_ROOT / "catalog.json", assets_destination / "catalog.json")
-        packages_destination = assets_destination / "packages"
-        packages_destination.mkdir(parents=True, exist_ok=True)
-        for package in (SOURCE_ROOT / "packages").glob("*.vcfeature"):
-            shutil.copyfile(package, packages_destination / package.name)
+        if assets_destination.exists():
+            raise ValueError(
+                "Feature Store catalog/packages must not be bundled into APK assets"
+            )
 
         for path in (manifest, strings, *layouts):
             ET.parse(path)
@@ -250,7 +245,7 @@ def main(argv: list[str]) -> int:
         return 1
     print("VoidCraft Feature Store patch OK")
     print("  preserves engine, runtime, native libraries, rendering, version downloads, loaders, Modrinth and CurseForge")
-    print("  adds HTTPS/checksum-validated declarative catalog, package import/export, installed feature screens, and optional theme presets")
+    print("  adds a built-in store manager; online catalog metadata is fetched/cached and feature packages download only after Install")
     return 0
 
 
