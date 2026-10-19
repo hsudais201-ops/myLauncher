@@ -388,6 +388,9 @@ public final class MainActivity extends Activity {
             } else if (!serverStore.update(serverToEdit.id, name, address)) {
                 Toast.makeText(this, "This saved server no longer exists. Refresh and try again.", Toast.LENGTH_SHORT).show();
                 return;
+            } else {
+                // A changed address must not inherit the old host's cached status.
+                serverStatuses.remove(serverToEdit.id);
             }
             dialog.dismiss();
             render();
@@ -402,6 +405,7 @@ public final class MainActivity extends Activity {
                 .setNegativeButton("Cancel", null)
                 .setPositiveButton("Remove", (dialog, which) -> {
                     serverStore.remove(serverId);
+                    serverStatuses.remove(serverId);
                     render();
                 })
                 .show();
