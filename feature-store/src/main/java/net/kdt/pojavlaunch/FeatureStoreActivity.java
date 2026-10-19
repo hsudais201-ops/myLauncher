@@ -320,7 +320,7 @@ public final class FeatureStoreActivity extends BaseActivity {
         pageBody.addView(description);
         addText("Screen type", 14, true);
         Spinner type = new Spinner(this);
-        String[] screenTypes = new String[] {"Custom page", "Theme studio", "Server status", "Social hub (local preview)"};
+        String[] screenTypes = new String[] {"Custom page", "Theme studio", "Server status", "Social hub (local preview)", "Local workspace", "Device report"};
         type.setAdapter(new ArrayAdapter<String>(this, android.R.layout.simple_spinner_dropdown_item, screenTypes));
         pageBody.addView(type, matchWrap());
         addButtonRow("Create and install", v -> {
@@ -382,6 +382,21 @@ public final class FeatureStoreActivity extends BaseActivity {
             screen.put("mode", "local_preview");
             screen.put("title", name);
             screen.put("description", empty(description) ? "A mobile-first social interface preview. Profiles, requests and chats are stored locally; online delivery is not connected." : description);
+        } else if (typeIndex == 4) {
+            screen.put("type", "workspace");
+            screen.put("title", name);
+            screen.put("description", empty(description) ? "Save and manage local entries for this feature." : description);
+            screen.put("entryLabel", "Save entry");
+            screen.put("maxEntries", 100);
+            JSONArray fields = new JSONArray();
+            JSONObject titleField = new JSONObject();
+            titleField.put("id", "title"); titleField.put("label", "Title"); titleField.put("required", true); titleField.put("maxLength", 120); fields.put(titleField);
+            JSONObject detailsField = new JSONObject();
+            detailsField.put("id", "details"); detailsField.put("label", "Details / notes"); detailsField.put("multiline", true); detailsField.put("maxLength", 3000); fields.put(detailsField);
+            screen.put("fields", fields);
+        } else if (typeIndex == 5) {
+            screen.put("type", "device_report"); screen.put("mode", "compatibility"); screen.put("title", name);
+            screen.put("description", empty(description) ? "Review device environment information and known limitations." : description);
         } else {
             screen.put("type", "page");
             screen.put("title", name);
@@ -442,6 +457,10 @@ public final class FeatureStoreActivity extends BaseActivity {
                 renderServerStatus(screen);
             } else if ("social".equals(type)) {
                 renderSocialScreen(screen);
+            } else if ("workspace".equals(type)) {
+                renderWorkspaceScreen(screen);
+            } else if ("device_report".equals(type)) {
+                renderDeviceReportScreen(screen);
             } else {
                 renderPageScreen(screen);
             }
@@ -1331,7 +1350,7 @@ public final class FeatureStoreActivity extends BaseActivity {
         if (screen == null) throw new IllegalArgumentException("Feature screen is missing");
         String type = screen.optString("type", "");
         if (!("page".equals(type) || "theme".equals(type) || "server_status".equals(type)
-                || "social".equals(type))) {
+                || "social".equals(type) || "workspace".equals(type) || "device_report".equals(type))) {
             throw new IllegalArgumentException("Unsupported feature screen type");
         }
         if ("social".equals(type) && !"local_preview".equals(screen.optString("mode", "local_preview"))) {
@@ -1370,6 +1389,26 @@ public final class FeatureStoreActivity extends BaseActivity {
                     }
                 }
             }
+        }
+        if ("workspace".equals(type)) {
+            JSONArray fields = screen.optJSONArray("fields");
+            if (fields == null || fields.length() < 1 || fields.length() > 8) throw new IllegalArgumentException("Workspace needs 1–8 fields");
+            int maxEntries = screen.optInt("maxEntries", 100);
+            if (maxEntries < 1 || maxEntries > 200) throw new IllegalArgumentException("Workspace entry limit is invalid");
+            ArrayList<String> ids = new ArrayList<>();
+            for (int i = 0; i < fields.length(); i++) {
+                JSONObject field = fields.optJSONObject(i);
+                if (field == null) throw new IllegalArgumentException("Workspace field is invalid");
+                String fieldId = field.optString("id", "");
+                String label = field.optString("label", "").trim();
+                int maxLength = field.optInt("maxLength", 500);
+                if (!isSafeId(fieldId) || ids.contains(fieldId) || label.isEmpty() || label.length() > 80 || maxLength < 1 || maxLength > 5000) throw new IllegalArgumentException("Workspace field metadata is invalid");
+                ids.add(fieldId);
+            }
+        }
+        if ("device_report".equals(type)) {
+            String mode = screen.optString("mode", "compatibility");
+            if (!("performance".equals(mode) || "compatibility".equals(mode) || "storage".equals(mode))) throw new IllegalArgumentException("Device report mode is unsupported");
         }
         return feature;
     }
