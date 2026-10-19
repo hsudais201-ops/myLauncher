@@ -18,6 +18,7 @@ LICENSE_MARKERS = ("license", "licence", "copying", "notice", "copyright", "pate
 LICENSE_DIR_NAMES = {"license", "licenses", "notices", "copyright", "copyrights"}
 SKIP_DIRS = {".git", ".gradle", "build", ".idea", ".kotlin"}
 APK_EXTENSIONS = {".so", ".jar", ".dex", ".ttf", ".otf", ".png", ".webp", ".jpg", ".jpeg", ".json"}
+BLOCKED_APK_BASENAMES = {"minecraft_ten.ttf"}
 
 
 def sha256_file(path: Path) -> str:
@@ -127,6 +128,15 @@ def upstream_credit_inventory(root: Path) -> list[dict[str, str]]:
     return results
 
 
+def blocked_apk_asset_paths(entries: list[dict[str, Any]]) -> list[str]:
+    """Return package paths that this repository explicitly excludes pending rights proof."""
+    return sorted({
+        str(entry["path"])
+        for entry in entries
+        if Path(str(entry["path"])).name.lower() in BLOCKED_APK_BASENAMES
+    })
+
+
 def potential_content_review_candidates(entries: list[dict[str, Any]]) -> list[dict[str, Any]]:
     patterns = re.compile(r"minecraft|mojang|mc-head|angle_license|pffft|openal-soft", re.I)
     return [entry for entry in entries if patterns.search(str(entry["path"]))]
@@ -166,6 +176,7 @@ def gradle_dependency_lines(root: Path) -> list[dict[str, str]]:
 
 
 def build_report(source: Path, apk: Path, submodule_text: str) -> dict[str, Any]:
+    selected_apk_entries = apk_inventory(apk)
     return {
         "scope": "Pinned legacy Amethyst-based build only",
         "legal_status": "INCOMPLETE — inventory evidence only; not legal clearance",
@@ -177,8 +188,9 @@ def build_report(source: Path, apk: Path, submodule_text: str) -> dict[str, Any]
         "license_notice_files": license_inventory(source),
         "upstream_credits": upstream_credit_inventory(source),
         "gradle_dependency_declarations": gradle_dependency_lines(source),
-        "apk_selected_entries": apk_inventory(apk),
-        "potential_content_review_candidates": potential_content_review_candidates(apk_inventory(apk)),
+        "apk_selected_entries": selected_apk_entries,
+        "blocked_asset_paths": blocked_apk_asset_paths(selected_apk_entries),
+        "potential_content_review_candidates": potential_content_review_candidates(selected_apk_entries),
         "limitations": [
             "Presence of a license file does not prove it applies to every file in that component.",
             "A missing license/notice file does not prove public-domain status or permission.",
@@ -242,6 +254,11 @@ def render_markdown(report: dict[str, Any]) -> str:
     lines.extend(["", "## Selected APK entries (path, size, SHA-256)", "", "| APK path | Bytes | SHA-256 |", "|---|---:|---|"])
     for item in report["apk_selected_entries"]:
         lines.append("| " + item["path"] + " | " + str(item["bytes"]) + " | " + item["sha256"] + " |")
+    lines.extend(["", "## Blocked asset regression gate", "", "These filenames are excluded pending a verified redistribution grant. The build workflow fails if any blocked basename appears in the selected APK entry set.", ""])
+    if report["blocked_asset_paths"]:
+        lines.extend("- `" + path + "`" for path in report["blocked_asset_paths"])
+    else:
+        lines.append("No blocked asset paths were found in the selected APK entry set.")
     lines.extend(["", "## Potential content / component review candidates", "", "| APK path | Bytes | SHA-256 |", "|---|---:|---|"])
     for item in report["potential_content_review_candidates"]:
         lines.append("| " + str(item["path"]).replace("|", "\\|") + " | " + str(item["bytes"]) + " | " + str(item["sha256"]) + " |")
@@ -284,6 +301,10 @@ def main() -> int:
     print("Wrote machine-readable evidence: " + str(args.json_output))
     print("License/notice candidates: " + str(len(report["license_notice_files"])))
     print("Selected APK entries: " + str(len(report["apk_selected_entries"])))
+    if report["blocked_asset_paths"]:
+        print("BLOCKED: unverified assets remain in the APK: " + ", ".join(report["blocked_asset_paths"]))
+        return 3
+    print("Blocked asset regression gate passed.")
     print("Legal clearance remains INCOMPLETE.")
     return 0
 
