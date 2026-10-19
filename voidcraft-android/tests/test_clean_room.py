@@ -154,6 +154,31 @@ class CleanRoomBoundaryTests(unittest.TestCase):
                 self.assertTrue(source.is_file())
                 self.assertIn(source.relative_to(PROJECT).as_posix(), provenance)
 
+    def test_every_app_resource_has_provenance_and_no_unreviewed_binary_assets(self):
+        provenance = (PROJECT / "SOURCE_PROVENANCE.md").read_text(encoding="utf-8")
+        main_root = PROJECT / "app" / "src" / "main"
+        files = [path for path in main_root.rglob("*") if path.is_file()]
+        self.assertTrue(files, "Expected app source/resources")
+        binary_or_visual = {
+            ".ttf", ".otf", ".woff", ".woff2", ".png", ".webp", ".jpg",
+            ".jpeg", ".gif", ".bmp", ".svg", ".ico", ".jar", ".aar",
+            ".so", ".dex", ".class", ".zip", ".bin", ".dat",
+        }
+        risky_asset_names = re.compile(r"minecraft|mojang|amethyst|pojavlauncher", re.IGNORECASE)
+        for path in files:
+            relative = path.relative_to(PROJECT).as_posix()
+            with self.subTest(source=relative):
+                self.assertIn(relative, provenance, f"No source-provenance entry for {relative}")
+                if path.suffix.lower() in binary_or_visual:
+                    self.assertIsNone(
+                        risky_asset_names.search(path.name),
+                        f"Potential upstream/game asset requires explicit review: {relative}",
+                    )
+                    self.assertIn(
+                        relative, provenance,
+                        f"Binary/visual asset must have explicit provenance before inclusion: {relative}",
+                    )
+
     def test_clean_room_subtree_does_not_vendor_runtime_binaries(self):
         forbidden_suffixes = {".jar", ".aar", ".so", ".dex", ".class", ".dll", ".dylib"}
         offenders = [
