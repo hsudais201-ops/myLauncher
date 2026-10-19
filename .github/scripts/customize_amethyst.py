@@ -2271,13 +2271,7 @@ def patch_upstream(upstream: Path) -> None:
                     .putInt("resolutionRatio", resolutionRatio)
                     .commit();
             if (!preferencesSaved) throw new java.io.IOException("Could not save launcher performance preferences");
-            try (java.io.BufferedWriter writer = new java.io.BufferedWriter(
-                    new java.io.OutputStreamWriter(new FileOutputStream(optionsFile, false), "UTF-8"))) {
-                for (String line : updatedLines) {
-                    writer.write(line);
-                    writer.newLine();
-                }
-            }
+            writeMyLauncherPerformanceLines(optionsFile, updatedLines);
             Toast.makeText(requireContext(), getString(R.string.main_performance_applied, matchedKeys), Toast.LENGTH_LONG).show();
         } catch (Exception error) {
             Toast.makeText(requireContext(), R.string.main_performance_apply_failed, Toast.LENGTH_LONG).show();
@@ -2350,6 +2344,36 @@ def patch_upstream(upstream: Path) -> None:
             if (!moved && temporary.exists() && !temporary.delete()) {
                 temporary.deleteOnExit();
             }
+        }
+    }
+
+    private static void writeMyLauncherPerformanceLines(File destination, java.util.List<String> lines) throws java.io.IOException {
+        if (destination == null || lines == null) throw new java.io.IOException("Missing options file or settings");
+        File parent = destination.getAbsoluteFile().getParentFile();
+        if (parent == null || !parent.isDirectory()) throw new java.io.IOException("Missing options directory");
+        File temporary = new File(parent, destination.getName() + ".voidcraft-tmp");
+        boolean moved = false;
+        try {
+            try (java.io.BufferedWriter writer = new java.io.BufferedWriter(
+                    new java.io.OutputStreamWriter(new FileOutputStream(temporary, false), "UTF-8"))) {
+                for (String line : lines) {
+                    writer.write(line);
+                    writer.newLine();
+                }
+                writer.flush();
+            }
+            try (FileOutputStream syncOutput = new FileOutputStream(temporary, true)) {
+                syncOutput.getFD().sync();
+            }
+            if (!temporary.isFile() || temporary.length() == 0L) {
+                throw new java.io.IOException("Temporary options file failed verification");
+            }
+            if (!temporary.renameTo(destination)) {
+                throw new java.io.IOException("Could not safely replace Minecraft options.txt");
+            }
+            moved = true;
+        } finally {
+            if (!moved && temporary.exists() && !temporary.delete()) temporary.deleteOnExit();
         }
     }
 
