@@ -8,7 +8,6 @@
       "author": "VoidCraft Launcher",
       "owner": "VoidCraft Launcher",
       "description": "Choose a separate launcher-wide color palette and preview supported theme presets.",
-      "asset": "packages/theme-studio.vcfeature",
       "packageUrl": "https://raw.githubusercontent.com/hsudais201-ops/myLauncher/main/feature-store/packages/theme-studio.vcfeature",
       "sha256": "45365850f5ff0eda339adcadf1e31c48fdaf63ed3fd05a44a4b95b0040d5c933"
     },
@@ -19,7 +18,6 @@
       "author": "VoidCraft Community",
       "owner": "VoidCraft Community",
       "description": "Check whether a Java Edition server is online, its player count, and version.",
-      "asset": "packages/server-status.vcfeature",
       "packageUrl": "https://raw.githubusercontent.com/hsudais201-ops/myLauncher/main/feature-store/packages/server-status.vcfeature",
       "sha256": "cd873e53e40ebd04ea5c111bb1b208359cf37c66b3489e77904c16277bcd06c9"
     },
@@ -30,7 +28,6 @@
       "author": "VoidCraft Community",
       "owner": "VoidCraft Community",
       "description": "A dedicated screen of links to mod discovery and launcher project resources.",
-      "asset": "packages/community-links.vcfeature",
       "packageUrl": "https://raw.githubusercontent.com/hsudais201-ops/myLauncher/main/feature-store/packages/community-links.vcfeature",
       "sha256": "c0552c88d8cac752754557b63512d874ed13f6817a273a627c195199351e4396"
     },
@@ -41,7 +38,6 @@
       "author": "VoidCraft Launcher",
       "owner": "VoidCraft Launcher",
       "description": "Mobile-first profile, friend-request, friend-list, remove-friend and chat interface. Local preview only; online delivery and external sign-in are not connected.",
-      "asset": "packages/social-hub.vcfeature",
       "packageUrl": "https://raw.githubusercontent.com/hsudais201-ops/myLauncher/main/feature-store/packages/social-hub.vcfeature",
       "sha256": "3c0184093ab5c06a1bdb57b09f086da08f41a89b54defd7082c3a2dee5d31bde"
     }
