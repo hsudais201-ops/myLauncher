@@ -33,6 +33,7 @@ class CleanRoomBoundaryTests(unittest.TestCase):
         source = MAIN_ACTIVITY.read_text(encoding="utf-8")
         self.assertIn("PLAY — NOT AVAILABLE YET", source)
         self.assertIn("Minecraft has not been connected to this app yet", source)
+        self.assertEqual(source.count("private void buildDashboard()"), 1)
 
     def test_saved_server_management_persists_and_supports_crud(self):
         source = MAIN_ACTIVITY.read_text(encoding="utf-8")
