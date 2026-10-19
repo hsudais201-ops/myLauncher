@@ -1843,17 +1843,41 @@ public final class FeatureStoreActivity extends BaseActivity {
         if (!isSafeId(id)) return;
         new AlertDialog.Builder(this)
                 .setTitle("Uninstall feature")
-                .setMessage("Remove " + name + " from installed features? The launcher engine, game files, Java runtimes, renderers, loaders, and modpack integrations will not be changed.")
+                .setMessage("Remove " + name + "? Core launcher files, game data, worlds, Java runtimes, renderers, loaders, and modpack integrations will not be changed. Choose whether to keep this feature's saved data.")
                 .setNegativeButton(android.R.string.cancel, null)
-                .setPositiveButton("Uninstall", (dialog, which) -> {
-                    File file = installedFile(id);
-                    if (file.isFile() && file.delete()) {
-                        Toast.makeText(this, "Feature uninstalled", Toast.LENGTH_SHORT).show();
-                    } else {
-                        Toast.makeText(this, "Could not remove the feature", Toast.LENGTH_LONG).show();
-                    }
-                    if ("browse".equals(currentPage)) showBrowse(); else showInstalled();
-                }).show();
+                .setPositiveButton("Uninstall, keep data", (dialog, which) -> uninstallFeature(id, false))
+                .setNeutralButton("Delete data & uninstall", (dialog, which) -> uninstallFeature(id, true))
+                .show();
+    }
+
+    private void uninstallFeature(String id, boolean deleteData) {
+        File file = installedFile(id);
+        if (!file.isFile() || !file.delete()) {
+            Toast.makeText(this, "Could not remove the feature package", Toast.LENGTH_LONG).show();
+        } else {
+            if (deleteData) removeFeatureData(id);
+            Toast.makeText(this, deleteData ? "Feature and its saved data were removed" : "Feature uninstalled; saved data kept", Toast.LENGTH_SHORT).show();
+        }
+        if ("browse".equals(currentPage)) showBrowse(); else showInstalled();
+    }
+
+    private void removeFeatureData(String id) {
+        android.content.SharedPreferences preferences = getSharedPreferences("voidcraft_feature_store", MODE_PRIVATE);
+        java.util.Map<String, ?> values = preferences.getAll();
+        android.content.SharedPreferences.Editor editor = preferences.edit();
+        String[] prefixes = new String[] {
+                "workspace." + id + ".", "server_status." + id + ".",
+                "social." + id + ".", "widget." + id + "."
+        };
+        for (String key : values.keySet()) {
+            for (String prefix : prefixes) {
+                if (key.startsWith(prefix)) {
+                    editor.remove(key);
+                    break;
+                }
+            }
+        }
+        editor.apply();
     }
 
     private void importPackage() {
