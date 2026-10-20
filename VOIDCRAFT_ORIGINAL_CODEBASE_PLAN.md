@@ -99,3 +99,14 @@ A preliminary source/license audit is recorded in `VOIDCRAFT_SOURCE_AND_LICENSE_
 
 
 Latest executor verification: [Actions run #39413869771](https://github.com/hsudais201-ops/myLauncher/actions/runs/39413869771) passed tests and the debug APK build. Artifact path/URL restrictions passed in [run #39414247303](https://github.com/hsudais201-ops/myLauncher/actions/runs/39414247303), and the verification/cache layer passed in [run #39414960675](https://github.com/hsudais201-ops/myLauncher/actions/runs/39414960675). Inheritance resolution passed in [run #39416168765](https://github.com/hsudais201-ops/myLauncher/actions/runs/39416168765). The install-preparation service is the current code change and needs a fresh result.
+
+## Verified implementation snapshot (2026-10-20)
+
+The following describes the current prototype, not completion of the migration:
+
+- The separate `voidcraft-app/` module contains independently authored Kotlin/Android Views UI and a set of version-metadata, download-planning, safe-path, download, verification, and instance-catalog components.
+- GitHub Actions workflow [Build independent VoidCraft shell](.github/workflows/voidcraft-shell.yml) passed for commit `2470fac5b56833dc50a260f6c3cb83b573ee0be8` on 2026-10-20. This is CI build/unit-test evidence only; it is not physical-device validation or proof that Minecraft reaches the title screen.
+- The version browser currently browses official version metadata and can create desired profile metadata. Its own UI explicitly says browsing does not install or launch a version. Do not describe this screen as a complete end-to-end installer.
+- The install planner now maps metadata `${arch}` native classifiers only for recognized x86/x86-64 names. It deliberately warns and blocks a complete plan when asked to infer those classifier bits from an architecture such as `aarch64`. Explicit native classifiers without the placeholder can still be planned. This is a guard against selecting a wrong artifact, not Android ARM64 runtime support.
+- The executor stages files, verifies declared hashes/sizes where available, and commits staged files with rollback handling. Native extraction, a Java/runtime adapter, Android-specific native selection, launch argument integration, renderer/input integration, and a real game launch remain separate unfinished milestones.
+- The original Amethyst-based build pipeline remains in place. The new app module must not replace it as the default until the migration gates above are demonstrated, including data preservation and target-device launch testing.
