@@ -131,7 +131,7 @@ class FeatureStoreActivity : Activity() {
         ))
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setBackgroundColor(background)
+            setBackgroundColor(this@FeatureStoreActivity.background)
         }
         root.addView(scroll, LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f

@@ -55,7 +55,7 @@ class MainActivity : Activity() {
         val scroll = ScrollView(this).apply {
             isFillViewport = false
             clipToPadding = false
-            setBackgroundColor(background)
+            setBackgroundColor(this@MainActivity.background)
         }
         homeScroll = scroll
         val page = LinearLayout(this).apply {
