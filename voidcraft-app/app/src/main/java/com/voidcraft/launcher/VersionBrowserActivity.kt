@@ -87,7 +87,7 @@ class VersionBrowserActivity : Activity() {
             isSingleLine = true
             setTextColor(primaryText)
             setHintTextColor(secondaryText)
-            background = rounded(panel, 12)
+            background = rounded(this@VersionBrowserActivity.panel, 12)
             setPadding(dp(12), dp(6), dp(12), dp(6))
             layoutParams = LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
