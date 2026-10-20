@@ -31,7 +31,7 @@ data class FileDownloadRequest(
             "Expected SHA-256 must contain 64 hexadecimal characters"
         }
         require(expectedBytes == null || expectedBytes >= 0L) { "Expected size must not be negative" }
-        require(maxBytes in 1..ABSOLUTE_MAX_BYTES) { "Download size limit is outside the supported range" }
+        require(maxBytes >= 1L && maxBytes <= ABSOLUTE_MAX_BYTES) { "Download size limit is outside the supported range" }
         require(maxRetries in 0..5) { "Retry count must be between 0 and 5" }
         require(connectTimeoutMillis > 0 && readTimeoutMillis > 0) { "Timeouts must be positive" }
     }
