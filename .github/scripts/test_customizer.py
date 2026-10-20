@@ -1577,7 +1577,7 @@ class BuildWorkflowTests(unittest.TestCase):
         self.assertIn("test -r /dev/kvm", self.kvm_script)
         self.assertIn("test -w /dev/kvm", self.kvm_script)
         self.assertIn('script: sh .github/scripts/emulator_smoke_test.sh "$APK_PATH"', self.workflow)
-        self.assertNotIn("script: |", self.workflow[self.workflow.index("Install and launch APK in a headless Android emulator"):self.workflow.index("Upload debug APK")])
+        self.assertNotIn("script: |", self.workflow[self.workflow.index("Install and launch APK in a headless Android emulator"):self.workflow.index("Upload upstream build notes")])
         self.assertIn('timeout -k 3s 180s adb install -r "$APK_PATH"', self.smoke_script)
         self.assertIn("android.permission.READ_EXTERNAL_STORAGE", self.smoke_script)
         self.assertIn("android.permission.WRITE_EXTERNAL_STORAGE", self.smoke_script)
@@ -1609,12 +1609,12 @@ class BuildWorkflowTests(unittest.TestCase):
         self.assertIn("Emulator smoke test passed: APK installed and LauncherActivity resumed.", self.smoke_script)
         self.assertIn("name: voidcraft-launcher-emulator-diagnostics", self.workflow)
         self.assertIn("upstream/mylauncher-emulator-logcat.txt", self.workflow)
-        self.assertIn("if: ${{ always() && env.APK_PATH != '' }}", self.workflow)
         self.assertIn("if: ${{ always() && hashFiles('upstream/VOIDCRAFT_LAUNCHER_BUILD_INFO.txt') != '' }}", self.workflow)
-        self.assertLess(
-            self.workflow.index("Upload debug APK"),
-            self.workflow.index("Upload upstream build notes"),
-        )
+        self.assertIn("Do not upload the debug APK artifact", self.workflow)
+        self.assertIn("this repository is public", self.workflow)
+        self.assertNotIn("Upload debug APK", self.workflow)
+        self.assertNotIn("voidcraft-launcher-debug-apk", self.workflow)
+        self.assertNotIn("APK_SHA256_PATH", self.workflow)
 
     def test_workflow_checks_source_pin_and_android_9_apk(self) -> None:
         self.assertIn("  push:\n    branches:\n      - main", self.workflow)
@@ -1643,6 +1643,8 @@ class BuildWorkflowTests(unittest.TestCase):
             ".github/scripts/patch_renderpearl_workaround.py",
             ".github/scripts/test_customizer.py",
             ".github/scripts/test_renderpearl_workaround.py",
+            ".github/scripts/customize_developer.py",
+            ".github/scripts/test_developer.py",
         ):
             self.assertIn(required_script, py_compile_lines[0])
         self.assertIn("sh -n .github/scripts/prepare_emulator_kvm.sh", self.workflow)
@@ -1654,9 +1656,9 @@ class BuildWorkflowTests(unittest.TestCase):
         self.assertIn('"$APKSIGNER" verify --verbose "$APK"', self.workflow)
         self.assertIn('ET.register_namespace("android", ANDROID[1:-1])', self.apply_logo_script)
         self.assertIn('ET.register_namespace("tools", TOOLS[1:-1])', self.apply_logo_script)
-        self.assertIn("voidcraft-launcher-debug-apk", self.workflow)
+        self.assertNotIn("voidcraft-launcher-debug-apk", self.workflow)
         self.assertIn('sha256sum "$(basename "$APK")"', self.workflow)
-        self.assertIn("${{ env.APK_SHA256_PATH }}", self.workflow)
+        self.assertNotIn("APK_SHA256_PATH", self.workflow)
         self.assertIn("APK SHA-256:", self.workflow)
 
 
