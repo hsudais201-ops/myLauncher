@@ -14,7 +14,7 @@ object FeatureRegistry {
     const val PREFS_NAME = "voidcraft_installed_features"
     private const val KEY_INSTALLED_IDS = "installed_feature_ids"
     // Empty until a real built-in add-on implementation and tests are shipped.
-    private val installableBuiltIns = emptySet<String>()
+    private val installableBuiltIns = setOf("startup-diagnostics")
 
     data class Definition(
         val id: String,
@@ -92,8 +92,8 @@ object FeatureRegistry {
         Definition(
             "startup-diagnostics",
             "Startup Diagnostics",
-            "Check runtime, storage, memory and native-library readiness.",
-            Status.PLANNED,
+            "Read device, memory, storage and app build information before launch.",
+            Status.AVAILABLE,
             listOf("device_info", "game_logs")
         ),
         Definition(
