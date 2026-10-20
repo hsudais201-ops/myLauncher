@@ -1,10 +1,40 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#090b13"><meta name="description" content="Preview original VoidCraft themes, backgrounds and creator pack concepts."><title>Cosmetic Store — VoidCraft</title><link rel="icon" href="assets/logo.svg"><link rel="stylesheet" href="assets/styles.css"></head>
-<body><header><div class="bar"><a class="brand" href="index.html"><img src="assets/logo.svg" alt=""><span>VOIDCRAFT</span></a><nav class="nav" aria-label="Main navigation"><a href="index.html">Home</a><a href="downloads.html">Downloads</a><a href="feature-store.html">Feature Store</a><a href="cosmetic-store.html" class="active">Cosmetics</a><a href="servers.html">Servers</a><a href="community.html">Community</a><a href="developers.html">Developers</a><a href="docs.html">Docs</a></nav><div class="account-links"><a href="signin.html">Sign in</a><a href="profile.html">Profile</a></div></div></header>
-<main><section class="hero"><div class="eyebrow">VoidCraft · Cosmetic Store</div><h1>Make your launcher feel like yours.</h1><p>Tap any image to preview it in a larger viewer. These are original visual concepts; purchases and entitlements are not enabled yet.</p><div class="actions"><a class="btn" href="profile.html">Open profile →</a><a class="btn secondary" href="community.html">Community</a></div></section>
-<section class="grid cosmetic-grid">
-<article class="card cosmetic-card"><button type="button" class="image-preview-trigger card-preview" data-image-preview="assets/previews/neon-night.svg" data-image-title="Neon Night theme"><img src="assets/previews/neon-night.svg" alt="Neon Night violet and cyan theme concept" loading="lazy"><span class="image-overlay-label"><span class="preview-icon">↗</span> Enlarge preview</span></button><h3>Neon Night</h3><p>Violet and cyan launcher theme.</p><span class="eyebrow">Concept preview</span></article>
-<article class="card cosmetic-card"><button type="button" class="image-preview-trigger card-preview" data-image-preview="assets/previews/void-minimal.svg" data-image-title="Void Minimal theme"><img src="assets/previews/void-minimal.svg" alt="Void Minimal grayscale interface concept" loading="lazy"><span class="image-overlay-label"><span class="preview-icon">↗</span> Enlarge preview</span></button><h3>Void Minimal</h3><p>Low-distraction dark appearance.</p><span class="eyebrow">Concept preview</span></article>
-<article class="card cosmetic-card"><button type="button" class="image-preview-trigger card-preview" data-image-preview="assets/previews/creator-packs.svg" data-image-title="Creator Packs"><img src="assets/previews/creator-packs.svg" alt="Community visual pack concepts" loading="lazy"><span class="image-overlay-label"><span class="preview-icon">↗</span> Enlarge preview</span></button><h3>Creator Packs</h3><p>Community packs after review.</p><span class="eyebrow">Concept preview</span></article>
-</section><div class="notice"><strong>Store status:</strong> Preview images are active. Purchases, payments and cosmetic unlocks are not connected yet. Sign-in will be required only for paid store purchases; free downloads remain available without an account.</main>
-<footer><div class="foot"><span>© VoidCraft community project · Independent from Mojang and Microsoft</span><span><a href="privacy.html">Privacy</a> · <a href="terms.html">Terms</a> · <a href="security.html">Security</a></span></div></footer><script src="assets/app.js" defer></script></body></html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#090b13">
+<meta name="description" content="Explore original VoidCraft themes, visual packs and cosmetics.">
+<title>Cosmetic Store — VoidCraft</title><link rel="icon" href="assets/logo.svg"><link rel="stylesheet" href="assets/styles.css">
+</head>
+<body>
+<header><div class="bar">
+<a class="brand" href="index.html"><img src="assets/logo.svg" alt=""><span>VOIDCRAFT</span></a>
+<nav class="nav" aria-label="Main navigation"><a href="index.html">Home</a><a href="downloads.html">Downloads</a><a href="feature-store.html">Feature Store</a><a href="cosmetic-store.html" class="active">Cosmetics</a><a href="servers.html">Servers</a><a href="community.html">Community</a><a href="developers.html">Developers</a><a href="docs.html">Docs</a></nav>
+<div class="account-links"><a href="signin.html">Sign in</a><a href="profile.html">Profile</a></div>
+</div></header>
+<main>
+<section class="store-hero cosmetic-hero">
+<div class="eyebrow">VOIDCRAFT MARKETPLACE · COSMETICS</div>
+<h1>Your style. Your <span class="headline-glow">Void.</span></h1>
+<p>Explore launcher themes and visual packs. Preview a listing, read its details, and check whether a real package is available before downloading.</p>
+<div class="actions"><a class="btn" href="developers.html">Create a cosmetic →</a><a class="btn secondary" href="feature-store.html">Browse features</a></div>
+<div class="cosmetic-orb-scene" aria-hidden="true"><div class="cosmetic-orb orb-one"></div><div class="cosmetic-orb orb-two"></div><div class="cosmetic-orb orb-three"></div><div class="cosmetic-orb-ring"></div></div>
+</section>
+<section class="store-toolbar-section">
+<div class="store-toolbar-heading"><div><div class="eyebrow">THE COLLECTION</div><h2>Cosmetic Store</h2></div><button class="btn secondary store-refresh" type="button" data-store-refresh>↻ Refresh</button></div>
+<div class="store-toolbar">
+<label class="store-search-label">Search cosmetics<input id="store-search" type="search" placeholder="Search themes and visual packs…" autocomplete="off"></label>
+<label class="store-filter-label">Availability<select id="store-filter"><option value="all">All listings</option><option value="available">Available now</option><option value="preview">Previews</option><option value="coming_soon">Coming soon</option></select></label>
+</div>
+<p id="store-result-count" class="store-count" aria-live="polite">Connecting to the online catalog…</p>
+<div class="store-grid cosmetic-store-grid" id="store-grid" data-store-grid data-store-kind="cosmetic" aria-live="polite">
+<article class="store-card store-loading"><div class="store-loading-art"></div><div><div class="store-skeleton"></div><div class="store-skeleton short"></div></div></article>
+<article class="store-card store-loading"><div class="store-loading-art"></div><div><div class="store-skeleton"></div><div class="store-skeleton short"></div></div></article>
+<article class="store-card store-loading"><div class="store-loading-art"></div><div><div class="store-skeleton"></div><div class="store-skeleton short"></div></div></article>
+</div>
+</section>
+<section class="cosmetic-feature-strip"><div><span class="eyebrow">ORIGINAL DESIGN</span><h2>Made for the VoidCraft identity</h2><p>Cosmetic submissions should be original or properly licensed. No trademarked assets, stolen themes or unlicensed artwork.</p></div><a class="btn secondary" href="security.html">Read creator rules →</a></section>
+<div class="notice store-status-notice"><strong>Marketplace status:</strong> The online catalog and listing review are connected. Theme installation, package uploads and payment checkout still need their respective integrations. Preview cards are clearly marked and cannot be purchased as if they were finished items.</div>
+</main>
+<footer><div class="foot"><span>© VoidCraft community project · Independent from Mojang and Microsoft</span><span><a href="privacy.html">Privacy</a> · <a href="terms.html">Terms</a> · <a href="security.html">Security</a></span></div></footer>
+<script src="assets/app.js" defer></script>
+</body></html>
