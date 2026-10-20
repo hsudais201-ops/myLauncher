@@ -109,6 +109,29 @@ class MinecraftArtifactInstallServiceTest {
         assertEquals(null, executor.receivedPlan)
     }
 
+
+    @Test
+    fun cancellationArrivingAfterSuccessfulCommitDoesNotReportFailure() {
+        val fixture = fixture()
+        var cancelled = false
+        val executor = RecordingExecutor { cancelled = true }
+        val service = MinecraftArtifactInstallService(
+            preparer = MinecraftInstallPreparer { fixture.preparation },
+            executor = executor
+        )
+        val stages = mutableListOf<MinecraftArtifactInstallStage>()
+
+        val result = service.installArtifacts(
+            entry = fixture.entry,
+            installRoot = File(temporaryFolder.root, "game"),
+            isCancelled = { cancelled },
+            onStage = { stages.add(it) }
+        )
+
+        assertEquals(fixture.entry.id, result.execution.versionId)
+        assertEquals(MinecraftArtifactInstallStage.COMPLETE, stages.last())
+    }
+
     private fun fixture(): Fixture {
         val sha1 = "0123456789abcdef0123456789abcdef01234567"
         val entry = MinecraftVersionEntry(
@@ -156,7 +179,7 @@ class MinecraftArtifactInstallServiceTest {
         val sha1: String
     )
 
-    private class RecordingExecutor : MinecraftPlanExecutor {
+    private class RecordingExecutor(private val afterExecute: () -> Unit = {}) : MinecraftPlanExecutor {
         var receivedPlan: MinecraftInstallPlan? = null
         var receivedRoot: File? = null
 
@@ -175,7 +198,7 @@ class MinecraftArtifactInstallServiceTest {
                 artifact = plan.downloads.first(),
                 fileProgress = FileDownloadProgress(1L, 1L)
             ))
-            return MinecraftInstallResult(
+            val result = MinecraftInstallResult(
                 versionId = plan.versionId,
                 receipts = listOf(
                     FileDownloadReceipt(
@@ -187,6 +210,8 @@ class MinecraftArtifactInstallServiceTest {
                     )
                 )
             )
+            afterExecute()
+            return result
         }
     }
 }
