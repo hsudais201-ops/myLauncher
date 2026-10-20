@@ -1516,6 +1516,10 @@ class ApplyLogoTests(unittest.TestCase):
                 'android:roundIcon="@mipmap/ic_launcher_round" /></manifest>',
                 encoding="utf-8",
             )
+            # Seed the former placeholder so the applier must remove it.
+            legacy_icon = app / "src/main/res/drawable/voidcraft_launcher_logo.xml"
+            legacy_icon.parent.mkdir(parents=True, exist_ok=True)
+            legacy_icon.write_text("<vector />", encoding="utf-8")
             logo_applier.main(root)
             manifest_root = ET.parse(manifest).getroot()
             app_node = manifest_root.find("application")
@@ -1525,11 +1529,6 @@ class ApplyLogoTests(unittest.TestCase):
                              "@drawable/voidcraft_launcher_logo")
             self.assertEqual(app_node.get("{http://schemas.android.com/apk/res/android}roundIcon"),
                              "@drawable/voidcraft_launcher_logo")
-            # Seed the former placeholder so the applier must remove it.
-            legacy_icon = app / "src/main/res/drawable/voidcraft_launcher_logo.xml"
-            legacy_icon.parent.mkdir(parents=True, exist_ok=True)
-            legacy_icon.write_text("<vector />", encoding="utf-8")
-
             icon = app / "src/main/res/drawable-nodpi/voidcraft_launcher_logo.webp"
             icon_bytes = icon.read_bytes()
             self.assertTrue(icon_bytes.startswith(b"RIFF"))
