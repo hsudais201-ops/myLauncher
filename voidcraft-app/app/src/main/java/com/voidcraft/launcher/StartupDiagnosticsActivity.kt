@@ -45,7 +45,7 @@ class StartupDiagnosticsActivity : Activity() {
 
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setBackgroundColor(background)
+            setBackgroundColor(this@StartupDiagnosticsActivity.background)
         }
         val scroll = ScrollView(this).apply { setBackgroundColor(background) }
         val page = LinearLayout(this).apply {
