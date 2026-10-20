@@ -24,7 +24,7 @@ export async function onRequestPost({ request, env }) {
     let user;
     try {
       user = await env.VOIDCRAFT_AUTH.prepare(
-        "SELECT id, username, email, password_salt, password_hash, created_at FROM users " +
+        "SELECT id, username, email, password_salt, password_hash, created_at, role FROM users " +
         "WHERE username = ? COLLATE NOCASE OR email = ? COLLATE NOCASE LIMIT 1"
       ).bind(identifier, identifier).first();
     } catch (error) {
