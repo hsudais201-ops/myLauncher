@@ -28,7 +28,7 @@ class MinecraftVersionInstallPreparationService(
     private val source: MinecraftVersionMetadataSource,
     private val metadataClient: MinecraftVersionCatalogClient,
     private val planner: MinecraftInstallPlanner
-) {
+) : MinecraftInstallPreparer {
     constructor(
         platform: MinecraftPlatformContext,
         client: MinecraftVersionCatalogClient = MinecraftVersionCatalogClient()
@@ -40,7 +40,7 @@ class MinecraftVersionInstallPreparationService(
 
     private val inheritanceResolver = MinecraftVersionInheritanceResolver(source)
 
-    fun prepare(entry: MinecraftVersionEntry): MinecraftInstallPreparation {
+    override fun prepare(entry: MinecraftVersionEntry): MinecraftInstallPreparation {
         val resolved = inheritanceResolver.resolve(entry)
         val assetContents = resolved.assetIndex?.let { metadataClient.fetchAssetIndex(it) }
         val plan = planner.createPlan(entry, resolved, assetContents)
