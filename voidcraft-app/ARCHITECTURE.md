@@ -10,6 +10,7 @@ Implemented:
 - `VersionBrowserActivity`: fetches official Mojang version metadata on a background executor, filters/searches the catalog, fetches details on selection, and creates profile metadata only.
 - `core/InstanceProfile.kt` and `core/InstanceCatalogRepository.kt`: validated profile model and versioned app-private catalog.
 - `core/MinecraftVersionCatalog.kt`: manifest/detail data models, library declarations/rules, official manifest client, version-detail integrity checks, and asset-index fetch/parsing.
+- `core/MinecraftVersionInheritanceResolver.kt`: cycle/depth-checked parent resolution, child-over-parent scalar fallback, library coordinate overrides, and inherited client-directory tracking.
 - `core/MinecraftInstallPlanner.kt`: asset-index parser, ordered library rule evaluator, platform-specific classifier selection, Maven path validation, and a deduplicated download plan with explicit warnings for unresolved prerequisites.
 - `core/SecureFileDownloader.kt`: bounded HTTPS transfer with cancellation, transient retries, supplied hash/size checks and safe per-file replacement.
 - `core/MinecraftInstallVerifier.kt`: read-only integrity scan of planned files, with explicit missing/size/hash/verified/unverifiable statuses.
@@ -17,7 +18,7 @@ Implemented:
 - Unit tests cover catalog safety, metadata integrity, library/asset planning, downloader integrity/cancellation/retries, and install execution safety.
 
 Not yet implemented or connected:
-- Recursive version inheritance resolution/merge and the complete version installer UI.
+- Complete version installation UI and launch-argument merging (the modeled version-parent fields now resolve recursively, but arguments/logging and loader-specific metadata are not yet modeled).
 - Native archive extraction and Java runtime acquisition.
 - Resumable downloads and a persistent download queue.
 - Real Android runtime platform adaptation and native library compatibility.
@@ -35,10 +36,11 @@ The Versions screen only browses metadata and creates profile records; it does n
 3. Metadata and asset indexes are checked against manifest-provided hashes when available.
 4. Planned paths must be relative, traversal-free, unique, restricted to the expected versions/libraries/assets tree, and consistent with their artifact kind.
 5. Existing files are reused only when the authoritative SHA-1 matches and any declared byte size matches; length-only files without a hash are not trusted as verified.
-6. Newly required files download to a staging tree first; no final file changes until all required downloads have completed and passed verification.
-7. Existing files are backed up during commit. If commit fails, changes are rolled back in reverse order; if rollback fails, the staging/recovery tree is retained.
-8. Every planned URL is revalidated against approved HTTPS distribution hosts before the executor makes network requests.
-9. The existing launcher and build path remain available until feature, runtime, license and device parity gates pass.
+6. An inherited client JAR is stored under the version that supplies the client download while the selected child version's JSON remains under its own version directory.
+7. Newly required files download to a staging tree first; no final file changes until all required downloads have completed and passed verification.
+8. Existing files are backed up during commit. If commit fails, changes are rolled back in reverse order; if rollback fails, the staging/recovery tree is retained.
+9. Every planned URL is revalidated against approved HTTPS distribution hosts before the executor makes network requests.
+10. The existing launcher and build path remain available until feature, runtime, license and device parity gates pass.
 
 ## Platform warning
 

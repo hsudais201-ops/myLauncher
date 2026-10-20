@@ -8,7 +8,7 @@ internal object MinecraftInstallPathPolicy {
     fun validatePlan(plan: MinecraftInstallPlan): List<String> {
         require(plan.downloads.isNotEmpty()) { "Install plan contains no downloads" }
         MinecraftVersionManifestParser().validateVersionId(plan.versionId)
-        val paths = plan.downloads.map { validateArtifactPath(it, plan.versionId) }
+        val paths = plan.downloads.map { validateArtifactPath(it, plan.versionId, plan.clientArtifactVersionId) }
         plan.downloads.forEach { artifact ->
             MojangUrlPolicy.validate(artifact.url)
             require(artifact.expectedSha1 == null || SHA1_PATTERN.matches(artifact.expectedSha1)) {
@@ -22,15 +22,23 @@ internal object MinecraftInstallPathPolicy {
         return paths
     }
 
-    fun validateArtifactPath(artifact: MinecraftPlannedDownload, versionId: String): String {
+    fun validateArtifactPath(
+        artifact: MinecraftPlannedDownload,
+        versionId: String,
+        clientArtifactVersionId: String? = null
+    ): String {
         val checked = MinecraftMavenPath.validateRelativePath(artifact.destinationRelativePath)
         require(!checked.substringBefore('/').startsWith(".voidcraft-")) {
             "Install path uses a reserved VoidCraft transaction name"
         }
         val allowedPrefix = when (artifact.kind) {
-            MinecraftInstallPlanner.KIND_VERSION_METADATA,
-            MinecraftInstallPlanner.KIND_CLIENT -> "versions/" + versionId + "/"
-            MinecraftInstallPlanner.KIND_ASSET_INDEX -> "assets/indexes/"
+            MinecraftInstallPlanner.KIND_VERSION_METADATA -> "versions/" + versionId + "/"
+            MinecraftInstallPlanner.KIND_CLIENT -> {
+                val clientVersion = clientArtifactVersionId ?: versionId
+                MinecraftVersionManifestParser().validateVersionId(clientVersion)
+                "versions/" + clientVersion + "/"
+            }
+            MinecraftInstallPlanner.KIND_ASSET_INDEX -> "assets/indexes/" 
             MinecraftInstallPlanner.KIND_ASSET_OBJECT -> "assets/objects/"
             MinecraftInstallPlanner.KIND_LIBRARY,
             MinecraftInstallPlanner.KIND_NATIVE_LIBRARY -> "libraries/"

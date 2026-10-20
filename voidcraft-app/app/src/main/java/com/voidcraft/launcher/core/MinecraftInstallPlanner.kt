@@ -150,7 +150,9 @@ data class MinecraftInstallPlan(
     val javaMajorVersion: Int?,
     val mainClass: String?,
     val downloads: List<MinecraftPlannedDownload>,
-    val warnings: List<String>
+    val warnings: List<String>,
+    /** Version directory that owns the resolved client JAR when it is inherited. */
+    val clientArtifactVersionId: String? = null
 ) {
     val isFullyResolved: Boolean
         get() = warnings.isEmpty()
@@ -184,16 +186,17 @@ class MinecraftInstallPlanner(
         ))
 
         val client = details.clientDownload
+        val clientVersionId = client?.let { details.clientDownloadVersionId ?: details.id }
         if (client == null) {
             warnings.add("Version metadata does not include a client download")
         } else {
             add(downloads, MinecraftPlannedDownload(
                 kind = KIND_CLIENT,
-                destinationRelativePath = "versions/" + details.id + "/" + details.id + ".jar",
+                destinationRelativePath = "versions/" + clientVersionId + "/" + clientVersionId + ".jar",
                 url = MojangUrlPolicy.validate(client.url).toString(),
                 expectedSha1 = client.sha1,
                 expectedBytes = client.sizeBytes,
-                logicalName = details.id
+                logicalName = clientVersionId
             ))
         }
 
@@ -272,7 +275,8 @@ class MinecraftInstallPlanner(
             javaMajorVersion = details.javaMajorVersion,
             mainClass = details.mainClass,
             downloads = downloads.values.toList(),
-            warnings = warnings.distinct()
+            warnings = warnings.distinct(),
+            clientArtifactVersionId = clientVersionId
         )
     }
 

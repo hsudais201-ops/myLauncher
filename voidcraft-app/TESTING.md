@@ -14,6 +14,7 @@ Current JVM test coverage:
 - **Instance catalog:** metadata round-trip, duplicate updates, path-like ID rejection, unknown schema handling, and ensuring removal does not delete a simulated world/save file.
 - **Version metadata:** manifest/detail parsing, release/snapshot/old IDs, allowed HTTPS hosts, timestamps and hashes, latest references, detail-ID checking, and metadata SHA-1 integrity.
 - **Install planning:** asset-index hash/size parsing, content-addressed URLs/paths, ordered allow/disallow rules, OS constraints, native classifiers, extraction excludes, deduplication, and incomplete-plan warnings.
+- **Inheritance:** recursive grandparent/parent/child resolution, child metadata overrides, inherited asset/Java/client data, library-coordinate replacement, correct inherited client path, missing parent, cycle detection, and unresolved-parent rejection.
 - **Downloads:** supplied SHA-1/SHA-256 and size checks, transient retry, cancellation, unsafe URL/redirect rejection, and destination preservation on failure.
 - **Install executor:** verified multi-file staging/promotion, progress, cancellation before commit, incomplete-plan rejection, traversal rejection before network requests, and rollback preserving existing data if commit fails.
 

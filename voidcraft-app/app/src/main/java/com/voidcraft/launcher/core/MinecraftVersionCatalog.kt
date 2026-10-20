@@ -124,7 +124,9 @@ data class MinecraftVersionDetails(
     val assetIndex: MinecraftAssetIndex?,
     val clientDownload: MinecraftArtifactDownload?,
     val javaMajorVersion: Int?,
-    val libraries: List<MinecraftLibrary> = emptyList()
+    val libraries: List<MinecraftLibrary> = emptyList(),
+    /** Version directory owning the client JAR, which may be an inherited parent version. */
+    val clientDownloadVersionId: String? = null
 )
 
 /** URL rules for official Mojang launcher metadata and its distribution CDNs. */
@@ -300,7 +302,8 @@ class MinecraftVersionDetailsParser {
             assetIndex = assetIndex,
             clientDownload = client,
             javaMajorVersion = javaMajor,
-            libraries = libraries
+            libraries = libraries,
+            clientDownloadVersionId = if (client != null) id else null
         )
     }
 
