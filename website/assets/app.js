@@ -1461,7 +1461,7 @@ document.addEventListener("click", (event) => {
 
   function canBuy(item) {
     return item && item.status === "published" && item.availability === "available" &&
-      Boolean(item.packageUrl) && item.priceCents !== null && Number(item.priceCents) > 0;
+      Boolean(item.packageAvailable) && item.priceCents !== null && Number(item.priceCents) > 0;
   }
 
   async function loadCheckout() {
