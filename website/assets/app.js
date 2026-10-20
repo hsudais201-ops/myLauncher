@@ -524,14 +524,14 @@ if (profileCard) {
   }
 
   function itemAvailability(item) {
-    if (item.availability === "available" && item.packageUrl) return "Available now";
+    if (item.availability === "available" && item.packageAvailable) return "Available now";
     if (item.availability === "coming_soon") return "Coming soon";
     if (item.availability === "paused") return "Temporarily unavailable";
     return "Preview";
   }
 
   function itemAvailabilityClass(item) {
-    if (item.availability === "available" && item.packageUrl) return "is-available";
+    if (item.availability === "available" && item.packageAvailable) return "is-available";
     if (item.availability === "coming_soon") return "is-coming-soon";
     return "is-preview";
   }
@@ -556,7 +556,7 @@ if (profileCard) {
   function actionFor(item, detailMode = false) {
     const group = make("div", detailMode ? "store-purchase-buttons store-purchase-buttons-detail" : "store-purchase-buttons");
     const isFreeDownload = item.availability === "available" && item.packageUrl && Number(item.priceCents) === 0;
-    const isPaidPurchase = item.availability === "available" && item.packageUrl && item.priceCents !== null && Number(item.priceCents) > 0;
+    const isPaidPurchase = item.availability === "available" && item.packageAvailable && item.priceCents !== null && Number(item.priceCents) > 0;
 
     if (isFreeDownload) {
       const link = make("a", "btn store-action-primary", "Download free");
@@ -594,7 +594,7 @@ if (profileCard) {
     const visible = items.filter((item) => {
       const searchable = [item.name, item.tagline, item.description, item.license, item.compatibility, item.creatorUsername].filter(Boolean).join(" ").toLowerCase();
       if (needle && !searchable.includes(needle)) return false;
-      if (status === "available" && !(item.availability === "available" && item.packageUrl)) return false;
+      if (status === "available" && !(item.availability === "available" && item.packageAvailable)) return false;
       if (status === "preview" && item.availability !== "preview") return false;
       if (status === "coming_soon" && item.availability !== "coming_soon") return false;
       return true;
@@ -1333,7 +1333,7 @@ document.addEventListener("click", (event) => {
 
   function isPurchasable(item) {
     return item && item.status === "published" && item.availability === "available" &&
-      Boolean(item.packageUrl) && item.priceCents !== null && Number(item.priceCents) > 0;
+      Boolean(item.packageAvailable) && item.priceCents !== null && Number(item.priceCents) > 0;
   }
 
   function message(text, kind = "info") {
