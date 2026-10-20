@@ -3,6 +3,7 @@ package com.voidcraft.launcher
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class FeatureRegistryPolicyTest {
@@ -12,8 +13,8 @@ class FeatureRegistryPolicyTest {
         assertEquals(catalog.size, catalog.map { it.id }.toSet().size)
         catalog.forEach {
             assertNotNull(FeatureRegistry.find(it.id))
-            assert(it.id.isNotBlank())
-            assert(it.name.isNotBlank())
+            assertTrue(it.id.isNotBlank())
+            assertTrue(it.name.isNotBlank())
         }
     }
 
@@ -22,13 +23,13 @@ class FeatureRegistryPolicyTest {
         FeatureRegistry.catalog().forEach { feature ->
             if (feature.id == "startup-diagnostics") {
                 assertEquals(FeatureRegistry.Status.AVAILABLE, feature.status)
-                assert(!FeatureRegistry.canInstall("unknown-feature"))
+                assertFalse(FeatureRegistry.canInstall("unknown-feature"))
             } else {
                 assertFalse("Unexpected installable feature: ${feature.id}",
                     FeatureRegistry.canInstall(feature.id))
             }
         }
-        assert(FeatureRegistry.canInstall("startup-diagnostics"))
+        assertTrue(FeatureRegistry.canInstall("startup-diagnostics"))
         assertFalse(FeatureRegistry.canInstall("unknown-feature"))
         assertFalse(FeatureRegistry.canInstall("../unsafe-path"))
     }
