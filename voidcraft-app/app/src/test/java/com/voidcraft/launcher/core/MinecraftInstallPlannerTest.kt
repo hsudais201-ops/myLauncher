@@ -181,7 +181,7 @@ class MinecraftInstallPlannerTest {
                 { "action": "allow", "os": { "name": "linux" } },
                 { "action": "disallow", "os": { "name": "osx", "version": "^10\\.5\\.\\d$" } }
               ],
-              "natives": { "linux": "natives-linux-${'$'}{arch}" },
+              "natives": { "linux": "natives-linux-ARCH_PLACEHOLDER" },
               "extract": { "exclude": ["META-INF/"] }
             },
             {
@@ -198,5 +198,8 @@ class MinecraftInstallPlannerTest {
             }
           ]
         }
-    """.trimIndent()
+    """.trimIndent().replace(
+        "natives-linux-ARCH_PLACEHOLDER",
+        "natives-linux-" + 36.toChar() + "{arch}"
+    )
 }
