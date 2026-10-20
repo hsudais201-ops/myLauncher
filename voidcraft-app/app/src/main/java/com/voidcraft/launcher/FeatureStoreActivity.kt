@@ -147,6 +147,11 @@ class FeatureStoreActivity : Activity() {
         renderFeatures()
     }
 
+    override fun onResume() {
+        super.onResume()
+        LauncherPreferences.applyWindowFlags(this)
+    }
+
     private fun renderFeatures() {
         featureList.removeAllViews()
         val query = searchField.text.toString().trim().lowercase()
