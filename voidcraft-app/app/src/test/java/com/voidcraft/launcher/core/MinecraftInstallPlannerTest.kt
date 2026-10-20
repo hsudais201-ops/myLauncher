@@ -98,6 +98,30 @@ class MinecraftInstallPlannerTest {
     }
 
     @Test
+    fun plannerDoesNotMistakeArm64ForX86NativeClassifier() {
+        val details = MinecraftVersionDetailsParser().parse(versionDetailsJson())
+        val entry = MinecraftVersionEntry(
+            id = details.id,
+            type = "release",
+            metadataUrl = "https://piston-meta.mojang.com/v1/packages/$shaA/1.21.4.json",
+            updatedAt = "2025-01-01T00:00:00Z",
+            releaseTime = "2025-01-01T00:00:00Z",
+            sha1 = shaA,
+            complianceLevel = 1
+        )
+        val assets = MinecraftAssetIndexParser().parse(
+            """{"objects":{"sound.ogg":{"hash":"$shaB","size":20}}}"""
+        )
+
+        val plan = MinecraftInstallPlanner(MinecraftPlatformContext("linux", "aarch64", "6.8.0"))
+            .createPlan(entry, details, assets)
+
+        assertFalse(plan.downloads.any { it.kind == MinecraftInstallPlanner.KIND_NATIVE_LIBRARY })
+        assertTrue(plan.warnings.any { it.contains("Cannot safely map architecture aarch64") })
+        assertFalse(plan.isFullyResolved)
+    }
+
+    @Test
     fun plannerWarnsWhenAssetIndexIsNotResolvedOrVersionInherits() {
         val original = MinecraftVersionDetailsParser().parse(versionDetailsJson())
         val inherited = original.copy(inheritsFrom = "1.20.1")
