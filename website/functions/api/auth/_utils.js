@@ -2,7 +2,10 @@ const COOKIE_NAME = "__Host-vc_session";
 const SESSION_TTL_SECONDS = 60 * 60 * 24 * 7;
 const RATE_WINDOW_MS = 15 * 60 * 1000;
 const RATE_LIMIT = 10;
-const PBKDF2_ITERATIONS = 600000;
+// Cloudflare Workers caps a single PBKDF2 operation at 100,000 iterations.
+// Six sequential, domain-separated passes preserve approximately 600,000 total work.
+const PBKDF2_ITERATIONS = 100000;
+const PBKDF2_PASSES = 6;
 
 export function json(data, status = 200, extraHeaders = {}) {
   const headers = new Headers({
@@ -59,11 +62,20 @@ export async function sha256Hex(value) {
 }
 
 export async function passwordHash(password, saltHex) {
-  const material = await crypto.subtle.importKey("raw", new TextEncoder().encode(password), "PBKDF2", false, ["deriveBits"]);
-  const bits = await crypto.subtle.deriveBits({
-    name: "PBKDF2", hash: "SHA-256", salt: fromHex(saltHex), iterations: PBKDF2_ITERATIONS
-  }, material, 256);
-  return hex(bits);
+  // Each call stays below the Workers per-operation iteration ceiling.
+  // The derived key from each pass feeds the next, with a pass-specific salt label.
+  let input = new TextEncoder().encode(password);
+  for (let pass = 0; pass < PBKDF2_PASSES; pass++) {
+    const label = new TextEncoder().encode(saltHex + ":voidcraft-password-chain-v2:" + pass);
+    const material = await crypto.subtle.importKey("raw", input, "PBKDF2", false, ["deriveBits"]);
+    input = new Uint8Array(await crypto.subtle.deriveBits({
+      name: "PBKDF2",
+      hash: "SHA-256",
+      salt: label,
+      iterations: PBKDF2_ITERATIONS
+    }, material, 256));
+  }
+  return hex(input);
 }
 
 export function constantTimeEqual(a, b) {
