@@ -60,6 +60,6 @@ export async function onRequestPost({ request, env }) {
     });
   } catch (error) {
     console.error("VoidCraft registration request failed", { stage, name: error?.name || "Error" });
-    return json({ error: "The account service failed during " + stage.replace(/_/g, " ") + ". Please retry after refreshing.", code: "AUTH_REGISTER_INTERNAL_" + stage.toUpperCase() }, 500);
+    return json({ error: "The account service failed during " + stage.replace(/_/g, " ") + ". Please retry after refreshing.", code: "AUTH_REGISTER_INTERNAL_" + stage.toUpperCase() + "_" + String(error?.name || "ERROR").toUpperCase() }, 500);
   }
 }
