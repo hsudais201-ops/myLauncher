@@ -156,7 +156,7 @@ for node in root.iter("node"):
     if mode == "id":
         matched = resource_id == needle
     elif mode == "text":
-        matched = label == needle or description == needle
+        matched = label.casefold() == needle.casefold() or description.casefold() == needle.casefold()
     elif mode == "text-contains":
         matched = needle.casefold() in label.casefold() or needle.casefold() in description.casefold()
     else:
@@ -228,10 +228,10 @@ fail_real_game_smoke() {
 if ! tap_view id account_spinner 30; then
     fail_real_game_smoke "could not open the account selector from the launcher home screen"
 fi
-if ! tap_view text "Local account" 12; then
+if ! tap_view id button_local_authentication 12; then
     # Some upstream account-spinner implementations expose an intermediate Add account row.
     if tap_view text "Add account" 5; then
-        if ! tap_view text "Local account" 20; then
+        if ! tap_view id button_local_authentication 20; then
             fail_real_game_smoke "could not choose Local account"
         fi
     else
