@@ -22,6 +22,7 @@ import android.widget.Toast
  * are not connected yet, so the Play action explains that state honestly.
  */
 class MainActivity : Activity() {
+    private var homeScroll: ScrollView? = null
     private val background = Color.rgb(10, 14, 24)
     private val surface = Color.rgb(18, 25, 40)
     private val cardSurface = Color.rgb(23, 33, 52)
@@ -50,6 +51,7 @@ class MainActivity : Activity() {
             clipToPadding = false
             setBackgroundColor(background)
         }
+        homeScroll = scroll
         val page = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(dp(18), dp(12), dp(18), dp(24))
@@ -385,8 +387,7 @@ class MainActivity : Activity() {
     }
 
     private fun scrollToTop() {
-        val scroll = findViewById<ScrollView>(android.R.id.content)
-        scroll?.smoothScrollTo(0, 0)
+        homeScroll?.smoothScrollTo(0, 0)
     }
 
     private fun horizontalRow() = LinearLayout(this).apply {
