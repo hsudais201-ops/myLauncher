@@ -14,7 +14,7 @@ Cloudflare Pages project: `voidcraft-launcher` (`https://voidcraft-launcher.page
 - The Feature Store and Cosmetic Store use the D1-backed `store_items` catalog. Seeded listings are explicitly marked as previews and do not imply a working package.
 - Developer submissions use the authenticated `/api/developer/submissions` routes; submissions remain private pending owner review. Only users with `role = 'owner'` can publish or reject pending listings through `/api/developer/review`.
 - Free packages are intended to be direct HTTPS downloads and must be explicitly linked to a published, available catalog item. Sign-in is required for paid purchase attempts, not free downloads.
-- Payment checkout, purchase entitlements, direct binary uploads/R2 storage, automated package scanning/signing, email verification/delivery, password recovery, self-service deletion, live server ping, and launcher-linked installation are not yet configured. Paid checkout intentionally returns a safe unavailable response and never reports a fake purchase. Do not claim these capabilities are active.
+- Payment checkout, purchase entitlements, direct binary uploads/R2 storage, automated package scanning/signing, email verification, password recovery email delivery, self-service deletion, live server ping, and launcher-linked installation are not yet fully configured. Paid checkout intentionally returns a safe unavailable response and never reports a fake purchase. Do not claim these capabilities are active.
 - Before broad public registration, complete live tests for register/login/logout, rate limits, session expiry, cookie flags, and recovery/security processes.
 
 ## Image previews
@@ -39,3 +39,13 @@ Original local SVG concept illustrations appear on the homepage, Feature Store, 
 ## Database migration for account roles
 
 For a separate or newly created authentication database, apply `migrations/0002_account_roles.sql` exactly once after the original authentication tables are present. All existing and newly registered accounts default to `member`. Assign the `owner` role only through a trusted administrative operation; never accept an owner role from public registration form input.
+
+
+## Password reset and checkout configuration
+
+- `forgot-password.html` provides the email → six-digit code → new password flow. Codes expire after 10 minutes, are HMAC-hashed with a server secret, are limited to five verification attempts, and are invalidated after use. All previous sessions are revoked after a successful reset.
+- The live account database includes `password_reset_codes`. Apply `migrations/0004_password_reset_codes.sql` to a new database after the authentication and role migrations.
+- Password reset email delivery requires a Cloudflare Email Sending domain that is onboarded and DNS-verified, plus Pages production secrets: `CF_EMAIL_API_TOKEN` (token with permission to send email for the account), `CF_EMAIL_FROM` (sender address on the verified domain), and `PASSWORD_RESET_SECRET` (a random secret of at least 32 characters). `CF_ACCOUNT_ID` is optional; the current VoidCraft account is the default. Without these settings, requests fail clearly and no code is fabricated or displayed.
+- The Cloudflare account connected during implementation currently has no Cloudflare-managed zones/custom domain listed, so email delivery cannot be enabled until a domain is added and verified. Do not treat password recovery as operational until a real inbox receives and verifies the code.
+- The cart stores item IDs and quantities in browser storage. Prices, catalog state, package links and purchase eligibility are re-read server-side at checkout. Direct Buy Now goes to checkout; Add to Cart persists the item across page visits. Preview-only listings have purchase actions disabled.
+- Checkout is currently validation-only. `POST /api/store/checkout` requires a session and validates current server-owned prices, package availability and quantities, then returns a safe not-configured response because a payment provider and entitlement delivery are not configured. It never creates a fake order or claims a charge succeeded.
