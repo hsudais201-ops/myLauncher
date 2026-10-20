@@ -37,9 +37,9 @@ import java.util.concurrent.Executors
  * Selecting "Create profile metadata" only records a desired version/profile.
  */
 class VersionBrowserActivity : Activity() {
-    private val background = Color.rgb(13, 17, 28)
-    private val panel = Color.rgb(25, 32, 48)
-    private val accent = Color.rgb(120, 105, 255)
+    private val background = Color.rgb(10, 14, 24)
+    private val panel = Color.rgb(23, 33, 52)
+    private val accent = Color.rgb(139, 124, 255)
     private val primaryText = Color.rgb(244, 246, 255)
     private val secondaryText = Color.rgb(166, 176, 199)
 
@@ -115,8 +115,9 @@ class VersionBrowserActivity : Activity() {
         versionAdapter = VersionAdapter()
         versionList = ListView(this).apply {
             adapter = versionAdapter
-            divider = rounded(Color.rgb(48, 57, 77), 1)
-            dividerHeight = dp(1)
+            setBackgroundColor(this@VersionBrowserActivity.background)
+            divider = rounded(Color.TRANSPARENT, 1)
+            dividerHeight = dp(8)
             layoutParams = LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f
             )
@@ -328,10 +329,11 @@ class VersionBrowserActivity : Activity() {
         override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
             val row = convertView as? LinearLayout ?: LinearLayout(this@VersionBrowserActivity).apply {
                 orientation = LinearLayout.VERTICAL
-                setPadding(dp(12), dp(9), dp(12), dp(9))
                 addView(label("", 16, primaryText, true))
-                addView(label("", 12, secondaryText, false).apply { setPadding(0, dp(3), 0, 0) })
+                addView(label("", 12, secondaryText, false).apply { setPadding(0, dp(4), 0, 0) })
             }
+            row.setPadding(dp(14), dp(12), dp(14), dp(12))
+            row.background = rounded(panel, 14)
             val entry = entries[position]
             (row.getChildAt(0) as TextView).text = entry.id
             (row.getChildAt(1) as TextView).text =
