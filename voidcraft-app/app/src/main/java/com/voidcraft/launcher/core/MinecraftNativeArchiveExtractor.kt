@@ -2,7 +2,6 @@ package com.voidcraft.launcher.core
 
 import java.io.File
 import java.io.IOException
-import java.nio.file.AtomicMoveNotSupportedException
 import java.nio.file.Files
 import java.nio.file.StandardCopyOption
 import java.util.zip.ZipFile
@@ -72,7 +71,6 @@ class MinecraftNativeArchiveExtractor(
             throw IOException("Could not create native extraction content directory")
         }
 
-        var committed = false
         var filesWritten = 0
         var bytesWritten = 0L
         var skipped = 0
@@ -146,11 +144,8 @@ class MinecraftNativeArchiveExtractor(
             checkCancelled(isCancelled)
             if (target.exists()) throw IOException("Native extraction destination appeared during extraction")
             try {
-                Files.move(content.toPath(), target.toPath(), StandardCopyOption.ATOMIC_MOVE)
-            } catch (_: AtomicMoveNotSupportedException) {
                 Files.move(content.toPath(), target.toPath())
             }
-            committed = true
             return NativeExtractionResult(target, filesWritten, bytesWritten, skipped)
         } finally {
             stage.deleteRecursively()
