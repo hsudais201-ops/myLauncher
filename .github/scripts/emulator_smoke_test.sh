@@ -204,11 +204,38 @@ tap_view() {
     sleep 2
 }
 
+find_minecraft_log() {
+    # Android may place the game log in shared, app-specific external, or private storage.
+    local path
+    path="$(timeout -k 3s 20s adb shell 'find /sdcard /storage/emulated/0 /storage/self/primary /storage/emulated/0/Android/data/com.mf.mylauncher.debug/files -type f -name latestlog.txt 2>/dev/null | head -n 1' 2>/dev/null | tr -d '\r')"
+    if [ -n "$path" ]; then
+        printf '%s\n' "$path"
+        return 0
+    fi
+    path="$(timeout -k 3s 20s adb shell run-as com.mf.mylauncher.debug find . -type f -name latestlog.txt 2>/dev/null | head -n 1 | tr -d '\r')"
+    if [ -n "$path" ]; then
+        printf 'private:%s\n' "$path"
+        return 0
+    fi
+    return 1
+}
+
+read_minecraft_log() {
+    case "$1" in
+        private:*)
+            timeout -k 3s 15s adb shell run-as com.mf.mylauncher.debug cat "${1#private:}"
+            ;;
+        *)
+            timeout -k 3s 15s adb shell "cat '$1'"
+            ;;
+    esac
+}
+
 capture_game_diagnostics() {
     timeout -k 3s 20s adb logcat -d -t 12000 > "$GAME_LOG" 2>/dev/null || true
     timeout -k 3s 20s adb shell dumpsys activity activities > upstream/mylauncher-activities.txt 2>/dev/null || true
     if [ -n "$GAME_LOG_PATH" ]; then
-        timeout -k 3s 15s adb shell "cat '$GAME_LOG_PATH'" > "$MINECRAFT_LOG" 2>/dev/null || true
+        read_minecraft_log "$GAME_LOG_PATH" > "$MINECRAFT_LOG" 2>/dev/null || true
     fi
     capture_diagnostic_screenshot
 }
@@ -284,7 +311,7 @@ fi
 # MainActivity creates this log in the configured game directory. Requiring the
 # real runCraft startup marker avoids treating an Activity launch by itself as success.
 for i in $(seq 1 60); do
-    GAME_LOG_PATH="$(timeout -k 3s 15s adb shell 'find /sdcard -maxdepth 8 -type f -name latestlog.txt 2>/dev/null | head -n 1' 2>/dev/null | tr -d '\r')"
+    GAME_LOG_PATH="$(find_minecraft_log 2>/dev/null || true)"
     if [ -n "$GAME_LOG_PATH" ]; then
         break
     fi
@@ -296,7 +323,7 @@ fi
 
 STARTUP_MARKER_SEEN=false
 for i in $(seq 1 90); do
-    timeout -k 3s 15s adb shell "cat '$GAME_LOG_PATH'" > "$MINECRAFT_LOG" 2>/dev/null || true
+    read_minecraft_log "$GAME_LOG_PATH" > "$MINECRAFT_LOG" 2>/dev/null || true
     if grep -Fq -- "Starting game with Launcher Debug!" "$MINECRAFT_LOG"; then
         STARTUP_MARKER_SEEN=true
         break
