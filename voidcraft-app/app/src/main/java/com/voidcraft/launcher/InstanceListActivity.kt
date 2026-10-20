@@ -40,6 +40,7 @@ class InstanceListActivity : Activity() {
         window.statusBarColor = background
         window.navigationBarColor = background
         window.decorView.systemUiVisibility = 0
+        LauncherPreferences.applyWindowFlags(this)
 
         val scroll = ScrollView(this).apply {
             setBackgroundColor(this@InstanceListActivity.background)
