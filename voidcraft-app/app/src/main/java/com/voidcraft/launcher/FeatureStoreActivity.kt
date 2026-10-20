@@ -208,11 +208,24 @@ class FeatureStoreActivity : Activity() {
             isClickable = true
             isFocusable = true
             setOnClickListener {
-                Toast.makeText(
-                    this@FeatureStoreActivity,
-                    "${feature.name}: UI preview only. Secure installation is not connected yet.",
-                    Toast.LENGTH_LONG
-                ).show()
+                val definition = FeatureRegistry.find(feature.id)
+                val capabilities = definition?.permissions?.takeIf { it.isNotEmpty() }
+                    ?.joinToString(", ") ?: "None declared"
+                val installed = FeatureRegistry.isInstalled(this@FeatureStoreActivity, feature.id)
+                val installable = FeatureRegistry.canInstall(feature.id)
+                val stateText = when {
+                    installed -> "Installed in the local registry. No downloaded code is executed."
+                    installable -> "Ready for the built-in install flow."
+                    else -> "Not installable yet. The implementation and required security checks are not ready."
+                }
+                android.app.AlertDialog.Builder(this@FeatureStoreActivity)
+                    .setTitle(feature.name)
+                    .setMessage(
+                        "${feature.description}\n\nStatus: ${feature.state}\n" +
+                            "Declared capabilities: $capabilities\n\n$stateText"
+                    )
+                    .setPositiveButton("Close", null)
+                    .show()
             }
         }
         card.addView(button)
