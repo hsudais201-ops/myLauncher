@@ -97,6 +97,90 @@ object FeatureRegistry {
             listOf("device_info", "memory_info", "storage_stats")
         ),
         Definition(
+            "resource-pack-manager",
+            "Resource Pack Manager",
+            "Browse, enable, disable, and inspect resource packs for a selected instance.",
+            Status.PLANNED,
+            listOf("resource_pack_files")
+        ),
+        Definition(
+            "resource-pack-compatibility",
+            "Resource Pack Compatibility Checker",
+            "Check pack metadata and declared format against the selected Minecraft version.",
+            Status.PLANNED,
+            listOf("resource_pack_metadata")
+        ),
+        Definition(
+            "world-details-viewer",
+            "World Details Viewer",
+            "Inspect local world metadata such as game version, last-played date, and game mode.",
+            Status.PLANNED,
+            listOf("world_metadata")
+        ),
+        Definition(
+            "local-playtime-tracker",
+            "Playtime Tracker",
+            "Track launcher-observed play sessions locally with a clear reset option.",
+            Status.PLANNED,
+            listOf("session_metadata")
+        ),
+        Definition(
+            "accessibility-presets",
+            "Accessibility Presets",
+            "Offer launcher-level text size, contrast, and reduced-animation presets.",
+            Status.PLANNED,
+            listOf("launcher_preferences")
+        ),
+        Definition(
+            "profile-icon-studio",
+            "Profile Icon Studio",
+            "Create and assign original local icons for launcher instances and profiles.",
+            Status.PLANNED,
+            listOf("profile_metadata")
+        ),
+        Definition(
+            "configuration-backup",
+            "Configuration Backup",
+            "Back up selected launcher and per-instance configuration files with restore preview.",
+            Status.PLANNED,
+            listOf("config_files")
+        ),
+        Definition(
+            "network-diagnostics",
+            "Network Diagnostics",
+            "Check connectivity and latency to a user-selected server without changing network settings.",
+            Status.PLANNED,
+            listOf("network")
+        ),
+        Definition(
+            "release-watch",
+            "Minecraft Release Watch",
+            "Show new official Minecraft version metadata and let users choose what to install.",
+            Status.PLANNED,
+            listOf("network")
+        ),
+        Definition(
+            "controller-presets",
+            "Controller Presets",
+            "Save and switch controller mapping presets when controller integration is available.",
+            Status.PLANNED,
+            listOf("controller_settings")
+        ),
+        Definition(
+            "resource-usage-history",
+            "Resource Usage History",
+            "Record opted-in, coarse launcher-observed memory and session timing data locally.",
+            Status.PLANNED,
+            listOf("device_info", "memory_info", "session_metadata")
+        ),
+        Definition(
+            "instance-notes",
+            "Instance Notes",
+            "Keep private notes and troubleshooting reminders attached to an instance.",
+            Status.PLANNED,
+            listOf("profile_metadata")
+        ),
+        Definition(
             "community-feature-upload",
             "Community Feature Upload",
             "Submissions require authenticated review, signature validation and compatibility checks.",
