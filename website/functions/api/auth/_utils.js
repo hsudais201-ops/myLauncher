@@ -135,7 +135,7 @@ export async function currentUser(request, env) {
   if (!token || !env?.VOIDCRAFT_AUTH) return null;
   const now = Math.floor(Date.now() / 1000);
   return await env.VOIDCRAFT_AUTH.prepare(
-    "SELECT u.id, u.username, u.email, u.created_at, u.last_login_at " +
+    "SELECT u.id, u.username, u.email, u.created_at, u.last_login_at, u.role " +
     "FROM sessions s JOIN users u ON u.id = s.user_id " +
     "WHERE s.token_hash = ? AND s.expires_at > ? LIMIT 1"
   ).bind(await sha256Hex(token), now).first();
@@ -147,5 +147,5 @@ export async function deleteSession(request, env) {
     .bind(await sha256Hex(token)).run();
 }
 export function publicUser(user) {
-  return { username: user.username, email: user.email, createdAt: user.created_at, lastLoginAt: user.last_login_at || null };
+  return { username: user.username, email: user.email, createdAt: user.created_at, lastLoginAt: user.last_login_at || null, role: user.role === "owner" ? "owner" : "member" };
 }
