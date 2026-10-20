@@ -99,10 +99,10 @@ class FileInstanceCatalogRepository(private val privateDirectory: File) : Instan
                     throw IOException("Duplicate instance ID in catalog")
                 }
                 records.add(profile)
-            } catch (error: IllegalArgumentException) {
-                throw IOException("Invalid instance catalog record at index $index", error)
             } catch (error: NumberFormatException) {
                 throw IOException("Invalid numeric field at catalog index $index", error)
+            } catch (error: IllegalArgumentException) {
+                throw IOException("Invalid instance catalog record at index $index", error)
             }
         }
         return records
