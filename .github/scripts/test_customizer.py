@@ -1516,6 +1516,10 @@ class ApplyLogoTests(unittest.TestCase):
                 'android:roundIcon="@mipmap/ic_launcher_round" /></manifest>',
                 encoding="utf-8",
             )
+            # Seed the former placeholder so the applier must remove it.
+            legacy_icon = app / "src/main/res/drawable/voidcraft_launcher_logo.xml"
+            legacy_icon.parent.mkdir(parents=True, exist_ok=True)
+            legacy_icon.write_text("<vector />", encoding="utf-8")
             logo_applier.main(root)
             manifest_root = ET.parse(manifest).getroot()
             app_node = manifest_root.find("application")
@@ -1525,11 +1529,14 @@ class ApplyLogoTests(unittest.TestCase):
                              "@drawable/voidcraft_launcher_logo")
             self.assertEqual(app_node.get("{http://schemas.android.com/apk/res/android}roundIcon"),
                              "@drawable/voidcraft_launcher_logo")
-            icon = app / "src/main/res/drawable/voidcraft_launcher_logo.xml"
-            ET.parse(icon)
-            icon_text = icon.read_text(encoding="utf-8")
-            self.assertIn('android:strokeColor="#6EF3FF"', icon_text)
-            self.assertIn('android:strokeColor="#7B61FF"', icon_text)
+            icon = app / "src/main/res/drawable-nodpi/voidcraft_launcher_logo.webp"
+            icon_bytes = icon.read_bytes()
+            self.assertTrue(icon_bytes.startswith(b"RIFF"))
+            self.assertEqual(icon_bytes[8:12], b"WEBP")
+            # Check every copied WebP byte against the canonical bundled asset.
+            asset = Path(logo_applier.__file__).resolve().parents[2] / "assets/branding/voidcraft-vc-logo.webp"
+            self.assertEqual(icon_bytes, asset.read_bytes())
+            self.assertFalse(legacy_icon.exists())
 
 
 class BuildWorkflowTests(unittest.TestCase):
