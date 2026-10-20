@@ -39,6 +39,82 @@ data class MinecraftAssetIndex(
     val totalSizeBytes: Long?
 )
 
+data class MinecraftLibraryArtifact(
+    val path: String,
+    val url: String,
+    val sha1: String?,
+    val sizeBytes: Long?
+)
+
+data class MinecraftLibraryDownloads(
+    val artifact: MinecraftLibraryArtifact?,
+    val classifiers: Map<String, MinecraftLibraryArtifact>
+)
+
+data class MinecraftLibraryRule(
+    val action: String,
+    val osName: String?,
+    val osVersionRegex: String?,
+    val osArchitectureRegex: String?,
+    val features: Map<String, Boolean>
+)
+
+data class MinecraftLibrary(
+    val name: String,
+    val urlBase: String?,
+    val downloads: MinecraftLibraryDownloads?,
+    val rules: List<MinecraftLibraryRule>,
+    val natives: Map<String, String>,
+    val extractExcludes: List<String>
+)
+
+object MinecraftMavenPath {
+    fun derive(coordinate: String, classifierOverride: String? = null): String {
+        val pieces = coordinate.split("@", limit = 2)
+        require(pieces.size <= 2) { "Invalid Maven coordinate: " + coordinate }
+        val values = pieces[0].split(":")
+        require(values.size in 3..4 && values.all { it.isNotBlank() }) {
+            "Invalid Maven coordinate: " + coordinate
+        }
+        val group = values[0]
+        val artifact = values[1]
+        val version = values[2]
+        val classifier = classifierOverride ?: values.getOrNull(3)
+        val extension = pieces.getOrNull(1)?.takeIf { it.isNotBlank() } ?: "jar"
+        require(Regex("[A-Za-z0-9._+-]{1,128}").matches(artifact)) {
+            "Invalid Maven artifact name: " + artifact
+        }
+        require(Regex("[A-Za-z0-9._+-]{1,128}").matches(version)) {
+            "Invalid Maven version: " + version
+        }
+        require(Regex("[A-Za-z0-9._+-]{1,128}").matches(extension)) {
+            "Invalid Maven extension: " + extension
+        }
+        if (classifier != null) {
+            require(Regex("[A-Za-z0-9._+-]{1,128}").matches(classifier)) {
+                "Invalid Maven classifier: " + classifier
+            }
+        }
+        val groupPath = group.split(".").joinToString("/")
+        val fileName = artifact + "-" + version + (classifier?.let { "-" + it } ?: "") + "." + extension
+        return validateRelativePath(groupPath + "/" + artifact + "/" + version + "/" + fileName)
+    }
+
+    fun validateRelativePath(path: String): String {
+        require(path.isNotBlank() && path.length <= 1024) { "Artifact path is empty or too long" }
+        require(!path.startsWith("/") && !path.startsWith("\\") && !path.contains("\\")) {
+            "Artifact path must be relative and use forward slashes"
+        }
+        val checked = path.trimEnd('/')
+        require(checked.isNotBlank()) { "Artifact path is empty" }
+        require(checked.split("/").all { it.isNotBlank() && it != "." && it != ".." }) {
+            "Artifact path contains an unsafe segment"
+        }
+        require(checked.none { it == ':' || it.code < 32 }) { "Artifact path contains an unsafe character" }
+        return path
+    }
+}
+
 data class MinecraftVersionDetails(
     val id: String,
     val type: String,
@@ -47,7 +123,8 @@ data class MinecraftVersionDetails(
     val assets: String?,
     val assetIndex: MinecraftAssetIndex?,
     val clientDownload: MinecraftArtifactDownload?,
-    val javaMajorVersion: Int?
+    val javaMajorVersion: Int?,
+    val libraries: List<MinecraftLibrary> = emptyList()
 )
 
 /** URL rules for official Mojang launcher metadata and its distribution CDNs. */
@@ -213,6 +290,7 @@ class MinecraftVersionDetailsParser {
             require(major in 1..100) { "Java major version out of range for " + id }
             major.toInt()
         }
+        val libraries = parseLibraries(obj)
         return MinecraftVersionDetails(
             id = id,
             type = type,
@@ -221,8 +299,138 @@ class MinecraftVersionDetailsParser {
             assets = stringField(obj, "assets", false),
             assetIndex = assetIndex,
             clientDownload = client,
-            javaMajorVersion = javaMajor
+            javaMajorVersion = javaMajor,
+            libraries = libraries
         )
+    }
+
+    private fun parseLibraries(versionObject: JsonObject): List<MinecraftLibrary> {
+        val element = versionObject.get("libraries") ?: return emptyList()
+        require(element.isJsonArray) { "Version libraries field must be an array" }
+        require(element.asJsonArray.size() <= MAX_LIBRARIES) { "Version has too many library entries" }
+        return element.asJsonArray.mapIndexed { index, item ->
+            require(item.isJsonObject) { "Library entry " + index + " must be an object" }
+            val library = item.asJsonObject
+            val name = stringField(library, "name", true)!!
+            val urlBase = stringField(library, "url", false)?.let { raw ->
+                val normalized = if (raw.endsWith("/")) raw else raw + "/"
+                MojangUrlPolicy.validate(normalized)
+                normalized
+            }
+            val downloadsObject = library.getAsJsonObject("downloads")
+            val artifact = downloadsObject?.getAsJsonObject("artifact")?.let {
+                parseLibraryArtifact(it, name, null)
+            }
+            val classifiers = LinkedHashMap<String, MinecraftLibraryArtifact>()
+            val classifiersObject = downloadsObject?.getAsJsonObject("classifiers")
+            if (classifiersObject != null) {
+                classifiersObject.entrySet().forEach { (classifier, descriptor) ->
+                    require(Regex("[A-Za-z0-9._+-]{1,128}").matches(classifier)) {
+                        "Invalid library classifier: " + classifier
+                    }
+                    require(descriptor.isJsonObject) { "Library classifier must be an object" }
+                    classifiers[classifier] = parseLibraryArtifact(descriptor.asJsonObject, name, classifier)
+                }
+            }
+            MinecraftLibrary(
+                name = name,
+                urlBase = urlBase,
+                downloads = if (downloadsObject == null) null else MinecraftLibraryDownloads(artifact, classifiers),
+                rules = parseLibraryRules(library),
+                natives = parseNativeMap(library),
+                extractExcludes = parseExtractExcludes(library)
+            )
+        }
+    }
+
+    private fun parseLibraryArtifact(
+        descriptor: JsonObject,
+        libraryName: String,
+        classifier: String?
+    ): MinecraftLibraryArtifact {
+        val url = MojangUrlPolicy.validate(stringField(descriptor, "url", true)!!).toString()
+        val rawPath = stringField(descriptor, "path", false)
+        val path = MinecraftMavenPath.validateRelativePath(rawPath ?: MinecraftMavenPath.derive(libraryName, classifier))
+        val sha1 = sha1Field(descriptor, "sha1")
+        val size = longField(descriptor, "size")
+        return MinecraftLibraryArtifact(path, url, sha1, size)
+    }
+
+    private fun parseLibraryRules(libraryObject: JsonObject): List<MinecraftLibraryRule> {
+        val element = libraryObject.get("rules") ?: return emptyList()
+        require(element.isJsonArray) { "Library rules field must be an array" }
+        require(element.asJsonArray.size() <= MAX_LIBRARY_RULES) { "Library has too many rules" }
+        return element.asJsonArray.mapIndexed { index, ruleElement ->
+            require(ruleElement.isJsonObject) { "Library rule " + index + " must be an object" }
+            val rule = ruleElement.asJsonObject
+            val action = stringField(rule, "action", true)!!
+            require(action == "allow" || action == "disallow") {
+                "Invalid library rule action: " + action
+            }
+            val os = rule.getAsJsonObject("os")
+            val osName = os?.let { stringField(it, "name", false) }
+            val osVersion = os?.let { stringField(it, "version", false) }
+            val osArch = os?.let { stringField(it, "arch", false) }
+            osVersion?.let { validateRegex(it, "OS version rule") }
+            osArch?.let { validateRegex(it, "OS architecture rule") }
+            val features = LinkedHashMap<String, Boolean>()
+            val featuresObject = rule.getAsJsonObject("features")
+            if (featuresObject != null) {
+                featuresObject.entrySet().forEach { (feature, value) ->
+                    require(Regex("[A-Za-z0-9._-]{1,128}").matches(feature)) {
+                        "Invalid library rule feature name"
+                    }
+                    require(value.isJsonPrimitive && value.asJsonPrimitive.isBoolean) {
+                        "Library rule features must be boolean values"
+                    }
+                    features[feature] = value.asBoolean
+                }
+            }
+            MinecraftLibraryRule(action, osName, osVersion, osArch, features)
+        }
+    }
+
+    private fun parseNativeMap(libraryObject: JsonObject): Map<String, String> {
+        val element = libraryObject.get("natives") ?: return emptyMap()
+        require(element.isJsonObject) { "Library natives field must be an object" }
+        val result = LinkedHashMap<String, String>()
+        element.asJsonObject.entrySet().forEach { (osName, classifierElement) ->
+            require(Regex("[a-z0-9_-]{1,32}").matches(osName)) { "Invalid native OS key" }
+            require(classifierElement.isJsonPrimitive && classifierElement.asJsonPrimitive.isString) {
+                "Native classifier template must be a string"
+            }
+            val classifier = classifierElement.asString
+            require(classifier.isNotBlank() && classifier.length <= 128 &&
+                classifier.none { it == '/' || it == '\\' }) { "Invalid native classifier template" }
+            result[osName] = classifier
+        }
+        return result
+    }
+
+    private fun parseExtractExcludes(libraryObject: JsonObject): List<String> {
+        val extract = libraryObject.getAsJsonObject("extract") ?: return emptyList()
+        val element = extract.get("exclude") ?: return emptyList()
+        require(element.isJsonArray) { "Library extract.exclude must be an array" }
+        return element.asJsonArray.map { item ->
+            require(item.isJsonPrimitive && item.asJsonPrimitive.isString) {
+                "Library extract exclusions must be strings"
+            }
+            val exclusion = item.asString
+            require(exclusion.isNotBlank() && !exclusion.startsWith("/") &&
+                !exclusion.contains("\\") &&
+                exclusion.trimEnd('/').split("/").none { it == ".." || it == "." }) {
+                "Unsafe native extraction exclusion"
+            }
+            exclusion
+        }
+    }
+
+    private fun validateRegex(value: String, label: String) {
+        try {
+            Regex(value)
+        } catch (error: Exception) {
+            throw IllegalArgumentException("Invalid " + label + " regex", error)
+        }
     }
 
     private fun stringField(obj: JsonObject, key: String, required: Boolean): String? {
@@ -257,6 +465,8 @@ class MinecraftVersionDetailsParser {
 
     companion object {
         private const val MAX_DETAILS_CHARS = 5 * 1024 * 1024
+        private const val MAX_LIBRARIES = 20_000
+        private const val MAX_LIBRARY_RULES = 256
         private val TYPE_PATTERN = Regex("[a-z_]{1,32}")
         private val SHA1_PATTERN = Regex("[0-9a-fA-F]{40}")
     }
@@ -333,9 +543,7 @@ class MinecraftVersionCatalogClient(
     fun fetchDetails(entry: MinecraftVersionEntry): MinecraftVersionDetails {
         MojangUrlPolicy.validate(entry.metadataUrl)
         val json = fetcher.fetch(entry.metadataUrl, MAX_METADATA_BYTES)
-        val actualSha1 = MessageDigest.getInstance("SHA-1")
-            .digest(json.toByteArray(StandardCharsets.UTF_8))
-            .joinToString("") { "%02x".format(it.toInt() and 0xff) }
+        val actualSha1 = sha1Hex(json)
         if (!actualSha1.equals(entry.sha1, ignoreCase = true)) {
             throw DownloadIntegrityException("Version metadata failed SHA-1 verification")
         }
@@ -346,6 +554,24 @@ class MinecraftVersionCatalogClient(
         }
         return details
     }
+
+    fun fetchAssetIndex(descriptor: MinecraftAssetIndex): MinecraftAssetIndexContents {
+        MojangUrlPolicy.validate(descriptor.url)
+        val json = fetcher.fetch(descriptor.url, MAX_METADATA_BYTES)
+        val actualSha1 = sha1Hex(json)
+        if (descriptor.sha1 != null && !actualSha1.equals(descriptor.sha1, ignoreCase = true)) {
+            throw DownloadIntegrityException("Asset-index JSON failed SHA-1 verification")
+        }
+        if (descriptor.sizeBytes != null && json.toByteArray(StandardCharsets.UTF_8).size.toLong() != descriptor.sizeBytes) {
+            throw DownloadIntegrityException("Asset-index JSON size does not match version metadata")
+        }
+        return MinecraftAssetIndexParser().parse(json)
+    }
+
+    private fun sha1Hex(value: String): String =
+        MessageDigest.getInstance("SHA-1")
+            .digest(value.toByteArray(StandardCharsets.UTF_8))
+            .joinToString("") { "%02x".format(it.toInt() and 0xff) }
 
     companion object {
         const val VERSION_MANIFEST_URL = "https://piston-meta.mojang.com/mc/game/version_manifest_v2.json"
