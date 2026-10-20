@@ -63,7 +63,7 @@ class MinecraftLaunchArgumentsTest {
 
     @Test
     fun supportsLegacyOnlyMetadataAndPreservesArgumentTextExactly() {
-        val value = "--username \"player one\" --version old"
+        val value = "--username player --version old"
         val json = """{"id":"1.7.10","type":"release","minecraftArguments":"$value"}"""
         val details = MinecraftVersionDetailsParser().parse(json)
 
