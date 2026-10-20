@@ -248,7 +248,7 @@ sleep 1
 if ! tap_view id login_button 20; then
     fail_real_game_smoke "could not submit the offline test account"
 fi
-if ! tap_view id play_button 40; then
+if ! wait_for_view id play_button 40 >/dev/null; then
     fail_real_game_smoke "launcher did not return to the Play screen after creating the offline account"
 fi
 # Allow the official version manifest lookup to finish before selecting the default profile.
