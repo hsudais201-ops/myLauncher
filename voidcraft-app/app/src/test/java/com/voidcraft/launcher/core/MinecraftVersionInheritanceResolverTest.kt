@@ -63,7 +63,7 @@ class MinecraftVersionInheritanceResolverTest {
             ),
             resolved.libraries.map { it.name }.toSet()
         )
-        assertEquals("child", resolved.libraries.first { it.name == "org.example:shared:1.0" }.urlBase)
+        assertEquals("https://libraries.minecraft.net/child/", resolved.libraries.first { it.name == "org.example:shared:1.0" }.urlBase)
         assertEquals(listOf(child.id, parent.id, base.id), source.fetchOrder)
     }
 
