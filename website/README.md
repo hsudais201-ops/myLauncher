@@ -2,12 +2,12 @@
 
 Static, mobile-first website for VoidCraft Launcher. Pages include home, downloads, Feature Store, Cosmetic Store, server status, community, developer hub, documentation, security, changelog, profile, sign-in, privacy, terms, and 404.
 
-Cloudflare Pages project: `voidcraft-website`. Website source is kept in `website/`, separate from launcher source and runtime files.
+Cloudflare Pages project: `voidcraft-launcher` (`https://voidcraft-launcher.pages.dev`). Website source is kept in `website/`, separate from launcher source and runtime files.
 
 ## Website account system
 
 - Registration and sign-in use a Cloudflare Pages Functions API backed by the Cloudflare D1 database `voidcraft-auth`.
-- Passwords are stored as salted PBKDF2-HMAC-SHA-256 hashes (600,000 iterations); raw passwords are not stored.
+- Passwords are stored as salted, chained PBKDF2-HMAC-SHA-256 hashes using six sequential 100,000-iteration passes to stay within the Cloudflare Workers per-call limit; raw passwords are not stored.
 - Session tokens are random, stored server-side as SHA-256 hashes, and sent in a Secure, HttpOnly, SameSite cookie that expires after seven days.
 - Registration and sign-in are rate limited per request IP. State-changing auth endpoints reject cross-origin requests.
 - The account system is for the VoidCraft website only. It is not Microsoft/Xbox/Minecraft authentication and grants no Minecraft entitlement.
