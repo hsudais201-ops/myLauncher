@@ -131,7 +131,15 @@ class VersionBrowserActivity : Activity() {
         page.addView(actionButton("Back to dashboard") { finish() }.apply {
             layoutParams = buttonParams().apply { topMargin = dp(5) }
         })
-        setContentView(page)
+        val root = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setBackgroundColor(background)
+        }
+        root.addView(page, LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f
+        ))
+        root.addView(LauncherNavigationBar.create(this, "Versions"))
+        setContentView(root)
 
         searchField.addTextChangedListener(object : TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
