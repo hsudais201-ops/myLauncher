@@ -2184,7 +2184,7 @@ def patch_upstream(upstream: Path) -> None:
             requested.put("graphicsMode", "0");
             requested.put("fancyGraphics", "false");
             requested.put("particles", "2");
-            requested.put("maxFps", "30");
+            requested.put("maxFps", "260");
             requested.put("enableVsync", "false");
             requested.put("mipmapLevels", "0");
             requested.put("ao", "0");
@@ -2196,8 +2196,8 @@ def patch_upstream(upstream: Path) -> None:
             requested.put("graphicsMode", "0");
             requested.put("fancyGraphics", "false");
             requested.put("particles", "1");
-            requested.put("maxFps", "60");
-            requested.put("enableVsync", "true");
+            requested.put("maxFps", "260");
+            requested.put("enableVsync", "false");
             requested.put("mipmapLevels", "2");
             requested.put("ao", "1");
             requested.put("entityDistanceScaling", "0.75");
@@ -2208,8 +2208,8 @@ def patch_upstream(upstream: Path) -> None:
             requested.put("graphicsMode", "1");
             requested.put("fancyGraphics", "true");
             requested.put("particles", "0");
-            requested.put("maxFps", "120");
-            requested.put("enableVsync", "true");
+            requested.put("maxFps", "260");
+            requested.put("enableVsync", "false");
             requested.put("mipmapLevels", "4");
             requested.put("ao", "2");
             requested.put("entityDistanceScaling", "1.0");
@@ -2260,33 +2260,80 @@ def patch_upstream(upstream: Path) -> None:
             Toast.makeText(requireContext(), R.string.main_performance_apply_failed, Toast.LENGTH_LONG).show();
             return;
         }
+        java.io.File rollbackFile = profileDirectory == null ? null
+                : new java.io.File(profileDirectory, "options.txt.voidcraft-performance-rollback");
+        boolean optionsWritten = false;
+        boolean keepRollback = false;
+        android.content.SharedPreferences preferences = net.kdt.pojavlaunch.prefs.LauncherPreferences.DEFAULT_PREF;
+        boolean hadAllocationBefore = preferences.contains("allocation");
+        int previousAllocationBefore = preferences.getInt("allocation", 0);
+        boolean hadResolutionBefore = preferences.contains("resolutionRatio");
+        int previousResolutionBefore = preferences.getInt("resolutionRatio", 100);
         try {
             if (!backupFile.isFile() && !copyMyLauncherPerformanceFile(optionsFile, backupFile)) {
                 throw new java.io.IOException("Could not preserve the original options.txt");
             }
-            android.content.SharedPreferences preferences = net.kdt.pojavlaunch.prefs.LauncherPreferences.DEFAULT_PREF;
             if (!preferences.getBoolean(MYLAUNCHER_PERFORMANCE_BACKUP_PRESENT, false)) {
                 android.content.SharedPreferences.Editor backupEditor = preferences.edit()
                         .putBoolean(MYLAUNCHER_PERFORMANCE_BACKUP_PRESENT, true)
-                        .putBoolean(MYLAUNCHER_PERFORMANCE_HAD_ALLOCATION, preferences.contains("allocation"))
-                        .putBoolean(MYLAUNCHER_PERFORMANCE_HAD_RESOLUTION, preferences.contains("resolutionRatio"));
-                if (preferences.contains("allocation")) {
-                    backupEditor.putInt(MYLAUNCHER_PERFORMANCE_PREVIOUS_ALLOCATION, preferences.getInt("allocation", 0));
+                        .putBoolean(MYLAUNCHER_PERFORMANCE_HAD_ALLOCATION, hadAllocationBefore)
+                        .putBoolean(MYLAUNCHER_PERFORMANCE_HAD_RESOLUTION, hadResolutionBefore);
+                if (hadAllocationBefore) {
+                    backupEditor.putInt(MYLAUNCHER_PERFORMANCE_PREVIOUS_ALLOCATION, previousAllocationBefore);
                 }
-                if (preferences.contains("resolutionRatio")) {
-                    backupEditor.putInt(MYLAUNCHER_PERFORMANCE_PREVIOUS_RESOLUTION, preferences.getInt("resolutionRatio", 100));
+                if (hadResolutionBefore) {
+                    backupEditor.putInt(MYLAUNCHER_PERFORMANCE_PREVIOUS_RESOLUTION, previousResolutionBefore);
                 }
                 if (!backupEditor.commit()) throw new java.io.IOException("Could not back up launcher performance preferences");
             }
+            if (rollbackFile == null || !copyMyLauncherPerformanceFile(optionsFile, rollbackFile)) {
+                throw new java.io.IOException("Could not create a rollback copy of options.txt");
+            }
+
             int resolutionRatio = profile == 0 ? 50 : (profile == 1 ? 75 : 100);
+            // Write the profile file first. If preference persistence fails, the rollback copy
+            // lets us recover the exact options.txt that existed immediately before this attempt.
+            writeMyLauncherPerformanceLines(optionsFile, updatedLines);
+            optionsWritten = true;
             boolean preferencesSaved = preferences.edit()
                     .putInt("allocation", recommendedPortableAllocation(requireContext()))
                     .putInt("resolutionRatio", resolutionRatio)
                     .commit();
-            if (!preferencesSaved) throw new java.io.IOException("Could not save launcher performance preferences");
-            writeMyLauncherPerformanceLines(optionsFile, updatedLines);
+            if (!preferencesSaved) {
+                android.content.SharedPreferences.Editor preferenceRollback = preferences.edit();
+                if (hadAllocationBefore) {
+                    preferenceRollback.putInt("allocation", previousAllocationBefore);
+                } else {
+                    preferenceRollback.remove("allocation");
+                }
+                if (hadResolutionBefore) {
+                    preferenceRollback.putInt("resolutionRatio", previousResolutionBefore);
+                } else {
+                    preferenceRollback.remove("resolutionRatio");
+                }
+                preferenceRollback.commit();
+                if (copyMyLauncherPerformanceFile(rollbackFile, optionsFile)) {
+                    optionsWritten = false;
+                } else {
+                    keepRollback = true;
+                }
+                throw new java.io.IOException("Could not save launcher performance preferences");
+            }
+            if (rollbackFile.exists()) rollbackFile.delete();
             Toast.makeText(requireContext(), getString(R.string.main_performance_applied, matchedKeys), Toast.LENGTH_LONG).show();
         } catch (Exception error) {
+            if (optionsWritten && rollbackFile != null && rollbackFile.isFile()) {
+                try {
+                    if (copyMyLauncherPerformanceFile(rollbackFile, optionsFile)) {
+                        optionsWritten = false;
+                    } else {
+                        keepRollback = true;
+                    }
+                } catch (Exception rollbackError) {
+                    keepRollback = true;
+                }
+            }
+            if (rollbackFile != null && rollbackFile.exists() && !keepRollback) rollbackFile.delete();
             Toast.makeText(requireContext(), R.string.main_performance_apply_failed, Toast.LENGTH_LONG).show();
         }
     }
@@ -3311,7 +3358,7 @@ def patch_upstream(upstream: Path) -> None:
         int deviceRam = Tools.getTotalDeviceMemory(context);
         if (deviceRam < 1024) return 296;
         if (deviceRam < 1536) return 448;
-        if (deviceRam < 2048) return 656;
+        if (deviceRam <= 2048) return 512;
         if (!android.os.Process.is64Bit()) return 696;
         if (deviceRam < 3064) return 936;
         if (deviceRam < 4096) return 1144;
