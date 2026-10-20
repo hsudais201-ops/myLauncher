@@ -5,7 +5,8 @@
 The independent app is in `voidcraft-app/`, uses Kotlin and Android platform Views, and has its own Android application ID: `com.voidcraft.launcher`.
 
 Implemented:
-- `MainActivity`: standalone dashboard shell; no upstream Activity or UI code is imported.
+- `MainActivity`: independently authored dashboard and navigation; no upstream Activity or UI code is imported.
+- `InstanceListActivity`: profile metadata list/create/remove UI, with explicit messaging that game files are not installed and removal is non-destructive.
 - `core/InstanceProfile.kt`: validated metadata model for one game instance.
 - `core/InstanceCatalogRepository.kt`: versioned, app-private metadata catalog with temporary-file writes, schema validation, and metadata-only removal.
 - `core/InstanceCatalogRepositoryTest.kt`: JVM tests for round-trip persistence, ID validation, schema safety, and preservation of game files on catalog removal.
@@ -18,7 +19,7 @@ Not yet implemented or connected:
 - Import/export, modpack workflows, touch-control designer, and feature store.
 - Read-only discovery and migration of data from the existing launcher.
 
-Dashboard buttons that mention these future capabilities are not connected services and must not be represented as working features.
+The Instances dashboard button opens the metadata-only profile screen. Performance, runtime launch, authentication, downloads, and feature-store buttons remain placeholders; they must not be represented as connected services.
 
 ## Intended dependency direction
 
