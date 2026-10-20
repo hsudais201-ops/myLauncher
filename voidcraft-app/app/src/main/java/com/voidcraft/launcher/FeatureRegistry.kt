@@ -94,7 +94,7 @@ object FeatureRegistry {
             "Startup Diagnostics",
             "Read device, memory, storage and app build information before launch.",
             Status.AVAILABLE,
-            listOf("device_info", "game_logs")
+            listOf("device_info", "memory_info", "storage_stats")
         ),
         Definition(
             "community-feature-upload",
