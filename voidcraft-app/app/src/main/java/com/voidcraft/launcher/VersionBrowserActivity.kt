@@ -70,7 +70,7 @@ class VersionBrowserActivity : Activity() {
         val page = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(dp(16), dp(18), dp(16), dp(18))
-            setBackgroundColor(background)
+            setBackgroundColor(this@VersionBrowserActivity.background)
         }
         page.addView(label("MINECRAFT VERSIONS", 23, primaryText, true))
         page.addView(label(
