@@ -16,8 +16,14 @@ export function json(data, status = 200, extraHeaders = {}) {
 }
 
 export function sameOrigin(request) {
+  const expected = new URL(request.url).origin;
   const origin = request.headers.get("Origin");
-  return Boolean(origin) && origin === new URL(request.url).origin;
+  if (origin) return origin === expected;
+  const fetchSite = request.headers.get("Sec-Fetch-Site");
+  if (fetchSite) return fetchSite === "same-origin";
+  const referer = request.headers.get("Referer");
+  try { return Boolean(referer) && new URL(referer).origin === expected; }
+  catch { return false; }
 }
 
 export async function readJson(request) {
@@ -26,12 +32,12 @@ export async function readJson(request) {
   const length = Number(request.headers.get("Content-Length") || 0);
   if (length > 8192) return null;
   try {
-    const body = await request.json();
+    const raw = await request.text();
+    if (new TextEncoder().encode(raw).byteLength > 8192) return null;
+    const body = JSON.parse(raw);
     if (!body || typeof body !== "object" || Array.isArray(body)) return null;
     return body;
-  } catch {
-    return null;
-  }
+  } catch { return null; }
 }
 
 function hex(bytes) {
@@ -45,8 +51,7 @@ function fromHex(value) {
 }
 
 export function randomHex(byteLength = 32) {
-  const bytes = crypto.getRandomValues(new Uint8Array(byteLength));
-  return hex(bytes);
+  return hex(crypto.getRandomValues(new Uint8Array(byteLength)));
 }
 
 export async function sha256Hex(value) {
@@ -54,18 +59,9 @@ export async function sha256Hex(value) {
 }
 
 export async function passwordHash(password, saltHex) {
-  const material = await crypto.subtle.importKey(
-    "raw",
-    new TextEncoder().encode(password),
-    "PBKDF2",
-    false,
-    ["deriveBits"]
-  );
+  const material = await crypto.subtle.importKey("raw", new TextEncoder().encode(password), "PBKDF2", false, ["deriveBits"]);
   const bits = await crypto.subtle.deriveBits({
-    name: "PBKDF2",
-    hash: "SHA-256",
-    salt: fromHex(saltHex),
-    iterations: PBKDF2_ITERATIONS
+    name: "PBKDF2", hash: "SHA-256", salt: fromHex(saltHex), iterations: PBKDF2_ITERATIONS
   }, material, 256);
   return hex(bits);
 }
@@ -91,21 +87,21 @@ export async function allowAttempt(request, env, action) {
     "SELECT attempts, window_start FROM auth_rate_limits WHERE bucket_key = ?"
   ).bind(bucket).first();
   if (now % 97 === 0) {
-    await env.VOIDCRAFT_AUTH.prepare(
-      "DELETE FROM auth_rate_limits WHERE window_start < ?"
-    ).bind(now - 24 * 60 * 60 * 1000).run();
+    await env.VOIDCRAFT_AUTH.prepare("DELETE FROM auth_rate_limits WHERE window_start < ?")
+      .bind(now - 24 * 60 * 60 * 1000).run();
   }
-  return { allowed: Number(row?.attempts || 0) <= RATE_LIMIT, retryAfter: Math.max(1, Math.ceil((Number(row?.window_start || now) + RATE_WINDOW_MS - now) / 1000)) };
+  return {
+    allowed: Number(row?.attempts || 0) <= RATE_LIMIT,
+    retryAfter: Math.max(1, Math.ceil((Number(row?.window_start || now) + RATE_WINDOW_MS - now) / 1000))
+  };
 }
 
 export function sessionCookie(token) {
   return COOKIE_NAME + "=" + token + "; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=" + SESSION_TTL_SECONDS;
 }
-
 export function clearSessionCookie() {
   return COOKIE_NAME + "=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0";
 }
-
 export function getSessionToken(request) {
   const cookie = request.headers.get("Cookie") || "";
   const match = cookie.match(/(?:^|;\s*)__Host-vc_session=([a-f0-9]{64})(?:;|$)/i);
@@ -124,32 +120,20 @@ export async function createSession(env, userId) {
 
 export async function currentUser(request, env) {
   const token = getSessionToken(request);
-  if (!token || !env.VOIDCRAFT_AUTH) return null;
+  if (!token || !env?.VOIDCRAFT_AUTH) return null;
   const now = Math.floor(Date.now() / 1000);
-  const user = await env.VOIDCRAFT_AUTH.prepare(
+  return await env.VOIDCRAFT_AUTH.prepare(
     "SELECT u.id, u.username, u.email, u.created_at, u.last_login_at " +
     "FROM sessions s JOIN users u ON u.id = s.user_id " +
     "WHERE s.token_hash = ? AND s.expires_at > ? LIMIT 1"
   ).bind(await sha256Hex(token), now).first();
-  return user || null;
 }
-
 export async function deleteSession(request, env) {
   const token = getSessionToken(request);
-  if (!token || !env.VOIDCRAFT_AUTH) return;
+  if (!token || !env?.VOIDCRAFT_AUTH) return;
   await env.VOIDCRAFT_AUTH.prepare("DELETE FROM sessions WHERE token_hash = ?")
     .bind(await sha256Hex(token)).run();
 }
-
 export function publicUser(user) {
-  return {
-    username: user.username,
-    email: user.email,
-    createdAt: user.created_at,
-    lastLoginAt: user.last_login_at || null
-  };
-}
-
-export function authUnavailable(env) {
-  return !env || !env.VOIDCRAFT_AUTH;
+  return { username: user.username, email: user.email, createdAt: user.created_at, lastLoginAt: user.last_login_at || null };
 }
