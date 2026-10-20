@@ -4,6 +4,8 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertThrows
 import org.junit.Test
+import java.nio.charset.StandardCharsets
+import java.security.MessageDigest
 
 class MinecraftVersionCatalogTest {
     private val parser = MinecraftVersionManifestParser()
@@ -124,11 +126,33 @@ class MinecraftVersionCatalogTest {
             metadataUrl = "https://piston-meta.mojang.com/version.json",
             updatedAt = "2024-12-03T10:00:00Z",
             releaseTime = "2024-12-03T10:00:00Z",
-            sha1 = releaseSha,
+            sha1 = sha1(json),
             complianceLevel = 1
         )
         assertThrows(IllegalArgumentException::class.java) { client.fetchDetails(entry) }
     }
+
+    @Test
+    fun rejectsVersionDetailsWithUnexpectedSha1() {
+        val json = """{"id":"1.21.4","type":"release"}"""
+        val fetcher = HttpsTextFetcher { _, _ -> json }
+        val client = MinecraftVersionCatalogClient(fetcher)
+        val entry = MinecraftVersionEntry(
+            id = "1.21.4",
+            type = "release",
+            metadataUrl = "https://piston-meta.mojang.com/version.json",
+            updatedAt = "2024-12-03T10:00:00Z",
+            releaseTime = "2024-12-03T10:00:00Z",
+            sha1 = releaseSha,
+            complianceLevel = 1
+        )
+        assertThrows(DownloadIntegrityException::class.java) { client.fetchDetails(entry) }
+    }
+
+    private fun sha1(value: String): String =
+        MessageDigest.getInstance("SHA-1")
+            .digest(value.toByteArray(StandardCharsets.UTF_8))
+            .joinToString("") { "%02x".format(it.toInt() and 0xff) }
 
     private fun manifest(
         firstId: String = "1.21.4",

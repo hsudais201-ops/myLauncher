@@ -10,23 +10,24 @@ With JDK 17 and Android SDK platform 35 installed:
 gradle --no-daemon testDebugUnitTest assembleDebug
 ```
 
-The debug APK is generated under `app/build/outputs/apk/debug/`. The profile catalog previously passed its unit-test and APK-build step in [GitHub Actions run #39359802263](https://github.com/hsudais201-ops/myLauncher/actions/runs/39359802263). The current branch adds version metadata and downloader tests; see the current [Actions checks](https://github.com/hsudais201-ops/myLauncher/actions).
+The debug APK is generated under `app/build/outputs/apk/debug/`. The version-browser commit passed the unit-test and APK-build steps in [GitHub Actions run #39398436918](https://github.com/hsudais201-ops/myLauncher/actions/runs/39398436918). It is a CI build/test result, not a physical-device or Minecraft launch test.
 
 ## Current independently authored components
 
 - Kotlin Android app using platform Views; no Amethyst Activity/UI implementation is imported.
-- Dashboard with a working link to the Instances screen.
-- Profile metadata create/list/refresh and metadata-only removal. Removal never deletes world, save, mod, or game files.
-- Version manifest parser for release/snapshot/old-version metadata, version detail parsing for client download and asset-index metadata, and a catalog client for the official Mojang version manifest.
-- Bounded HTTPS text fetch with host validation and redirect validation for metadata requests.
-- Bounded HTTPS file downloader with cancellation, transient HTTP retry, declared/actual size checks, optional SHA-1/SHA-256 verification, temporary-file staging, and destination promotion only after validation.
+- Dashboard with working navigation to **Instances** and **Minecraft versions**.
+- Profile metadata create/list/refresh and metadata-only removal. Removing an entry never deletes worlds, saves, mods, or game files.
+- Version browser loads the official Mojang manifest off the UI thread, supports search and release/snapshot/old-beta/old-alpha filters, fetches details on selection, and can create **profile metadata only**.
+- Version manifest and detail parser validates identifiers, timestamps, hashes, allowed HTTPS hosts, client download metadata, and asset-index metadata. Version-detail JSON is checked against the SHA-1 supplied by the manifest.
+- Bounded HTTPS metadata fetching validates redirect targets and response sizes.
+- Bounded HTTPS file downloader supports cancellation, transient HTTP retries, declared/actual size checks, optional SHA-1/SHA-256 verification, temporary-file staging, and destination replacement only after validation.
 
 ## Important limitations
 
-- The metadata and download services are core code only; they are **not connected to the dashboard or a version-installation screen**.
-- The downloader retries from the beginning; it does not resume partial downloads or persist a download queue across app restarts.
-- This is not yet a complete Minecraft installer. Library and asset dependency resolution, inherited-version merging, Java-runtime acquisition, game-file repair orchestration, Microsoft/Xbox/Minecraft authentication, runtime launch, rendering/input, feature-store installation, modpack import/export, and the touch-control designer are not connected.
-- Profile records are metadata only. They do not mean that the selected Minecraft version is installed or launchable.
+- The version browser does **not** install Minecraft files or launch a game. Creating a profile only records the intended version and profile name.
+- The file downloader is a reusable service and is not yet connected to a complete installation workflow. Failed downloads retry from the beginning; partial downloads are not resumed and no queue persists across app restarts.
+- A full installer still needs library/asset dependency resolution, inherited-version merging, Java runtime selection/acquisition, install/repair orchestration, and verification of all required files.
+- Microsoft/Xbox/Minecraft authentication, Java/native runtime integration, rendering/input, feature-store installation, modpack import/export, and the touch-control designer are not connected.
 - There is no discovery or migration of data from the existing launcher. This module does not read or modify existing launcher data.
 - No physical-device test is claimed. Automated tests/builds do not prove Android device compatibility or Minecraft launch capability.
 - The old Amethyst-based build remains unchanged while the replacement is developed.

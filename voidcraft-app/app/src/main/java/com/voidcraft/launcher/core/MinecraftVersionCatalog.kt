@@ -7,6 +7,7 @@ import java.io.IOException
 import java.net.HttpURLConnection
 import java.net.URL
 import java.nio.charset.StandardCharsets
+import java.security.MessageDigest
 import java.time.Instant
 
 data class MinecraftLatestVersions(val release: String, val snapshot: String)
@@ -331,7 +332,15 @@ class MinecraftVersionCatalogClient(
 
     fun fetchDetails(entry: MinecraftVersionEntry): MinecraftVersionDetails {
         MojangUrlPolicy.validate(entry.metadataUrl)
-        val details = detailsParser.parse(fetcher.fetch(entry.metadataUrl, MAX_METADATA_BYTES))
+        val json = fetcher.fetch(entry.metadataUrl, MAX_METADATA_BYTES)
+        val actualSha1 = MessageDigest.getInstance("SHA-1")
+            .digest(json.toByteArray(StandardCharsets.UTF_8))
+            .joinToString("") { "%02x".format(it.toInt() and 0xff) }
+        if (!actualSha1.equals(entry.sha1, ignoreCase = true)) {
+            throw DownloadIntegrityException("Version metadata failed SHA-1 verification")
+        }
+
+        val details = detailsParser.parse(json)
         require(details.id == entry.id) {
             "Downloaded metadata ID " + details.id + " does not match requested version " + entry.id
         }

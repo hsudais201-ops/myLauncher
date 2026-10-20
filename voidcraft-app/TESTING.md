@@ -22,7 +22,8 @@ Current JVM unit-test coverage:
 - Parse release/snapshot entries and latest pointers.
 - Accept older version identifiers.
 - Reject duplicate IDs, invalid timestamps/hashes, unapproved hosts, HTTP URLs, invalid JSON, and dangling latest pointers.
-- Parse client-download/asset-index details and reject a version-detail ID mismatch.
+- Parse client-download/asset-index details.
+- Reject detail-ID mismatch and version-detail JSON whose SHA-1 does not match the catalog entry.
 
 **Downloader**
 - Verify SHA-1/SHA-256 and expected size.
@@ -31,7 +32,7 @@ Current JVM unit-test coverage:
 - Reject non-HTTPS URLs before opening a connection.
 - Reject an HTTPS-to-HTTP redirect.
 
-The profile-only test and APK build previously passed in [run #39359802263](https://github.com/hsudais201-ops/myLauncher/actions/runs/39359802263). That run predates the new metadata/downloader services, so it is not evidence that the newer code has passed. Check the [current workflow runs](https://github.com/hsudais201-ops/myLauncher/actions) for final results.
+The version-browser branch passed its unit-test and debug APK build steps in [GitHub Actions run #39398436918](https://github.com/hsudais201-ops/myLauncher/actions/runs/39398436918). This run predates the new SHA-1 validation/test being added in the next commit; check the current [workflow runs](https://github.com/hsudais201-ops/myLauncher/actions) before claiming that newer check passed.
 
 ## Manual/device testing still required
 
@@ -41,7 +42,7 @@ A passing compile or JVM unit-test run does not prove that the app was installed
 - Manual network tests against the official metadata service with bounded timeouts, redirects, offline conditions and HTTP failures.
 - Storage inspection confirming the catalog and staged downloads stay within the intended app-private directory.
 - Large-file/disk-full tests and destination replacement behavior on Android filesystems.
-- Version installation, authentication, renderer, touch input, and actual Minecraft launch after those components are implemented.
+- Actual install orchestration, authentication, renderer, touch input, and Minecraft launch after those components are implemented.
 
 ## Release gate
 
