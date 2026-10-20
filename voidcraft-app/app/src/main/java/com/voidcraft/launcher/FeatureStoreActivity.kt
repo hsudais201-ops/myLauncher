@@ -129,7 +129,15 @@ class FeatureStoreActivity : Activity() {
             "Install and uninstall controls will be enabled only after signed feature manifests, permission prompts, compatibility checks, and rollback tests are implemented.",
             12, secondaryText, false
         ))
-        setContentView(scroll)
+        val root = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setBackgroundColor(background)
+        }
+        root.addView(scroll, LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f
+        ))
+        root.addView(LauncherNavigationBar.create(this, "Store"))
+        setContentView(root)
 
         searchField.addTextChangedListener(object : TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) = Unit
