@@ -199,6 +199,10 @@ if (authForm) {
   });
 
   setMode("login");
+  if (new URLSearchParams(window.location.search).get("reset") === "success") {
+    feedback.textContent = "Your password has been changed. Sign in with your new password.";
+    feedback.className = "form-feedback is-success";
+  }
   fetch("/api/auth/health", { credentials: "same-origin", cache: "no-store", headers: { "Accept": "application/json" } })
     .then(async (response) => {
       let data = {};
