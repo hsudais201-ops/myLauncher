@@ -181,7 +181,26 @@ class MinecraftInstallPlannerTest {
                 { "action": "allow", "os": { "name": "linux" } },
                 { "action": "disallow", "os": { "name": "osx", "version": "^10\\.5\\.\\d$" } }
               ],
-              "natives": { "linux": "natives-linux-$" + "{arch}" },
+              "natives": { "linux": "natives-linux-${'
+              "extract": { "exclude": ["META-INF/"] }
+            },
+            {
+              "name": "org.example:mac-only:1.0",
+              "downloads": {
+                "artifact": {
+                  "path": "org/example/mac-only/1.0/mac-only-1.0.jar",
+                  "url": "https://libraries.minecraft.net/org/example/mac-only/1.0/mac-only-1.0.jar",
+                  "sha1": "$shaC",
+                  "size": 15
+                }
+              },
+              "rules": [{ "action": "allow", "os": { "name": "osx" } }]
+            }
+          ]
+        }
+    """.trimIndent()
+}
+}{arch}" },
               "extract": { "exclude": ["META-INF/"] }
             },
             {
