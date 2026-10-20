@@ -17,9 +17,9 @@ import android.widget.TextView
 import android.widget.Toast
 
 /**
- * Feature Store UI preview. No category taxonomy is used. Install/uninstall
- * is intentionally not simulated until signed manifests, permission handling,
- * compatibility validation, and rollback are connected.
+ * Category-free Feature Store catalog. Only reviewed built-in features that
+ * have real implementations may be installed; remote/community code is never
+ * executed by this UI or by the local registry.
  */
 class FeatureStoreActivity : Activity() {
     private val background = Color.rgb(10, 14, 24)
@@ -61,6 +61,18 @@ class FeatureStoreActivity : Activity() {
                 "mod-compatibility-checker" -> "◇"
                 "shader-preset-manager" -> "☼"
                 "startup-diagnostics" -> "✓"
+                "resource-pack-manager" -> "▤"
+                "resource-pack-compatibility" -> "◇"
+                "world-details-viewer" -> "▣"
+                "local-playtime-tracker" -> "◷"
+                "accessibility-presets" -> "◉"
+                "profile-icon-studio" -> "✎"
+                "configuration-backup" -> "⤓"
+                "network-diagnostics" -> "⌁"
+                "release-watch" -> "◴"
+                "controller-presets" -> "⌘"
+                "resource-usage-history" -> "▥"
+                "instance-notes" -> "≡"
                 else -> "⇧"
             }
         )
@@ -118,7 +130,7 @@ class FeatureStoreActivity : Activity() {
         page.addView(featureList)
         page.addView(space(18))
         page.addView(text(
-            "Install and uninstall controls will be enabled only after signed feature manifests, permission prompts, compatibility checks, and rollback tests are implemented.",
+            "Only completed built-in features can be installed. Remote packages stay blocked until signed manifests, integrity checks, compatibility rules, permission enforcement, and rollback tests exist.",
             12, secondaryText, false
         ))
         val root = LinearLayout(this).apply {
@@ -186,9 +198,17 @@ class FeatureStoreActivity : Activity() {
             setPadding(dp(12), 0, 0, 0)
         }
         titleStack.addView(text(feature.name, 15, primaryText, true))
-        titleStack.addView(text(feature.state.uppercase(), 9,
-            if (feature.state == "Review required") Color.rgb(255, 190, 104) else mint, true
-        ).apply {
+        val statusColor = when (feature.state) {
+            "Available" -> mint
+            "Review required" -> Color.rgb(255, 190, 104)
+            else -> secondaryText
+        }
+        val displayState = if (FeatureRegistry.isInstalled(this@FeatureStoreActivity, feature.id)) {
+            "INSTALLED"
+        } else {
+            feature.state.uppercase()
+        }
+        titleStack.addView(text(displayState, 9, statusColor, true).apply {
             letterSpacing = 0.05f
             setPadding(0, dp(4), 0, 0)
         })
