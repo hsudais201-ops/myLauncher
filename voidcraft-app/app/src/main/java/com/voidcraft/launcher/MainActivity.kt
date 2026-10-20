@@ -38,6 +38,7 @@ class MainActivity : Activity() {
         window.statusBarColor = background
         window.navigationBarColor = surface
         window.decorView.systemUiVisibility = 0
+        LauncherPreferences.applyWindowFlags(this)
         setContentView(buildScreen())
     }
 
@@ -371,8 +372,8 @@ class MainActivity : Activity() {
                         "Home" -> scrollToTop()
                         "Instances" -> startActivity(Intent(this@MainActivity, InstanceListActivity::class.java))
                         "Versions" -> startActivity(Intent(this@MainActivity, VersionBrowserActivity::class.java))
-                        "Store" -> notice("Feature Store is not connected yet.")
-                        "Settings" -> notice("Settings screen will be added next.")
+                        "Store" -> startActivity(Intent(this@MainActivity, FeatureStoreActivity::class.java))
+                        "Settings" -> startActivity(Intent(this@MainActivity, SettingsActivity::class.java))
                     }
                 }
             }
