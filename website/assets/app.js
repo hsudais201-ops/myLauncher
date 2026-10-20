@@ -204,7 +204,10 @@ if (authForm) {
   fetch("/api/auth/me", { credentials: "same-origin", cache: "no-store", headers: { "Accept": "application/json" } })
     .then((response) => response.ok ? response.json() : null)
     .then((data) => {
-      if (data?.authenticated) window.location.replace("profile.html");
+      if (data?.authenticated && data.user) {
+        feedback.textContent = "You're already signed in as " + data.user.username + ". This Sign in page stays available; open Profile to review your session or sign out before switching accounts.";
+        feedback.className = "form-feedback is-info";
+      }
     })
     .catch(() => {});
 }
@@ -241,7 +244,8 @@ if (profileCard) {
       const user = data.user;
       const heading = makeElement("h2", "", "Welcome, " + user.username);
       const email = makeElement("p", "profile-email", user.email);
-      const details = makeElement("div", "profile-meta", "VoidCraft website account");
+      const details = makeElement("div", "profile-meta", user.role === "owner" ? "VoidCraft website owner" : "VoidCraft website member");
+      if (user.role === "owner") details.append(makeElement("span", "owner-pill", "OWNER"));
       const created = makeElement("p", "profile-meta", "Created: " + (user.createdAt ? new Date(user.createdAt).toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" }) : "Unknown"));
       const actions = makeElement("div", "profile-actions");
       const signout = makeElement("button", "btn secondary profile-signout", "Sign out");
@@ -266,6 +270,29 @@ if (profileCard) {
   }
   loadProfile();
 }
+
+
+// Keep Sign in visible in every header, including when the visitor has an active session.
+(() => {
+  const signInLink = document.querySelector(".account-links a[href=\"signin.html\"]");
+  const profileLink = document.querySelector(".account-links a[href=\"profile.html\"]");
+  if (signInLink) {
+    signInLink.hidden = false;
+    signInLink.textContent = "Sign in";
+    signInLink.setAttribute("aria-label", "Sign in or open the sign-in page");
+  }
+  fetch("/api/auth/me", { credentials: "same-origin", cache: "no-store", headers: { "Accept": "application/json" } })
+    .then((response) => response.ok ? response.json() : null)
+    .then((data) => {
+      if (!data?.authenticated || !data.user) return;
+      if (signInLink) signInLink.title = "This link remains available while signed in";
+      if (profileLink) {
+        profileLink.textContent = "Profile · " + data.user.username;
+        profileLink.setAttribute("aria-label", "Profile for " + data.user.username + (data.user.role === "owner" ? ", website owner" : ""));
+      }
+    })
+    .catch(() => {});
+})();
 
 
 /* Lightweight 3D hover, reveal, and pointer ambience. No external libraries. */
