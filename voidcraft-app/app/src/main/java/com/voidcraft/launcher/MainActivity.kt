@@ -42,6 +42,11 @@ class MainActivity : Activity() {
         setContentView(buildScreen())
     }
 
+    override fun onResume() {
+        super.onResume()
+        LauncherPreferences.applyWindowFlags(this)
+    }
+
     private fun buildScreen(): View {
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
