@@ -47,6 +47,6 @@ export async function onRequestPost({ request, env }) {
     return json({ user: publicUser(user), message: "You're signed in." }, 200, { "Set-Cookie": sessionCookie(token) });
   } catch (error) {
     console.error("VoidCraft sign-in request failed", { stage, name: error?.name || "Error" });
-    return json({ error: "The sign-in service failed during " + stage.replace(/_/g, " ") + ". Please retry after refreshing.", code: "AUTH_LOGIN_INTERNAL_" + stage.toUpperCase() }, 500);
+    return json({ error: "The sign-in service failed during " + stage.replace(/_/g, " ") + ". Please retry after refreshing.", code: "AUTH_LOGIN_INTERNAL_" + stage.toUpperCase() + "_" + String(error?.name || "ERROR").toUpperCase() }, 500);
   }
 }
