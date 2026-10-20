@@ -53,8 +53,12 @@ class MinecraftInstallExecutor(
     ): MinecraftInstallResult {
         if (plan.warnings.isNotEmpty()) throw IncompleteInstallPlanException(plan.warnings)
         require(plan.downloads.isNotEmpty()) { "Install plan contains no downloads" }
+        MinecraftVersionManifestParser().validateVersionId(plan.versionId)
 
-        val relativePaths = plan.downloads.map { validateInstallPath(it.destinationRelativePath) }
+        val relativePaths = plan.downloads.map { validateInstallPath(it, plan.versionId) }
+        // Do not allow a persisted or externally constructed plan to redirect requests
+        // outside the same official distribution hosts allowed by metadata parsing.
+        plan.downloads.forEach { MojangUrlPolicy.validate(it.url) }
         require(relativePaths.distinct().size == relativePaths.size) {
             "Install plan has duplicate destination paths"
         }
@@ -186,11 +190,23 @@ class MinecraftInstallExecutor(
         return root
     }
 
-    private fun validateInstallPath(relativePath: String): String {
-        val checked = MinecraftMavenPath.validateRelativePath(relativePath)
+    private fun validateInstallPath(artifact: MinecraftPlannedDownload, versionId: String): String {
+        val checked = MinecraftMavenPath.validateRelativePath(artifact.destinationRelativePath)
         val firstSegment = checked.substringBefore('/')
         require(!firstSegment.startsWith(".voidcraft-")) {
             "Install path uses a reserved VoidCraft transaction name"
+        }
+        val allowedPrefix = when (artifact.kind) {
+            MinecraftInstallPlanner.KIND_VERSION_METADATA,
+            MinecraftInstallPlanner.KIND_CLIENT -> "versions/" + versionId + "/"
+            MinecraftInstallPlanner.KIND_ASSET_INDEX -> "assets/indexes/"
+            MinecraftInstallPlanner.KIND_ASSET_OBJECT -> "assets/objects/"
+            MinecraftInstallPlanner.KIND_LIBRARY,
+            MinecraftInstallPlanner.KIND_NATIVE_LIBRARY -> "libraries/"
+            else -> throw IllegalArgumentException("Unknown install artifact kind: " + artifact.kind)
+        }
+        require(checked.startsWith(allowedPrefix) && checked.length > allowedPrefix.length) {
+            "Artifact kind " + artifact.kind + " cannot write to " + checked
         }
         return checked
     }

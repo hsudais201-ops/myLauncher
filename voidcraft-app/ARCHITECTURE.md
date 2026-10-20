@@ -32,10 +32,11 @@ The Versions screen only browses metadata and creates profile records; it does n
 1. Removing a catalog record never deletes an instance directory or world.
 2. Unknown catalog schemas fail visibly instead of being overwritten.
 3. Metadata and asset indexes are checked against manifest-provided hashes when available.
-4. Planned paths must be relative, traversal-free, and unique.
+4. Planned paths must be relative, traversal-free, unique, restricted to the expected versions/libraries/assets tree, and consistent with their artifact kind.
 5. All planned files download to a staging tree first; no final file changes until all requested downloads have completed and passed verification.
 6. Existing files are backed up during commit. If commit fails, changes are rolled back in reverse order; if rollback fails, the staging/recovery tree is retained.
-7. The existing launcher and build path remain available until feature, runtime, license and device parity gates pass.
+7. Every planned URL is revalidated against approved HTTPS distribution hosts before the executor makes network requests.
+8. The existing launcher and build path remain available until feature, runtime, license and device parity gates pass.
 
 ## Platform warning
 

@@ -96,3 +96,6 @@ The version-browser commit passed JVM tests and the Android debug APK build in [
 This is not yet a complete Minecraft installer. Library/asset dependency resolution, inherited-version merging, runtime selection/acquisition, persistent/resumable downloads, account auth, Java/native runtime, rendering/input, feature-store, touch-control designer, modpack import/export, and existing-launcher data discovery/migration remain incomplete. No physical-device test or actual Minecraft launch is claimed. The current Amethyst-based build is unchanged.
 
 A preliminary source/license audit is recorded in `VOIDCRAFT_SOURCE_AND_LICENSE_AUDIT.md`; `voidcraft-app/THIRD_PARTY_NOTICES.md` records Gson 2.11.0's Apache-2.0 license. This is not a complete SBOM or legal clearance, and no claim is made that the whole launcher is already copyright-free. Keep the existing working build intact until feature, runtime, data-preservation, license, and device parity are demonstrated.
+
+
+Latest executor verification: [Actions run #39413869771](https://github.com/hsudais201-ops/myLauncher/actions/runs/39413869771) passed tests and the debug APK build. Additional artifact path/URL restrictions are being tested on the current branch head.

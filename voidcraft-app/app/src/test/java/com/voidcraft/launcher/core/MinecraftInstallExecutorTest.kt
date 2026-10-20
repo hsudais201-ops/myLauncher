@@ -95,6 +95,54 @@ class MinecraftInstallExecutorTest {
     }
 
     @Test
+    fun clientTasksCannotWriteOutsideSelectedVersionDirectory() {
+        val root = temporaryFolder.newFolder("game-root")
+        var opened = false
+        val executor = MinecraftInstallExecutor(
+            SecureFileDownloader(DownloadConnectionFactory {
+                opened = true
+                fakeFor(it)
+            })
+        )
+        val unsafe = plan().copy(downloads = listOf(
+            planned(
+                MinecraftInstallPlanner.KIND_CLIENT,
+                "saves/world.dat",
+                "https://piston-data.mojang.com/client.jar",
+                clientBytes
+            )
+        ))
+
+        assertThrows(IllegalArgumentException::class.java) {
+            executor.execute(unsafe, root)
+        }
+        assertFalse(opened)
+        assertTrue(root.listFiles().orEmpty().isEmpty())
+    }
+
+    @Test
+    fun unknownArtifactKindIsRejectedBeforeNetwork() {
+        val root = temporaryFolder.newFolder("game-root")
+        var opened = false
+        val executor = MinecraftInstallExecutor(
+            SecureFileDownloader(DownloadConnectionFactory {
+                opened = true
+                fakeFor(it)
+            })
+        )
+        val unsafe = plan().copy(downloads = listOf(
+            planned("arbitrary", "versions/1.21.4/arbitrary.bin",
+                "https://piston-data.mojang.com/arbitrary.bin", clientBytes)
+        ))
+
+        assertThrows(IllegalArgumentException::class.java) {
+            executor.execute(unsafe, root)
+        }
+        assertFalse(opened)
+        assertTrue(root.listFiles().orEmpty().isEmpty())
+    }
+
+    @Test
     fun failedCommitRestoresPreviousFileAndPreservesDirectoryTarget() {
         val root = temporaryFolder.newFolder("game-root")
         val oldMetadata = File(root, "versions/1.21.4/1.21.4.json")

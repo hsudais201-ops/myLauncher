@@ -10,7 +10,7 @@ With JDK 17 and Android SDK platform 35 installed:
 gradle --no-daemon testDebugUnitTest assembleDebug
 ```
 
-The debug APK is generated under `app/build/outputs/apk/debug/`. The independently authored version-browser commit passed JVM tests and APK build in [run #39399012705](https://github.com/hsudais201-ops/myLauncher/actions/runs/39399012705), and the library/asset planning tests passed in [run #39413275839](https://github.com/hsudais201-ops/myLauncher/actions/runs/39413275839). The transactional executor added in the current commit requires its own CI result.
+The debug APK is generated under `app/build/outputs/apk/debug/`. The independently authored version-browser commit passed JVM tests and APK build in [run #39399012705](https://github.com/hsudais201-ops/myLauncher/actions/runs/39399012705), and the library/asset planning tests passed in [run #39413275839](https://github.com/hsudais201-ops/myLauncher/actions/runs/39413275839). The transactional executor passed tests and debug APK build in [run #39413869771](https://github.com/hsudais201-ops/myLauncher/actions/runs/39413869771). The current commit adds additional path-scope checks that require a fresh CI result.
 
 ## Current independently authored components
 
