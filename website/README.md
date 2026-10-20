@@ -11,7 +11,10 @@ Cloudflare Pages project: `voidcraft-launcher` (`https://voidcraft-launcher.page
 - Session tokens are random, stored server-side as SHA-256 hashes, and sent in a Secure, HttpOnly, SameSite cookie that expires after seven days.
 - Registration and sign-in are rate limited per request IP. State-changing auth endpoints reject cross-origin requests.
 - The account system is for the VoidCraft website only. It is not Microsoft/Xbox/Minecraft authentication and grants no Minecraft entitlement.
-- Email verification, email delivery, password recovery, self-service deletion, purchases, user uploads, live server ping, feature package installation, and launcher-linked actions are not yet enabled. Do not claim those are available.
+- The Feature Store and Cosmetic Store use the D1-backed `store_items` catalog. Seeded listings are explicitly marked as previews and do not imply a working package.
+- Developer submissions use the authenticated `/api/developer/submissions` routes; submissions remain private pending owner review. Only users with `role = 'owner'` can publish or reject pending listings through `/api/developer/review`.
+- Free packages are intended to be direct HTTPS downloads and must be explicitly linked to a published, available catalog item. Sign-in is required for paid purchase attempts, not free downloads.
+- Payment checkout, purchase entitlements, direct binary uploads/R2 storage, automated package scanning/signing, email verification/delivery, password recovery, self-service deletion, live server ping, and launcher-linked installation are not yet configured. Paid checkout intentionally returns a safe unavailable response and never reports a fake purchase. Do not claim these capabilities are active.
 - Before broad public registration, complete live tests for register/login/logout, rate limits, session expiry, cookie flags, and recovery/security processes.
 
 ## Image previews
@@ -22,7 +25,16 @@ Original local SVG concept illustrations appear on the homepage, Feature Store, 
 
 - The homepage documents the launcher foundation, Android-first goals, version/instance workflows, mods/loaders, touch controls, safety/performance goals, optional Feature Store ideas, cosmetic concepts, community resources, and which areas remain planned or unconnected. Use it as a feature overview, not as a guarantee that every roadmap item ships in the current launcher build.
 - Website usernames are selected at registration together with the email and password. New accounts receive the `member` role by default; owner status is stored in the D1 `users.role` column and exposed through the authenticated profile API. Never grant elevated roles from a username submitted by an unauthenticated visitor.
-- The header keeps the Sign in link available even when a session exists. The profile link can show the active username. Website owner status applies only to the website and does not grant GitHub, Cloudflare, Microsoft, Xbox, Minecraft, or launcher-engine permissions.
+- The global header checks the website session. When signed in, it hides the Sign in link and shows the username/profile link; the owner account displays a crown based on the server-stored `owner` role. Website owner status applies only to the website and does not grant GitHub, Cloudflare, Microsoft, Xbox, Minecraft, or launcher-engine permissions.
+
+## Online marketplace
+
+- Apply `migrations/0003_store_marketplace.sql` after the authentication and role migrations for new databases. It creates the catalog schema and inserts the existing concept previews idempotently.
+- `GET /api/store/catalog?kind=feature` and `GET /api/store/catalog?kind=cosmetic` expose published listings only.
+- `POST /api/developer/submissions` requires an authenticated website account and accepts listing metadata plus HTTPS source/package links. It does not upload package bytes.
+- `GET /api/developer/submissions` returns the signed-in user's submissions; an owner can view the moderation queue.
+- `POST /api/developer/review` is owner-only and approves or rejects pending submissions. Publishing a link is a moderation decision, not proof of malware scanning or runtime compatibility.
+- `POST /api/store/purchase` validates that the listing is published and paid, but responds that checkout is unavailable until a payment provider and entitlement delivery are configured. Never accept client-side claims of payment.
 
 ## Database migration for account roles
 
