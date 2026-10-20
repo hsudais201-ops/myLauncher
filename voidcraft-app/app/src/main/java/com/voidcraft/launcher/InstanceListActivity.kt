@@ -25,9 +25,9 @@ import com.voidcraft.launcher.core.InstanceProfile
  * Profile creation does not install game files; removal never deletes files.
  */
 class InstanceListActivity : Activity() {
-    private val background = Color.rgb(13, 17, 28)
-    private val panel = Color.rgb(25, 32, 48)
-    private val accent = Color.rgb(120, 105, 255)
+    private val background = Color.rgb(10, 14, 24)
+    private val panel = Color.rgb(23, 33, 52)
+    private val accent = Color.rgb(139, 124, 255)
     private val primaryText = Color.rgb(244, 246, 255)
     private val secondaryText = Color.rgb(166, 176, 199)
 
