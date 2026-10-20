@@ -143,9 +143,7 @@ class MinecraftNativeArchiveExtractor(
 
             checkCancelled(isCancelled)
             if (target.exists()) throw IOException("Native extraction destination appeared during extraction")
-            try {
-                Files.move(content.toPath(), target.toPath())
-            }
+            Files.move(content.toPath(), target.toPath())
             return NativeExtractionResult(target, filesWritten, bytesWritten, skipped)
         } finally {
             stage.deleteRecursively()
