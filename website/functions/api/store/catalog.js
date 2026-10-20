@@ -1,6 +1,9 @@
 import { json } from "../auth/_utils.js";
 
 function publicItem(row) {
+  const priceCents = row.price_cents === null ? null : Number(row.price_cents);
+  const packageAvailable = Boolean(row.package_url);
+  const isFreePackage = priceCents === 0;
   return {
     id: row.id,
     slug: row.slug,
@@ -14,8 +17,11 @@ function publicItem(row) {
     permissions: row.permissions,
     license: row.license,
     sourceUrl: row.source_url,
-    packageUrl: row.package_url,
-    priceCents: row.price_cents === null ? null : Number(row.price_cents),
+    // Never expose a paid package URL to anonymous catalog responses.
+    // Paid delivery must go through a server-side entitlement/download flow.
+    packageUrl: isFreePackage ? row.package_url : null,
+    packageAvailable,
+    priceCents,
     currency: row.currency || "USD",
     status: row.status,
     availability: row.availability,
