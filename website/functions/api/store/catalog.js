@@ -2,7 +2,7 @@ import { json } from "../auth/_utils.js";
 
 function publicItem(row) {
   const priceCents = row.price_cents === null ? null : Number(row.price_cents);
-  const packageAvailable = Boolean(row.package_url);
+  const packageAvailable = Boolean(row.package_url) && priceCents !== null;
   const isFreePackage = priceCents === 0;
   return {
     id: row.id,
