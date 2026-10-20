@@ -84,7 +84,7 @@ class FeatureStoreActivity : Activity() {
         window.navigationBarColor = surface
         LauncherPreferences.applyWindowFlags(this)
 
-        val scroll = ScrollView(this).apply { setBackgroundColor(background) }
+        val scroll = ScrollView(this).apply { setBackgroundColor(this@FeatureStoreActivity.background) }
         val page = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(dp(18), dp(12), dp(18), dp(26))
@@ -105,7 +105,7 @@ class FeatureStoreActivity : Activity() {
         searchField = EditText(this).apply {
             hint = "Search features"
             textSize = 14f
-            singleLine = true
+            isSingleLine = true
             setTextColor(primaryText)
             setHintTextColor(secondaryText)
             background = rounded(panel, 13, border)
