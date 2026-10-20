@@ -1,4 +1,4 @@
-import { currentUser, json, readJson, sameOrigin } from "../auth/_utils.js";
+import { allowAttempt, currentUser, json, readJson, sameOrigin } from "../auth/_utils.js";
 
 function validHttpsUrl(value, required = false) {
   if (typeof value !== "string" || !value.trim()) return !required;
@@ -78,6 +78,8 @@ export async function onRequestPost({ request, env }) {
   try {
     const user = await currentUser(request, env);
     if (!user) return json({ error: "Sign in before submitting a store item.", code: "AUTH_REQUIRED" }, 401);
+    const limit = await allowAttempt(request, env, "developer-submission");
+    if (!limit.allowed) return json({ error: "Too many submissions in a short period. Please try again later.", code: "DEV_SUBMISSION_RATE_LIMITED" }, 429, { "Retry-After": String(limit.retryAfter) });
     const body = await readJson(request);
     if (!body) return json({ error: "The submission form could not be read.", code: "DEV_INVALID_JSON" }, 400);
 
