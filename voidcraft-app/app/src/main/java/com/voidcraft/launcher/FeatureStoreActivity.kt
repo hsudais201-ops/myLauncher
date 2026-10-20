@@ -261,6 +261,37 @@ class FeatureStoreActivity : Activity() {
             }
         }
         card.addView(button)
+        if (FeatureRegistry.isInstalled(this, feature.id)) {
+            card.addView(space(7))
+            val uninstall = TextView(this).apply {
+                text = "UNINSTALL FEATURE"
+                textSize = 10f
+                typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+                setTextColor(Color.rgb(255, 170, 170))
+                gravity = Gravity.CENTER
+                background = rounded(panel, 11, border)
+                setPadding(dp(12), dp(10), dp(12), dp(10))
+                isClickable = true
+                isFocusable = true
+                setOnClickListener {
+                    android.app.AlertDialog.Builder(this@FeatureStoreActivity)
+                        .setTitle("Uninstall ${feature.name}?")
+                        .setMessage("This removes the feature's installed-state entry. It does not delete worlds, game files, or user data.")
+                        .setNegativeButton("Cancel", null)
+                        .setPositiveButton("Uninstall") { _, _ ->
+                            val result = FeatureRegistry.uninstall(this@FeatureStoreActivity, feature.id)
+                            if (result.isSuccess) {
+                                Toast.makeText(this@FeatureStoreActivity, "Feature uninstalled", Toast.LENGTH_SHORT).show()
+                                renderFeatures()
+                            } else {
+                                Toast.makeText(this@FeatureStoreActivity, "Uninstall failed", Toast.LENGTH_LONG).show()
+                            }
+                        }
+                        .show()
+                }
+            }
+            card.addView(uninstall)
+        }
         return card
     }
 
