@@ -25,6 +25,7 @@ The debug APK is generated under `app/build/outputs/apk/debug/`. The independent
 - Install planner resolves client metadata, libraries, OS/architecture rules, native classifiers, asset-index objects and secure relative destinations into a deterministic download plan.
 - Read-only install verification scan reports missing, size-mismatched, checksum-mismatched, unverifiable, and verified artifacts.
 - Transactional executor reuses SHA-1-verified files, stages only missing/corrupt artifacts, then backs up/replaces destination files and rolls back if a commit step fails.
+- Artifact-install orchestrator sequences metadata preparation and executor download/verification, reports stage/progress callbacks, checks cancellation, and refuses incomplete or version-mismatched plans before downloading.
 - Bounded HTTPS file downloader supports progress, cancellation, transient HTTP retries, byte-size limits, optional artifact SHA-1/SHA-256 verification, temporary-file staging, and destination replacement only after validation.
 - Native archive extractor validates archive paths, applies metadata exclusions, bounds expansion sizes/ratios, supports cancellation, and publishes only to a new directory.
 - Native library assembler combines archives, reuses byte-identical duplicates, rejects conflicting duplicate paths, and bounds combined output size.
@@ -32,7 +33,7 @@ The debug APK is generated under `app/build/outputs/apk/debug/`. The independent
 
 ## Important limitations
 
-- The version browser does **not** start installation. The install-preparation service builds and validates a plan only; executor and verification remain core service code and are not connected to the UI.
+- The version browser does **not** start installation. An artifact-install orchestration service now connects preparation to the executor in the core layer, but it is not connected to the UI and does not establish that the installed artifacts can launch on Android.
 - Executor requires a warning-free plan. The planner reports unresolved inherited metadata or missing asset-index parsing rather than claiming readiness.
 - Native extraction/assembly and modern launch-argument interpolation now exist as tested core components, but are not connected to the install executor or a launch context. Logging integration, complete classpath/JVM/game argument assembly, legacy arguments, loader-specific metadata, persistent queue/resume, Java runtime setup, and Android-compatible renderer/runtime integration remain unfinished.
 - Failed downloads retry from the beginning; partial downloads are not resumed and no queue persists across app restarts.
