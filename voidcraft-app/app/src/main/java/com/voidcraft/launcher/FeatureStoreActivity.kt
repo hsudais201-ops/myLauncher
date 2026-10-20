@@ -198,7 +198,11 @@ class FeatureStoreActivity : Activity() {
             setPadding(0, dp(12), 0, dp(12))
         })
         val button = TextView(this).apply {
-            text = "VIEW DETAILS  ›"
+            text = when {
+                FeatureRegistry.isInstalled(this@FeatureStoreActivity, feature.id) -> "OPEN FEATURE  ›"
+                FeatureRegistry.canInstall(feature.id) -> "INSTALL FEATURE  ↓"
+                else -> "VIEW DETAILS  ›"
+            }
             textSize = 11f
             typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
             setTextColor(primaryText)
@@ -208,16 +212,44 @@ class FeatureStoreActivity : Activity() {
             isClickable = true
             isFocusable = true
             setOnClickListener {
+                val installed = FeatureRegistry.isInstalled(this@FeatureStoreActivity, feature.id)
+                val installable = FeatureRegistry.canInstall(feature.id)
+                if (feature.id == "startup-diagnostics" && installed) {
+                    startActivity(android.content.Intent(
+                        this@FeatureStoreActivity, StartupDiagnosticsActivity::class.java
+                    ))
+                    return@setOnClickListener
+                }
+                if (installable && !installed) {
+                    android.app.AlertDialog.Builder(this@FeatureStoreActivity)
+                        .setTitle("Install ${feature.name}?")
+                        .setMessage(
+                            "This built-in read-only feature does not download or execute code. " +
+                                "Declared capabilities: " +
+                                (FeatureRegistry.find(feature.id)?.permissions?.joinToString() ?: "None")
+                        )
+                        .setNegativeButton("Cancel", null)
+                        .setPositiveButton("Install") { _, _ ->
+                            val result = FeatureRegistry.install(this@FeatureStoreActivity, feature.id)
+                            if (result.isSuccess) {
+                                Toast.makeText(this@FeatureStoreActivity, "Feature installed", Toast.LENGTH_SHORT).show()
+                                renderFeatures()
+                            } else {
+                                Toast.makeText(
+                                    this@FeatureStoreActivity,
+                                    result.exceptionOrNull()?.message ?: "Install failed",
+                                    Toast.LENGTH_LONG
+                                ).show()
+                            }
+                        }
+                        .show()
+                    return@setOnClickListener
+                }
                 val definition = FeatureRegistry.find(feature.id)
                 val capabilities = definition?.permissions?.takeIf { it.isNotEmpty() }
                     ?.joinToString(", ") ?: "None declared"
-                val installed = FeatureRegistry.isInstalled(this@FeatureStoreActivity, feature.id)
-                val installable = FeatureRegistry.canInstall(feature.id)
-                val stateText = when {
-                    installed -> "Installed in the local registry. No downloaded code is executed."
-                    installable -> "Ready for the built-in install flow."
-                    else -> "Not installable yet. The implementation and required security checks are not ready."
-                }
+                val stateText = if (installed) "Installed locally."
+                    else "Not installable yet. Implementation and security checks are not ready."
                 android.app.AlertDialog.Builder(this@FeatureStoreActivity)
                     .setTitle(feature.name)
                     .setMessage(
