@@ -74,7 +74,8 @@ class MinecraftArtifactInstallService(
         if (result.versionId != entry.id) {
             throw IllegalStateException("Executor returned a result for a different Minecraft version")
         }
-        checkCancelled(isCancelled)
+        // Once the executor returns successfully, installation is committed. A cancellation
+        // arriving after that point must not turn a successful install into a false failure.
         onStage(MinecraftArtifactInstallStage.COMPLETE)
         return MinecraftArtifactInstallResult(preparation, result, canonicalRoot)
     }
