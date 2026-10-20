@@ -1,0 +1,1 @@
+document.addEventListener('click',e=>{const b=e.target.closest('[data-demo]');if(!b)return;e.preventDefault();const n=document.querySelector('#demo-message');if(n)n.textContent='Demo only: this action is not connected to a backend. No account data was sent.'});
