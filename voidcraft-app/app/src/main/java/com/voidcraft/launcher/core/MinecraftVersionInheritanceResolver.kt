@@ -77,7 +77,21 @@ object MinecraftVersionInheritanceMerger {
             javaMajorVersion = child.javaMajorVersion ?: resolvedParent.javaMajorVersion,
             libraries = combinedLibraries.values.toList(),
             inheritsFrom = null,
-            clientDownloadVersionId = resolvedClientVersion
+            clientDownloadVersionId = resolvedClientVersion,
+            arguments = mergeArguments(child.arguments, resolvedParent.arguments),
+            legacyMinecraftArguments = child.legacyMinecraftArguments ?: resolvedParent.legacyMinecraftArguments
+        )
+    }
+
+    private fun mergeArguments(
+        child: MinecraftVersionArguments?,
+        parent: MinecraftVersionArguments?
+    ): MinecraftVersionArguments? {
+        if (child == null) return parent
+        if (parent == null) return child
+        return MinecraftVersionArguments(
+            game = child.game ?: parent.game,
+            jvm = child.jvm ?: parent.jvm
         )
     }
 }

@@ -1,5 +1,6 @@
 package com.voidcraft.launcher.core
 
+import com.google.gson.JsonElement
 import com.google.gson.JsonObject
 import com.google.gson.JsonParser
 import java.io.ByteArrayOutputStream
@@ -126,7 +127,10 @@ data class MinecraftVersionDetails(
     val javaMajorVersion: Int?,
     val libraries: List<MinecraftLibrary> = emptyList(),
     /** Version directory owning the client JAR, which may be an inherited parent version. */
-    val clientDownloadVersionId: String? = null
+    val clientDownloadVersionId: String? = null,
+    val arguments: MinecraftVersionArguments? = null,
+    /** Raw legacy format is preserved; it is not tokenized or substituted here. */
+    val legacyMinecraftArguments: String? = null
 )
 
 /** URL rules for official Mojang launcher metadata and its distribution CDNs. */
@@ -292,6 +296,15 @@ class MinecraftVersionDetailsParser {
             require(major in 1..100) { "Java major version out of range for " + id }
             major.toInt()
         }
+        val arguments = obj.get("arguments")?.let { element ->
+            if (element.isJsonNull) {
+                null
+            } else {
+                require(element.isJsonObject) { "Version arguments field must be an object" }
+                parseVersionArguments(element.asJsonObject)
+            }
+        }
+        val legacyMinecraftArguments = stringField(obj, "minecraftArguments", false)
         val libraries = parseLibraries(obj)
         return MinecraftVersionDetails(
             id = id,
@@ -303,8 +316,69 @@ class MinecraftVersionDetailsParser {
             clientDownload = client,
             javaMajorVersion = javaMajor,
             libraries = libraries,
-            clientDownloadVersionId = if (client != null) id else null
+            clientDownloadVersionId = if (client != null) id else null,
+            arguments = arguments,
+            legacyMinecraftArguments = legacyMinecraftArguments
         )
+    }
+
+    private fun parseVersionArguments(argumentObject: JsonObject): MinecraftVersionArguments =
+        MinecraftVersionArguments(
+            game = parseArgumentList(argumentObject, "game"),
+            jvm = parseArgumentList(argumentObject, "jvm")
+        )
+
+    private fun parseArgumentList(
+        argumentObject: JsonObject,
+        key: String
+    ): List<MinecraftArgumentValue>? {
+        val element = argumentObject.get(key) ?: return null
+        require(element.isJsonArray) { "Version argument field " + key + " must be an array" }
+        require(element.asJsonArray.size() <= MAX_ARGUMENT_ENTRIES) {
+            "Version argument field " + key + " contains too many entries"
+        }
+        return element.asJsonArray.mapIndexed { index, item ->
+            when {
+                item.isJsonPrimitive && item.asJsonPrimitive.isString -> {
+                    validateArgumentLength(item.asString, key, index)
+                    MinecraftArgumentValue(listOf(item.asString))
+                }
+                item.isJsonObject -> {
+                    val argument = item.asJsonObject
+                    val valueElement = argument.get("value")
+                        ?: throw IllegalArgumentException("Argument object " + index + " in " + key + " has no value")
+                    val values = when {
+                        valueElement.isJsonPrimitive && valueElement.asJsonPrimitive.isString ->
+                            listOf(valueElement.asString)
+                        valueElement.isJsonArray -> valueElement.asJsonArray.mapIndexed { valueIndex, value ->
+                            require(value.isJsonPrimitive && value.asJsonPrimitive.isString) {
+                                "Argument value " + valueIndex + " in " + key + " must be a string"
+                            }
+                            value.asString
+                        }
+                        else -> throw IllegalArgumentException(
+                            "Argument value in " + key + " must be a string or an array of strings"
+                        )
+                    }
+                    require(values.size <= MAX_ARGUMENT_VALUES_PER_ENTRY) {
+                        "Argument object " + index + " in " + key + " contains too many values"
+                    }
+                    values.forEachIndexed { valueIndex, value ->
+                        validateArgumentLength(value, key, valueIndex)
+                    }
+                    MinecraftArgumentValue(values, parseRuleArray(argument.get("rules"), "Argument"))
+                }
+                else -> throw IllegalArgumentException(
+                    "Argument entry " + index + " in " + key + " must be a string or object"
+                )
+            }
+        }
+    }
+
+    private fun validateArgumentLength(value: String, key: String, index: Int) {
+        require(value.length <= MAX_ARGUMENT_LENGTH) {
+            "Argument " + index + " in " + key + " exceeds the supported size"
+        }
     }
 
     private fun parseLibraries(versionObject: JsonObject): List<MinecraftLibrary> {
@@ -359,32 +433,37 @@ class MinecraftVersionDetailsParser {
         return MinecraftLibraryArtifact(path, url, sha1, size)
     }
 
-    private fun parseLibraryRules(libraryObject: JsonObject): List<MinecraftLibraryRule> {
-        val element = libraryObject.get("rules") ?: return emptyList()
-        require(element.isJsonArray) { "Library rules field must be an array" }
-        require(element.asJsonArray.size() <= MAX_LIBRARY_RULES) { "Library has too many rules" }
+    private fun parseLibraryRules(libraryObject: JsonObject): List<MinecraftLibraryRule> =
+        parseRuleArray(libraryObject.get("rules"), "Library")
+
+    private fun parseRuleArray(element: JsonElement?, owner: String): List<MinecraftLibraryRule> {
+        if (element == null) return emptyList()
+        require(element.isJsonArray) { owner + " rules field must be an array" }
+        require(element.asJsonArray.size() <= MAX_LIBRARY_RULES) {
+            owner + " has too many rules"
+        }
         return element.asJsonArray.mapIndexed { index, ruleElement ->
-            require(ruleElement.isJsonObject) { "Library rule " + index + " must be an object" }
+            require(ruleElement.isJsonObject) { owner + " rule " + index + " must be an object" }
             val rule = ruleElement.asJsonObject
             val action = stringField(rule, "action", true)!!
             require(action == "allow" || action == "disallow") {
-                "Invalid library rule action: " + action
+                "Invalid " + owner.lowercase() + " rule action: " + action
             }
             val os = rule.getAsJsonObject("os")
             val osName = os?.let { stringField(it, "name", false) }
             val osVersion = os?.let { stringField(it, "version", false) }
             val osArch = os?.let { stringField(it, "arch", false) }
-            osVersion?.let { validateRegex(it, "OS version rule") }
-            osArch?.let { validateRegex(it, "OS architecture rule") }
+            osVersion?.let { validateRegex(it, owner + " OS version rule") }
+            osArch?.let { validateRegex(it, owner + " OS architecture rule") }
             val features = LinkedHashMap<String, Boolean>()
             val featuresObject = rule.getAsJsonObject("features")
             if (featuresObject != null) {
                 featuresObject.entrySet().forEach { (feature, value) ->
                     require(Regex("[A-Za-z0-9._-]{1,128}").matches(feature)) {
-                        "Invalid library rule feature name"
+                        "Invalid " + owner.lowercase() + " rule feature name"
                     }
                     require(value.isJsonPrimitive && value.asJsonPrimitive.isBoolean) {
-                        "Library rule features must be boolean values"
+                        owner + " rule features must be boolean values"
                     }
                     features[feature] = value.asBoolean
                 }
@@ -470,6 +549,9 @@ class MinecraftVersionDetailsParser {
         private const val MAX_DETAILS_CHARS = 5 * 1024 * 1024
         private const val MAX_LIBRARIES = 20_000
         private const val MAX_LIBRARY_RULES = 256
+        private const val MAX_ARGUMENT_ENTRIES = 100_000
+        private const val MAX_ARGUMENT_VALUES_PER_ENTRY = 10_000
+        private const val MAX_ARGUMENT_LENGTH = 65_536
         private val TYPE_PATTERN = Regex("[a-z_]{1,32}")
         private val SHA1_PATTERN = Regex("[0-9a-fA-F]{40}")
     }
