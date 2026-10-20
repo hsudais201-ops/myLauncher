@@ -1,0 +1,14 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#090b13">
+<meta name="description" content="Review your VoidCraft store purchase before secure payment."><title>Checkout — VoidCraft</title><link rel="icon" href="assets/logo.svg"><link rel="stylesheet" href="assets/styles.css"></head>
+<body>
+<header><div class="bar"><a class="brand" href="index.html"><img src="assets/logo.svg" alt=""><span>VOIDCRAFT</span></a><nav class="nav" aria-label="Main navigation"><a href="index.html">Home</a><a href="downloads.html">Downloads</a><a href="feature-store.html">Feature Store</a><a href="cosmetic-store.html">Cosmetics</a><a href="cart.html">Cart</a><a href="developers.html">Developers</a></nav><div class="account-links"><a href="signin.html">Sign in</a><a href="profile.html">Profile</a></div></div></header>
+<main>
+<section class="hero cart-hero"><div class="eyebrow">SECURE CHECKOUT</div><h1>Review your order.</h1><p>This page verifies the signed-in account and current catalog prices before a payment provider can be opened.</p></section>
+<section class="checkout-layout">
+<div class="card checkout-items-panel"><div class="eyebrow">ORDER ITEMS</div><h2>Purchase summary</h2><div id="checkout-items" class="cart-items-list" aria-live="polite"><div class="empty-state">Loading your order…</div></div></div>
+<aside class="card cart-summary-panel"><div class="eyebrow">PAYMENT</div><h2>Secure checkout</h2><div class="cart-summary-line"><span>Estimated total</span><strong id="checkout-total">$0.00</strong></div><div id="checkout-account-state" class="checkout-account-state">Checking account…</div><button type="button" class="btn cart-checkout-button" id="checkout-submit" disabled>Continue to secure payment →</button><p id="checkout-feedback" class="form-feedback" role="status" aria-live="polite"></p><a href="cart.html" class="text-link">← Back to cart</a></aside>
+</section>
+<div class="notice store-status-notice"><strong>No charge has been made.</strong> Payment processing is not configured. This page will not claim a purchase was completed while checkout is unavailable.</div>
+</main>
+<footer><div class="foot"><span>© VoidCraft community project · Independent from Mojang and Microsoft</span><span><a href="privacy.html">Privacy</a> · <a href="terms.html">Terms</a> · <a href="security.html">Security</a></span></div></footer><script src="assets/app.js" defer></script></body></html>
