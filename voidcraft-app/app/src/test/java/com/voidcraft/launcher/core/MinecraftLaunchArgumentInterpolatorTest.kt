@@ -11,11 +11,11 @@ class MinecraftLaunchArgumentInterpolatorTest {
     fun expandsPlaceholdersWithoutSplittingValuesContainingSpaces() {
         val args = listOf(
             "--username",
-            "${auth_player_name}",
-            "-Djava.library.path=${natives_directory}",
-            "${game_directory}",
+            "\${auth_player_name}",
+            "-Djava.library.path=\${natives_directory}",
+            "\${game_directory}",
             "--version",
-            "${version_name}"
+            "\${version_name}"
         )
         val nativePath = "/data/user/0/com.voidcraft.launcher/files/native libraries"
         val gamePath = "/storage/emulated/0/My Minecraft/instance"
@@ -38,7 +38,7 @@ class MinecraftLaunchArgumentInterpolatorTest {
 
     @Test
     fun unresolvedPlaceholderFailsClosedWithoutEchoingArgumentSecrets() {
-        val arguments = listOf("--accessToken=${missing_token}")
+        val arguments = listOf("--accessToken=\${missing_token}")
         val error = assertThrows(UnresolvedLaunchPlaceholderException::class.java) {
             MinecraftLaunchArgumentInterpolator.expand(
                 arguments,
@@ -53,19 +53,19 @@ class MinecraftLaunchArgumentInterpolatorTest {
     @Test
     fun invalidPlaceholderNameAndNulValuesAreRejected() {
         assertThrows(InvalidLaunchPlaceholderException::class.java) {
-            MinecraftLaunchArgumentInterpolator.expand(listOf("--name=${bad name}"), emptyMap())
+            MinecraftLaunchArgumentInterpolator.expand(listOf("--name=\${bad name}"), emptyMap())
         }
         assertThrows(IllegalArgumentException::class.java) {
-            MinecraftLaunchArgumentInterpolator.expand(listOf("${token}"), mapOf("token" to "bad\u0000token"))
+            MinecraftLaunchArgumentInterpolator.expand(listOf("\${token}"), mapOf("token" to "bad\u0000token"))
         }
     }
 
     @Test
     fun resolverFiltersByPlatformBeforeExpandingAndPreservesOrder() {
         val values = listOf(
-            MinecraftArgumentValue(listOf("--username", "${username}")),
+            MinecraftArgumentValue(listOf("--username", "\${username}")),
             MinecraftArgumentValue(
-                listOf("-Dplatform=${platform}"),
+                listOf("-Dplatform=\${platform}"),
                 listOf(MinecraftLibraryRule("allow", "linux", null, null, emptyMap()))
             ),
             MinecraftArgumentValue(
@@ -88,10 +88,10 @@ class MinecraftLaunchArgumentInterpolatorTest {
     @Test
     fun placeholderValuesAreNotRecursivelyExpanded() {
         val result = MinecraftLaunchArgumentInterpolator.expand(
-            listOf("--value=${outer}"),
-            mapOf("outer" to "${inner}", "inner" to "expanded")
+            listOf("--value=\${outer}"),
+            mapOf("outer" to "\${inner}", "inner" to "expanded")
         )
 
-        assertEquals(listOf("--value=${inner}"), result)
+        assertEquals(listOf("--value=\${inner}"), result)
     }
 }
