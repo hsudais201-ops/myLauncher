@@ -188,7 +188,7 @@ class InstanceListActivity : Activity() {
         setTextColor(primaryText)
         setHintTextColor(secondaryText)
         inputType = InputType.TYPE_CLASS_TEXT
-        singleLine = true
+        isSingleLine = true
     }
 
     private fun fieldParams() = LinearLayout.LayoutParams(
