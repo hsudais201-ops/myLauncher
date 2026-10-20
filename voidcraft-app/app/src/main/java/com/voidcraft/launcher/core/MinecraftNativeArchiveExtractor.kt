@@ -95,7 +95,7 @@ class MinecraftNativeArchiveExtractor(
                     if (!seenPaths.add(relative)) throw IOException("Native archive contains a duplicate path: " + relative)
 
                     val output = resolveInside(content, relative)
-                    if (entry.isDirectory || entry.name.endsWith("/") || entry.name.endsWith("\\\\")) {
+                    if (entry.isDirectory || entry.name.endsWith("/") || entry.name.endsWith('\\')) {
                         if (!output.exists() && !output.mkdirs()) throw IOException("Could not create extracted directory: " + relative)
                         if (!output.isDirectory) throw IOException("Native archive path conflicts with a file: " + relative)
                         continue
@@ -106,7 +106,7 @@ class MinecraftNativeArchiveExtractor(
                     if (entry.size > 0L && compressed == 0L) {
                         throw IOException("Native archive entry has an invalid compression ratio: " + relative)
                     }
-                    if (entry.size > 0L && compressed > 0L && entry.size / compressed > maxCompressionRatio.toLong()) {
+                    if (entry.size > 0L && compressed > 0L && entry.size > compressed * maxCompressionRatio.toLong()) {
                         throw IOException("Native archive entry exceeds the compression-ratio limit: " + relative)
                     }
                     val outputParent = output.parentFile ?: throw IOException("Extracted file has no parent directory")
@@ -153,8 +153,7 @@ class MinecraftNativeArchiveExtractor(
             committed = true
             return NativeExtractionResult(target, filesWritten, bytesWritten, skipped)
         } finally {
-            if (!committed) stage.deleteRecursively()
-            else stage.deleteRecursively()
+            stage.deleteRecursively()
         }
     }
 
