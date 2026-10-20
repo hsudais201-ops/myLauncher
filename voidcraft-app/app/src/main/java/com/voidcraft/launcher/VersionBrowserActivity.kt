@@ -133,7 +133,7 @@ class VersionBrowserActivity : Activity() {
         })
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setBackgroundColor(background)
+            setBackgroundColor(this@VersionBrowserActivity.background)
         }
         root.addView(page, LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f
