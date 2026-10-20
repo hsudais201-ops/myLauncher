@@ -340,52 +340,8 @@ class MainActivity : Activity() {
         return row
     }
 
-    private fun buildBottomNav(): View {
-        val nav = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER
-            setBackgroundColor(surface)
-            setPadding(dp(5), dp(7), dp(5), dp(6))
-        }
-        val divider = View(this).apply { setBackgroundColor(subtleBorder) }
-        val wrapper = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
-        wrapper.addView(divider, LinearLayout.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT, dp(1)
-        ))
-        val items = listOf(
-            Triple("⌂", "Home", true),
-            Triple("▦", "Instances", false),
-            Triple("⇩", "Versions", false),
-            Triple("◇", "Store", false),
-            Triple("⚙", "Settings", false)
-        )
-        items.forEach { (glyph, label, selected) ->
-            val item = LinearLayout(this).apply {
-                orientation = LinearLayout.VERTICAL
-                gravity = Gravity.CENTER
-                setPadding(dp(2), dp(2), dp(2), dp(2))
-                isClickable = true
-                isFocusable = true
-                contentDescription = label
-                setOnClickListener {
-                    when (label) {
-                        "Home" -> scrollToTop()
-                        "Instances" -> startActivity(Intent(this@MainActivity, InstanceListActivity::class.java))
-                        "Versions" -> startActivity(Intent(this@MainActivity, VersionBrowserActivity::class.java))
-                        "Store" -> startActivity(Intent(this@MainActivity, FeatureStoreActivity::class.java))
-                        "Settings" -> startActivity(Intent(this@MainActivity, SettingsActivity::class.java))
-                    }
-                }
-            }
-            item.addView(text(glyph, 21, if (selected) accent else secondaryText, true))
-            item.addView(text(label, 10, if (selected) accent else secondaryText, selected).apply {
-                setPadding(0, dp(2), 0, 0)
-            })
-            nav.addView(item, LinearLayout.LayoutParams(0, dp(49), 1f))
-        }
-        wrapper.addView(nav)
-        return wrapper
-    }
+    private fun buildBottomNav(): View =
+        LauncherNavigationBar.create(this, "Home") { scrollToTop() }
 
     private fun scrollToTop() {
         homeScroll?.smoothScrollTo(0, 0)
