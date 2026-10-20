@@ -16,6 +16,7 @@ Implemented:
 - `core/SecureFileDownloader.kt`: bounded HTTPS transfer with cancellation, transient retries, supplied hash/size checks and safe per-file replacement.
 - `core/MinecraftInstallVerifier.kt`: read-only integrity scan of planned files, with explicit missing/size/hash/verified/unverifiable statuses.
 - `core/MinecraftInstallExecutor.kt`: complete-plan-only execution, reuse of verified cached files, staged downloads, transactional promotion, backup, and rollback on commit failure.
+- `core/MinecraftArtifactInstallService.kt`: coordinates metadata preparation with the verified artifact executor, exposes install stages/progress, and rejects incomplete or mismatched plans before downloads.
 - `core/MinecraftNativeArchiveExtractor.kt` and `core/MinecraftNativeLibraryAssembler.kt`: bounded ZIP extraction, traversal rejection, metadata exclusions, cancellation cleanup, multi-archive assembly, and conflict checks for duplicate files.
 - `core/MinecraftLaunchArgumentInterpolator.kt`: placeholder expansion without re-tokenizing arguments; combines with existing metadata rule filtering while rejecting unresolved placeholders.
 - Unit tests cover catalog safety, metadata integrity, library/asset planning, downloader integrity/cancellation/retries, and install execution safety.
@@ -30,7 +31,7 @@ Not yet implemented or connected:
 - Import/export, modpack workflows, touch-control designer, and feature store.
 - Read-only discovery and migration of data from the existing launcher.
 
-The Versions screen only browses metadata and creates profile records; it does not start installation. The executor, native extractor/assembler, and argument resolver remain internal core services and are not yet connected into an end-to-end install/launch operation. Performance, runtime launch, auth, and feature-store buttons remain placeholders.
+The Versions screen only browses metadata and creates profile records; it does not start installation. The artifact-install orchestrator, native extractor/assembler, and argument resolver are internal core services and are not connected to the UI or a real process-launch operation. Performance, runtime launch, auth, and feature-store buttons remain placeholders.
 
 ## Data-safety invariants
 
