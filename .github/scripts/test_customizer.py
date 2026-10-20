@@ -1533,7 +1533,7 @@ class ApplyLogoTests(unittest.TestCase):
             icon_bytes = icon.read_bytes()
             self.assertTrue(icon_bytes.startswith(b"RIFF"))
             self.assertEqual(icon_bytes[8:12], b"WEBP")
-            # Check the generated app resource against the canonical bundled asset.
+            # Check every copied WebP byte against the canonical bundled asset.
             asset = Path(logo_applier.__file__).resolve().parents[2] / "assets/branding/voidcraft-vc-logo.webp"
             self.assertEqual(icon_bytes, asset.read_bytes())
             self.assertFalse(legacy_icon.exists())
