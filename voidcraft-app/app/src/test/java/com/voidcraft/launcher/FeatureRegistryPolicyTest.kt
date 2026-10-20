@@ -18,11 +18,17 @@ class FeatureRegistryPolicyTest {
     }
 
     @Test
-    fun noUnimplementedOrCommunityFeatureCanInstall() {
+    fun onlyImplementedBuiltInDiagnosticsCanInstall() {
         FeatureRegistry.catalog().forEach { feature ->
-            assertFalse("Unexpected installable feature: ${feature.id}",
-                FeatureRegistry.canInstall(feature.id))
+            if (feature.id == "startup-diagnostics") {
+                assertEquals(FeatureRegistry.Status.AVAILABLE, feature.status)
+                assert(!FeatureRegistry.canInstall("unknown-feature"))
+            } else {
+                assertFalse("Unexpected installable feature: ${feature.id}",
+                    FeatureRegistry.canInstall(feature.id))
+            }
         }
+        assert(FeatureRegistry.canInstall("startup-diagnostics"))
         assertFalse(FeatureRegistry.canInstall("unknown-feature"))
         assertFalse(FeatureRegistry.canInstall("../unsafe-path"))
     }
