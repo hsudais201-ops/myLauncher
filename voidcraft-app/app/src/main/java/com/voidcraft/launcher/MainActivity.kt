@@ -1,6 +1,7 @@
 package com.voidcraft.launcher
 
 import android.app.Activity
+import android.content.Intent
 import android.graphics.Color
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
@@ -18,7 +19,7 @@ import android.widget.Toast
  * Independently authored VoidCraft app shell.
  *
  * This prototype intentionally does not start Minecraft: runtime, account,
- * download, and persistent instance services have not been connected yet.
+ * and download services have not been connected yet.
  */
 class MainActivity : Activity() {
     private val background = Color.rgb(13, 17, 28)
@@ -71,9 +72,9 @@ class MainActivity : Activity() {
 
         page.addView(sectionCard(
             "Instances",
-            "A dedicated place for game profiles, per-instance settings, and world-safe management.",
+            "Create and view profile metadata without touching existing game files.",
             "Open instances"
-        ) { notice("Instance storage and migration are the next integration stage.") })
+        ) { startActivity(Intent(this, InstanceListActivity::class.java)) })
         page.addView(space(12))
         page.addView(sectionCard(
             "Performance",
