@@ -42,3 +42,10 @@ The debug APK is generated under `app/build/outputs/apk/debug/`. The independent
 - The old Amethyst-based build remains unchanged while the replacement is developed.
 
 The core modules use Gson 2.11.0 for JSON parsing (Apache-2.0); see [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). A complete APK SBOM and distribution audit are still required.
+
+
+## Feature Store security milestone
+
+The independent Android app now has a shared first-party feature catalog and a fail-closed local registry. The Feature Store screen reads from that catalog, displays declared capabilities, and explains why a feature is unavailable rather than simulating a successful install. Unknown IDs, traversal-like IDs, planned features, and community submissions are not installable. The registry never loads or executes downloaded add-on code.
+
+This is deliberately a security foundation, not a finished online store. There are currently no installable add-on packages. Signed manifests, package integrity verification, compatibility enforcement, user permission prompts, a constrained extension API, transactional activation/rollback, and community moderation are still required before remote features can be distributed. The current unit tests cover catalog ID uniqueness and fail-closed installation policy; the Android build must pass in CI before this change is considered validated.
