@@ -13,6 +13,8 @@ import android.content.Context
 object FeatureRegistry {
     const val PREFS_NAME = "voidcraft_installed_features"
     private const val KEY_INSTALLED_IDS = "installed_feature_ids"
+    // Empty until a real built-in add-on implementation and tests are shipped.
+    private val installableBuiltIns = emptySet<String>()
 
     data class Definition(
         val id: String,
@@ -113,7 +115,7 @@ object FeatureRegistry {
      * Unknown IDs, planned items and community submissions fail closed.
      */
     fun canInstall(id: String): Boolean =
-        find(id)?.status == Status.AVAILABLE && id in emptySet<String>()
+        find(id)?.status == Status.AVAILABLE && id in installableBuiltIns
 
     fun install(context: Context, id: String): Result<Unit> {
         if (!canInstall(id)) {
