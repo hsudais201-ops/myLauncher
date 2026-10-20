@@ -32,47 +32,39 @@ class FeatureStoreActivity : Activity() {
     private val border = Color.rgb(42, 58, 85)
 
     private data class Feature(
+        val id: String,
         val name: String,
         val description: String,
         val state: String,
         val icon: String
     )
 
-    private val features = listOf(
-        Feature("Smart Performance Advisor",
-            "Read device diagnostics and suggest reversible, device-aware settings without imposing an FPS cap.",
-            "Planned", "↗"),
-        Feature("Minecraft Server Status",
-            "Track saved servers, online state, MOTD, player count, and server icon.",
-            "Planned", "◉"),
-        Feature("Friends & Chat",
-            "A separate social page for profiles, friend requests, and private messages.",
-            "Planned", "✉"),
-        Feature("Theme Studio",
-            "Customize VoidCraft colors, backgrounds, and interface accents.",
-            "Planned", "✦"),
-        Feature("Crash Report Center",
-            "Read crash logs, summarize likely causes, and prepare a shareable bug report.",
-            "Planned", "⚑"),
-        Feature("Screenshot Gallery",
-            "Browse and organize Minecraft screenshots without leaving the launcher.",
-            "Planned", "▧"),
-        Feature("World Backup Scheduler",
-            "Create scheduled backups with integrity checks and restore previews.",
-            "Planned", "◫"),
-        Feature("Mod Compatibility Checker",
-            "Inspect mod metadata for Minecraft version and loader compatibility conflicts.",
-            "Planned", "◇"),
-        Feature("Shader Preset Manager",
-            "Save renderer-aware shader presets and switch between named configurations.",
-            "Planned", "☼"),
-        Feature("Startup Diagnostics",
-            "Review runtime, storage, memory, and native-library readiness before launch.",
-            "Planned", "✓"),
-        Feature("Community Feature Upload",
-            "Prepare user-submitted add-ons for permission review and compatibility validation.",
-            "Review required", "⇧")
-    )
+    // The UI and install policy share one catalog; no category taxonomy is used.
+    private val features = FeatureRegistry.catalog().map { item ->
+        Feature(
+            item.id,
+            item.name,
+            item.description,
+            when (item.status) {
+                FeatureRegistry.Status.AVAILABLE -> "Available"
+                FeatureRegistry.Status.PLANNED -> "Planned"
+                FeatureRegistry.Status.REVIEW_REQUIRED -> "Review required"
+            },
+            when (item.id) {
+                "smart-performance-advisor" -> "↗"
+                "server-status" -> "◉"
+                "friends-chat" -> "✉"
+                "theme-studio" -> "✦"
+                "crash-report-center" -> "⚑"
+                "screenshot-gallery" -> "▧"
+                "world-backup-scheduler" -> "◫"
+                "mod-compatibility-checker" -> "◇"
+                "shader-preset-manager" -> "☼"
+                "startup-diagnostics" -> "✓"
+                else -> "⇧"
+            }
+        )
+    }
 
     private lateinit var searchField: EditText
     private lateinit var featureList: LinearLayout
@@ -158,7 +150,7 @@ class FeatureStoreActivity : Activity() {
         val visible = features.filter {
             it.name.lowercase().contains(query) || it.description.lowercase().contains(query)
         }
-        countLabel.text = "${visible.size} features • browse without categories"
+        countLabel.text = "${visible.size} features • ${FeatureRegistry.installedIds(this).size} installed • no categories"
         if (visible.isEmpty()) {
             featureList.addView(text("No features match that search.", 14, secondaryText, false)
                 .apply { setPadding(dp(10), dp(18), dp(10), dp(18)) })
