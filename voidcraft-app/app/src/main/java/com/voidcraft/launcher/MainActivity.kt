@@ -154,6 +154,11 @@ class MainActivity : Activity() {
             setPadding(dp(10), dp(9), dp(10), dp(9))
             background = rounded(cardSurface, 30, subtleBorder)
             contentDescription = "Account status: no connected account"
+            isClickable = true
+            isFocusable = true
+            setOnClickListener {
+                startActivity(Intent(this@MainActivity, AccountActivity::class.java))
+            }
         }
         row.addView(profile)
         return row
