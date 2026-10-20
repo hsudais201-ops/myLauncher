@@ -119,8 +119,11 @@ if (authForm) {
       headers: { "Content-Type": "application/json", "Accept": "application/json" },
       ...options
     });
+    const contentType = response.headers.get("Content-Type") || "";
     let data = {};
-    try { data = await response.json(); } catch {}
+    if (contentType.toLowerCase().includes("application/json")) {
+      try { data = await response.json(); } catch {}
+    }
     return { response, data };
   }
 
@@ -156,7 +159,13 @@ if (authForm) {
     try {
       const { response, data } = await apiJson(url, { method: "POST", body: JSON.stringify(payload) });
       if (!response.ok) {
-        feedback.textContent = data.error || "We couldn't complete that request. Please try again.";
+        const fallback = response.status === 404
+          ? "The account API route was not found in this deployment (HTTP 404). Try refreshing the page."
+          : response.status >= 500
+            ? "The account server returned an internal error (HTTP " + response.status + "). Please retry in a moment."
+            : "The request was rejected (HTTP " + response.status + "). Check the details and try again.";
+        feedback.textContent = data.error || fallback;
+        if (data.code) feedback.textContent += " [" + data.code + "]";
         feedback.classList.add("is-error");
         return;
       }
@@ -175,6 +184,23 @@ if (authForm) {
   });
 
   setMode("login");
+  fetch("/api/auth/health", { credentials: "same-origin", cache: "no-store", headers: { "Accept": "application/json" } })
+    .then(async (response) => {
+      let data = {};
+      if ((response.headers.get("Content-Type") || "").toLowerCase().includes("application/json")) {
+        try { data = await response.json(); } catch {}
+      }
+      if (!response.ok || data.ok !== true) {
+        feedback.textContent = data.code
+          ? "Account service check failed: " + data.code + "."
+          : "Account service check failed (HTTP " + response.status + "). The form will show a detailed error if you submit.";
+        feedback.className = "form-feedback is-info";
+      }
+    })
+    .catch(() => {
+      feedback.textContent = "Couldn't reach the account health check. Check your connection; a submit will show the HTTP result.";
+      feedback.className = "form-feedback is-info";
+    });
   fetch("/api/auth/me", { credentials: "same-origin", cache: "no-store", headers: { "Accept": "application/json" } })
     .then((response) => response.ok ? response.json() : null)
     .then((data) => {
@@ -240,3 +266,66 @@ if (profileCard) {
   }
   loadProfile();
 }
+
+
+/* Lightweight 3D hover, reveal, and pointer ambience. No external libraries. */
+(() => {
+  const reducedMotion = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const finePointer = window.matchMedia && window.matchMedia("(hover: hover) and (pointer: fine)").matches;
+
+  const revealTargets = document.querySelectorAll(".hero-copy, .hero-visual, .card, .auth-panel, .auth-aside, .profile-card");
+  if (reducedMotion) {
+    revealTargets.forEach((node) => node.classList.add("is-visible"));
+  } else if ("IntersectionObserver" in window) {
+    const revealObserver = new IntersectionObserver((entries, observer) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add("is-visible");
+          observer.unobserve(entry.target);
+        }
+      });
+    }, { threshold: 0.08, rootMargin: "0px 0px -24px 0px" });
+    revealTargets.forEach((node, index) => {
+      node.classList.add("reveal-up");
+      node.style.setProperty("--reveal-delay", Math.min(index % 6, 5) * 65 + "ms");
+      revealObserver.observe(node);
+    });
+  }
+
+  if (reducedMotion || !finePointer) return;
+  document.querySelectorAll(".feature-card, .cosmetic-card, .auth-panel, .auth-aside, .profile-card").forEach((card) => {
+    let rect = null;
+    let frame = 0;
+    card.classList.add("has-tilt");
+    card.addEventListener("pointerenter", () => {
+      rect = card.getBoundingClientRect();
+      card.classList.add("is-tilting");
+    });
+    card.addEventListener("pointermove", (event) => {
+      if (event.pointerType === "touch") return;
+      if (!rect || !frame) rect = card.getBoundingClientRect();
+      if (frame) cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => {
+        const x = (event.clientX - rect.left) / Math.max(1, rect.width);
+        const y = (event.clientY - rect.top) / Math.max(1, rect.height);
+        const ry = (x - 0.5) * 5;
+        const rx = (0.5 - y) * 4;
+        card.style.setProperty("--tilt-x", rx.toFixed(2) + "deg");
+        card.style.setProperty("--tilt-y", ry.toFixed(2) + "deg");
+        card.style.setProperty("--spot-x", (x * 100).toFixed(1) + "%");
+        card.style.setProperty("--spot-y", (y * 100).toFixed(1) + "%");
+        frame = 0;
+      });
+    });
+    card.addEventListener("pointerleave", () => {
+      if (frame) cancelAnimationFrame(frame);
+      frame = 0;
+      rect = null;
+      card.classList.remove("is-tilting");
+      card.style.setProperty("--tilt-x", "0deg");
+      card.style.setProperty("--tilt-y", "0deg");
+      card.style.setProperty("--spot-x", "50%");
+      card.style.setProperty("--spot-y", "50%");
+    });
+  });
+})();
