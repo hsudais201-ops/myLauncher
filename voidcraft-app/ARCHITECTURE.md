@@ -16,11 +16,13 @@ Implemented:
 - `core/SecureFileDownloader.kt`: bounded HTTPS transfer with cancellation, transient retries, supplied hash/size checks and safe per-file replacement.
 - `core/MinecraftInstallVerifier.kt`: read-only integrity scan of planned files, with explicit missing/size/hash/verified/unverifiable statuses.
 - `core/MinecraftInstallExecutor.kt`: complete-plan-only execution, reuse of verified cached files, staged downloads, transactional promotion, backup, and rollback on commit failure.
+- `core/MinecraftNativeArchiveExtractor.kt` and `core/MinecraftNativeLibraryAssembler.kt`: bounded ZIP extraction, traversal rejection, metadata exclusions, cancellation cleanup, multi-archive assembly, and conflict checks for duplicate files.
+- `core/MinecraftLaunchArgumentInterpolator.kt`: placeholder expansion without re-tokenizing arguments; combines with existing metadata rule filtering while rejecting unresolved placeholders.
 - Unit tests cover catalog safety, metadata integrity, library/asset planning, downloader integrity/cancellation/retries, and install execution safety.
 
 Not yet implemented or connected:
-- Complete version installation UI and launch-argument merging (the modeled version-parent fields now resolve recursively, but arguments/logging and loader-specific metadata are not yet modeled).
-- Native archive extraction and Java runtime acquisition.
+- Complete version installation UI and launch-context assembly (modern argument values can now be filtered and interpolated, but final game/JVM arguments, classpath, logging, account context, legacy arguments, and loader-specific metadata are not wired end to end).
+- Integration of native extraction/assembly with downloaded artifacts and the runtime launch directory; Java runtime acquisition.
 - Resumable downloads and a persistent download queue.
 - Real Android runtime platform adaptation and native library compatibility.
 - Microsoft/Xbox/Minecraft authentication and secure token storage.
@@ -28,7 +30,7 @@ Not yet implemented or connected:
 - Import/export, modpack workflows, touch-control designer, and feature store.
 - Read-only discovery and migration of data from the existing launcher.
 
-The Versions screen only browses metadata and creates profile records; it does not start installation. The executor remains an internal core service until all installer prerequisites are resolved. Performance, runtime launch, auth, and feature-store buttons remain placeholders.
+The Versions screen only browses metadata and creates profile records; it does not start installation. The executor, native extractor/assembler, and argument resolver remain internal core services and are not yet connected into an end-to-end install/launch operation. Performance, runtime launch, auth, and feature-store buttons remain placeholders.
 
 ## Data-safety invariants
 
