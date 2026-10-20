@@ -6,6 +6,19 @@
 
 This document tracks the complete requested feature scope. A feature appearing in this list does **not** by itself mean the feature is implemented or has passed a runtime test. The project builds the pinned [Amethyst-Android engine](https://github.com/AngelAuraMC/Amethyst-Android) and applies VoidCraft Launcher patches; existing engine features should be audited and exposed before reimplementing them. Every unverified item below needs a source check and/or an acceptance test before it is described as shipped.
 
+## Feature placement decision (2026-10-19)
+
+The placement rules in [FEATURE_STORE_SPEC.md](FEATURE_STORE_SPEC.md) are the source of truth for the Feature Store catalog and the complete numbered ideas list 1–70. **Built into the launcher, not installable from the Store:** Crash Assistant (item 4), Touch Control Designer (item 7), Device Compatibility Checker (item 8), Modpack Import & Export (item 9), and Performance Advisor (item 11). All other numbered ideas 1–70 are optional Store extensions or Store publishing tools, including the added backlog 16–70; the detailed requirements and safety boundaries live in the spec. Keep the Store as one searchable catalog with no category system. The numbers are planning references, not UI categories. These are placement requirements, not claims of implementation.
+
+The Feature Store is additive and must preserve the pinned engine, Java runtimes, native libraries, renderer/input, downloader, loaders, authentication, and existing user data. The new Store must not be built around direct Modrinth/CurseForge API browsing or direct CurseForge file loading. Built-in modpack import/export is local-file-first and limited to documented supported formats. Audit existing upstream integration code separately before changing or removing it.
+
+
+## Feature Store backlog expansion (items 16–70)
+
+The complete backlog of 55 additional extensions is documented in [FEATURE_STORE_SPEC.md](FEATURE_STORE_SPEC.md). It includes server history/alerts/profiles, world and screenshot organization, tracking and diagnostics, configuration tools, network/server utilities, instance and modpack helpers, creator/community tools, accessibility within extension-owned screens, trust/review/reporting, and support links. All remain **planned** until implemented and tested. The Feature Store is still one searchable catalog without category tabs or mandatory categories.
+
+The catalog regression test added alongside this backlog verifies the numbering, all 70 entries, the five built-in-only placements, no-category rule, and core security/preservation requirements. That test only checks documentation consistency; it does not claim that the 70 features exist at runtime. The repository's existing test/build workflow must also pass, and implemented features still need feature-specific tests plus supported-device/gameplay acceptance. Existing engine, Java runtime, native libraries, renderer/input, downloader, loaders, authentication, and existing user data remain out of scope for replacement.
+
 ## Current source audit
 
 | Area | Current evidence | Status |
@@ -118,11 +131,10 @@ These links point to the pinned upstream source that the build uses. They establ
 - Mod file export
 - Mod descriptions and author information
 - Modpack management
-- Modrinth integration
-- CurseForge integration
-- Modpack ZIP import
-- Modpack export
-- Modpack updates
+- Built-in local modpack archive import (documented supported formats only; see FEATURE_STORE_SPEC.md)
+- Built-in modpack export (documented portable format; see FEATURE_STORE_SPEC.md)
+- No new Feature Store based on direct Modrinth/CurseForge API browsing or direct CurseForge file loading
+- Audit existing upstream catalog/integration code separately before modifying or removing it; preserve shared loaders and downloader
 
 ## 5. Game Profiles and Instances
 

@@ -6,7 +6,7 @@ A personal Minecraft: Java Edition launcher build for Android, customized for lo
 
 **Runtime engine:** [Amethyst-Android](https://github.com/AngelAuraMC/Amethyst-Android). This repository stores the VoidCraft Launcher build customization and automation. It does not reimplement a Java virtual machine, OpenGL/LWJGL, account sign-in, game downloads, and mod loaders from scratch; those core runtime features come from the upstream open-source engine.
 
-See [FEATURE_ROADMAP.md](FEATURE_ROADMAP.md) for the complete 23-section feature scope, current source audit, and staged delivery plan. Items in that list are tracked requirements, not claims that every feature is implemented or runtime-verified.
+See [FEATURE_ROADMAP.md](FEATURE_ROADMAP.md) for the complete feature scope, current source audit, and staged delivery plan. [FEATURE_STORE_SPEC.md](FEATURE_STORE_SPEC.md) defines which features belong in the installable Feature Store versus the built-in launcher, with security and implementation acceptance requirements. These are tracked requirements, not claims that every feature is implemented or runtime-verified.
 
 ## Device target
 
@@ -70,7 +70,9 @@ The workflow fetches the exact Amethyst commit `330c6eae3164df64bdc4828e946a9e62
 - `.github/scripts/emulator_smoke_test.sh` — installs the APK, launches the launcher entry point, checks foreground activity state, and captures emulator screenshots and diagnostics.
 - `.github/scripts/prepare_emulator_kvm.sh` — verifies and enables KVM access for hosted emulator runs.
 - `.github/scripts/test_customizer.py` — regression tests for the source patcher, account validation/submission, launcher actions, XML well-formedness, safe file handling, idempotency, build safeguards, and emulator-smoke expectations.
+- `.github/scripts/test_feature_store_spec.py` — checks that the Feature Store specification lists items 1–70 exactly once, preserves the five built-in-only features, retains the no-category design, and documents core safety constraints. This is a documentation-integrity test, not a runtime test of all planned features.
 - `FEATURE_ROADMAP.md` — tracks source-confirmed features separately from planned work and device/gameplay acceptance still needed.
+- `FEATURE_STORE_SPEC.md` — defines the 70-item Feature Store plan, the five built-in-only features, the no-category Store UX, extension security, and implementation gates.
 
 ## Local build
 
