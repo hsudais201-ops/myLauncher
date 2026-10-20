@@ -71,6 +71,13 @@ class MainActivity : Activity() {
         page.addView(space(14))
 
         page.addView(sectionCard(
+            "Minecraft versions",
+            "Browse official releases, snapshots, old betas and alphas. Browsing and profile metadata do not install game files.",
+            "Browse versions"
+        ) { startActivity(Intent(this, VersionBrowserActivity::class.java)) })
+        page.addView(space(12))
+
+        page.addView(sectionCard(
             "Instances",
             "Create and view profile metadata without touching existing game files.",
             "Open instances"
