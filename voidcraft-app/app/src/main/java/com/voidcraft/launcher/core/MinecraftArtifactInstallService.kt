@@ -13,7 +13,7 @@ fun interface MinecraftInstallPreparer {
 }
 
 /** Test seam for orchestration; the production implementation is MinecraftInstallExecutor. */
-fun interface MinecraftPlanExecutor {
+interface MinecraftPlanExecutor {
     fun execute(
         plan: MinecraftInstallPlan,
         installRoot: File,
