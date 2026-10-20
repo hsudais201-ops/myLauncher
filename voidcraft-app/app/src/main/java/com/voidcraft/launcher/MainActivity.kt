@@ -94,10 +94,10 @@ class MainActivity : Activity() {
 
         val secondRow = horizontalRow()
         secondRow.addView(shortcutCard("◇", "Feature Store", "Optional add-ons") {
-            notice("The Feature Store UI and install service are not connected yet.")
+            startActivity(Intent(this, FeatureStoreActivity::class.java))
         }, weightedParams(1f, dp(6)))
         secondRow.addView(shortcutCard("⚙", "Settings", "Launcher preferences") {
-            notice("Launcher settings will be added in a later UI pass.")
+            startActivity(Intent(this, SettingsActivity::class.java))
         }, weightedParams(1f, dp(6)))
         page.addView(secondRow)
         page.addView(space(22))
