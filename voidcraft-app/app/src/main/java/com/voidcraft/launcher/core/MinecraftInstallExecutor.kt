@@ -44,13 +44,13 @@ class InstallCommitException(message: String, cause: Throwable) : IOException(me
 class MinecraftInstallExecutor(
     private val downloader: SecureFileDownloader = SecureFileDownloader(),
     private val verifier: MinecraftInstallVerifier = MinecraftInstallVerifier()
-) {
+) : MinecraftPlanExecutor {
     @Synchronized
-    fun execute(
+    override fun execute(
         plan: MinecraftInstallPlan,
         installRoot: File,
-        isCancelled: () -> Boolean = { false },
-        onProgress: (InstallArtifactProgress) -> Unit = {}
+        isCancelled: () -> Boolean,
+        onProgress: (InstallArtifactProgress) -> Unit
     ): MinecraftInstallResult {
         if (plan.warnings.isNotEmpty()) throw IncompleteInstallPlanException(plan.warnings)
         val relativePaths = MinecraftInstallPathPolicy.validatePlan(plan)
