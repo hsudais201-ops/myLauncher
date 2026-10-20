@@ -35,7 +35,7 @@ class SettingsActivity : Activity() {
         window.navigationBarColor = surface
         LauncherPreferences.applyWindowFlags(this)
 
-        val scroll = ScrollView(this).apply { setBackgroundColor(background) }
+        val scroll = ScrollView(this).apply { setBackgroundColor(this@SettingsActivity.background) }
         val page = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(dp(18), dp(12), dp(18), dp(28))
@@ -70,8 +70,7 @@ class SettingsActivity : Activity() {
         ) { notice("Theme customization is planned for a future settings update.") })
         page.addView(space(20))
 
-        page.addView(sectionTitle("MINECRAFT")
-        )
+        page.addView(sectionTitle("MINECRAFT"))
         page.addView(space(9))
         page.addView(infoCard(
             "Frame rate",
