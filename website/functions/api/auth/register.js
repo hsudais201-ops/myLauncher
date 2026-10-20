@@ -1,12 +1,17 @@
 import { allowAttempt, createSession, json, passwordHash, publicUser, randomHex, readJson, sameOrigin, sessionCookie } from "./_utils.js";
 
 export async function onRequestPost({ request, env }) {
+  let stage = "request_start";
   try {
+    stage = "check_binding";
     if (!env?.VOIDCRAFT_AUTH) return json({ error: "Account service is not connected. Please try again later.", code: "AUTH_DB_NOT_BOUND" }, 503);
+    stage = "check_origin";
     if (!sameOrigin(request)) return json({ error: "Request origin could not be verified. Reload the page and try again.", code: "AUTH_ORIGIN_REJECTED" }, 403);
+    stage = "rate_limit";
     const limit = await allowAttempt(request, env, "register");
     if (!limit.allowed) return json({ error: "Too many attempts. Please try again later.", code: "AUTH_RATE_LIMITED" }, 429, { "Retry-After": String(limit.retryAfter) });
 
+    stage = "read_body";
     const body = await readJson(request);
     if (!body) return json({ error: "The registration form could not be read. Reload the page and try again.", code: "AUTH_INVALID_JSON" }, 400);
 
@@ -23,10 +28,12 @@ export async function onRequestPost({ request, env }) {
       return json({ error: "Choose a password between 12 and 128 characters.", code: "AUTH_PASSWORD_INVALID" }, 400);
     }
 
+    stage = "password_hash";
     const salt = randomHex(16);
     const hash = await passwordHash(password, salt);
     const id = crypto.randomUUID();
     const createdAt = new Date().toISOString();
+    stage = "insert_user";
     try {
       await env.VOIDCRAFT_AUTH.prepare(
         "INSERT INTO users (id, username, email, password_salt, password_hash, created_at) VALUES (?, ?, ?, ?, ?, ?)"
@@ -40,6 +47,7 @@ export async function onRequestPost({ request, env }) {
       return json({ error: "We couldn't save the account. Please try again.", code: "AUTH_REGISTER_SAVE_FAILED" }, 500);
     }
 
+    stage = "create_session";
     let token;
     try {
       token = await createSession(env, id);
@@ -51,7 +59,7 @@ export async function onRequestPost({ request, env }) {
       "Set-Cookie": sessionCookie(token)
     });
   } catch (error) {
-    console.error("VoidCraft registration request failed", { name: error?.name || "Error" });
-    return json({ error: "The account service hit an internal error. Reload the page and try again.", code: "AUTH_REGISTER_INTERNAL" }, 500);
+    console.error("VoidCraft registration request failed", { stage, name: error?.name || "Error" });
+    return json({ error: "The account service failed during " + stage.replace(/_/g, " ") + ". Please retry after refreshing.", code: "AUTH_REGISTER_INTERNAL_" + stage.toUpperCase() }, 500);
   }
 }
