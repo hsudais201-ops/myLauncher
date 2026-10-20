@@ -42,7 +42,7 @@ class InstanceListActivity : Activity() {
         window.decorView.systemUiVisibility = 0
 
         val scroll = ScrollView(this).apply {
-            setBackgroundColor(background)
+            setBackgroundColor(this@InstanceListActivity.background)
             isFillViewport = true
         }
         val page = LinearLayout(this).apply {
