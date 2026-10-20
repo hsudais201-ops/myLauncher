@@ -16,6 +16,8 @@ Current unit-test coverage targets the instance catalog:
 - Fail closed on an unknown schema version.
 - Ensure catalog removal does not delete a simulated world/save file.
 
+The unit-test and APK-build step last passed in [GitHub Actions run #39359802263](https://github.com/hsudais201-ops/myLauncher/actions/runs/39359802263). This is an automated build/test result, not an emulator install or physical-device acceptance result.
+
 ## Manual/device testing still required
 
 A passing compile or JVM unit-test run does not prove that the app was installed or tested on a physical Android device. Device acceptance remains open for:
