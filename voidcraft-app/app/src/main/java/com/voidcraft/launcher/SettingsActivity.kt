@@ -130,6 +130,11 @@ class SettingsActivity : Activity() {
         setContentView(root)
     }
 
+    override fun onResume() {
+        super.onResume()
+        LauncherPreferences.applyWindowFlags(this)
+    }
+
     private fun header(): View {
         val row = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
