@@ -68,6 +68,21 @@ document.addEventListener("click", (event) => {
   }
 });
 
+function safeInternalReturnPath(candidate, fallback = "profile.html") {
+  if (typeof candidate !== "string" || !candidate.trim()) return fallback;
+  try {
+    const target = new URL(candidate, window.location.origin);
+    if (target.origin !== window.location.origin || target.pathname === "/signin.html") return fallback;
+    return target.pathname + target.search + target.hash;
+  } catch {
+    return fallback;
+  }
+}
+
+function requestedAccountReturnPath() {
+  return safeInternalReturnPath(new URLSearchParams(window.location.search).get("next"), "profile.html");
+}
+
 const authForm = document.getElementById("auth-form");
 if (authForm) {
   const modeButtons = [...document.querySelectorAll("[data-auth-mode]")];
@@ -173,7 +188,7 @@ if (authForm) {
       feedback.classList.add("is-success");
       password.value = "";
       confirm.value = "";
-      window.location.assign("profile.html");
+      window.location.assign(requestedAccountReturnPath());
     } catch {
       feedback.textContent = "The account service could not be reached. Check your connection and retry.";
       feedback.classList.add("is-error");
@@ -205,8 +220,7 @@ if (authForm) {
     .then((response) => response.ok ? response.json() : null)
     .then((data) => {
       if (data?.authenticated && data.user) {
-        feedback.textContent = "You're already signed in as " + data.user.username + ". This Sign in page stays available; open Profile to review your session or sign out before switching accounts.";
-        feedback.className = "form-feedback is-info";
+        window.location.replace(requestedAccountReturnPath());
       }
     })
     .catch(() => {});
@@ -242,7 +256,17 @@ if (profileCard) {
         return;
       }
       const user = data.user;
-      const heading = makeElement("h2", "", "Welcome, " + user.username);
+      const heading = makeElement("h2", "");
+      heading.append(document.createTextNode("Welcome, "));
+      heading.append(makeElement("span", "profile-username", user.username));
+      if (user.role === "owner") {
+        heading.append(document.createTextNode(" "));
+        const crown = makeElement("span", "owner-crown", "👑");
+        crown.setAttribute("role", "img");
+        crown.setAttribute("aria-label", "Owner");
+        crown.title = "VoidCraft website owner";
+        heading.append(crown);
+      }
       const email = makeElement("p", "profile-email", user.email);
       const details = makeElement("div", "profile-meta", user.role === "owner" ? "VoidCraft website owner" : "VoidCraft website member");
       if (user.role === "owner") details.append(makeElement("span", "owner-pill", "OWNER"));
@@ -272,26 +296,135 @@ if (profileCard) {
 }
 
 
-// Keep Sign in visible in every header, including when the visitor has an active session.
+// Reflect the current website session in every page header.
 (() => {
-  const signInLink = document.querySelector(".account-links a[href=\"signin.html\"]");
-  const profileLink = document.querySelector(".account-links a[href=\"profile.html\"]");
-  if (signInLink) {
-    signInLink.hidden = false;
-    signInLink.textContent = "Sign in";
-    signInLink.setAttribute("aria-label", "Sign in or open the sign-in page");
+  const signInLink = document.querySelector(".account-links a[href="signin.html"]");
+  const profileLink = document.querySelector(".account-links a[href="profile.html"]");
+
+  function showSignedOut() {
+    if (signInLink) {
+      signInLink.hidden = false;
+      signInLink.textContent = "Sign in";
+      signInLink.setAttribute("aria-label", "Sign in or create a website account");
+      signInLink.removeAttribute("title");
+    }
+    if (profileLink) {
+      profileLink.hidden = false;
+      profileLink.textContent = "Profile";
+      profileLink.setAttribute("aria-label", "Website profile");
+    }
   }
+
+  function showSignedIn(user) {
+    if (signInLink) signInLink.hidden = true;
+    if (!profileLink) return;
+    profileLink.hidden = false;
+    profileLink.replaceChildren(document.createTextNode(user.username));
+    if (user.role === "owner") {
+      profileLink.append(document.createTextNode(" "));
+      const crown = document.createElement("span");
+      crown.className = "owner-crown";
+      crown.textContent = "👑";
+      crown.setAttribute("role", "img");
+      crown.setAttribute("aria-label", "Owner");
+      crown.title = "VoidCraft website owner";
+      profileLink.append(crown);
+    }
+    profileLink.setAttribute("aria-label", "Profile for " + user.username + (user.role === "owner" ? ", VoidCraft website owner" : ""));
+    profileLink.title = user.role === "owner" ? "VoidCraft website owner" : "Open your profile";
+  }
+
   fetch("/api/auth/me", { credentials: "same-origin", cache: "no-store", headers: { "Accept": "application/json" } })
     .then((response) => response.ok ? response.json() : null)
     .then((data) => {
-      if (!data?.authenticated || !data.user) return;
-      if (signInLink) signInLink.title = "This link remains available while signed in";
-      if (profileLink) {
-        profileLink.textContent = "Profile · " + data.user.username;
-        profileLink.setAttribute("aria-label", "Profile for " + data.user.username + (data.user.role === "owner" ? ", website owner" : ""));
-      }
+      if (data?.authenticated && data.user) showSignedIn(data.user);
+      else showSignedOut();
     })
-    .catch(() => {});
+    .catch(showSignedOut);
+})();
+
+// Purchase-only account gate. It does not intercept free-download links or launcher releases.
+(() => {
+  function showPurchaseFeedback(message) {
+    let feedback = document.querySelector("[data-purchase-feedback]");
+    if (!feedback) {
+      feedback = document.createElement("div");
+      feedback.className = "notice";
+      feedback.setAttribute("data-purchase-feedback", "");
+      feedback.setAttribute("role", "status");
+      const main = document.querySelector("main") || document.body;
+      main.prepend(feedback);
+    }
+    feedback.textContent = message;
+  }
+
+  async function attemptPurchase(itemId, mayRedirectToSignIn = true) {
+    if (!/^[A-Za-z0-9][A-Za-z0-9._:-]{0,99}$/.test(itemId || "")) {
+      showPurchaseFeedback("This store item does not have a valid purchase ID yet.");
+      return;
+    }
+    try {
+      const sessionResponse = await fetch("/api/auth/me", {
+        credentials: "same-origin", cache: "no-store", headers: { "Accept": "application/json" }
+      });
+      const session = sessionResponse.ok ? await sessionResponse.json().catch(() => ({})) : {};
+      if (!session?.authenticated || !session.user) {
+        if (!mayRedirectToSignIn) {
+          showPurchaseFeedback("Your sign-in session is missing. Sign in, then try the purchase again. Free downloads remain available without an account.");
+          return;
+        }
+        const destination = new URL(window.location.href);
+        destination.searchParams.set("vc_purchase", itemId);
+        const signIn = new URL("signin.html", window.location.href);
+        signIn.searchParams.set("next", destination.pathname + destination.search + destination.hash);
+        window.location.assign(signIn.pathname + signIn.search);
+        return;
+      }
+
+      const response = await fetch("/api/store/purchase", {
+        method: "POST",
+        credentials: "same-origin",
+        cache: "no-store",
+        headers: { "Content-Type": "application/json", "Accept": "application/json" },
+        body: JSON.stringify({ itemId })
+      });
+      const result = await response.json().catch(() => ({}));
+      if (response.status === 401) {
+        if (mayRedirectToSignIn) {
+          const signIn = new URL("signin.html", window.location.href);
+          signIn.searchParams.set("next", window.location.pathname + window.location.search + window.location.hash);
+          window.location.assign(signIn.pathname + signIn.search);
+        } else {
+          showPurchaseFeedback(result.error || "Sign in is required to purchase this item. Free downloads remain public.");
+        }
+        return;
+      }
+      if (!response.ok) {
+        showPurchaseFeedback(result.error || "Store purchases are not enabled yet. No charge has been made.");
+        return;
+      }
+      if (result.checkoutUrl) window.location.assign(result.checkoutUrl);
+      else showPurchaseFeedback("The store did not return a checkout link. No charge has been made.");
+    } catch {
+      showPurchaseFeedback("The account or store service could not be reached. No charge has been made.");
+    }
+  }
+
+  document.addEventListener("click", (event) => {
+    const action = event.target.closest("[data-purchase]");
+    if (!action || action.disabled || action.getAttribute("aria-disabled") === "true") return;
+    event.preventDefault();
+    const itemId = action.dataset.purchase || action.dataset.itemId || action.dataset.sku || "";
+    attemptPurchase(itemId, true);
+  });
+
+  const pending = new URLSearchParams(window.location.search).get("vc_purchase");
+  if (pending) {
+    const cleanUrl = new URL(window.location.href);
+    cleanUrl.searchParams.delete("vc_purchase");
+    window.history.replaceState({}, "", cleanUrl.pathname + cleanUrl.search + cleanUrl.hash);
+    attemptPurchase(pending, false);
+  }
 })();
 
 
