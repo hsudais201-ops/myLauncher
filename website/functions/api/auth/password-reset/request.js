@@ -33,11 +33,11 @@ export async function onRequestPost({ request, env }) {
 
   // Email sending requires a verified sending domain plus a narrowly scoped API token.
   // Never generate or reveal a reset code when the delivery provider is not configured.
-  const accountId = env.CF_ACCOUNT_ID;
+  const accountId = env.CF_ACCOUNT_ID || "f0de78f2f59b81e2c859a732f7bcf320";
   const apiToken = env.CF_EMAIL_API_TOKEN;
   const fromAddress = env.CF_EMAIL_FROM;
   const resetSecret = env.PASSWORD_RESET_SECRET;
-  if (!accountId || !apiToken || !fromAddress || !resetSecret) {
+  if (!apiToken || !fromAddress || typeof resetSecret !== "string" || resetSecret.length < 32) {
     return json({
       error: "Password-reset email delivery is not configured yet. The site owner must connect a verified sending domain and the required server secrets before codes can be delivered.",
       code: "RESET_EMAIL_NOT_CONFIGURED"
