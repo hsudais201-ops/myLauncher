@@ -55,7 +55,7 @@ export async function onRequestPost({ request, env }) {
       console.error("VoidCraft registration session creation failed", { name: error?.name || "Error" });
       return json({ error: "Your account was created, but the sign-in session could not start. Go to Sign in and log in with the account you just made.", code: "AUTH_SESSION_CREATE_FAILED" }, 503);
     }
-    return json({ user: publicUser({ username, email, created_at: createdAt, last_login_at: null }), message: "Your VoidCraft account is ready." }, 201, {
+    return json({ user: publicUser({ username, email, created_at: createdAt, last_login_at: null, role: "member" }), message: "Your VoidCraft account is ready." }, 201, {
       "Set-Cookie": sessionCookie(token)
     });
   } catch (error) {
