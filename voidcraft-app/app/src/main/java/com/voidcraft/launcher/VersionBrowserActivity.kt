@@ -153,6 +153,11 @@ class VersionBrowserActivity : Activity() {
         loadCatalog()
     }
 
+    override fun onResume() {
+        super.onResume()
+        LauncherPreferences.applyWindowFlags(this)
+    }
+
     override fun onDestroy() {
         loadGeneration += 1
         detailsGeneration += 1
