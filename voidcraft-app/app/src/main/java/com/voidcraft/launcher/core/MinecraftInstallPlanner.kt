@@ -255,17 +255,33 @@ class MinecraftInstallPlanner(
 
             val nativeTemplate = library.natives[platform.osName]
             if (nativeTemplate != null) {
-                val nativeClassifier = nativeTemplate.replace("$" + "{arch}", nativeArchBits(platform.architecture))
-                val nativeArtifact = libraryDownloads?.classifiers?.get(nativeClassifier)
-                if (nativeArtifact == null) {
-                    warnings.add("Missing native classifier " + nativeClassifier + " for " + library.name)
+                val archPlaceholder = "$" + "{arch}"
+                val nativeClassifier = if (nativeTemplate.contains(archPlaceholder)) {
+                    val bits = nativeArchBits(platform.architecture)
+                    if (bits == null) {
+                        warnings.add(
+                            "Cannot safely map architecture " + platform.architecture +
+                                " to the metadata ${arch} native classifier for " + library.name
+                        )
+                        null
+                    } else {
+                        nativeTemplate.replace(archPlaceholder, bits)
+                    }
                 } else {
-                    add(downloads, plannedLibraryDownload(
-                        nativeArtifact,
-                        KIND_NATIVE_LIBRARY,
-                        library.name + ":" + nativeClassifier,
-                        library.extractExcludes
-                    ))
+                    nativeTemplate
+                }
+                if (nativeClassifier != null) {
+                    val nativeArtifact = libraryDownloads?.classifiers?.get(nativeClassifier)
+                    if (nativeArtifact == null) {
+                        warnings.add("Missing native classifier " + nativeClassifier + " for " + library.name)
+                    } else {
+                        add(downloads, plannedLibraryDownload(
+                            nativeArtifact,
+                            KIND_NATIVE_LIBRARY,
+                            library.name + ":" + nativeClassifier,
+                            library.extractExcludes
+                        ))
+                    }
                 }
             }
         }
@@ -316,9 +332,16 @@ class MinecraftInstallPlanner(
         return MojangUrlPolicy.validate(url).toString()
     }
 
-    private fun nativeArchBits(architecture: String): String {
-        val value = architecture.lowercase()
-        return if (value.contains("64")) "64" else "32"
+    /**
+     * Mojang's ${arch} native placeholder historically means x86 word size,
+     * not merely pointer width. Never map ARM64 to "64" and accidentally pick
+     * an x86_64 native archive. Explicit ARM classifiers remain supported when
+     * metadata declares them without the placeholder.
+     */
+    private fun nativeArchBits(architecture: String): String? = when (architecture.lowercase()) {
+        "x86_64", "amd64", "x64" -> "64"
+        "x86", "i386", "i486", "i586", "i686", "x86_32" -> "32"
+        else -> null
     }
 
     companion object {
