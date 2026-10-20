@@ -66,6 +66,7 @@ class VersionBrowserActivity : Activity() {
         window.statusBarColor = background
         window.navigationBarColor = background
         window.decorView.systemUiVisibility = 0
+        LauncherPreferences.applyWindowFlags(this)
 
         val page = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
