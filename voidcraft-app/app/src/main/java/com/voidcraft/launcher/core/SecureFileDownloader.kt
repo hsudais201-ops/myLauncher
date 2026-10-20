@@ -51,7 +51,8 @@ data class FileDownloadReceipt(
     val bytesDownloaded: Long,
     val sha1: String,
     val sha256: String,
-    val attempts: Int
+    val attempts: Int,
+    val wasCached: Boolean = false
 )
 
 class DownloadCancelledException : IOException("Download was cancelled")

@@ -18,7 +18,7 @@ data class MinecraftInstallResult(
     val receipts: List<FileDownloadReceipt>
 ) {
     val totalBytesDownloaded: Long
-        get() = receipts.fold(0L) { total, receipt ->
+        get() = receipts.filterNot { it.wasCached }.fold(0L) { total, receipt ->
             if (Long.MAX_VALUE - total < receipt.bytesDownloaded) Long.MAX_VALUE
             else total + receipt.bytesDownloaded
         }
@@ -42,7 +42,8 @@ class InstallCommitException(message: String, cause: Throwable) : IOException(me
  * outside this executor.
  */
 class MinecraftInstallExecutor(
-    private val downloader: SecureFileDownloader = SecureFileDownloader()
+    private val downloader: SecureFileDownloader = SecureFileDownloader(),
+    private val verifier: MinecraftInstallVerifier = MinecraftInstallVerifier()
 ) {
     @Synchronized
     fun execute(
@@ -52,20 +53,18 @@ class MinecraftInstallExecutor(
         onProgress: (InstallArtifactProgress) -> Unit = {}
     ): MinecraftInstallResult {
         if (plan.warnings.isNotEmpty()) throw IncompleteInstallPlanException(plan.warnings)
-        require(plan.downloads.isNotEmpty()) { "Install plan contains no downloads" }
-        MinecraftVersionManifestParser().validateVersionId(plan.versionId)
-
-        val relativePaths = plan.downloads.map { validateInstallPath(it, plan.versionId) }
-        // Do not allow a persisted or externally constructed plan to redirect requests
-        // outside the same official distribution hosts allowed by metadata parsing.
-        plan.downloads.forEach { MojangUrlPolicy.validate(it.url) }
-        require(relativePaths.distinct().size == relativePaths.size) {
-            "Install plan has duplicate destination paths"
-        }
-
+        val relativePaths = MinecraftInstallPathPolicy.validatePlan(plan)
         val root = prepareRoot(installRoot)
-        // Validate all final destinations for traversal/symlink escape before any network request.
-        relativePaths.forEach { resolveInside(root, it, allowReserved = false) }
+        relativePaths.forEach { MinecraftInstallPathPolicy.resolveInside(root, it) }
+        val verification = verifier.inspect(plan, root)
+        if (isCancelled()) throw DownloadCancelledException()
+        if (verification.isFullyVerified) {
+            val cached = verification.artifacts.mapIndexed { index, item ->
+                val receipt = item.cachedReceipt ?: throw IOException("Verified artifact has no cache receipt")
+                receipt.copy(file = MinecraftInstallPathPolicy.resolveInside(root, relativePaths[index]))
+            }
+            return MinecraftInstallResult(plan.versionId, cached)
+        }
 
         val staging = try {
             Files.createTempDirectory(root.toPath(), ".voidcraft-install-").toFile().canonicalFile
@@ -75,39 +74,49 @@ class MinecraftInstallExecutor(
 
         var retainStagingForRecovery = false
         try {
-            val stagedReceipts = ArrayList<FileDownloadReceipt>(plan.downloads.size)
+            val receiptSlots = arrayOfNulls<FileDownloadReceipt>(plan.downloads.size)
+            val pathsToCommit = mutableListOf<String>()
             plan.downloads.forEachIndexed { index, artifact ->
                 if (isCancelled()) throw DownloadCancelledException()
-                val stagedDestination = resolveInside(staging, relativePaths[index], allowReserved = false)
-                val request = FileDownloadRequest(
-                    url = artifact.url,
-                    destination = stagedDestination,
-                    expectedSha1 = artifact.expectedSha1,
-                    expectedBytes = artifact.expectedBytes,
-                    maxBytes = maxOf(
-                        FileDownloadRequest.DEFAULT_MAX_BYTES,
-                        artifact.expectedBytes ?: FileDownloadRequest.DEFAULT_MAX_BYTES
+                val existing = verification.artifacts[index]
+                if (existing.state == ArtifactVerificationState.VERIFIED) {
+                    receiptSlots[index] = existing.cachedReceipt
+                        ?: throw IOException("Verified artifact has no cache receipt")
+                } else {
+                    val stagedDestination = MinecraftInstallPathPolicy.resolveInside(staging, relativePaths[index])
+                    val request = FileDownloadRequest(
+                        url = artifact.url,
+                        destination = stagedDestination,
+                        expectedSha1 = artifact.expectedSha1,
+                        expectedBytes = artifact.expectedBytes,
+                        maxBytes = maxOf(
+                            FileDownloadRequest.DEFAULT_MAX_BYTES,
+                            artifact.expectedBytes ?: FileDownloadRequest.DEFAULT_MAX_BYTES
+                        )
                     )
-                )
-                val receipt = downloader.download(
-                    request = request,
-                    isCancelled = isCancelled,
-                    onProgress = { fileProgress ->
-                        onProgress(InstallArtifactProgress(index + 1, plan.downloads.size, artifact, fileProgress))
-                    }
-                )
-                stagedReceipts.add(receipt)
+                    receiptSlots[index] = downloader.download(
+                        request = request,
+                        isCancelled = isCancelled,
+                        onProgress = { fileProgress ->
+                            onProgress(InstallArtifactProgress(index + 1, plan.downloads.size, artifact, fileProgress))
+                        }
+                    )
+                    pathsToCommit.add(relativePaths[index])
+                }
             }
 
             if (isCancelled()) throw DownloadCancelledException()
-            try {
-                commitStagedFiles(root, staging, relativePaths)
-            } catch (error: InstallCommitException) {
-                retainStagingForRecovery = true
-                throw error
+            if (pathsToCommit.isNotEmpty()) {
+                try {
+                    commitStagedFiles(root, staging, pathsToCommit)
+                } catch (error: InstallCommitException) {
+                    retainStagingForRecovery = true
+                    throw error
+                }
             }
-            val finalReceipts = stagedReceipts.mapIndexed { index, receipt ->
-                receipt.copy(file = resolveInside(root, relativePaths[index], allowReserved = false))
+            val finalReceipts = receiptSlots.mapIndexed { index, nullableReceipt ->
+                val receipt = nullableReceipt ?: throw IOException("Missing install receipt at index " + index)
+                receipt.copy(file = MinecraftInstallPathPolicy.resolveInside(root, relativePaths[index]))
             }
             return MinecraftInstallResult(plan.versionId, finalReceipts)
         } finally {
@@ -119,10 +128,10 @@ class MinecraftInstallExecutor(
         val changes = mutableListOf<InstallChange>()
         try {
             paths.forEach { relativePath ->
-                val stagedFile = resolveInside(staging, relativePath, allowReserved = false)
+                val stagedFile = MinecraftInstallPathPolicy.resolveInside(staging, relativePath)
                 if (!stagedFile.isFile) throw IOException("Staged artifact is missing: " + relativePath)
 
-                val destination = resolveInside(root, relativePath, allowReserved = false)
+                val destination = MinecraftInstallPathPolicy.resolveInside(root, relativePath)
                 if (!destination.parentFile.exists() && !destination.parentFile.mkdirs()) {
                     throw IOException("Could not create destination directory for " + relativePath)
                 }
@@ -134,7 +143,7 @@ class MinecraftInstallExecutor(
                         throw IOException("Destination is a directory, not a file: " + relativePath)
                     }
                     val backupPath = RESERVED_BACKUP_PREFIX + relativePath
-                    val backup = resolveInside(staging, backupPath, allowReserved = true)
+                    val backup = MinecraftInstallPathPolicy.resolveInside(staging, backupPath, allowReserved = true)
                     if (!backup.parentFile.exists() && !backup.parentFile.mkdirs()) {
                         throw IOException("Could not create backup directory for " + relativePath)
                     }
@@ -188,41 +197,6 @@ class MinecraftInstallExecutor(
         val root = directory.canonicalFile
         if (!root.isDirectory) throw IOException("Install root is not a directory")
         return root
-    }
-
-    private fun validateInstallPath(artifact: MinecraftPlannedDownload, versionId: String): String {
-        val checked = MinecraftMavenPath.validateRelativePath(artifact.destinationRelativePath)
-        val firstSegment = checked.substringBefore('/')
-        require(!firstSegment.startsWith(".voidcraft-")) {
-            "Install path uses a reserved VoidCraft transaction name"
-        }
-        val allowedPrefix = when (artifact.kind) {
-            MinecraftInstallPlanner.KIND_VERSION_METADATA,
-            MinecraftInstallPlanner.KIND_CLIENT -> "versions/" + versionId + "/"
-            MinecraftInstallPlanner.KIND_ASSET_INDEX -> "assets/indexes/"
-            MinecraftInstallPlanner.KIND_ASSET_OBJECT -> "assets/objects/"
-            MinecraftInstallPlanner.KIND_LIBRARY,
-            MinecraftInstallPlanner.KIND_NATIVE_LIBRARY -> "libraries/"
-            else -> throw IllegalArgumentException("Unknown install artifact kind: " + artifact.kind)
-        }
-        require(checked.startsWith(allowedPrefix) && checked.length > allowedPrefix.length) {
-            "Artifact kind " + artifact.kind + " cannot write to " + checked
-        }
-        return checked
-    }
-
-    private fun resolveInside(root: File, relativePath: String, allowReserved: Boolean): File {
-        val checked = MinecraftMavenPath.validateRelativePath(relativePath)
-        if (!allowReserved && checked.substringBefore('/').startsWith(".voidcraft-")) {
-            throw IOException("Install path uses a reserved VoidCraft transaction name")
-        }
-        val canonicalRoot = root.canonicalFile
-        val target = File(canonicalRoot, checked).canonicalFile
-        val rootPrefix = canonicalRoot.path.trimEnd(File.separatorChar) + File.separator
-        if (!target.path.startsWith(rootPrefix)) {
-            throw IOException("Resolved path escapes its root: " + relativePath)
-        }
-        return target
     }
 
     private fun moveFile(source: File, destination: File) {

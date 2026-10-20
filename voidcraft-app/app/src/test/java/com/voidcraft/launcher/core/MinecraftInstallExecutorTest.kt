@@ -63,6 +63,59 @@ class MinecraftInstallExecutorTest {
     }
 
     @Test
+    fun verifiedFilesAreReusedWithoutNetworkAndCountAsZeroDownloadedBytes() {
+        val root = temporaryFolder.newFolder("game-root")
+        var initialRequests = 0
+        val firstExecutor = MinecraftInstallExecutor(
+            SecureFileDownloader(DownloadConnectionFactory { url ->
+                initialRequests += 1
+                fakeFor(url)
+            })
+        )
+        val first = firstExecutor.execute(plan(), root)
+        assertEquals(2, initialRequests)
+        assertEquals(metadataBytes.size + clientBytes.size, first.totalBytesDownloaded.toInt())
+        assertTrue(first.receipts.none { it.wasCached })
+
+        val secondExecutor = MinecraftInstallExecutor(
+            SecureFileDownloader(DownloadConnectionFactory {
+                throw AssertionError("Verified cached artifacts should not trigger network calls")
+            })
+        )
+        val second = secondExecutor.execute(plan(), root)
+        assertTrue(second.receipts.all { it.wasCached })
+        assertEquals(0L, second.totalBytesDownloaded)
+        assertEquals(metadataBytes.size + clientBytes.size,
+            second.receipts.sumOf { it.bytesDownloaded }.toInt())
+    }
+
+    @Test
+    fun checksumMismatchIsRedownloadedWhileVerifiedFilesRemainCached() {
+        val root = temporaryFolder.newFolder("game-root")
+        val metadata = File(root, "versions/1.21.4/1.21.4.json")
+        assertTrue(metadata.parentFile.mkdirs())
+        metadata.writeText("bad metadata")
+        val client = File(root, "versions/1.21.4/1.21.4.jar")
+        client.writeBytes(clientBytes)
+
+        var requests = 0
+        val executor = MinecraftInstallExecutor(
+            SecureFileDownloader(DownloadConnectionFactory { url ->
+                requests += 1
+                fakeFor(url)
+            })
+        )
+        val result = executor.execute(plan(), root)
+
+        assertEquals(1, requests)
+        assertEquals("metadata content", metadata.readText())
+        assertEquals("client jar content", client.readText())
+        assertFalse(result.receipts.first().wasCached)
+        assertTrue(result.receipts.last().wasCached)
+        assertEquals(metadataBytes.size, result.totalBytesDownloaded.toInt())
+    }
+
+    @Test
     fun incompletePlanIsRejectedBeforeCreatingInstallFiles() {
         val root = temporaryFolder.newFolder("game-root")
         val incomplete = plan().copy(warnings = listOf("parent metadata is unresolved"))

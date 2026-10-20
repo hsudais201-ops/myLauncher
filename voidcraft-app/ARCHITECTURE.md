@@ -12,7 +12,8 @@ Implemented:
 - `core/MinecraftVersionCatalog.kt`: manifest/detail data models, library declarations/rules, official manifest client, version-detail integrity checks, and asset-index fetch/parsing.
 - `core/MinecraftInstallPlanner.kt`: asset-index parser, ordered library rule evaluator, platform-specific classifier selection, Maven path validation, and a deduplicated download plan with explicit warnings for unresolved prerequisites.
 - `core/SecureFileDownloader.kt`: bounded HTTPS transfer with cancellation, transient retries, supplied hash/size checks and safe per-file replacement.
-- `core/MinecraftInstallExecutor.kt`: complete-plan-only, staged artifact downloads, transactional file promotion, backup, and rollback on commit failure.
+- `core/MinecraftInstallVerifier.kt`: read-only integrity scan of planned files, with explicit missing/size/hash/verified/unverifiable statuses.
+- `core/MinecraftInstallExecutor.kt`: complete-plan-only execution, reuse of verified cached files, staged downloads, transactional promotion, backup, and rollback on commit failure.
 - Unit tests cover catalog safety, metadata integrity, library/asset planning, downloader integrity/cancellation/retries, and install execution safety.
 
 Not yet implemented or connected:
@@ -33,10 +34,11 @@ The Versions screen only browses metadata and creates profile records; it does n
 2. Unknown catalog schemas fail visibly instead of being overwritten.
 3. Metadata and asset indexes are checked against manifest-provided hashes when available.
 4. Planned paths must be relative, traversal-free, unique, restricted to the expected versions/libraries/assets tree, and consistent with their artifact kind.
-5. All planned files download to a staging tree first; no final file changes until all requested downloads have completed and passed verification.
-6. Existing files are backed up during commit. If commit fails, changes are rolled back in reverse order; if rollback fails, the staging/recovery tree is retained.
-7. Every planned URL is revalidated against approved HTTPS distribution hosts before the executor makes network requests.
-8. The existing launcher and build path remain available until feature, runtime, license and device parity gates pass.
+5. Existing files are reused only when the authoritative SHA-1 matches and any declared byte size matches; length-only files without a hash are not trusted as verified.
+6. Newly required files download to a staging tree first; no final file changes until all required downloads have completed and passed verification.
+7. Existing files are backed up during commit. If commit fails, changes are rolled back in reverse order; if rollback fails, the staging/recovery tree is retained.
+8. Every planned URL is revalidated against approved HTTPS distribution hosts before the executor makes network requests.
+9. The existing launcher and build path remain available until feature, runtime, license and device parity gates pass.
 
 ## Platform warning
 

@@ -21,7 +21,8 @@ The debug APK is generated under `app/build/outputs/apk/debug/`. The independent
 - Version metadata parser checks the version-detail JSON against the manifest SHA-1 and extracts client/asset-index/library metadata.
 - Asset-index parser validates object hashes/sizes and constructs content-addressed asset paths.
 - Install planner resolves client metadata, libraries, OS/architecture rules, native classifiers, asset-index objects and secure relative destinations into a deterministic download plan.
-- Transactional executor stages and verifies all planned downloads first, then backs up/replaces destination files and rolls back if a commit step fails.
+- Read-only install verification scan reports missing, size-mismatched, checksum-mismatched, unverifiable, and verified artifacts.
+- Transactional executor reuses SHA-1-verified files, stages only missing/corrupt artifacts, then backs up/replaces destination files and rolls back if a commit step fails.
 - Bounded HTTPS file downloader supports progress, cancellation, transient HTTP retries, byte-size limits, optional artifact SHA-1/SHA-256 verification, temporary-file staging, and destination replacement only after validation.
 
 ## Important limitations
