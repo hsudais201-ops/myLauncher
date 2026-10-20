@@ -298,8 +298,8 @@ if (profileCard) {
 
 // Reflect the current website session in every page header.
 (() => {
-  const signInLink = document.querySelector(".account-links a[href="signin.html"]");
-  const profileLink = document.querySelector(".account-links a[href="profile.html"]");
+  const signInLink = document.querySelector('.account-links a[href="signin.html"]');
+  const profileLink = document.querySelector('.account-links a[href="profile.html"]');
 
   function showSignedOut() {
     if (signInLink) {
