@@ -11,6 +11,7 @@ Implemented:
 - `core/InstanceProfile.kt` and `core/InstanceCatalogRepository.kt`: validated profile model and versioned app-private catalog.
 - `core/MinecraftVersionCatalog.kt`: manifest/detail data models, library declarations/rules, official manifest client, version-detail integrity checks, and asset-index fetch/parsing.
 - `core/MinecraftVersionInheritanceResolver.kt`: cycle/depth-checked parent resolution, child-over-parent scalar fallback, library coordinate overrides, and inherited client-directory tracking.
+- `core/MinecraftVersionInstallPreparationService.kt`: resolves inheritance, fetches/verifies the effective asset index, and constructs an install plan without downloading game artifacts.
 - `core/MinecraftInstallPlanner.kt`: asset-index parser, ordered library rule evaluator, platform-specific classifier selection, Maven path validation, and a deduplicated download plan with explicit warnings for unresolved prerequisites.
 - `core/SecureFileDownloader.kt`: bounded HTTPS transfer with cancellation, transient retries, supplied hash/size checks and safe per-file replacement.
 - `core/MinecraftInstallVerifier.kt`: read-only integrity scan of planned files, with explicit missing/size/hash/verified/unverifiable statuses.
