@@ -261,7 +261,7 @@ class MinecraftInstallPlanner(
                     if (bits == null) {
                         warnings.add(
                             "Cannot safely map architecture " + platform.architecture +
-                                " to the metadata ${arch} native classifier for " + library.name
+                                " to the metadata $" + "{arch} native classifier for " + library.name
                         )
                         null
                     } else {
