@@ -87,6 +87,7 @@ class InstanceListActivity : Activity() {
 
     override fun onResume() {
         super.onResume()
+        LauncherPreferences.applyWindowFlags(this)
         if (::profileList.isInitialized && ::repository.isInitialized) refreshProfiles()
     }
 
