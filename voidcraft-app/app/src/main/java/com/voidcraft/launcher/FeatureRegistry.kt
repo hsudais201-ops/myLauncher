@@ -29,7 +29,7 @@ object FeatureRegistry {
             "theme-studio",
             "Theme Studio",
             "Customize the launcher appearance using built-in, reversible preferences.",
-            Status.AVAILABLE
+            Status.PLANNED
         ),
         Definition(
             "smart-performance-advisor",
@@ -113,7 +113,7 @@ object FeatureRegistry {
      * Unknown IDs, planned items and community submissions fail closed.
      */
     fun canInstall(id: String): Boolean =
-        find(id)?.status == Status.AVAILABLE && id == "theme-studio"
+        find(id)?.status == Status.AVAILABLE && id in emptySet<String>()
 
     fun install(context: Context, id: String): Result<Unit> {
         if (!canInstall(id)) {
