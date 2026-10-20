@@ -19,6 +19,27 @@ class FeatureRegistryPolicyTest {
     }
 
     @Test
+    fun expandedStoreFeaturesRemainVisibleInCatalog() {
+        val ids = FeatureRegistry.catalog().map { it.id }.toSet()
+        val expected = setOf(
+            "resource-pack-manager",
+            "resource-pack-compatibility",
+            "world-details-viewer",
+            "local-playtime-tracker",
+            "accessibility-presets",
+            "profile-icon-studio",
+            "configuration-backup",
+            "network-diagnostics",
+            "release-watch",
+            "controller-presets",
+            "resource-usage-history",
+            "instance-notes"
+        )
+        assertTrue(ids.containsAll(expected))
+        assertEquals(23, ids.size)
+    }
+
+    @Test
     fun onlyImplementedBuiltInDiagnosticsCanInstall() {
         FeatureRegistry.catalog().forEach { feature ->
             if (feature.id == "startup-diagnostics") {
