@@ -263,7 +263,7 @@ class MinecraftVersionDetailsParser {
 
 fun interface HttpsTextFetcher {
     @Throws(IOException::class)
-    fun fetch(url: String, maxBytes: Int = 5 * 1024 * 1024): String
+    fun fetch(url: String, maxBytes: Int): String
 }
 
 /** Bounded UTF-8 fetcher that validates HTTPS redirects and limits response size. */
