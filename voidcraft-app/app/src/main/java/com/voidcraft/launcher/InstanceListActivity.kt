@@ -73,7 +73,15 @@ class InstanceListActivity : Activity() {
             )
         }
         page.addView(profileList)
-        setContentView(scroll)
+        val root = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setBackgroundColor(background)
+        }
+        root.addView(scroll, LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f
+        ))
+        root.addView(LauncherNavigationBar.create(this, "Instances"))
+        setContentView(root)
         refreshProfiles()
     }
 
