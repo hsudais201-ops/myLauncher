@@ -96,6 +96,7 @@ if (authForm) {
   const confirm = document.getElementById("auth-confirm");
   const submit = document.getElementById("auth-submit");
   const feedback = document.getElementById("auth-feedback");
+  const forgotLink = document.getElementById("auth-forgot-link");
   let mode = "login";
 
   function setMode(nextMode) {
@@ -121,6 +122,7 @@ if (authForm) {
       button.setAttribute("aria-pressed", String(active));
     });
     submit.textContent = isRegister ? "Create account" : "Sign in";
+    if (forgotLink) forgotLink.hidden = isRegister;
     feedback.textContent = "";
     feedback.className = "form-feedback";
   }
