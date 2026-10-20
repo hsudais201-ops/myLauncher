@@ -1525,11 +1525,18 @@ class ApplyLogoTests(unittest.TestCase):
                              "@drawable/voidcraft_launcher_logo")
             self.assertEqual(app_node.get("{http://schemas.android.com/apk/res/android}roundIcon"),
                              "@drawable/voidcraft_launcher_logo")
-            icon = app / "src/main/res/drawable/voidcraft_launcher_logo.xml"
-            ET.parse(icon)
-            icon_text = icon.read_text(encoding="utf-8")
-            self.assertIn('android:strokeColor="#6EF3FF"', icon_text)
-            self.assertIn('android:strokeColor="#7B61FF"', icon_text)
+            # Seed the former placeholder so the applier must remove it.
+            legacy_icon = app / "src/main/res/drawable/voidcraft_launcher_logo.xml"
+            legacy_icon.parent.mkdir(parents=True, exist_ok=True)
+            legacy_icon.write_text("<vector />", encoding="utf-8")
+
+            icon = app / "src/main/res/drawable-nodpi/voidcraft_launcher_logo.webp"
+            icon_bytes = icon.read_bytes()
+            self.assertTrue(icon_bytes.startswith(b"RIFF"))
+            self.assertEqual(icon_bytes[8:12], b"WEBP")
+            asset = Path(logo_applier.__file__).resolve().parents[2] / "assets/branding/voidcraft-vc-logo.webp"
+            self.assertEqual(icon_bytes, asset.read_bytes())
+            self.assertFalse(legacy_icon.exists())
 
 
 class BuildWorkflowTests(unittest.TestCase):
