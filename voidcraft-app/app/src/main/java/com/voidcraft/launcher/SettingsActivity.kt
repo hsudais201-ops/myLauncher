@@ -120,7 +120,15 @@ class SettingsActivity : Activity() {
             12, secondaryText, false
         ))
 
-        setContentView(scroll)
+        val root = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setBackgroundColor(background)
+        }
+        root.addView(scroll, LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f
+        ))
+        root.addView(LauncherNavigationBar.create(this, "Settings"))
+        setContentView(root)
     }
 
     private fun header(): View {
