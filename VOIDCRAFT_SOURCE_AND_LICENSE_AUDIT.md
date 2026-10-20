@@ -34,6 +34,10 @@ The upstream `.gitmodules` file lists MobileGlues, SDL, sdl2-compat, MioLibPatch
 
 The upstream tree also includes embedded `arc_dns_injector` and `forge_installer` source directories. Their source, notices, and transitive dependencies need individual review.
 
+## Independently added module dependency
+
+The migration branch adds `com.google.code.gson:gson:2.11.0` to the independent app for JSON parsing. Gson's published 2.11.0 metadata declares Apache-2.0; keep its license/attribution with distributed copies as applicable. See [Gson 2.11.0 metadata](https://central.sonatype.com/artifact/com.google.code.gson/gson/2.11.0/bundle) and the [Gson license at the 2.11.0 tag](https://github.com/google/gson/blob/gson-parent-2.11.0/LICENSE). This does not inventory the remaining Gradle, Android, or transitive dependency set.
+
 ## What is and is not claimed
 
 - New code in `voidcraft-app/` is independently authored for this migration and does not copy Amethyst Activity/UI implementation files.
