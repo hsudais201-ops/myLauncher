@@ -37,8 +37,8 @@ export async function onRequest({ request, env }) {
     if (path === "players" && method === "GET") {
       const q = clean(url.searchParams.get("q"), 32);
       if (q.length < 2) return json({ players: [] });
-      const rows = await db.prepare("SELECT id,username,role FROM users WHERE username LIKE ? COLLATE NOCASE AND id<>? ORDER BY username LIMIT 20")
-        .bind("%" + q.replace(/[\\%_]/g, "\\$&") + "%", user.id).all();
+      const rows = await db.prepare("SELECT id,username,role FROM users WHERE username COLLATE NOCASE LIKE ? ESCAPE '\\' AND id<>? ORDER BY username LIMIT 20")
+        .bind("%" + q.replace(/[\\%_]/g, ch => "\\" + ch) + "%", user.id).all();
       return json({ players: (rows.results || []).map(publicUser) });
     }
 
@@ -137,7 +137,11 @@ export async function onRequest({ request, env }) {
       if (String(match[1])===String(user.id)) return fail("You cannot block yourself.");
       const target=await db.prepare("SELECT id FROM users WHERE id=?").bind(match[1]).first();
       if (!target) return fail("Player not found.",404);
-      await db.prepare("INSERT OR IGNORE INTO social_blocks(blocker_id,blocked_id,created_at) VALUES(?,?,?)").bind(user.id,match[1],now()).run();
+      const [low,high]=orderPair(user.id,match[1]);
+      await db.batch([
+        db.prepare("INSERT OR IGNORE INTO social_blocks(blocker_id,blocked_id,created_at) VALUES(?,?,?)").bind(user.id,match[1],now()),
+        db.prepare("DELETE FROM social_friendships WHERE user_low=? AND user_high=?").bind(low,high)
+      ]);
       return json({ok:true},201);
     }
     if (match && method === "DELETE") {
@@ -156,14 +160,14 @@ export async function onRequest({ request, env }) {
       return json({report:{id:reportId,status:"open"}},201);
     }
     if (path === "moderation/reports" && method === "GET") {
-      if (user.role!=="owner" && user.role!=="moderator") return fail("Moderator permission required.",403);
+      if (user.role!=="owner") return fail("Owner permission required.",403);
       const status=clean(url.searchParams.get("status")||"open",16);
       const rows=await db.prepare("SELECT r.id,r.category,r.details,r.status,r.created_at,reporter.username AS reporter,target.username AS target FROM social_reports r JOIN users reporter ON reporter.id=r.reporter_id JOIN users target ON target.id=r.target_user_id WHERE r.status=? ORDER BY r.created_at DESC LIMIT 50").bind(status).all();
       return json({reports:rows.results||[]});
     }
     match=path.match(/^moderation\/reports\/([^/]+)$/);
     if (match && method === "PATCH") {
-      if (user.role!=="owner" && user.role!=="moderator") return fail("Moderator permission required.",403);
+      if (user.role!=="owner") return fail("Owner permission required.",403);
       const body=await readJson(request), status=clean(body?.status,16);
       if (!["reviewed","dismissed"].includes(status)) return fail("Invalid moderation status.");
       await db.prepare("UPDATE social_reports SET status=?,reviewed_by=?,reviewed_at=? WHERE id=?").bind(status,user.id,now(),match[1]).run();
