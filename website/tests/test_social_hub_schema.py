@@ -183,5 +183,49 @@ class SocialHubSchemaTests(unittest.TestCase):
         self.assertEqual(0, self.db.execute("SELECT COUNT(*) FROM social_messages").fetchone()[0])
 
 
+
+class SocialHubApiContractTests(unittest.TestCase):
+    """Fast source-level regression checks for security-sensitive handler branches.
+
+    These complement (but do not replace) live Pages/D1 integration tests.
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        root = Path(__file__).resolve().parents[1]
+        cls.api = (root / "functions" / "api" / "social" / "[[path]].js").read_text(encoding="utf-8")
+        cls.page = (root / "social.html").read_text(encoding="utf-8")
+
+    def test_api_requires_existing_signed_in_session_and_origin_checks_mutations(self):
+        self.assertIn("await signedIn(request, env)", self.api)
+        self.assertIn('if (method !== "GET" && !sameOrigin(request))', self.api)
+        self.assertIn("const db = env.VOIDCRAFT_AUTH", self.api)
+
+    def test_friend_request_delete_distinguishes_sender_cancel_from_recipient_decline(self):
+        self.assertIn("CASE WHEN sender_id=? THEN 'cancelled' ELSE 'rejected' END", self.api)
+        self.assertIn("status='pending' AND (sender_id=? OR recipient_id=?)", self.api)
+        self.assertIn("Pending friend request not found.", self.api)
+
+    def test_private_messages_require_friendship_and_no_active_block(self):
+        self.assertGreaterEqual(self.api.count("You must be friends to"), 2)
+        self.assertGreaterEqual(self.api.count("blockedEither(db,user.id,other)"), 2)
+        self.assertIn("Messages must be 2000 characters or fewer.", self.api)
+        self.assertIn("recentMessages?.total", self.api)
+
+    def test_owner_role_is_checked_server_side_for_moderation(self):
+        self.assertGreaterEqual(self.api.count('user.role!=="owner"'), 2)
+        self.assertIn("Owner permission required.", self.api)
+
+    def test_report_limits_and_allowlisted_categories_are_enforced_server_side(self):
+        self.assertIn('["harassment","spam","inappropriate","impersonation","other"]', self.api)
+        self.assertIn("recentReports?.total", self.api)
+        self.assertIn("reporter_id,target_user_id,category,details,status,created_at", self.api)
+
+    def test_page_renders_user_supplied_content_as_text_not_html(self):
+        self.assertIn(".textContent=", self.page)
+        self.assertNotRegex(self.page, r"\\.innerHTML\\s*=")
+
+
+
 if __name__ == "__main__":
     unittest.main()
