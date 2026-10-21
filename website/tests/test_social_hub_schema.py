@@ -170,6 +170,17 @@ class SocialHubSchemaTests(unittest.TestCase):
         ).fetchall()
         self.assertEqual(["player_one"], [row[0] for row in rows])
 
+    def test_deleting_moderator_preserves_report_and_clears_reviewer_reference(self):
+        self.db.execute(
+            "INSERT INTO social_reports(id,reporter_id,target_user_id,category,status,created_at,reviewed_by,reviewed_at) "
+            "VALUES('rp-reviewed','u1','u2','spam','reviewed',1,'u4',2)"
+        )
+        self.db.execute("DELETE FROM users WHERE id='u4'")
+        report = self.db.execute(
+            "SELECT status,reviewed_by FROM social_reports WHERE id='rp-reviewed'"
+        ).fetchone()
+        self.assertEqual(("reviewed", None), report)
+
     def test_social_rows_are_removed_when_account_is_deleted(self):
         self.db.execute(
             "INSERT INTO social_blocks(blocker_id,blocked_id,created_at) VALUES('u1','u2',1)"
