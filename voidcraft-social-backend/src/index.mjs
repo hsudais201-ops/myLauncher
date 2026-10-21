@@ -477,8 +477,10 @@ async function route(request, env) {
       "SELECT u.id AS user_id, u.username, u.display_name, m.id AS message_id, m.body AS last_message, m.created_at AS last_message_at " +
       "FROM latest l JOIN messages m ON m.id = l.last_id JOIN users u ON u.id = l.peer_id " +
       "WHERE NOT EXISTS (SELECT 1 FROM blocks b WHERE (b.blocker_id = ? AND b.blocked_id = u.id) OR (b.blocker_id = u.id AND b.blocked_id = ?)) " +
+      "AND EXISTS (SELECT 1 FROM friendships f WHERE f.user_id = CASE WHEN ? < u.id THEN ? ELSE u.id END " +
+      "AND f.friend_id = CASE WHEN ? < u.id THEN u.id ELSE ? END) " +
       "ORDER BY m.id DESC LIMIT 50"
-    ).bind(userId, userId, userId, userId, userId, userId).all();
+    ).bind(userId, userId, userId, userId, userId, userId, userId, userId, userId, userId).all();
     return json({ conversations: result.results || [] });
   }
 
