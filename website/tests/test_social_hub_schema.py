@@ -52,6 +52,35 @@ class SocialHubSchemaTests(unittest.TestCase):
             "social_reports",
         }.issubset(names))
 
+    def test_only_one_pending_friend_request_per_pair_even_in_reverse_direction(self):
+        self.db.execute(
+            "INSERT INTO social_friend_requests(id,sender_id,recipient_id,status,created_at) "
+            "VALUES('r1','u1','u2','pending',1)"
+        )
+        with self.assertRaises(sqlite3.IntegrityError):
+            self.db.execute(
+                "INSERT INTO social_friend_requests(id,sender_id,recipient_id,status,created_at) "
+                "VALUES('r2','u2','u1','pending',2)"
+            )
+        # Rejected requests must not permanently prevent a future request.
+        self.db.execute("UPDATE social_friend_requests SET status='rejected' WHERE id='r1'")
+        self.db.execute(
+            "INSERT INTO social_friend_requests(id,sender_id,recipient_id,status,created_at) "
+            "VALUES('r3','u2','u1','pending',3)"
+        )
+
+    def test_rate_limit_indexes_exist(self):
+        names = {
+            row[0] for row in self.db.execute(
+                "SELECT name FROM sqlite_master WHERE type='index'"
+            )
+        }
+        self.assertTrue({
+            "social_requests_sender_rate_idx",
+            "social_messages_sender_rate_idx",
+            "social_pending_request_pair_idx",
+        }.issubset(names))
+
     def test_friendship_requires_canonical_user_order_and_is_unique(self):
         self.db.execute(
             "INSERT INTO social_friendships(user_low,user_high,created_at) VALUES('u1','u2',1)"
