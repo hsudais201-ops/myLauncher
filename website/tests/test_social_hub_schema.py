@@ -249,9 +249,11 @@ class SocialHubApiContractTests(unittest.TestCase):
         self.assertIn('["reviewed","dismissed"].includes(status)', self.api)
         self.assertIn('if (Number(result?.meta?.changes || 0) < 1) return fail("Report not found.",404);', self.api)
 
-    def test_blocking_removes_friendship_and_disables_conversation_access(self):
+    def test_blocking_removes_friendship_disables_chat_and_invalidates_pending_requests(self):
         self.assertIn('DELETE FROM social_friendships WHERE user_low=? AND user_high=?', self.api)
         self.assertGreaterEqual(self.api.count("blockedEither(db,user.id,other)"), 2)
+        self.assertIn("UPDATE social_friend_requests SET status=CASE WHEN sender_id=? THEN 'cancelled' ELSE 'rejected' END WHERE status='pending'", self.api)
+        self.assertIn("A block must also invalidate pending requests", self.api)
 
 
     def test_page_renders_user_supplied_content_as_text_not_html(self):
