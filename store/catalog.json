@@ -29,6 +29,20 @@
       "packageUrl": null,
       "availability": "available",
       "builtIn": true
+    },
+    {
+      "id": "server-state",
+      "name": "Server State",
+      "tagline": "Check live Minecraft server status, player counts, versions, and MOTD.",
+      "description": "Optional built-in Minecraft Java and Bedrock server status checker. Save up to 30 addresses on this device, refresh status on demand, and view online state, player count, version, and MOTD using the public mcsrvstat.us service. Server addresses are stored locally; each check sends the address to that provider. Results may be unavailable or inaccurate for servers that block status queries.",
+      "kind": "launcher",
+      "category": "Servers",
+      "version": "1.0",
+      "compatibility": "VoidCraft Android beta; network access required",
+      "license": "VoidCraft",
+      "packageUrl": null,
+      "availability": "available",
+      "builtIn": true
     }
   ]
 }
