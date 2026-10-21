@@ -53,10 +53,10 @@ test("requests from a different browser origin are denied", async () => {
   assert.equal(response.headers.get("access-control-allow-origin"), null);
 });
 
-test("unknown health paths do not execute the health query", async () => {
+test("unknown API paths return a plain not-found error", async () => {
   const response = await worker.fetch(new Request("https://social.example/api/health/extra"), env);
-  assert.equal(response.status, 401);
-  assert.deepEqual(await response.json(), { error: "Sign in to your VoidCraft account." });
+  assert.equal(response.status, 404);
+  assert.deepEqual(await response.json(), { error: "API endpoint not found." });
 });
 
 test("D1 migration defines separate accounts, session, friend, message, block, report, and rate-limit data", async () => {
