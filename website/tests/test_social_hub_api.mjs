@@ -128,6 +128,11 @@ test("two website accounts can request, accept, and exchange private messages", 
   assert.equal(cleaned.status, 201);
   assert.equal(cleaned.data.message.content, "clean");
 
+  const emptyMessage = await call("conversations/u-bob/messages", { as: "alice", method: "POST", body: { content: "   " } });
+  assert.equal(emptyMessage.status, 400);
+  const oversizedMessage = await call("conversations/u-bob/messages", { as: "alice", method: "POST", body: { content: "x".repeat(2001) } });
+  assert.equal(oversizedMessage.status, 400);
+
   const invalidLimit = await call("conversations/u-alice/messages?limit=101", { as: "bob" });
   assert.equal(invalidLimit.status, 400);
   const invalidCursor = await call("conversations/u-alice/messages?before=-1", { as: "bob" });
