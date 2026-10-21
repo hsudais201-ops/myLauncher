@@ -250,6 +250,56 @@ class SocialHubApiContractTests(unittest.TestCase):
             self.api,
         )
 
+    def test_quota_limits_are_guarded_inside_insert_statements(self):
+        self.assertIn(
+            "WHERE (SELECT COUNT(*) FROM social_friend_requests WHERE sender_id=? AND created_at>=?) < 15",
+            self.api,
+        )
+        self.assertIn(
+            "WHERE (SELECT COUNT(*) FROM social_messages WHERE sender_id=? AND created_at>=?) < 30",
+            self.api,
+        )
+        self.assertIn(
+            "WHERE (SELECT COUNT(*) FROM social_reports WHERE reporter_id=? AND created_at>=?) < 10",
+            self.api,
+        )
+        # Execute the same conditional-insert shape against SQLite after each quota is full.
+        self.db.executemany(
+            "INSERT INTO social_friend_requests(id,sender_id,recipient_id,status,created_at) "
+            "VALUES(?,?,?,'cancelled',?)",
+            [(f"rq{i}", "u1", "u2", 1000 + i) for i in range(15)],
+        )
+        request = self.db.execute(
+            "INSERT INTO social_friend_requests(id,sender_id,recipient_id,status,created_at) "
+            "SELECT ?,?,?,'pending',? WHERE "
+            "(SELECT COUNT(*) FROM social_friend_requests WHERE sender_id=? AND created_at>=?) < 15",
+            ("rq-new", "u1", "u2", 2000, "u1", 0),
+        )
+        self.assertEqual(0, request.rowcount)
+        self.db.executemany(
+            "INSERT INTO social_messages(id,sender_id,recipient_id,body,created_at) VALUES(?,?,?,?,?)",
+            [(f"msg{i}", "u1", "u2", "hello", 1000 + i) for i in range(30)],
+        )
+        message = self.db.execute(
+            "INSERT INTO social_messages(id,sender_id,recipient_id,body,created_at) "
+            "SELECT ?,?,?,?,? WHERE "
+            "(SELECT COUNT(*) FROM social_messages WHERE sender_id=? AND created_at>=?) < 30",
+            ("msg-new", "u1", "u2", "hello", 2000, "u1", 0),
+        )
+        self.assertEqual(0, message.rowcount)
+        self.db.executemany(
+            "INSERT INTO social_reports(id,reporter_id,target_user_id,category,created_at) "
+            "VALUES(?,? ,?,'spam',?)",
+            [(f"rp{i}", "u1", "u2", 1000 + i) for i in range(10)],
+        )
+        report = self.db.execute(
+            "INSERT INTO social_reports(id,reporter_id,target_user_id,category,details,status,created_at) "
+            "SELECT ?,?,?,? ,?,'open',? WHERE "
+            "(SELECT COUNT(*) FROM social_reports WHERE reporter_id=? AND created_at>=?) < 10",
+            ("rp-new", "u1", "u2", "spam", "", 2000, "u1", 0),
+        )
+        self.assertEqual(0, report.rowcount)
+
     def test_private_messages_require_friendship_and_no_active_block(self):
         self.assertGreaterEqual(self.api.count("You must be friends to"), 2)
         self.assertGreaterEqual(self.api.count("blockedEither(db,user.id,other)"), 2)
