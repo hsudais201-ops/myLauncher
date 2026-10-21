@@ -10,6 +10,13 @@ CREATE TABLE IF NOT EXISTS social_friend_requests (
 );
 CREATE INDEX IF NOT EXISTS social_requests_recipient_idx ON social_friend_requests(recipient_id,status,created_at DESC);
 CREATE INDEX IF NOT EXISTS social_requests_sender_idx ON social_friend_requests(sender_id,status,created_at DESC);
+CREATE INDEX IF NOT EXISTS social_requests_sender_rate_idx ON social_friend_requests(sender_id,created_at DESC);
+-- Only one pending request may exist between any two accounts, regardless of direction.
+CREATE UNIQUE INDEX IF NOT EXISTS social_pending_request_pair_idx
+ON social_friend_requests (
+  CASE WHEN sender_id < recipient_id THEN sender_id ELSE recipient_id END,
+  CASE WHEN sender_id < recipient_id THEN recipient_id ELSE sender_id END
+) WHERE status='pending';
 
 CREATE TABLE IF NOT EXISTS social_friendships (
   user_low TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -29,6 +36,7 @@ CREATE TABLE IF NOT EXISTS social_messages (
   CHECK (sender_id <> recipient_id)
 );
 CREATE INDEX IF NOT EXISTS social_messages_thread_idx ON social_messages(sender_id,recipient_id,created_at DESC);
+CREATE INDEX IF NOT EXISTS social_messages_sender_rate_idx ON social_messages(sender_id,created_at DESC);
 
 CREATE TABLE IF NOT EXISTS social_blocks (
   blocker_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
