@@ -8,6 +8,7 @@ on:
       - "website/README.md"
       - "website/migrations/0005_social_hub.sql"
       - "website/tests/test_social_hub_schema.py"
+      - "website/tests/test_social_hub_api.mjs"
       - ".github/workflows/social-hub-check.yml"
   push:
     branches:
@@ -54,3 +55,7 @@ jobs:
           node --check /tmp/voidcraft-social-hub.mjs
       - name: Test Social Hub migration and SQLite constraints
         run: python -m unittest discover -s website/tests -p "test_social_hub*.py" -v
+      - name: Test Social Hub API integration against isolated SQLite
+        env:
+          SOCIAL_HUB_HANDLER: ${{ github.workspace }}/website/functions/api/social/[[path]].js
+        run: node --test website/tests/test_social_hub_api.mjs
