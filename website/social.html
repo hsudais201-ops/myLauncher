@@ -120,7 +120,14 @@ async function loadFriends() {
   for(const item of r.incoming||[]){const b=personButton(item.user,"Accept",async()=>{try{await api("friends/requests/"+encodeURIComponent(item.id)+"/accept",{method:"POST",body:{}});status("Friend request accepted.","success");await loadFriends();}catch(e){status(e.message,"error");}});const decline=document.createElement("button");decline.type="button";decline.className="social-btn";decline.textContent="Decline";decline.style.marginTop="8px";decline.addEventListener("click",async()=>{try{await api("friends/requests/"+encodeURIComponent(item.id),{method:"DELETE"});status("Friend request declined.","success");await loadFriends();}catch(e){status(e.message,"error");}});b.append(decline);req.append(b);}
   const outgoing=$("outgoing-requests"); outgoing.replaceChildren();
   if(!(r.outgoing||[]).length) empty(outgoing,"No outgoing requests.");
-  for(const item of r.outgoing||[]){const b=personButton(item.user,"Pending",()=>{});const pending=b.querySelector("button");pending.disabled=true;pending.setAttribute("aria-label","Friend request pending");outgoing.append(b);}
+  for(const item of r.outgoing||[]){
+    const card=personButton(item.user,"Cancel request",async()=>{
+      const button=card.querySelector("button");button.disabled=true;
+      try{await api("friends/requests/"+encodeURIComponent(item.id),{method:"DELETE"});status("Friend request to @"+item.user.username+" cancelled.","success");await loadFriends();}
+      catch(err){status(err.message,"error");button.disabled=false;}
+    });
+    outgoing.append(card);
+  }
   const blocked=$("blocked-list"); blocked.replaceChildren();
   if(!(b.blocks||[]).length) empty(blocked,"No blocked players.");
   for(const p of b.blocks||[]){blocked.append(personButton(p,"Unblock",async()=>{try{await api("blocks/"+encodeURIComponent(p.id),{method:"DELETE"});status("@"+p.username+" unblocked.","success");await loadFriends();}catch(e){status(e.message,"error");}}));}
