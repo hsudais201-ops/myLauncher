@@ -67,6 +67,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.Dispatchers
@@ -87,9 +88,14 @@ private const val STORE_ENABLED = "feature_store_enabled"
 private const val INSTALLED_IDS = "installed_feature_ids"
 private const val SOCIAL_FRIENDS = "social_friends"
 private const val SOCIAL_MESSAGES = "social_messages"
+private const val SOCIAL_TOKEN = "social_online_token"
+private const val SOCIAL_USERNAME = "social_online_username"
+private const val SOCIAL_API_URL = "https://voidcraft-social-hub-staging.hsudais201.workers.dev"
 private const val CATALOG_URL = "https://raw.githubusercontent.com/hsudais201-ops/myLauncher/main/store/catalog.json"
 
 data class SocialMessage(val sender: String, val text: String, val sentAt: Long)
+data class OnlineFriendRequest(val id: String, val username: String, val createdAt: Long)
+data class OnlineSocialMessage(val id: String, val sender: String, val recipient: String, val body: String, val createdAt: Long)
 
 data class StoreFeature(
     val id: String,
@@ -136,6 +142,14 @@ private fun VoidcraftApp() {
     var activeConversation by remember { mutableStateOf<String?>(null) }
     var socialFriends by remember { mutableStateOf<List<String>>(prefs.getStringSet(SOCIAL_FRIENDS, emptySet<String>())?.toList()?.sorted() ?: emptyList<String>()) }
     var socialMessages by remember { mutableStateOf(loadSocialMessages(prefs.getString(SOCIAL_MESSAGES, "{}") ?: "{}")) }
+    var onlineToken by remember { mutableStateOf(prefs.getString(SOCIAL_TOKEN, null)) }
+    var onlineUsername by remember { mutableStateOf(prefs.getString(SOCIAL_USERNAME, null)) }
+    var onlineFriends by remember { mutableStateOf<List<String>>(emptyList()) }
+    var onlineIncoming by remember { mutableStateOf<List<OnlineFriendRequest>>(emptyList()) }
+    var onlineOutgoing by remember { mutableStateOf<List<OnlineFriendRequest>>(emptyList()) }
+    var onlineMessages by remember { mutableStateOf<Map<String, List<OnlineSocialMessage>>>(emptyMap()) }
+    var onlineSocialBusy by remember { mutableStateOf(false) }
+    var onlineStatus by remember { mutableStateOf<String?>(null) }
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
 
@@ -165,6 +179,38 @@ private fun VoidcraftApp() {
 
     LaunchedEffect(storeOpen) {
         if (storeOpen) refreshCatalog()
+    }
+
+    suspend fun refreshOnlineData() {
+        val token = onlineToken ?: return
+        onlineSocialBusy = true
+        try {
+            val response = socialApiRequest("GET", "/api/friends", token)
+            fun readRequests(key: String): List<OnlineFriendRequest> {
+                val rows = response.optJSONArray(key) ?: return emptyList()
+                return buildList {
+                    for (i in 0 until rows.length()) {
+                        val row = rows.optJSONObject(i) ?: continue
+                        add(OnlineFriendRequest(row.optString("id"), row.optString("username"), row.optLong("created_at")))
+                    }
+                }
+            }
+            val friendRows = response.optJSONArray("friends")
+            onlineFriends = buildList {
+                if (friendRows != null) for (i in 0 until friendRows.length()) {
+                    val row = friendRows.optJSONObject(i) ?: continue
+                    val name = row.optString("username")
+                    if (name.isNotBlank()) add(name)
+                }
+            }
+            onlineIncoming = readRequests("incoming")
+            onlineOutgoing = readRequests("outgoing")
+            onlineStatus = "Online friends refreshed."
+        } catch (e: Exception) {
+            onlineStatus = e.message ?: "Could not refresh online friends."
+        } finally {
+            onlineSocialBusy = false
+        }
     }
 
     fun saveInstalled(next: Set<String>) {
@@ -258,6 +304,164 @@ private fun VoidcraftApp() {
                                     updated[friend] = (updated[friend] ?: emptyList()) + SocialMessage("You", body, System.currentTimeMillis())
                                     socialMessages = updated
                                     prefs.edit().putString(SOCIAL_MESSAGES, saveSocialMessages(updated)).apply()
+                                }
+                            },
+                            onlineToken = onlineToken,
+                            onlineUsername = onlineUsername,
+                            onlineFriends = onlineFriends,
+                            incomingRequests = onlineIncoming,
+                            outgoingRequests = onlineOutgoing,
+                            onlineMessages = onlineMessages,
+                            onlineBusy = onlineSocialBusy,
+                            onlineStatus = onlineStatus,
+                            onOnlineAuth = { username, password, createAccount ->
+                                scope.launch {
+                                    onlineSocialBusy = true
+                                    onlineStatus = if (createAccount) "Creating account…" else "Signing in…"
+                                    try {
+                                        val body = JSONObject().put("username", username).put("password", password)
+                                        val response = socialApiRequest(
+                                            "POST",
+                                            if (createAccount) "/api/register" else "/api/login",
+                                            null,
+                                            body
+                                        )
+                                        val token = response.optString("token")
+                                        if (token.isBlank()) error("The server did not return a session.")
+                                        val user = response.optJSONObject("user")
+                                        onlineToken = token
+                                        onlineUsername = user?.optString("username")?.takeIf { it.isNotBlank() } ?: username
+                                        prefs.edit()
+                                            .putString(SOCIAL_TOKEN, token)
+                                            .putString(SOCIAL_USERNAME, onlineUsername)
+                                            .apply()
+                                        onlineStatus = "Signed in as $onlineUsername."
+                                        refreshOnlineData()
+                                    } catch (e: Exception) {
+                                        onlineSocialBusy = false
+                                        onlineStatus = e.message ?: "Online sign-in failed."
+                                    }
+                                }
+                            },
+                            onOnlineLogout = {
+                                scope.launch {
+                                    val token = onlineToken
+                                    try {
+                                        if (token != null) socialApiRequest("POST", "/api/logout", token)
+                                    } catch (_: Exception) { }
+                                    onlineToken = null
+                                    onlineUsername = null
+                                    onlineFriends = emptyList()
+                                    onlineIncoming = emptyList()
+                                    onlineOutgoing = emptyList()
+                                    onlineMessages = emptyMap()
+                                    prefs.edit().remove(SOCIAL_TOKEN).remove(SOCIAL_USERNAME).apply()
+                                    onlineStatus = "Signed out."
+                                }
+                            },
+                            onRefreshOnline = { scope.launch { refreshOnlineData() } },
+                            onSendFriendRequest = { username ->
+                                scope.launch {
+                                    val token = onlineToken
+                                    if (token == null) {
+                                        onlineStatus = "Sign in to send online friend requests."
+                                    } else {
+                                        onlineSocialBusy = true
+                                        try {
+                                            val response = socialApiRequest(
+                                                "POST", "/api/friends/requests", token,
+                                                JSONObject().put("username", username)
+                                            )
+                                            onlineStatus = response.optString("message", "Friend request sent.")
+                                            refreshOnlineData()
+                                        } catch (e: Exception) {
+                                            onlineStatus = e.message ?: "Could not send friend request."
+                                            onlineSocialBusy = false
+                                        }
+                                    }
+                                }
+                            },
+                            onRespondFriendRequest = { requestId, accept ->
+                                scope.launch {
+                                    val token = onlineToken
+                                    if (token != null) {
+                                        onlineSocialBusy = true
+                                        try {
+                                            socialApiRequest(
+                                                "POST", "/api/friends/requests/$requestId/respond", token,
+                                                JSONObject().put("action", if (accept) "accept" else "reject")
+                                            )
+                                            onlineStatus = if (accept) "Friend request accepted." else "Friend request rejected."
+                                            refreshOnlineData()
+                                        } catch (e: Exception) {
+                                            onlineStatus = e.message ?: "Could not update friend request."
+                                            onlineSocialBusy = false
+                                        }
+                                    }
+                                }
+                            },
+                            onLoadOnlineMessages = { friend ->
+                                scope.launch {
+                                    val token = onlineToken
+                                    if (token != null) {
+                                        onlineSocialBusy = true
+                                        try {
+                                            val response = socialApiRequest(
+                                                "GET", "/api/messages?with=${Uri.encode(friend)}&after=0", token
+                                            )
+                                            val items = response.optJSONArray("messages")
+                                            val parsed = buildList {
+                                                if (items != null) for (i in 0 until items.length()) {
+                                                    val row = items.optJSONObject(i) ?: continue
+                                                    add(
+                                                        OnlineSocialMessage(
+                                                            row.optString("id"),
+                                                            row.optString("sender"),
+                                                            row.optString("recipient"),
+                                                            row.optString("body"),
+                                                            row.optLong("created_at")
+                                                        )
+                                                    )
+                                                }
+                                            }
+                                            onlineMessages = onlineMessages + (friend to parsed)
+                                            onlineStatus = "Loaded online chat with $friend."
+                                        } catch (e: Exception) {
+                                            onlineStatus = e.message ?: "Could not load online messages."
+                                        } finally {
+                                            onlineSocialBusy = false
+                                        }
+                                    }
+                                }
+                            },
+                            onSendOnlineMessage = { friend, text ->
+                                scope.launch {
+                                    val token = onlineToken
+                                    if (token != null) {
+                                        onlineSocialBusy = true
+                                        try {
+                                            socialApiRequest(
+                                                "POST", "/api/messages", token,
+                                                JSONObject().put("username", friend).put("text", text)
+                                            )
+                                            val response = socialApiRequest(
+                                                "GET", "/api/messages?with=${Uri.encode(friend)}&after=0", token
+                                            )
+                                            val items = response.optJSONArray("messages")
+                                            val parsed = buildList {
+                                                if (items != null) for (i in 0 until items.length()) {
+                                                    val row = items.optJSONObject(i) ?: continue
+                                                    add(OnlineSocialMessage(row.optString("id"), row.optString("sender"), row.optString("recipient"), row.optString("body"), row.optLong("created_at")))
+                                                }
+                                            }
+                                            onlineMessages = onlineMessages + (friend to parsed)
+                                            onlineStatus = "Message sent to $friend."
+                                        } catch (e: Exception) {
+                                            onlineStatus = e.message ?: "Could not send message."
+                                        } finally {
+                                            onlineSocialBusy = false
+                                        }
+                                    }
                                 }
                             }
                         )
@@ -397,6 +601,42 @@ private fun VoidcraftApp() {
 }
 
 
+
+private suspend fun socialApiRequest(
+    method: String,
+    path: String,
+    token: String?,
+    body: JSONObject? = null
+): JSONObject = withContext(Dispatchers.IO) {
+    val connection = (URL(SOCIAL_API_URL + path).openConnection() as HttpURLConnection).apply {
+        connectTimeout = 10000
+        readTimeout = 15000
+        requestMethod = method
+        setRequestProperty("Accept", "application/json")
+        if (token != null) setRequestProperty("Authorization", "Bearer $token")
+        if (body != null) {
+            setRequestProperty("Content-Type", "application/json; charset=utf-8")
+            doOutput = true
+        }
+    }
+    try {
+        if (body != null) {
+            connection.outputStream.use { it.write(body.toString().toByteArray(Charsets.UTF_8)) }
+        }
+        val status = connection.responseCode
+        val stream = if (status in 200..299) connection.inputStream else connection.errorStream
+        val text = stream?.bufferedReader()?.use { it.readText() } ?: "{}"
+        val response = runCatching { JSONObject(text) }.getOrElse { JSONObject() }
+        if (status !in 200..299) {
+            throw IllegalStateException(response.optString("error").takeIf { it.isNotBlank() } ?: "Online request failed (HTTP $status).")
+        }
+        response
+    } finally {
+        connection.disconnect()
+    }
+}
+
+
 private fun loadSocialMessages(json: String): Map<String, List<SocialMessage>> {
     return runCatching {
         val root = JSONObject(json)
@@ -443,10 +683,31 @@ private fun SocialHubScreen(
     onBack: () -> Unit,
     onSelectFriend: (String) -> Unit,
     onAddFriend: (String) -> Unit,
-    onSendMessage: (String, String) -> Unit
+    onSendMessage: (String, String) -> Unit,
+    onlineToken: String?,
+    onlineUsername: String?,
+    onlineFriends: List<String>,
+    incomingRequests: List<OnlineFriendRequest>,
+    outgoingRequests: List<OnlineFriendRequest>,
+    onlineMessages: Map<String, List<OnlineSocialMessage>>,
+    onlineBusy: Boolean,
+    onlineStatus: String?,
+    onOnlineAuth: (String, String, Boolean) -> Unit,
+    onOnlineLogout: () -> Unit,
+    onRefreshOnline: () -> Unit,
+    onSendFriendRequest: (String) -> Unit,
+    onRespondFriendRequest: (String, Boolean) -> Unit,
+    onLoadOnlineMessages: (String) -> Unit,
+    onSendOnlineMessage: (String, String) -> Unit
 ) {
     var newUsername by remember { mutableStateOf("") }
     var draftMessage by remember(selectedFriend) { mutableStateOf("") }
+    var authUsername by remember { mutableStateOf("") }
+    var authPassword by remember { mutableStateOf("") }
+    var onlineFriendDraft by remember { mutableStateOf("") }
+    var selectedOnlineFriend by remember { mutableStateOf<String?>(null) }
+    var onlineDraftMessage by remember(selectedOnlineFriend) { mutableStateOf("") }
+
     Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             OutlinedButton(onClick = onBack) {
@@ -455,21 +716,21 @@ private fun SocialHubScreen(
             }
             Column(Modifier.weight(1f)) {
                 Text("SOCIAL HUB", fontWeight = FontWeight.Black, letterSpacing = 1.3.sp)
-                Text("Friends & local chats", color = VoidMuted, fontSize = 11.sp)
+                Text("Local contacts + online beta", color = VoidMuted, fontSize = 11.sp)
             }
         }
         Surface(color = Color(0xFF20283A), shape = RoundedCornerShape(16.dp)) {
             Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text("LOCAL MODE", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary, fontSize = 11.sp)
-                Text("Friends and messages are stored on this device only. No account, internet chat, or notifications are connected yet.", color = VoidMuted, fontSize = 12.sp, lineHeight = 18.sp)
+                Text("TWO MODES", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary, fontSize = 11.sp)
+                Text("Local contacts and notes stay on this device. Online mode uses a separate beta account and sends messages through the Voidcraft staging service.", color = VoidMuted, fontSize = 12.sp, lineHeight = 18.sp)
             }
         }
-        Text("ADD A FRIEND", fontSize = 11.sp, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold, letterSpacing = 1.2.sp)
+        Text("LOCAL FRIENDS", fontSize = 11.sp, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold, letterSpacing = 1.2.sp)
         OutlinedTextField(
             value = newUsername,
             onValueChange = { newUsername = it.take(24) },
             modifier = Modifier.fillMaxWidth(),
-            label = { Text("Voidcraft username") },
+            label = { Text("Local username") },
             placeholder = { Text("Example: Alex_123") },
             singleLine = true,
             shape = RoundedCornerShape(14.dp)
@@ -483,13 +744,12 @@ private fun SocialHubScreen(
             },
             enabled = newUsername.trim().matches(Regex("^[A-Za-z0-9_]{3,24}$")),
             modifier = Modifier.fillMaxWidth()
-        ) { Text("ADD TO FRIENDS") }
-        Text("FRIENDS (${friends.size})", fontSize = 11.sp, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold, letterSpacing = 1.2.sp)
+        ) { Text("ADD LOCAL CONTACT") }
         if (friends.isEmpty()) {
             Surface(color = VoidSurface, shape = RoundedCornerShape(16.dp)) {
                 Column(Modifier.fillMaxWidth().padding(18.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Text("Your friends list is empty", fontWeight = FontWeight.Bold)
-                    Text("Add a username above to create a local contact. They will not receive a request until online social services are added.", color = VoidMuted, fontSize = 12.sp, lineHeight = 18.sp)
+                    Text("Your local list is empty", fontWeight = FontWeight.Bold)
+                    Text("Local contacts are not real friend requests and cannot receive messages from other devices.", color = VoidMuted, fontSize = 12.sp, lineHeight = 18.sp)
                 }
             }
         } else {
@@ -506,30 +766,24 @@ private fun SocialHubScreen(
                         }
                         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
                             Text(friend, fontWeight = FontWeight.Bold)
-                            Text("${(messagesByFriend[friend] ?: emptyList()).size} local messages", color = VoidMuted, fontSize = 11.sp)
+                            Text("${(messagesByFriend[friend] ?: emptyList()).size} local notes", color = VoidMuted, fontSize = 11.sp)
                         }
-                        Text(if (selectedFriend == friend) "OPEN" else "CHAT  →", color = MaterialTheme.colorScheme.primary, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                        Text(if (selectedFriend == friend) "OPEN" else "NOTES →", color = MaterialTheme.colorScheme.primary, fontSize = 10.sp, fontWeight = FontWeight.Bold)
                     }
                 }
             }
         }
         if (selectedFriend != null && friends.contains(selectedFriend)) {
             val chat = messagesByFriend[selectedFriend] ?: emptyList()
-            Text("CHAT WITH $selectedFriend".uppercase(), fontSize = 11.sp, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold, letterSpacing = 1.1.sp)
             Surface(color = VoidSurface, shape = RoundedCornerShape(18.dp)) {
                 Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    if (chat.isEmpty()) {
-                        Text("No messages yet. Write a local note below.", color = VoidMuted, fontSize = 12.sp)
-                    } else {
-                        chat.takeLast(30).forEach { message ->
-                            Surface(
-                                color = if (message.sender == "You") Color(0xFF302B50) else Color(0xFF20283A),
-                                shape = RoundedCornerShape(12.dp)
-                            ) {
-                                Column(Modifier.fillMaxWidth().padding(10.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                    Text(message.sender, fontSize = 10.sp, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
-                                    Text(message.text, fontSize = 13.sp, lineHeight = 18.sp)
-                                }
+                    Text("LOCAL NOTES WITH $selectedFriend".uppercase(), fontSize = 11.sp, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold, letterSpacing = 1.1.sp)
+                    if (chat.isEmpty()) Text("No notes yet.", color = VoidMuted, fontSize = 12.sp)
+                    chat.takeLast(30).forEach { message ->
+                        Surface(color = Color(0xFF20283A), shape = RoundedCornerShape(12.dp)) {
+                            Column(Modifier.fillMaxWidth().padding(10.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                Text(message.sender, fontSize = 10.sp, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
+                                Text(message.text, fontSize = 13.sp, lineHeight = 18.sp)
                             }
                         }
                     }
@@ -537,21 +791,152 @@ private fun SocialHubScreen(
                         value = draftMessage,
                         onValueChange = { draftMessage = it.take(500) },
                         modifier = Modifier.fillMaxWidth(),
-                        label = { Text("Local message") },
-                        placeholder = { Text("Write a message or note") },
+                        label = { Text("Local note") },
+                        placeholder = { Text("Write a note") },
                         shape = RoundedCornerShape(14.dp)
                     )
                     Button(
                         onClick = {
                             val body = draftMessage.trim()
-                            if (body.isNotEmpty()) {
-                                onSendMessage(selectedFriend, body)
-                                draftMessage = ""
-                            }
+                            if (body.isNotEmpty()) { onSendMessage(selectedFriend, body); draftMessage = "" }
                         },
                         enabled = draftMessage.trim().isNotEmpty(),
                         modifier = Modifier.fillMaxWidth()
-                    ) { Text("SAVE MESSAGE ON THIS DEVICE") }
+                    ) { Text("SAVE LOCAL NOTE") }
+                }
+            }
+        }
+
+        Spacer(Modifier.height(8.dp))
+        Text("ONLINE COMMUNITY · BETA", fontSize = 12.sp, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold, letterSpacing = 1.2.sp)
+        Surface(color = VoidSurface, shape = RoundedCornerShape(18.dp)) {
+            Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                if (onlineToken == null || onlineUsername.isNullOrBlank()) {
+                    Text("Create a beta account or sign in", fontWeight = FontWeight.Bold, fontSize = 17.sp)
+                    Text("Use a unique password of at least 12 characters. This staging beta has no email verification or password recovery. Do not reuse another account's password.", color = VoidMuted, fontSize = 12.sp, lineHeight = 18.sp)
+                    OutlinedTextField(
+                        value = authUsername,
+                        onValueChange = { authUsername = it.take(24) },
+                        modifier = Modifier.fillMaxWidth(),
+                        label = { Text("Online username") },
+                        singleLine = true,
+                        shape = RoundedCornerShape(14.dp)
+                    )
+                    OutlinedTextField(
+                        value = authPassword,
+                        onValueChange = { authPassword = it.take(128) },
+                        modifier = Modifier.fillMaxWidth(),
+                        label = { Text("Password (12+ characters)") },
+                        visualTransformation = PasswordVisualTransformation(),
+                        singleLine = true,
+                        shape = RoundedCornerShape(14.dp)
+                    )
+                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Button(
+                            onClick = { onOnlineAuth(authUsername.trim(), authPassword, false) },
+                            enabled = !onlineBusy && authUsername.trim().matches(Regex("^[A-Za-z0-9_]{3,24}$")) && authPassword.isNotEmpty(),
+                            modifier = Modifier.weight(1f)
+                        ) { Text("SIGN IN") }
+                        OutlinedButton(
+                            onClick = { onOnlineAuth(authUsername.trim(), authPassword, true) },
+                            enabled = !onlineBusy && authUsername.trim().matches(Regex("^[A-Za-z0-9_]{3,24}$")) && authPassword.length >= 12,
+                            modifier = Modifier.weight(1f)
+                        ) { Text("CREATE") }
+                    }
+                } else {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Text("Signed in as $onlineUsername", fontWeight = FontWeight.Bold)
+                            Text("Voidcraft staging account", color = VoidMuted, fontSize = 11.sp)
+                        }
+                        OutlinedButton(onClick = onOnlineLogout, enabled = !onlineBusy) { Text("SIGN OUT") }
+                    }
+                    OutlinedButton(onClick = onRefreshOnline, enabled = !onlineBusy, modifier = Modifier.fillMaxWidth()) {
+                        if (onlineBusy) CircularProgressIndicator(Modifier.height(16.dp), strokeWidth = 2.dp)
+                        else Icon(Icons.Default.Refresh, contentDescription = null)
+                        Text("  REFRESH ONLINE FRIENDS")
+                    }
+                    if (incomingRequests.isNotEmpty()) {
+                        Text("INCOMING REQUESTS", color = MaterialTheme.colorScheme.primary, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                        incomingRequests.forEach { request ->
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Text(request.username, modifier = Modifier.weight(1f), fontWeight = FontWeight.Medium)
+                                Button(onClick = { onRespondFriendRequest(request.id, true) }, enabled = !onlineBusy) { Text("ACCEPT") }
+                                OutlinedButton(onClick = { onRespondFriendRequest(request.id, false) }, enabled = !onlineBusy) { Text("NO") }
+                            }
+                        }
+                    }
+                    if (outgoingRequests.isNotEmpty()) {
+                        Text("PENDING REQUESTS", color = VoidMuted, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                        outgoingRequests.forEach { Text("Waiting for ${it.username}", color = VoidMuted, fontSize = 12.sp) }
+                    }
+                    Text("ADD ONLINE FRIEND", color = MaterialTheme.colorScheme.primary, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                    OutlinedTextField(
+                        value = onlineFriendDraft,
+                        onValueChange = { onlineFriendDraft = it.take(24) },
+                        modifier = Modifier.fillMaxWidth(),
+                        label = { Text("Exact online username") },
+                        singleLine = true,
+                        shape = RoundedCornerShape(14.dp)
+                    )
+                    Button(
+                        onClick = { onSendFriendRequest(onlineFriendDraft.trim()); onlineFriendDraft = "" },
+                        enabled = !onlineBusy && onlineFriendDraft.trim().matches(Regex("^[A-Za-z0-9_]{3,24}$")),
+                        modifier = Modifier.fillMaxWidth()
+                    ) { Text("SEND FRIEND REQUEST") }
+                    Text("ONLINE FRIENDS (${onlineFriends.size})", color = MaterialTheme.colorScheme.primary, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                    if (onlineFriends.isEmpty()) Text("No accepted online friends yet.", color = VoidMuted, fontSize = 12.sp)
+                    onlineFriends.forEach { friend ->
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            onClick = { selectedOnlineFriend = friend; onLoadOnlineMessages(friend) },
+                            shape = RoundedCornerShape(14.dp),
+                            colors = CardDefaults.cardColors(containerColor = if (selectedOnlineFriend == friend) Color(0xFF252A45) else Color(0xFF20283A))
+                        ) {
+                            Row(Modifier.fillMaxWidth().padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                                Column(Modifier.weight(1f)) {
+                                    Text(friend, fontWeight = FontWeight.Bold)
+                                    Text("Open online chat", color = VoidMuted, fontSize = 11.sp)
+                                }
+                                Text(if (selectedOnlineFriend == friend) "OPEN" else "CHAT →", color = MaterialTheme.colorScheme.primary, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                            }
+                        }
+                    }
+                    if (selectedOnlineFriend != null && onlineFriends.contains(selectedOnlineFriend)) {
+                        val chat = onlineMessages[selectedOnlineFriend] ?: emptyList()
+                        Text("ONLINE CHAT WITH $selectedOnlineFriend".uppercase(), color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold, fontSize = 11.sp)
+                        OutlinedButton(onClick = { onLoadOnlineMessages(selectedOnlineFriend!!) }, enabled = !onlineBusy, modifier = Modifier.fillMaxWidth()) { Text("REFRESH CHAT") }
+                        if (chat.isEmpty()) Text("No online messages yet.", color = VoidMuted, fontSize = 12.sp)
+                        chat.takeLast(50).forEach { message ->
+                            Surface(
+                                color = if (message.sender == onlineUsername) Color(0xFF302B50) else Color(0xFF20283A),
+                                shape = RoundedCornerShape(12.dp)
+                            ) {
+                                Column(Modifier.fillMaxWidth().padding(10.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                    Text(message.sender, fontSize = 10.sp, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
+                                    Text(message.body, fontSize = 13.sp, lineHeight = 18.sp)
+                                }
+                            }
+                        }
+                        OutlinedTextField(
+                            value = onlineDraftMessage,
+                            onValueChange = { onlineDraftMessage = it.take(2000) },
+                            modifier = Modifier.fillMaxWidth(),
+                            label = { Text("Online message") },
+                            shape = RoundedCornerShape(14.dp)
+                        )
+                        Button(
+                            onClick = {
+                                val body = onlineDraftMessage.trim()
+                                if (body.isNotEmpty()) { onSendOnlineMessage(selectedOnlineFriend!!, body); onlineDraftMessage = "" }
+                            },
+                            enabled = !onlineBusy && onlineDraftMessage.trim().isNotEmpty(),
+                            modifier = Modifier.fillMaxWidth()
+                        ) { Text("SEND ONLINE MESSAGE") }
+                    }
+                }
+                if (!onlineStatus.isNullOrBlank()) {
+                    Text(onlineStatus, color = if (onlineStatus.startsWith("Could not") || onlineStatus.contains("failed", true) || onlineStatus.contains("expired", true)) Color(0xFFFF9C9C) else VoidMuted, fontSize = 12.sp, lineHeight = 17.sp)
                 }
             }
         }
