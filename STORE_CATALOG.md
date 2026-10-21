@@ -21,7 +21,7 @@ Add an object to the `items` array. Required fields: `id`, `name`, `kind`, `cate
 
 ## Current catalog item: Social Hub
 
-Social Hub is an optional built-in first version with a local friends list and saved chat notes. The list and notes persist on the device. Adding a username does not notify another user, and saved messages are not sent anywhere. Online accounts, real-time chat, invites, notifications, and cross-device sync require a backend and authentication and are not included.
+Social Hub is an optional built-in feature with two modes. Local contacts and notes stay on the device. The online beta uses the staging backend documented in `backend/social-hub/README.md` and supports username/password beta accounts, friend requests, accepting requests, and direct messages between accepted friends. Online messages use manual refresh/polling in this first UI integration; push notifications and WebSockets are not included. The staging service does not yet have email verification or password recovery, so use only a unique test password and do not reuse credentials. This is not ready for production launch.
 
 ## Other limitations
 
