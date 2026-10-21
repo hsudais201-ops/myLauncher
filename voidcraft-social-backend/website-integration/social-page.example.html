@@ -193,6 +193,7 @@
     let currentUser = null;
     let activePeer = null;
     let pollTimer = null;
+    let pollCount = 0;
 
     function announce(message, type = "") {
       const node = $("notice");
@@ -245,10 +246,20 @@
       $("display-name").value = user.displayName || user.username;
       $("bio").value = user.bio || "";
       if (pollTimer) clearInterval(pollTimer);
+      pollCount = 0;
       pollTimer = setInterval(() => {
-        if (currentUser && activePeer) loadMessages(false).catch((error) => announce(error.message, "error"));
+        if (!currentUser) return;
+        pollCount += 1;
+        if (activePeer) loadMessages(false).catch((error) => announce(error.message, "error"));
+        if (pollCount % 3 === 0) {
+          refreshSocial().catch((error) => announce(error.message, "error"));
+        }
       }, 4000);
-      return refreshSocial();
+      try {
+        await refreshSocial();
+      } catch (error) {
+        announce(error.message + " Your sign-in is valid, but the social lists could not refresh.", "error");
+      }
     }
 
     async function refreshSocial() {
