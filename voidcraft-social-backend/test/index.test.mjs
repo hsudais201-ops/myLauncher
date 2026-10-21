@@ -53,7 +53,7 @@ test("requests from a different browser origin are denied", async () => {
   assert.equal(response.headers.get("access-control-allow-origin"), null);
 });
 
-test("unknown API paths do not reveal server internals", async () => {
+test("unknown health paths do not execute the health query", async () => {
   const response = await worker.fetch(new Request("https://social.example/api/health/extra"), env);
   assert.equal(response.status, 401);
   assert.deepEqual(await response.json(), { error: "Sign in to your VoidCraft account." });
@@ -65,7 +65,7 @@ test("D1 migration defines separate accounts, session, friend, message, block, r
     "users", "sessions", "friend_requests", "friendships",
     "messages", "blocks", "reports", "rate_limits"
   ]) {
-    assert.match(migration, new RegExp("CREATE TABLE IF NOT EXISTS " + table + "\\\\s*\\\\("));
+    assert.ok(migration.includes("CREATE TABLE IF NOT EXISTS " + table + " ("), "missing table " + table);
   }
   assert.match(migration, /CHECK \(user_id < friend_id\)/);
   assert.match(migration, /password_hash TEXT NOT NULL/);
