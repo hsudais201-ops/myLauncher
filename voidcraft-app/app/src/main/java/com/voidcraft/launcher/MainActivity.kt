@@ -28,7 +28,7 @@ class MainActivity : Activity() {
     private val surface = Color.rgb(18, 25, 40)
     private val cardSurface = Color.rgb(23, 33, 52)
     private val cardRaised = Color.rgb(29, 42, 65)
-    private val accent = Color.rgb(139, 124, 255)
+    private val accent by lazy { LauncherPreferences.accentColor(this) }
     private val mint = Color.rgb(51, 216, 190)
     private val primaryText = Color.rgb(243, 246, 255)
     private val secondaryText = Color.rgb(157, 174, 199)
