@@ -359,6 +359,8 @@ async function route(request, env) {
     path === "/api/conversations" ||
     path === "/api/blocks" ||
     path === "/api/reports" ||
+    path === "/api/moderation/reports" ||
+    /^\/api\/moderation\/reports\/[0-9]+$/.test(path) ||
     /^\/api\/friends\/requests\/[0-9]+(?:\/accept)?$/.test(path) ||
     /^\/api\/friends\/[0-9]+$/.test(path) ||
     /^\/api\/conversations\/[0-9]+\/messages$/.test(path) ||
@@ -367,6 +369,66 @@ async function route(request, env) {
 
   const user = await requireUser(request, env);
   const userId = Number(user.id);
+
+  if (path === "/api/moderation/reports" || /^\/api\/moderation\/reports\/[0-9]+$/.test(path)) {
+    if (user.role !== "owner" && user.role !== "moderator") {
+      fail(403, "Moderator permissions are required.");
+    }
+    if (path === "/api/moderation/reports" && method === "GET") {
+      const requestedStatus = url.searchParams.get("status");
+      const validStatuses = new Set(["open", "reviewing", "resolved", "dismissed"]);
+      if (requestedStatus && !validStatuses.has(requestedStatus)) {
+        fail(400, "Choose a valid report status.");
+      }
+      const requestedLimit = Number(url.searchParams.get("limit") || 50);
+      const limit = Number.isFinite(requestedLimit)
+        ? Math.min(100, Math.max(1, Math.trunc(requestedLimit)))
+        : 50;
+      const rows = requestedStatus
+        ? await env.DB.prepare(
+          "SELECT r.id, r.reporter_id, reporter.username AS reporter_username, " +
+          "r.target_id, target.username AS target_username, r.category, r.details, r.status, r.created_at " +
+          "FROM reports r JOIN users reporter ON reporter.id = r.reporter_id " +
+          "JOIN users target ON target.id = r.target_id WHERE r.status = ? " +
+          "ORDER BY r.created_at DESC, r.id DESC LIMIT ?"
+        ).bind(requestedStatus, limit).all()
+        : await env.DB.prepare(
+          "SELECT r.id, r.reporter_id, reporter.username AS reporter_username, " +
+          "r.target_id, target.username AS target_username, r.category, r.details, r.status, r.created_at " +
+          "FROM reports r JOIN users reporter ON reporter.id = r.reporter_id " +
+          "JOIN users target ON target.id = r.target_id " +
+          "ORDER BY r.created_at DESC, r.id DESC LIMIT ?"
+        ).bind(limit).all();
+      return json({ reports: (rows.results || []).map(row => ({
+        id: Number(row.id),
+        reporterId: Number(row.reporter_id),
+        reporterUsername: String(row.reporter_username),
+        targetUserId: Number(row.target_id),
+        targetUsername: String(row.target_username),
+        category: String(row.category),
+        details: String(row.details),
+        status: String(row.status),
+        createdAt: new Date(Number(row.created_at)).toISOString()
+      })) });
+    }
+    const moderationMatch = /^\/api\/moderation\/reports\/([0-9]+)$/.exec(path);
+    if (moderationMatch && method === "PATCH") {
+      const reportId = Number(moderationMatch[1]);
+      if (!Number.isSafeInteger(reportId) || reportId < 1) fail(400, "Invalid report ID.");
+      await enforceRateLimit(request, env, "moderation-report-update", String(userId), 60, 60 * 1000);
+      const body = await readJson(request);
+      const status = cleanText(body.status, 20);
+      if (!new Set(["open", "reviewing", "resolved", "dismissed"]).has(status)) {
+        fail(400, "Choose a valid report status.");
+      }
+      const updated = await env.DB.prepare(
+        "UPDATE reports SET status = ? WHERE id = ?"
+      ).bind(status, reportId).run();
+      if (!updated.meta || Number(updated.meta.changes || 0) < 1) fail(404, "Report not found.");
+      return json({ ok: true, reportId, status });
+    }
+    fail(405, "Method not allowed for moderation reports.");
+  }
 
   if (path === "/api/profile" && method === "GET") {
     return json({ user: { ...safeUser(user), email: String(user.email) } });
