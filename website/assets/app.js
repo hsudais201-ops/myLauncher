@@ -1583,3 +1583,46 @@ document.addEventListener("click", (event) => {
     document.body.appendChild(quick);
   }
 })();
+
+
+/* Theme Studio: apply a saved, validated browser-local palette site-wide. */
+(() => {
+  "use strict";
+  const KEY = "voidcraft.theme-studio.palette.v1";
+  const DEFAULTS = {bg:"#090b13",panel:"#121624",text:"#f4f5ff",muted:"#a7aec8",accent:"#9c7bff",highlight:"#63e8ed"};
+  function readPalette() {
+    try {
+      const p = JSON.parse(localStorage.getItem(KEY) || "null");
+      return p && Object.keys(DEFAULTS).every(k => typeof p[k] === "string" && /^#[0-9a-f]{6}$/i.test(p[k])) ? p : null;
+    } catch { return null; }
+  }
+  function apply() {
+    const p = readPalette();
+    if (!p) return;
+    const root = document.documentElement;
+    root.style.setProperty("--bg",p.bg);
+    root.style.setProperty("--panel",p.panel);
+    root.style.setProperty("--text",p.text);
+    root.style.setProperty("--muted",p.muted);
+    root.style.setProperty("--violet",p.accent);
+    root.style.setProperty("--cyan",p.highlight);
+    root.style.setProperty("--line",p.highlight+"55");
+    let style = document.getElementById("voidcraft-user-theme");
+    if (!style) { style = document.createElement("style"); style.id = "voidcraft-user-theme"; document.head.append(style); }
+    style.textContent = `
+      body{background-color:${p.bg};color:${p.text}}
+      header{background:${p.bg}ee;border-color:${p.highlight}55}
+      .card,.store-card,.panel,.studio-panel{background:linear-gradient(145deg,${p.panel},${p.bg});border-color:${p.highlight}55;color:${p.text}}
+      .card p,.store-card p,.panel p{color:${p.muted}}
+      .nav a:hover,.nav a.active,a:hover{color:${p.highlight}}
+      .btn{background:linear-gradient(110deg,${p.accent},${p.highlight});border-color:${p.accent}}
+      .btn.secondary,input,textarea,select{background:${p.panel};border-color:${p.highlight}55;color:${p.text}}
+      .eyebrow,.headline-glow{color:${p.highlight}}
+      .notice{background:${p.panel};border-color:${p.highlight}55;color:${p.text}}
+    `;
+    const meta = document.querySelector('meta[name="theme-color"]');
+    if (meta) meta.content = p.bg;
+  }
+  apply();
+  window.addEventListener("voidcraft-theme-updated",apply);
+})();
