@@ -34,7 +34,7 @@ fun ThemeStudioScreen(
     onBack: () -> Unit
 ) {
     val context = LocalContext.current
-    val prefs = remember { context.getSharedPreferences("voidcraft_launcher", android.content.Context.MODE_PRIVATE) }
+    val prefs = remember { context.getSharedPreferences("voidcraft_preferences", android.content.Context.MODE_PRIVATE) }
     val initial = remember { Color(prefs.getInt("theme_studio_accent", currentAccent)) }
     var red by remember { mutableFloatStateOf(initial.red) }
     var green by remember { mutableFloatStateOf(initial.green) }
