@@ -26,6 +26,13 @@
   <p><strong>Works in your browser:</strong> files are saved locally using IndexedDB. For Android, import exported JARs into the launcher’s optional Mod Manager.</p>
   <div class="actions"><a class="btn" href="mod-manager.html">Open Mod Manager →</a><span class="btn secondary" aria-label="Feature status">Browser tool available · Android beta</span></div>
 </section>
+<section class="card" style="margin:28px 0;padding:24px;border:1px solid #ff966b;background:linear-gradient(135deg,#301c1a,#121624)" aria-labelledby="cosmetic-store-feature-title">
+  <div class="eyebrow">OPTIONAL · PERSONALIZATION</div>
+  <h2 id="cosmetic-store-feature-title">Cosmetic Store</h2>
+  <p>Browse cosmetic listings and equip original VoidCraft profile effects in your browser. Includes Void Aura, Neon Mint, Arctic Ice and Solar Ember. Equipped styles are local website profile effects—not Minecraft in-game cosmetics.</p>
+  <div class="actions"><button class="btn" type="button" data-cosmetic-store-install>Install</button><button class="btn secondary" type="button" data-cosmetic-store-open>Open</button><button class="btn secondary" type="button" data-cosmetic-store-uninstall>Uninstall</button><span class="btn secondary" data-cosmetic-store-status aria-live="polite">Not installed</span></div>
+  <p id="cosmetic-store-feature-message" aria-live="polite"></p>
+</section>
 <section class="card" style="margin:28px 0;padding:24px;border:1px solid #277a68;background:linear-gradient(135deg,#132a2a,#121624)" aria-labelledby="server-state-title">
   <div class="eyebrow">NEW · OPTIONAL TOOL</div>
   <h2 id="server-state-title">Server State</h2>
@@ -65,4 +72,5 @@
 <script src="assets/app.js" defer></script>
 <script src="assets/theme-studio-store.js" defer></script>
 <script src="assets/server-state-store.js" defer></script>
+<script src="assets/cosmetic-store-feature.js" defer></script>
 </body></html>
