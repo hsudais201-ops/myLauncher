@@ -93,11 +93,12 @@ def patch_upstream(root: Path) -> None:
         if not path.is_file():
             raise FileNotFoundError(f"Expected Mojo launcher UI resource is missing: {path}")
     layout = layout_path.read_text(encoding="utf-8")
-    news_anchor = '<com.kdt.mcgui.LauncherMenuButton\n\t\t\t\tandroid:id="@+id/news_button"'
+    news_pattern = re.compile(r'<com\\.kdt\\.mcgui\\.LauncherMenuButton\\b(?=[^>]*android:id="@\\+id/news_button")[^>]*/>', re.DOTALL)
     if '@+id/voidcraft_hero' not in layout:
-        if news_anchor not in layout:
+        match = news_pattern.search(layout)
+        if not match:
             raise ValueError("Mojo launcher layout changed; refusing to insert a detached hero panel")
-        layout = layout.replace(news_anchor, HERO + '\n' + news_anchor, 1)
+        layout = layout[:match.start()] + HERO + '\\n' + layout[match.start():]
         layout = patch_button_top(layout, "news_button")
         layout = patch_button_top(layout, "social_media_button")
         layout = patch_divider(layout)
