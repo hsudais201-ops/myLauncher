@@ -129,7 +129,7 @@ private fun VoidcraftApp() {
     var storeEnabled by remember { mutableStateOf(prefs.getBoolean(STORE_ENABLED, false)) }
     var installedIds by remember { mutableStateOf(prefs.getStringSet(INSTALLED_IDS, emptySet())?.toSet() ?: emptySet()) }
     var activeTheme by remember { mutableStateOf(prefs.getString("active_theme", "default") ?: "default") }
-    var catalog by remember { mutableStateOf(defaultCatalog()) }
+    var catalog by remember { mutableStateOf(loadBundledCatalog(context)) }
     var isRefreshing by remember { mutableStateOf(false) }
     var selectedFeature by remember { mutableStateOf<StoreFeature?>(null) }
     var socialHubOpen by remember { mutableStateOf(false) }
@@ -558,7 +558,11 @@ private fun SocialHubScreen(
     }
 }
 
-private fun defaultCatalog() = emptyList<StoreFeature>()
+private fun loadBundledCatalog(context: Context): List<StoreFeature> {
+    return runCatching {
+        context.assets.open("store/catalog.json").bufferedReader().use { parseCatalog(it.readText()) }
+    }.getOrDefault(emptyList())
+}
 
 private fun parseCatalog(body: String): List<StoreFeature> {
     val root = JSONObject(body)
