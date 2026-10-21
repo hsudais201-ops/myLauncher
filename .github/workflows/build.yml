@@ -2,38 +2,44 @@ name: Build VoidCraft Launcher APK
 
 on:
   push:
-    branches:
-      - main
+    branches: [main]
     paths:
       - '.github/workflows/build.yml'
       - '.github/scripts/**'
+      - 'README.md'
+      - 'FEATURE_ROADMAP.md'
+      - 'MOJO_UPSTREAM_NOTICES.md'
   pull_request:
     paths:
       - '.github/workflows/build.yml'
       - '.github/scripts/**'
+      - 'README.md'
+      - 'FEATURE_ROADMAP.md'
+      - 'MOJO_UPSTREAM_NOTICES.md'
   workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: voidcraft-launcher-build-v2-${{ github.ref }}
+  group: voidcraft-mojo-build
   cancel-in-progress: true
 
 jobs:
   build-debug-apk:
-    name: Test and build Android APK
+    name: Test and build Mojo-based VoidCraft APK
     runs-on: ubuntu-24.04
-    timeout-minutes: 90
+    timeout-minutes: 100
     steps:
-      - name: Check out VoidCraft Launcher customizations
+      - name: Check out VoidCraft build customizations
         uses: actions/checkout@v4
 
-      - name: Validate customizer and regression suite
+      - name: Validate VoidCraft source customizer and regression tests
         run: |
-          python3 -m py_compile .github/scripts/customize_amethyst.py .github/scripts/apply_logo.py .github/scripts/patch_renderpearl_workaround.py .github/scripts/test_customizer.py .github/scripts/test_renderpearl_workaround.py .github/scripts/customize_ui.py .github/scripts/test_ui_customizer.py
+          python3 -m py_compile .github/scripts/customize_mojo.py .github/scripts/test_mojo_customizer.py
           sh -n .github/scripts/prepare_emulator_kvm.sh
-          sh -n .github/scripts/emulator_smoke_test.sh
+          bash -n .github/scripts/mojo_emulator_smoke_test.sh
+          python3 -m unittest .github/scripts/test_mojo_customizer.py -v
           python3 -m unittest discover -s .github/scripts -p 'test_*.py' -v
 
       - name: Set up Java
@@ -45,9 +51,7 @@ jobs:
       - name: Set up Android SDK
         uses: android-actions/setup-android@v4
         with:
-          # Accept licenses explicitly in the next step to avoid interactive setup failures.
           accept-android-sdk-licenses: false
-          # The old "tools" package no longer exists; the build installs exact SDK/NDK packages below.
           packages: ''
 
       - name: Accept Android SDK licenses
@@ -56,109 +60,70 @@ jobs:
           yes | sdkmanager --licenses
           set -o pipefail
 
-      - name: Install required Android SDK and NDK
-        run: sdkmanager --install 'platforms;android-37.0' 'ndk;27.3.13750724' --channel=3
+      - name: Install pinned Android SDK and NDK
+        run: sdkmanager --install 'platforms;android-36' 'ndk;29.0.14206865' --channel=3
 
-      - name: Fetch pinned Amethyst engine and submodules
+      - name: Fetch pinned MojoLauncher source and submodules
         run: |
-          EXPECTED_UPSTREAM_COMMIT=330c6eae3164df64bdc4828e946a9e62cc5169e4
+          EXPECTED_UPSTREAM_COMMIT=8ffba8f4ea0b9466854aa9f7a375c77b4fb96bdd
           git init upstream
-          git -C upstream remote add origin https://github.com/AngelAuraMC/Amethyst-Android.git
+          git -C upstream remote add origin https://github.com/MojoLauncher/MojoLauncher.git
           git -C upstream fetch --depth 1 origin "$EXPECTED_UPSTREAM_COMMIT"
           git -C upstream checkout --detach FETCH_HEAD
 
-          # The pinned upstream .gitmodules includes an SSH-style GitHub URL.
-          # Hosted runners have no personal SSH key, so use public HTTPS clones.
+          # Rewrite SSH-form GitHub submodule URLs to public HTTPS for hosted runners.
           git config --global url."https://github.com/".insteadOf git@github.com:
           git config --global --add url."https://github.com/".insteadOf ssh://git@github.com/
           git -C upstream submodule sync --recursive
           git -C upstream submodule update --init --recursive
-          git -C upstream submodule status --recursive | tee /tmp/mylauncher-submodules.txt
-          if grep -Eq '^[+-U]' /tmp/mylauncher-submodules.txt; then
-            echo "A submodule is missing or not checked out at the commit pinned by upstream." >&2
+          git -C upstream submodule status --recursive | tee /tmp/voidcraft-mojo-submodules.txt
+          if grep -Eq '^[+-U]' /tmp/voidcraft-mojo-submodules.txt; then
+            echo "A MojoLauncher submodule is missing or not at its pinned commit." >&2
             exit 1
           fi
-
           ACTUAL_UPSTREAM_COMMIT=$(git -C upstream rev-parse HEAD)
-          echo "Expected upstream: $EXPECTED_UPSTREAM_COMMIT"
-          echo "Actual upstream:   $ACTUAL_UPSTREAM_COMMIT"
+          echo "Expected MojoLauncher: $EXPECTED_UPSTREAM_COMMIT"
+          echo "Actual MojoLauncher:   $ACTUAL_UPSTREAM_COMMIT"
           test "$ACTUAL_UPSTREAM_COMMIT" = "$EXPECTED_UPSTREAM_COMMIT"
 
-      - name: Apply and inspect VoidCraft Launcher customization
+      - name: Apply VoidCraft package identity, app label, and night-violet palette
         run: |
-          python3 .github/scripts/customize_amethyst.py upstream
-          python3 - <<'PY'
-          from pathlib import Path
-
-          settings = Path("upstream/settings.gradle").read_text(encoding="utf-8")
-          plugin_management = settings.split("dependencyResolutionManagement", 1)[0]
-          if "mavenCentral()" not in plugin_management:
-              raise SystemExit("Maven Central must be configured in pluginManagement for AGP classpath dependencies")
-          print("Verified Maven Central is configured for plugin-management dependencies.")
-          PY
+          python3 .github/scripts/customize_mojo.py upstream
           git -C upstream diff --check
 
-      - name: Apply RenderPearl MobileGlues compatibility workaround
-        run: |
-          python3 .github/scripts/patch_renderpearl_workaround.py upstream
-          git -C upstream diff --check
-
-      - name: Apply VoidCraft Launcher night-violet UI
-        run: |
-          python3 .github/scripts/customize_ui.py upstream
-          git -C upstream diff --check
-
-      - name: Apply VoidCraft Launcher logo
-        run: python3 .github/scripts/apply_logo.py upstream
-
-      - name: Record upstream revision
-        run: |
-          echo "Upstream: https://github.com/AngelAuraMC/Amethyst-Android" > upstream/VOIDCRAFT_LAUNCHER_BUILD_INFO.txt
-          echo "Source line: v3_openjdk (commit pinned below)" >> upstream/VOIDCRAFT_LAUNCHER_BUILD_INFO.txt
-          echo "Pinned commit: 330c6eae3164df64bdc4828e946a9e62cc5169e4" >> upstream/VOIDCRAFT_LAUNCHER_BUILD_INFO.txt
-          echo "Built commit: $(git -C upstream rev-parse HEAD)" >> upstream/VOIDCRAFT_LAUNCHER_BUILD_INFO.txt
-          echo "Display name: VoidCraft Launcher" >> upstream/VOIDCRAFT_LAUNCHER_BUILD_INFO.txt
-          echo "Owner: MF" >> upstream/VOIDCRAFT_LAUNCHER_BUILD_INFO.txt
-          echo "Custom app ID: com.mf.mylauncher (debug: com.mf.mylauncher.debug)" >> upstream/VOIDCRAFT_LAUNCHER_BUILD_INFO.txt
-
-      - name: Build GLFW support and debug APK
+      - name: Build full debug APK
         working-directory: upstream
-        run: ./gradlew --no-daemon :jre_lwjgl3glfw:build :app_pojavlauncher:assembleDebug --stacktrace
+        run: ./gradlew --no-daemon :app_mojo:assembleFullDebug --stacktrace
 
-      - name: Confirm APK and inspect package metadata
+      - name: Verify APK package, signature, and minimum SDK
         run: |
-          APK=$(find upstream/app_pojavlauncher/build/outputs/apk/debug -maxdepth 1 -type f -name '*.apk' -print -quit)
+          APK=$(find upstream/app_mojo/build/outputs/apk/full/debug -maxdepth 1 -type f -name '*.apk' -print -quit)
           test -n "$APK"
           test -s "$APK"
           echo "APK_PATH=$APK" >> "$GITHUB_ENV"
           ls -lh "$APK"
-          APKSIGNER=$(find "${ANDROID_HOME}/build-tools" -type f -name apksigner -print -quit)
+          APKSIGNER=$(find "$ANDROID_HOME/build-tools" -type f -name apksigner -print -quit)
           test -n "$APKSIGNER"
           "$APKSIGNER" verify --verbose "$APK"
-          grep -q 'applicationId "com.mf.mylauncher"' upstream/app_pojavlauncher/build.gradle
-          grep -q 'app_name.*VoidCraft Launcher' upstream/app_pojavlauncher/src/main/res/values/strings.xml
-          AAPT=$(find "${ANDROID_HOME}/build-tools" -type f -name aapt -print -quit)
+          AAPT=$(find "$ANDROID_HOME/build-tools" -type f -name aapt -print -quit)
           test -n "$AAPT"
-          "$AAPT" dump badging "$APK" > /tmp/mylauncher-badging.txt
-          grep -q "package: name='com.mf.mylauncher.debug'" /tmp/mylauncher-badging.txt
-          grep -q "application-label:'VoidCraft Launcher (Debug)'" /tmp/mylauncher-badging.txt
-          MIN_SDK=$(sed -n "s/^sdkVersion:'\\([0-9][0-9]*\\)'.*/\\1/p" /tmp/mylauncher-badging.txt)
+          "$AAPT" dump badging "$APK" > /tmp/voidcraft-mojo-badging.txt
+          grep -q "package: name='com.mf.mylauncher.debug'" /tmp/voidcraft-mojo-badging.txt
+          grep -q "application-label:'VoidCraft Launcher'" /tmp/voidcraft-mojo-badging.txt
+          MIN_SDK=$(sed -n "s/^sdkVersion:'\([0-9][0-9]*\)'.*/\1/p" /tmp/voidcraft-mojo-badging.txt)
           test -n "$MIN_SDK"
           test "$MIN_SDK" -le 28
-          echo "Verified APK metadata (min SDK: $MIN_SDK):"
-          grep -E "^(package: name=|application-label:)" /tmp/mylauncher-badging.txt
-          APK_SHA256_PATH="${APK}.sha256"
+          echo "Verified APK metadata (min SDK: $MIN_SDK)"
+          grep -E "^(package: name=|application-label:)" /tmp/voidcraft-mojo-badging.txt
           (cd "$(dirname "$APK")" && sha256sum "$(basename "$APK")" > "$(basename "$APK").sha256")
-          echo "APK_SHA256_PATH=$APK_SHA256_PATH" >> "$GITHUB_ENV"
-          echo "APK SHA-256: $(cut -d ' ' -f1 "$APK_SHA256_PATH")" >> upstream/VOIDCRAFT_LAUNCHER_BUILD_INFO.txt
 
       - name: Stop Gradle daemons before emulator startup
         working-directory: upstream
         run: ./gradlew --stop || true
-      - name: Install and launch APK in a headless Android emulator
+
+      - name: Install and launch the Mojo-based APK in Android 9 emulator
         uses: reactivecircus/android-emulator-runner@v2
         with:
-          # API 28 is the documented minimum device target and boots a smaller image than API 35.
           api-level: 28
           target: google_apis
           arch: x86_64
@@ -167,41 +132,32 @@ jobs:
           ram-size: 1536M
           heap-size: 512M
           disable-animations: true
-          # Grant the hosted runner access to KVM so the x86_64 emulator does not fall back to slow software emulation.
           disable-linux-hw-accel: false
           pre-emulator-launch-script: sh .github/scripts/prepare_emulator_kvm.sh
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -no-snapshot -camera-back none -camera-front none
-          script: sh .github/scripts/emulator_smoke_test.sh "$APK_PATH"
+          script: bash .github/scripts/mojo_emulator_smoke_test.sh "$APK_PATH"
 
-      - name: Upload debug APK
-        if: ${{ always() && env.APK_PATH != '' }}
+      - name: Upload VoidCraft debug APK and license/build records
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: voidcraft-launcher-debug-apk
+          name: voidcraft-mojo-debug-apk
           path: |
-            ${{ env.APK_PATH }}
-            ${{ env.APK_SHA256_PATH }}
-          if-no-files-found: error
+            upstream/app_mojo/build/outputs/apk/full/debug/*.apk
+            upstream/app_mojo/build/outputs/apk/full/debug/*.sha256
+            upstream/VOIDCRAFT_LAUNCHER_BUILD_INFO.txt
+            upstream/VOIDCRAFT_MOJO_LICENSE.txt
+          if-no-files-found: warn
           retention-days: 14
 
-      - name: Upload upstream build notes
-        if: ${{ always() && hashFiles('upstream/VOIDCRAFT_LAUNCHER_BUILD_INFO.txt') != '' }}
+      - name: Upload Android emulator diagnostics
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: voidcraft-launcher-build-info
-          path: upstream/VOIDCRAFT_LAUNCHER_BUILD_INFO.txt
-          if-no-files-found: error
-          retention-days: 14
-
-      - name: Upload emulator diagnostics
-        if: ${{ always() }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: voidcraft-launcher-emulator-diagnostics
+          name: voidcraft-mojo-emulator-diagnostics
           path: |
-            upstream/mylauncher-emulator-logcat.txt
-            upstream/mylauncher-activities.txt
-            upstream/mylauncher-emulator-screenshot.png
+            upstream/voidcraft-mojo-emulator-logcat.txt
+            upstream/voidcraft-mojo-activities.txt
+            upstream/voidcraft-mojo-emulator-screenshot.png
           if-no-files-found: ignore
           retention-days: 7
-# Rebuild requested 2026-10-17: run the full tests, APK build, signing verification, and emulator smoke test.
