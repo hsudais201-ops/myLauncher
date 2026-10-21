@@ -20,12 +20,20 @@ jobs:
         with:
           distribution: temurin
           java-version: "17"
+      - name: Check Social Hub Worker syntax
+        run: node --input-type=module --check < backend/social-hub/worker.js
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: "8.9"
       - name: Build debug APK
         run: gradle assembleDebug
+      - name: Smoke test Social Hub staging API
+        run: |
+          curl --fail --silent --show-error --retry 3 --retry-all-errors --retry-delay 2 --max-time 15 \
+            https://voidcraft-social-hub-staging.hsudais201.workers.dev/api/health \
+            | tee /tmp/social-hub-health.json
+          grep -q '"status":"ok"' /tmp/social-hub-health.json
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
