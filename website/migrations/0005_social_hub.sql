@@ -59,3 +59,4 @@ CREATE TABLE IF NOT EXISTS social_reports (
   CHECK (reporter_id <> target_user_id)
 );
 CREATE INDEX IF NOT EXISTS social_reports_status_idx ON social_reports(status,created_at DESC);
+CREATE INDEX IF NOT EXISTS social_reports_reporter_rate_idx ON social_reports(reporter_id,created_at DESC);
