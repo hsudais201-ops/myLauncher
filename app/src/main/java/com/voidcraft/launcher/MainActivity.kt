@@ -532,6 +532,11 @@ private fun VoidcraftApp() {
                             if (feature.id == "social-hub") {
                                 socialHubOpen = true
                                 activeConversation = null
+                            } else if (feature.id == "advanced-mod-manager") {
+                                selectedFeature = null
+                                socialHubOpen = false
+                                storeOpen = false
+                                selectedTab = 2
                             } else if (feature.id == "theme-neon-night" || feature.id == "theme-void-minimal") {
                                 activeTheme = feature.id
                                 prefs.edit().putString("active_theme", activeTheme).apply()
@@ -574,11 +579,31 @@ private fun VoidcraftApp() {
                         title = "Game versions",
                         description = "Choose and manage Minecraft Java versions here. Version installation is not connected yet."
                     )
-                    LauncherTab.Mods -> PlaceholderScreen(
-                        icon = Icons.Default.Extension,
-                        title = "Your mod library",
-                        description = "Mod browsing and profile management will be added after the launcher engine is integrated."
-                    )
+                    LauncherTab.Mods -> {
+                        if ("advanced-mod-manager" in installedIds) {
+                            AdvancedModManagerScreen()
+                        } else {
+                            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                                PlaceholderScreen(
+                                    icon = Icons.Default.Extension,
+                                    title = "Advanced Mod Manager",
+                                    description = "Install this optional feature from the Feature Store to import and organize your local JAR mod library."
+                                )
+                                Button(
+                                    onClick = {
+                                        if (!storeEnabled) {
+                                            storeEnabled = true
+                                            prefs.edit().putBoolean(STORE_ENABLED, true).apply()
+                                        }
+                                        val manager = catalog.firstOrNull { it.id == "advanced-mod-manager" }
+                                        if (manager != null) selectedFeature = manager
+                                        storeOpen = true
+                                    },
+                                    modifier = Modifier.fillMaxWidth()
+                                ) { Text("OPEN FEATURE STORE") }
+                            }
+                        }
+                    }
                     LauncherTab.Settings -> Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                         PlaceholderScreen(
                             icon = Icons.Default.Tune,
