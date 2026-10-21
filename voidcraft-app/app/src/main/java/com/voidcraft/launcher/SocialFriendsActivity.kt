@@ -142,12 +142,24 @@ class SocialFriendsActivity : Activity() {
                     renderSocialContent()
                     renderSearchResults()
                 }.onFailure { error ->
-                    statusLabel.text = "Could not load social data."
                     statusLabel.setTextColor(Color.rgb(255, 190, 104))
                     socialContent.removeAllViews()
-                    socialContent.addView(emptyState("Could not connect", error.message ?: "Try again."))
-                    socialContent.addView(space(10))
-                    socialContent.addView(actionButton("Retry", accent) { refreshData() })
+                    if (!SocialApiClient(applicationContext).isSignedIn) {
+                        statusLabel.text = "Your VoidCraft session expired or was cleared."
+                        socialContent.addView(emptyState(
+                            "Sign in again",
+                            "Use the same VoidCraft account you use on the website."
+                        ))
+                        socialContent.addView(space(10))
+                        socialContent.addView(actionButton("Sign in to VoidCraft", accent) {
+                            startActivityForResult(Intent(this, VoidCraftAccountActivity::class.java), REQUEST_ACCOUNT)
+                        })
+                    } else {
+                        statusLabel.text = "Could not load social data."
+                        socialContent.addView(emptyState("Could not connect", error.message ?: "Try again."))
+                        socialContent.addView(space(10))
+                        socialContent.addView(actionButton("Retry", accent) { refreshData() })
+                    }
                 }
             }
         }
