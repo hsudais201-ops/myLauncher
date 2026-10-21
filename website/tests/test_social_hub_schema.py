@@ -83,8 +83,8 @@ class SocialHubSchemaTests(unittest.TestCase):
         with self.assertRaises(sqlite3.IntegrityError):
             self.db.execute(
                 "INSERT INTO social_messages(id,sender_id,recipient_id,body,created_at) "
-                "VALUES('m4','u1','u2,',?,4)".replace("u2,", "u2")
-                , ("x" * 2001,)
+                "VALUES('m4','u1','u2',?,4)",
+                ("x" * 2001,),
             )
 
     def test_blocks_disallow_self_blocks_and_ignore_duplicates(self):
