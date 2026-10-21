@@ -1587,7 +1587,8 @@ class BuildWorkflowTests(unittest.TestCase):
         self.assertIn("python3 .github/scripts/apply_logo.py upstream", self.workflow)
 
     def test_workflow_checks_mojo_source_pin_and_android_9_apk(self) -> None:
-        self.assertIn("branches: [main]", self.workflow)
+        self.assertIn("branches: [main, migration/mojolauncher-base]", self.workflow)
+        self.assertIn("group: voidcraft-mojo-build-${{ github.head_ref || github.ref_name }}", self.workflow)
         self.assertIn("pull_request:", self.workflow)
         self.assertIn("workflow_dispatch:", self.workflow)
         self.assertIn("EXPECTED_UPSTREAM_COMMIT=8ffba8f4ea0b9466854aa9f7a375c77b4fb96bdd", self.workflow)
