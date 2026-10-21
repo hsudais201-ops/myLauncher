@@ -507,7 +507,10 @@ class SocialFriendsActivity : Activity() {
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
-        if (requestCode == REQUEST_ACCOUNT && resultCode == RESULT_OK) refreshData()
+        if (requestCode == REQUEST_ACCOUNT && resultCode == RESULT_OK) {
+            setResult(RESULT_OK)
+            refreshData()
+        }
     }
 
     companion object {
