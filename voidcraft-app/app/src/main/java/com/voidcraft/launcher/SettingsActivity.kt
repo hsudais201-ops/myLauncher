@@ -23,7 +23,7 @@ class SettingsActivity : Activity() {
     private val background = Color.rgb(10, 14, 24)
     private val surface = Color.rgb(18, 25, 40)
     private val panel = Color.rgb(23, 33, 52)
-    private val accent = Color.rgb(139, 124, 255)
+    private val accent by lazy { LauncherPreferences.accentColor(this) }
     private val mint = Color.rgb(51, 216, 190)
     private val primaryText = Color.rgb(243, 246, 255)
     private val secondaryText = Color.rgb(157, 174, 199)
@@ -64,10 +64,10 @@ class SettingsActivity : Activity() {
         })
         page.addView(space(10))
         page.addView(infoCard(
-            "Appearance",
-            "Night-sky surfaces, violet accents, cyan highlights",
-            "VoidCraft theme"
-        ) { notice("Theme customization is planned for a future settings update.") })
+            "Theme Studio",
+            "Choose and save a launcher accent color. Your selection is reversible.",
+            "Customizable"
+        ) { startActivity(Intent(this, ThemeStudioActivity::class.java)) })
         page.addView(space(20))
 
         page.addView(sectionTitle("MINECRAFT"))
