@@ -1,0 +1,12 @@
+name = "voidcraft-social-hub-staging"
+main = "worker.js"
+compatibility_date = "2026-10-21"
+workers_dev = true
+
+[vars]
+APP_ENV = "staging"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "voidcraft-auth-staging-socialhub"
+database_id = "d740e766-e76d-47d4-87fb-118b50c73f85"
