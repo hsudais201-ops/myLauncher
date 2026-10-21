@@ -39,6 +39,12 @@ class VoidCraftAccountActivity : Activity() {
     private lateinit var registerModeButton: TextView
     private lateinit var loginModeButton: TextView
     private lateinit var signOutButton: TextView
+    private lateinit var authForm: LinearLayout
+    private lateinit var authModeRow: LinearLayout
+    private lateinit var profileCard: LinearLayout
+    private lateinit var profileDisplayNameField: EditText
+    private lateinit var profileBioField: EditText
+    private lateinit var saveProfileButton: TextView
     private var createMode = false
     private var busy = false
 
@@ -51,6 +57,7 @@ class VoidCraftAccountActivity : Activity() {
         setMode(intent.getBooleanExtra(EXTRA_CREATE_ACCOUNT, false))
         updateSignOutVisibility()
         checkConnection()
+        if (SocialApiClient(applicationContext).isSignedIn) loadOnlineProfile()
     }
 
     private fun buildScreen(): View {
@@ -89,19 +96,20 @@ class VoidCraftAccountActivity : Activity() {
         page.addView(connectionCard)
         page.addView(space(18))
 
-        val modeRow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+        authModeRow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
         loginModeButton = actionButton("Sign in", accent) { setMode(false) }
         registerModeButton = actionButton("Create account", panel) { setMode(true) }
-        modeRow.addView(loginModeButton, LinearLayout.LayoutParams(0, -2, 1f).apply {
+        authModeRow.addView(loginModeButton, LinearLayout.LayoutParams(0, -2, 1f).apply {
             marginEnd = dp(6)
         })
-        modeRow.addView(registerModeButton, LinearLayout.LayoutParams(0, -2, 1f).apply {
+        authModeRow.addView(registerModeButton, LinearLayout.LayoutParams(0, -2, 1f).apply {
             marginStart = dp(6)
         })
-        page.addView(modeRow)
+        page.addView(authModeRow)
         page.addView(space(12))
 
-        val form = card()
+        authForm = card()
+        val form = authForm
         form.addView(label("USERNAME OR EMAIL", 10, secondaryText, true))
         identifierField = field("Your VoidCraft username or email", InputType.TYPE_CLASS_TEXT)
         form.addView(identifierField)
@@ -127,6 +135,47 @@ class VoidCraftAccountActivity : Activity() {
         ))
         page.addView(form)
         page.addView(space(12))
+
+        profileCard = card().apply { visibility = View.GONE }
+        profileCard.addView(label("ONLINE PROFILE", 10, accent, true))
+        profileCard.addView(space(5))
+        profileCard.addView(label(
+            "This profile is shared by the website and launcher. It is not the Microsoft/Minecraft profile.",
+            12, secondaryText, false
+        ))
+        profileCard.addView(space(10))
+        profileCard.addView(label("DISPLAY NAME", 10, secondaryText, true))
+        profileDisplayNameField = field("Up to 32 characters", InputType.TYPE_CLASS_TEXT).apply {
+            filters = arrayOf(android.text.InputFilter.LengthFilter(32))
+        }
+        profileCard.addView(profileDisplayNameField)
+        profileCard.addView(space(10))
+        profileCard.addView(label("BIO", 10, secondaryText, true))
+        profileBioField = EditText(this).apply {
+            hint = "A short profile bio (280 characters maximum)"
+            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_CAP_SENTENCES or InputType.TYPE_TEXT_FLAG_MULTI_LINE
+            minLines = 2
+            maxLines = 4
+            setTextColor(primaryText)
+            setHintTextColor(secondaryText)
+            textSize = 14f
+            background = rounded(surface, 12, border)
+            setPadding(dp(12), dp(11), dp(12), dp(11))
+            filters = arrayOf(android.text.InputFilter.LengthFilter(280))
+        }
+        profileCard.addView(profileBioField)
+        profileCard.addView(space(12))
+        saveProfileButton = actionButton("Save shared profile", accent) { saveOnlineProfile() }
+        profileCard.addView(saveProfileButton)
+        page.addView(profileCard)
+        page.addView(space(12))
+
+        val existingSession = SocialApiClient(applicationContext).isSignedIn
+        if (existingSession) {
+            authForm.visibility = View.GONE
+            authModeRow.visibility = View.GONE
+            profileCard.visibility = View.VISIBLE
+        }
 
         signOutButton = actionButton("Sign out of this device", Color.rgb(102, 45, 61)) {
             signOut()
@@ -227,6 +276,70 @@ class VoidCraftAccountActivity : Activity() {
         }
     }
 
+    private fun loadOnlineProfile() {
+        if (!::profileCard.isInitialized || !SocialApiClient(applicationContext).isSignedIn) return
+        executor.execute {
+            val result = runCatching { SocialApiClient(applicationContext).currentUser() }
+            runOnUiThread {
+                if (isFinishing || isDestroyed) return@runOnUiThread
+                result.onSuccess { user ->
+                    profileDisplayNameField.setText(user.displayName)
+                    profileBioField.setText(user.bio)
+                    profileCard.visibility = View.VISIBLE
+                    authForm.visibility = View.GONE
+                    authModeRow.visibility = View.GONE
+                    statusLabel.text = "Signed into VoidCraft as @" + user.username
+                    statusLabel.setTextColor(mint)
+                    updateSignOutVisibility()
+                }.onFailure { error ->
+                    profileCard.visibility = View.GONE
+                    authForm.visibility = View.VISIBLE
+                    authModeRow.visibility = View.VISIBLE
+                    updateSignOutVisibility()
+                    statusLabel.text = "Please sign in again to load your profile."
+                    statusLabel.setTextColor(Color.rgb(255, 190, 104))
+                    notice(error.message ?: "Could not load your VoidCraft profile.")
+                }
+            }
+        }
+    }
+
+    private fun saveOnlineProfile() {
+        if (busy) return
+        val displayName = profileDisplayNameField.text.toString().trim()
+        val bio = profileBioField.text.toString().trim()
+        if (displayName.isEmpty() || displayName.length > 32 || bio.length > 280) {
+            notice("Display name must contain 1–32 characters and bio at most 280 characters.")
+            return
+        }
+        busy = true
+        saveProfileButton.isEnabled = false
+        saveProfileButton.alpha = 0.65f
+        statusLabel.text = "Saving your shared profile…"
+        executor.execute {
+            val result = runCatching {
+                SocialApiClient(applicationContext).updateProfile(displayName, bio)
+            }
+            runOnUiThread {
+                busy = false
+                saveProfileButton.isEnabled = true
+                saveProfileButton.alpha = 1f
+                if (isFinishing || isDestroyed) return@runOnUiThread
+                result.onSuccess { user ->
+                    profileDisplayNameField.setText(user.displayName)
+                    profileBioField.setText(user.bio)
+                    statusLabel.text = "Profile saved for @" + user.username
+                    statusLabel.setTextColor(mint)
+                    notice("Your VoidCraft profile was updated.")
+                }.onFailure { error ->
+                    statusLabel.text = "Could not save the profile."
+                    statusLabel.setTextColor(Color.rgb(255, 190, 104))
+                    notice(error.message ?: "Could not save your VoidCraft profile.")
+                }
+            }
+        }
+    }
+
     private fun updateSignOutVisibility() {
         if (!::signOutButton.isInitialized) return
         signOutButton.visibility = if (SocialApiClient(applicationContext).isSignedIn) View.VISIBLE else View.GONE
@@ -245,6 +358,7 @@ class VoidCraftAccountActivity : Activity() {
                 statusLabel.text = "Signed out on this device."
                 statusLabel.setTextColor(secondaryText)
                 notice("VoidCraft session cleared from this device.")
+                recreate()
             }
         }
     }
