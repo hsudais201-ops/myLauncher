@@ -149,8 +149,7 @@ private fun VoidcraftApp() {
             }.getOrNull()
         }
         if (!remote.isNullOrEmpty()) {
-            val local = defaultCatalog().associateBy { it.id }
-            catalog = (remote + local.values).distinctBy { it.id }
+            catalog = remote.distinctBy { it.id }
         }
         isRefreshing = false
     }
@@ -350,20 +349,7 @@ private fun VoidcraftApp() {
     }
 }
 
-private fun defaultCatalog() = listOf(
-    StoreFeature("theme-neon-night", "Neon Night", "A neon accent theme for Voidcraft.", "A lightweight built-in appearance option. Installing enables the feature flag; advanced theme customization is planned.", "launcher", "Appearance", "1.0", "All supported devices", "Voidcraft", null, "available", true),
-    StoreFeature("theme-void-minimal", "Void Minimal", "A quieter, minimal launcher look.", "A built-in appearance option with minimal styling. Advanced theme customization is planned.", "launcher", "Appearance", "1.0", "All supported devices", "Voidcraft", null, "available", true),
-    StoreFeature("theme-studio", "Theme Studio", "Design and preview custom themes.", "Legacy catalog listing. The editor is not implemented in this clean-start build.", "launcher", "Appearance", "Preview", "Not verified", "Not specified", null, "preview", false),
-    StoreFeature("performance-advisor", "Performance Advisor", "Device-aware performance recommendations.", "Legacy catalog listing. No performance changes are applied by this listing yet.", "launcher", "Performance", "Preview", "Not verified", "Not specified", null, "preview", false),
-    StoreFeature("backup-manager", "World Backup Manager", "Manage backups of your Minecraft worlds.", "Legacy catalog listing. World backup/restore is not integrated into this clean-start build yet.", "launcher", "Worlds", "Preview", "Not verified", "Not specified", null, "preview", false),
-    StoreFeature("friends-chat", "Friends & Chat", "A community and social hub.", "Legacy catalog listing. Online services and chat are not implemented.", "launcher", "Community", "Preview", "Not verified", "Not specified", null, "coming_soon", false),
-    StoreFeature("server-status", "Server Status", "Keep an eye on your favorite servers.", "Legacy catalog listing. Live server queries are not implemented.", "launcher", "Multiplayer", "Preview", "Not verified", "Not specified", null, "preview", false),
-    StoreFeature("creator-packs", "Creator Packs", "Discover creator-made content.", "Legacy catalog listing. Package and creator verification are not configured yet.", "content", "Content", "Preview", "Not verified", "Not specified", null, "coming_soon", false),
-    StoreFeature("mod-content", "Mods & Modpacks", "Add community game content.", "Content packages can only be downloaded after a real HTTPS package URL is published. Automatic installation into a Minecraft profile is not yet integrated.", "content", "Mods", "Preview", "Depends on Minecraft version and loader", "Varies by creator", null, "preview", false),
-    StoreFeature("resource-packs", "Resource Packs", "Change textures and sounds.", "Content packages can only be downloaded after a real HTTPS package URL is published. Game-folder integration is not yet implemented.", "content", "Resource Packs", "Preview", "Depends on Minecraft version", "Varies by creator", null, "preview", false),
-    StoreFeature("shader-packs", "Shader Packs", "Explore visual enhancements.", "Content packages can only be downloaded after a real HTTPS package URL is published. Renderer compatibility is not verified.", "content", "Shaders", "Preview", "Depends on renderer and device", "Varies by creator", null, "preview", false),
-    StoreFeature("maps-worlds", "Maps & Worlds", "Discover community-made worlds.", "Content packages can only be downloaded after a real HTTPS package URL is published. Safe world import is not yet integrated.", "content", "Worlds", "Preview", "Depends on Minecraft version", "Varies by creator", null, "preview", false)
-)
+private fun defaultCatalog() = emptyList<StoreFeature>()
 
 private fun parseCatalog(body: String): List<StoreFeature> {
     val root = JSONObject(body)
@@ -494,7 +480,7 @@ private fun StoreHeader(onBack: () -> Unit, onRefresh: () -> Unit, isRefreshing:
             OutlinedButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, contentDescription = null); Text(" Back") }
             Column(Modifier.weight(1f)) {
                 Text("FEATURE STORE", fontWeight = FontWeight.Black, letterSpacing = 1.4.sp)
-                Text("Old listings + new community releases", color = VoidMuted, fontSize = 11.sp)
+                Text("Only features published in the catalog appear here", color = VoidMuted, fontSize = 11.sp)
             }
             OutlinedButton(onClick = onRefresh, enabled = !isRefreshing) {
                 if (isRefreshing) CircularProgressIndicator(Modifier.height(16.dp), strokeWidth = 2.dp)
@@ -510,6 +496,14 @@ private fun StoreScreen(features: List<StoreFeature>, installedIds: Set<String>,
     Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
         Text("Discover features", fontSize = 27.sp, fontWeight = FontWeight.ExtraBold)
         Text("Nothing installs automatically. Open a listing to review availability, compatibility, and license.", color = VoidMuted, fontSize = 13.sp, lineHeight = 19.sp)
+        if (features.isEmpty()) {
+            Card(shape = RoundedCornerShape(18.dp), colors = CardDefaults.cardColors(containerColor = VoidSurface)) {
+                Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("No features added yet", fontWeight = FontWeight.Bold, fontSize = 17.sp)
+                    Text("When you add a feature to store/catalog.json on the repository, it will appear here after you refresh the Store.", color = VoidMuted, fontSize = 13.sp, lineHeight = 19.sp)
+                }
+            }
+        }
         val groups = features.groupBy { it.category }
         groups.forEach { (category, entries) ->
             Text(category.uppercase(), fontSize = 11.sp, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold, letterSpacing = 1.3.sp)
@@ -542,7 +536,7 @@ private fun StoreScreen(features: List<StoreFeature>, installedIds: Set<String>,
                 }
             }
         }
-        Text("Catalog refreshes from the repository when online. If refresh fails, bundled listings remain visible.", color = VoidMuted, fontSize = 11.sp, lineHeight = 16.sp)
+        Text("Only repository catalog entries are shown. If online refresh fails, the last loaded catalog remains visible.", color = VoidMuted, fontSize = 11.sp, lineHeight = 16.sp)
     }
 }
 
