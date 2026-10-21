@@ -221,13 +221,15 @@ class SocialChatActivity : Activity() {
                     15,
                     if (isMine) null else border
                 )
-                maximumWidth = dp(280)
             }
             if (!isMine) {
                 bubble.addView(label("@" + (message.senderUsername.ifBlank { peerUsername }), 10, mint, true))
                 bubble.addView(space(3))
             }
-            bubble.addView(label(message.body, 14, primaryText, false))
+            val messageBody = label(message.body, 14, primaryText, false).apply {
+                maxWidth = dp(280)
+            }
+            bubble.addView(messageBody)
             bubble.addView(space(4))
             bubble.addView(label(formatTime(message.createdAt), 9, secondaryText, false).apply {
                 gravity = if (isMine) Gravity.END else Gravity.START
@@ -235,7 +237,6 @@ class SocialChatActivity : Activity() {
             row.addView(bubble, LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT
             ).apply {
-                maxWidth = dp(300)
                 if (isMine) marginStart = dp(30) else marginEnd = dp(30)
             })
             messagesColumn.addView(row)
