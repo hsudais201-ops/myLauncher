@@ -57,6 +57,20 @@
       "packageUrl": null,
       "availability": "available",
       "builtIn": true
+    },
+    {
+      "id": "cosmetic-store",
+      "name": "Cosmetic Store",
+      "tagline": "Browse original profile effects and equip a local launcher cosmetic.",
+      "description": "Optional built-in cosmetic wardrobe with Void Aura, Neon Mint, Arctic Ice, and Solar Ember. Select and unequip a cosmetic; the choice is saved locally on this device and displayed in the VoidCraft launcher profile preview. This does not alter Minecraft skins, game files, or multiplayer appearance.",
+      "kind": "launcher",
+      "category": "Personalization",
+      "version": "1.0",
+      "compatibility": "VoidCraft Android beta; launcher profile preview only",
+      "license": "VoidCraft",
+      "packageUrl": null,
+      "availability": "available",
+      "builtIn": true
     }
   ]
 }
