@@ -369,6 +369,7 @@ async function route(request, env) {
     return json({ user: { ...safeUser(user), email: String(user.email) } });
   }
   if (path === "/api/profile" && method === "PATCH") {
+    await enforceRateLimit(request, env, "profile-update", String(userId), 20, 60 * 1000);
     const body = await readJson(request);
     const updates = [];
     const params = [];
@@ -393,6 +394,7 @@ async function route(request, env) {
   }
 
   if (path === "/api/players" && method === "GET") {
+    await enforceRateLimit(request, env, "player-search", String(userId), 60, 60 * 1000);
     const query = cleanText(url.searchParams.get("q"), 20);
     if (!/^[A-Za-z0-9_]{3,20}$/.test(query)) fail(400, "Search with 3–20 letters, numbers, or underscores.");
     const players = await env.DB.prepare(
@@ -524,6 +526,7 @@ async function route(request, env) {
     await requireOtherUser(env, peerId, userId);
     await requireFriendConversation(env, userId, peerId);
     if (method === "GET") {
+      await enforceRateLimit(request, env, "message-read", String(userId), 120, 60 * 1000);
       const rawBefore = url.searchParams.get("before");
       const before = rawBefore === null ? null : Number(rawBefore);
       if (before !== null && (!Number.isSafeInteger(before) || before < 1)) fail(400, "Invalid message cursor.");
@@ -573,6 +576,7 @@ async function route(request, env) {
 
   const blockMatch = /^\/api\/blocks\/([0-9]+)$/.exec(path);
   if (blockMatch && method === "POST") {
+    await enforceRateLimit(request, env, "block-player", String(userId), 30, 60 * 60 * 1000);
     const blockedId = Number(blockMatch[1]);
     await requireOtherUser(env, blockedId, userId);
     const now = Date.now();
