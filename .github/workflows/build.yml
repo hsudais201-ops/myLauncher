@@ -39,7 +39,7 @@ jobs:
           python3 -m py_compile .github/scripts/customize_mojo.py .github/scripts/test_mojo_customizer.py
           sh -n .github/scripts/prepare_emulator_kvm.sh
           bash -n .github/scripts/mojo_emulator_smoke_test.sh
-          python3 -m unittest .github/scripts/test_mojo_customizer.py -v
+          python3 -m unittest discover -s .github/scripts -p 'test_mojo_customizer.py' -v
           python3 -m unittest discover -s .github/scripts -p 'test_*.py' -v
 
       - name: Set up Java
