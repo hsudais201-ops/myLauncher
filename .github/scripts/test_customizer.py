@@ -1577,7 +1577,7 @@ class BuildWorkflowTests(unittest.TestCase):
         self.assertIn('adb install -r "$APK_PATH"', self.smoke_script)
         self.assertIn('PACKAGE_ID="com.mf.mylauncher.debug"', self.smoke_script)
         self.assertIn("adb exec-out screencap -p", self.smoke_script)
-        self.assertIn("MOJO VOIDCRAFT APK SMOKE TEST PASSED", self.smoke_script)
+        self.assertIn("MOJO VOIDCRAFT HOME SMOKE TEST PASSED", self.smoke_script)
         self.assertIn("This test does not establish that Minecraft entered a world.", self.smoke_script)
         self.assertIn("upstream/voidcraft-mojo-emulator-screenshot.png", self.workflow)
         self.assertIn("upstream/voidcraft-mojo-emulator-logcat.txt", self.workflow)
