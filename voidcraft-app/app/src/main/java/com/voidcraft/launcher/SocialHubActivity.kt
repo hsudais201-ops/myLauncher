@@ -1,6 +1,7 @@
 package com.voidcraft.launcher
 
 import android.app.Activity
+import android.app.AlertDialog
 import android.content.Intent
 import android.graphics.Color
 import android.graphics.Typeface
@@ -83,9 +84,10 @@ class SocialHubActivity : Activity() {
             notice("Chat is not live yet. Sign-in alone is not enough; a secure messaging service is required.")
         })
         page.addView(space(10))
+        val localName = localDisplayName()
         page.addView(infoCard(
-            "◈", "Player profile", "Your public display name and privacy settings will live here when account services are ready.",
-            "LOCAL PREVIEW", mint
+            "◈", "Player profile", "Local display name: $localName. This is not an online Minecraft identity.",
+            "LOCAL PROFILE", mint
         ) {
             startActivity(Intent(this, AccountActivity::class.java))
         })
@@ -102,6 +104,8 @@ class SocialHubActivity : Activity() {
             "Join discussion ↗"
         ) { openDiscord() })
         page.addView(space(18))
+        page.addView(safetyCard())
+        page.addView(space(10))
         page.addView(privacyNote())
         root.addView(LauncherNavigationBar.create(this, "Social"))
         return root
@@ -165,6 +169,20 @@ class SocialHubActivity : Activity() {
             setOnClickListener { openDiscord() }
         }
         panel.addView(button)
+        panel.addView(space(9))
+        val shareButton = TextView(this).apply {
+            text = "Share community invite"
+            textSize = 13f
+            typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+            setTextColor(textMain)
+            gravity = Gravity.CENTER
+            setPadding(dp(12), dp(12), dp(12), dp(12))
+            background = rounded(Color.rgb(28, 39, 60), 14, border)
+            isClickable = true
+            isFocusable = true
+            setOnClickListener { shareDiscordInvite() }
+        }
+        panel.addView(shareButton)
         panel.addView(space(8))
         panel.addView(label("Invite: discord.gg/FM6myW8ZFb", 11, textMuted, false))
         return panel
@@ -227,6 +245,46 @@ class SocialHubActivity : Activity() {
         box.isFocusable = true
         box.setOnClickListener { action() }
         return box
+    }
+
+    private fun safetyCard(): View {
+        val box = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(14), dp(13), dp(14), dp(13))
+            background = rounded(surface, 14, border)
+            isClickable = true
+            isFocusable = true
+            setOnClickListener { showSafetyGuidelines() }
+        }
+        box.addView(label("COMMUNITY SAFETY  ›", 11, accent, true))
+        box.addView(space(6))
+        box.addView(label("Be respectful. Protect personal information. Report suspicious links or harassment to community moderators.", 12, textMuted, false))
+        return box
+    }
+
+    private fun showSafetyGuidelines() {
+        AlertDialog.Builder(this)
+            .setTitle("VoidCraft community safety")
+            .setMessage("• Never share passwords, recovery codes, or private account tokens.\\n\\n• Treat unknown downloads and links carefully.\\n\\n• Do not post private information about yourself or other players.\\n\\n• Use Discord reporting and moderator tools for harassment or suspicious activity.\\n\\nIn-app blocking and reporting are not available until the launcher social backend exists.")
+            .setPositiveButton("Got it", null)
+            .show()
+    }
+
+    private fun localDisplayName(): String = getSharedPreferences(
+        LauncherPreferences.PREFS_NAME, MODE_PRIVATE
+    ).getString("launcher_display_name", "Player")?.trim()?.takeIf { it.isNotEmpty() } ?: "Player"
+
+    private fun shareDiscordInvite() {
+        val send = Intent(Intent.ACTION_SEND).apply {
+            type = "text/plain"
+            putExtra(Intent.EXTRA_SUBJECT, "Join VoidCraft Community")
+            putExtra(Intent.EXTRA_TEXT, "Join the VoidCraft community for launcher updates, support, and feature ideas: $discordInvite")
+        }
+        try {
+            startActivity(Intent.createChooser(send, "Share VoidCraft Discord"))
+        } catch (_: Exception) {
+            notice("Could not open the share menu. Invite: $discordInvite")
+        }
     }
 
     private fun privacyNote(): View {
