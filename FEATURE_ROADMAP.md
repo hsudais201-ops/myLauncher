@@ -1,13 +1,12 @@
 # VoidCraft Launcher feature scope and delivery tracker
-# VoidCraft Launcher feature scope and delivery tracker
 
 **Owner / developer:** MF
 
 ## Current upstream migration status (2026-10-21)
 
-The active migration branch switches the APK build from the pinned Amethyst-Android checkout to MojoLauncher (LGPL-3.0), branch `v3_openjdk`, commit `8ffba8f4ea0b9466854aa9f7a375c77b4fb96bdd`. The active build pipeline and branding customizer now target MojoLauncher's `app_mojo` module. This is still an in-progress migration until GitHub Actions builds the APK and passes package validation plus the Android emulator launch check.
+The active migration branch switches the APK build from the pinned Amethyst-Android checkout to MojoLauncher (LGPL-3.0), branch `v3_openjdk`, commit `8ffba8f4ea0b9466854aa9f7a375c77b4fb96bdd`. The active build pipeline and branding/UI customizers target MojoLauncher's `app_mojo` module. CI run [#39622376823](https://github.com/hsudais201-ops/myLauncher/actions/runs/39622376823) passed the full debug build, package/signature/minimum-SDK validation, and Android 9/API 28 emulator install/launch smoke test. That run used commit `c0fd0dc5ffe2f544f558183c46ed30150f166908`; a follow-up layout-anchor matcher hardening commit was added afterward and is subject to its own CI validation.
 
-This first layer deliberately changes only the app ID/provider authorities, visible app/crash labels, version prefix, and night-violet palette. It does not yet port the previous Amethyst-specific VoidCraft enhancements. In particular, prior UI/folder utilities, world backup screens, settings import/export, Performance Advisor, Feature Store, social/server-status add-ons, and previous launch-smoke UI automation need explicit adaptation and acceptance tests against Mojo before being marked available. Do not delete or overwrite user worlds/configuration during migration.
+This first layer changes only the app ID/provider authorities, visible app/crash labels, version prefix, night-violet palette, original VC monogram icon, and a native VoidCraft hero panel on the Mojo home screen. It does not yet port the previous Amethyst-specific VoidCraft enhancements. In particular, prior UI/folder utilities, world backup screens, settings import/export, Performance Advisor, Feature Store, social/server-status add-ons, and previous launch-smoke UI automation need explicit adaptation and acceptance tests against Mojo before being marked available. Do not delete or overwrite user worlds/configuration during migration.
 
 ## Historical Amethyst source audit (not current evidence for the Mojo migration)
 
