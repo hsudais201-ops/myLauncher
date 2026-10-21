@@ -55,7 +55,7 @@ For a separate or newly created authentication database, apply `migrations/0002_
 ## Social Hub integration (migration required)
 
 - `social.html` is the website-account-based Social Hub UI. It checks the existing `/api/auth/me` session; it does not register a second Social Hub account or store credentials in browser storage.
-- `functions/api/social/[[path]].js` uses the existing `VOIDCRAFT_AUTH` D1 binding and existing website session cookie. It provides player search, friend requests, accepted-friend private text messages, blocking, reports, and owner/moderator report review.
+- `functions/api/social/[[path]].js` uses the existing `VOIDCRAFT_AUTH` D1 binding and existing website session cookie. It provides player search, incoming/outgoing friend requests, accepted-friend private text messages, blocking/unblocking, reports, and owner-only report review.
 - Before using these routes, apply `migrations/0005_social_hub.sql` to the same `voidcraft-auth` database. This creates only social tables and references the existing `users` table. Do not deploy the social routes without the migration.
 - Verify the migration on a preview first. Test two ordinary website accounts end-to-end: session reuse, friend request/accept, message persistence, blocking, report submission, and non-moderator rejection from moderation endpoints. Owner/moderator privileges must come only from the server-side `users.role` field.
 - This source change does not itself apply the D1 migration or publish production. Do not advertise Social Hub as live until migration and production smoke tests pass.
