@@ -71,28 +71,37 @@ class SocialHubActivity : Activity() {
         page.addView(space(18))
         page.addView(communityHero())
         page.addView(space(22))
-        page.addView(sectionTitle("YOUR SOCIAL SPACE", "Account-aware"))
+        val accountConnected = SocialApiClient(applicationContext).isSignedIn
+        page.addView(infoCard(
+            "VC", "VoidCraft account",
+            if (accountConnected) "A saved VoidCraft session is available on this device." else "Sign in with your website account to use friends and private messages.",
+            if (accountConnected) "SESSION SAVED" else "SIGN-IN REQUIRED",
+            if (accountConnected) mint else accent
+        ) {
+            startActivityForResult(Intent(this, VoidCraftAccountActivity::class.java), REQUEST_VOIDCRAFT_ACCOUNT)
+        })
+        page.addView(space(22))
+        page.addView(sectionTitle("YOUR SOCIAL SPACE", "Your account"))
         page.addView(space(10))
         page.addView(infoCard(
-            "♙", "Friends & requests", "Find players, accept or decline requests, and manage your list.",
-            "BACKEND NOT CONNECTED", accent
+            "♙", "Friends & requests", "Search players, send requests, and manage accepted friends.",
+            if (accountConnected) "OPEN FRIENDS" else "SIGN-IN REQUIRED", accent
         ) {
-            notice("Friends are not connected yet. No fake users or friend requests have been created.")
+            startActivityForResult(Intent(this, SocialFriendsActivity::class.java), REQUEST_VOIDCRAFT_ACCOUNT)
         })
         page.addView(space(10))
         page.addView(infoCard(
-            "✉", "Private messages", "A private inbox with block, report, and message controls is planned.",
-            "NOT AVAILABLE YET", textMuted
+            "✉", "Private messages", "Chat privately with accepted VoidCraft friends. Discord is not used for these messages.",
+            if (accountConnected) "OPEN INBOX" else "SIGN-IN REQUIRED", if (accountConnected) mint else textMuted
         ) {
-            notice("Chat is not live yet. Sign-in alone is not enough; a secure messaging service is required.")
+            startActivityForResult(Intent(this, SocialFriendsActivity::class.java), REQUEST_VOIDCRAFT_ACCOUNT)
         })
         page.addView(space(10))
-        val localName = localDisplayName()
         page.addView(infoCard(
-            "◈", "Player profile", "Local display name: $localName. This is not an online Minecraft identity.",
-            "LOCAL PROFILE", mint
+            "◈", "Player profile", "Edit your shared VoidCraft display name and short bio.",
+            if (accountConnected) "ONLINE PROFILE" else "LOCAL ONLY", mint
         ) {
-            startActivity(Intent(this, AccountActivity::class.java))
+            startActivityForResult(Intent(this, VoidCraftAccountActivity::class.java), REQUEST_VOIDCRAFT_ACCOUNT)
         })
         page.addView(space(22))
         page.addView(sectionTitle("COMMUNITY LINKS", "Open"))
@@ -155,7 +164,7 @@ class SocialHubActivity : Activity() {
         panel.addView(label("Your next world starts with a community.", 22, textMain, true))
         panel.addView(space(8))
         panel.addView(label(
-            "Get support, share ideas, report bugs, and follow VoidCraft updates on Discord.",
+            "Use Discord for community support and announcements. VoidCraft friends and private messages live separately inside the launcher.",
             13, textMuted, false
         ))
         panel.addView(space(16))
@@ -324,7 +333,7 @@ class SocialHubActivity : Activity() {
         box.addView(label("PRIVACY FIRST", 10, mint, true))
         box.addView(space(6))
         box.addView(label(
-            "Friends and direct messages are not active yet. VoidCraft will need secure sign-in, server-side access checks, block/report tools, and privacy controls before real social data is enabled.",
+            "The launcher now includes the client and screens for server-backed VoidCraft accounts, friends, and private messages. The shared API still needs to be deployed and connected to the website before sign-in or chat will work. No sample users or fake conversations are shown.",
             12, textMuted, false
         ))
         return box
@@ -387,4 +396,13 @@ class SocialHubActivity : Activity() {
     private fun dp(value: Int): Int = (value * resources.displayMetrics.density).toInt()
 
     private fun notice(message: String) = Toast.makeText(this, message, Toast.LENGTH_LONG).show()
+ 
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode == REQUEST_VOIDCRAFT_ACCOUNT && resultCode == RESULT_OK) recreate()
+    }
+
+    companion object {
+        private const val REQUEST_VOIDCRAFT_ACCOUNT = 219
+    }
 }
