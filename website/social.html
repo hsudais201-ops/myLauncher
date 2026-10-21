@@ -126,12 +126,18 @@ async function openChat(p) {
   await loadMessages();
 }
 async function loadMessages() {
-  if(!selected)return;
-  try { const data=await api("conversations/"+encodeURIComponent(selected.id)+"/messages?limit=60"); const box=$("messages");box.replaceChildren();
+  const conversation = selected;
+  if(!conversation)return;
+  try { const data=await api("conversations/"+encodeURIComponent(conversation.id)+"/messages?limit=60");
+    // A slow response from the previously selected friend must not overwrite the new chat.
+    if(!selected || String(selected.id)!==String(conversation.id))return;
+    const box=$("messages");box.replaceChildren();
     if(!(data.messages||[]).length) empty(box,"No messages yet. Say hello!");
     for(const m of data.messages||[]){const el=document.createElement("div");el.className="social-message"+(String(m.senderId)===String(me.id)?" mine":"");el.textContent=m.content;const time=document.createElement("small");time.textContent=new Date(m.createdAt).toLocaleString();el.append(time);box.append(el);}
     box.scrollTop=box.scrollHeight;
-  } catch(e) { empty($("messages"),e.message); }
+  } catch(e) {
+    if(selected && String(selected.id)===String(conversation.id)) empty($("messages"),e.message);
+  }
 }
 $("search-form").addEventListener("submit",async e=>{e.preventDefault();const q=$("player-query").value.trim();if(q.length<2)return;const box=$("search-results");empty(box,"Searching…");try{const data=await api("players?q="+encodeURIComponent(q));box.replaceChildren();if(!data.players.length)empty(box,"No players found.");for(const p of data.players){const b=personButton(p,"Send friend request",async()=>{try{await api("friends/requests",{method:"POST",body:{username:p.username}});status("Friend request sent to @"+p.username+".","success");b.querySelector("button").disabled=true;}catch(err){status(err.message,"error");}});box.append(b);}}catch(err){status(err.message,"error");}});
 $("message-form").addEventListener("submit",async e=>{e.preventDefault();if(!selected)return;const content=$("message-input").value.trim();if(!content)return;$("send-message").disabled=true;try{await api("conversations/"+encodeURIComponent(selected.id)+"/messages",{method:"POST",body:{content}});$("message-input").value="";await loadMessages();status("Message sent.","success");}catch(err){status(err.message,"error");}finally{$("send-message").disabled=false;}});
