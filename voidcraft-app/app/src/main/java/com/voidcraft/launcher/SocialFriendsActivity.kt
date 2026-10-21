@@ -54,7 +54,7 @@ class SocialFriendsActivity : Activity() {
     private fun buildScreen(): View {
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setBackgroundColor(background)
+            setBackgroundColor(this@SocialFriendsActivity@this.background)
         }
         val scroll = ScrollView(this).apply { clipToPadding = false }
         val page = LinearLayout(this).apply {
