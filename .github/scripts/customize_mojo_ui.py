@@ -93,7 +93,7 @@ def patch_upstream(root: Path) -> None:
         if not path.is_file():
             raise FileNotFoundError(f"Expected Mojo launcher UI resource is missing: {path}")
     layout = layout_path.read_text(encoding="utf-8")
-    news_pattern = re.compile(r'<com\\.kdt\\.mcgui\\.LauncherMenuButton\\b(?=[^>]*android:id="@\\+id/news_button")[^>]*/>', re.DOTALL)
+    news_pattern = re.compile(r'<com\.kdt\.mcgui\.LauncherMenuButton\b(?=[^>]*android:id="@\+id/news_button")[^>]*/>', re.DOTALL)
     if '@+id/voidcraft_hero' not in layout:
         match = news_pattern.search(layout)
         if not match:
