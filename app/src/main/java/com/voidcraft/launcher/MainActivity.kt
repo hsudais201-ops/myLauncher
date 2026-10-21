@@ -139,6 +139,7 @@ private fun VoidcraftApp() {
     var isRefreshing by remember { mutableStateOf(false) }
     var selectedFeature by remember { mutableStateOf<StoreFeature?>(null) }
     var socialHubOpen by remember { mutableStateOf(false) }
+    var serverStateOpen by remember { mutableStateOf(false) }
     var activeConversation by remember { mutableStateOf<String?>(null) }
     var socialFriends by remember { mutableStateOf<List<String>>(prefs.getStringSet(SOCIAL_FRIENDS, emptySet<String>())?.toList()?.sorted() ?: emptyList<String>()) }
     var socialMessages by remember { mutableStateOf(loadSocialMessages(prefs.getString(SOCIAL_MESSAGES, "{}") ?: "{}")) }
@@ -246,7 +247,7 @@ private fun VoidcraftApp() {
                 LauncherTab.entries.forEachIndexed { index, tab ->
                     NavigationBarItem(
                         selected = !storeOpen && selectedTab == index,
-                        onClick = { storeOpen = false; selectedFeature = null; selectedTab = index },
+                        onClick = { storeOpen = false; selectedFeature = null; serverStateOpen = false; selectedTab = index },
                         icon = { Icon(tab.icon, contentDescription = tab.label) },
                         label = { Text(tab.label) }
                     )
@@ -535,8 +536,14 @@ private fun VoidcraftApp() {
                             } else if (feature.id == "advanced-mod-manager") {
                                 selectedFeature = null
                                 socialHubOpen = false
+                                serverStateOpen = false
                                 storeOpen = false
                                 selectedTab = 2
+                            } else if (feature.id == "server-state") {
+                                selectedFeature = null
+                                socialHubOpen = false
+                                storeOpen = false
+                                serverStateOpen = true
                             } else if (feature.id == "theme-neon-night" || feature.id == "theme-void-minimal") {
                                 activeTheme = feature.id
                                 prefs.edit().putString("active_theme", activeTheme).apply()
@@ -555,6 +562,8 @@ private fun VoidcraftApp() {
                         onSelect = { selectedFeature = it }
                     )
                 }
+            } else if (serverStateOpen) {
+                ServerStateScreen(onBack = { serverStateOpen = false })
             } else {
                 Header()
                 Spacer(Modifier.height(24.dp))
