@@ -119,6 +119,28 @@
         <button id="logout" class="subtle" type="button">Sign out</button>
       </div>
 
+      <section id="moderation-panel" class="card hidden" style="margin-bottom:16px">
+        <div class="row spread">
+          <div>
+            <div class="eyebrow">Staff tools</div>
+            <h2 style="margin:4px 0 0">Report moderation</h2>
+            <p class="small">Only server-assigned moderators and owners can access this queue.</p>
+          </div>
+          <button id="refresh-reports" class="subtle" type="button">Refresh queue</button>
+        </div>
+        <div class="row" style="margin:12px 0">
+          <label for="moderation-status">Filter reports</label>
+          <select id="moderation-status">
+            <option value="">All statuses</option>
+            <option value="open">Open</option>
+            <option value="reviewing">Reviewing</option>
+            <option value="resolved">Resolved</option>
+            <option value="dismissed">Dismissed</option>
+          </select>
+        </div>
+        <div id="moderation-reports" class="list"><div class="empty">Report queue not loaded.</div></div>
+      </section>
+
       <div class="grid">
         <div class="stack">
           <section class="card">
@@ -243,6 +265,8 @@
       $("current-user").textContent = (user.displayName || user.username) + "  @" + user.username;
       $("current-role").textContent = user.role === "owner" ? "Owner account" :
         (user.role === "moderator" ? "Community moderator" : "VoidCraft member");
+      const canModerate = user.role === "owner" || user.role === "moderator";
+      $("moderation-panel").classList.toggle("hidden", !canModerate);
       $("display-name").value = user.displayName || user.username;
       $("bio").value = user.bio || "";
       if (pollTimer) clearInterval(pollTimer);
@@ -267,6 +291,44 @@
       renderFriends(results[0].friends || []);
       renderRequests(results[1].requests || []);
       renderConversations(results[2].conversations || []);
+      if (currentUser && ["owner", "moderator"].includes(currentUser.role)) {
+        await refreshModerationQueue();
+      }
+    }
+
+    async function refreshModerationQueue() {
+      if (!currentUser || !["owner", "moderator"].includes(currentUser.role)) return;
+      const status = $("moderation-status").value;
+      const result = await api.moderationReports({ status, limit: 100 });
+      const nodes = (result.reports || []).map((report) => {
+        const card = el("div", "", "item");
+        card.append(el("div", "#" + report.id + " · " + report.category + " · " + report.status.toUpperCase()));
+        card.append(el("p", "From @" + report.reporterUsername + " about @" + report.targetUsername, "small"));
+        card.append(el("p", report.details || "No additional details supplied.", "small"));
+        card.append(el("p", "Submitted " + new Date(report.createdAt).toLocaleString(), "small"));
+        const controls = el("div", "", "row");
+        controls.style.marginTop = "8px";
+        const statusSelect = document.createElement("select");
+        statusSelect.setAttribute("aria-label", "New status for report #" + report.id);
+        for (const [value, label] of [["open", "Open"], ["reviewing", "Reviewing"], ["resolved", "Resolved"], ["dismissed", "Dismissed"]]) {
+          const option = document.createElement("option");
+          option.value = value;
+          option.textContent = label;
+          option.selected = value === report.status;
+          statusSelect.append(option);
+        }
+        controls.append(statusSelect);
+        controls.append(button("Save status", async () => {
+          try {
+            await api.updateReportStatus(report.id, statusSelect.value);
+            await refreshModerationQueue();
+            announce("Report #" + report.id + " updated.", "success");
+          } catch (error) { announce(error.message, "error"); }
+        }, "primary"));
+        card.append(controls);
+        return card;
+      });
+      replaceList("moderation-reports", nodes, "No reports match this filter.");
     }
 
     function renderFriends(friends) {
@@ -490,6 +552,13 @@
         await refreshSocial();
         announce("Player blocked.", "success");
       } catch (error) { announce(error.message, "error"); }
+    });
+
+    $("refresh-reports").addEventListener("click", () => {
+      refreshModerationQueue().catch((error) => announce(error.message, "error"));
+    });
+    $("moderation-status").addEventListener("change", () => {
+      refreshModerationQueue().catch((error) => announce(error.message, "error"));
     });
 
     $("report-player").addEventListener("click", async () => {
