@@ -211,6 +211,20 @@ test("blocking invalidates incoming and outgoing requests in the correct directi
   assert.equal(blockedRequest.status, 403);
 });
 
+test("report submission validates category and target and enters the owner review queue", async () => {
+  const selfReport = await call("reports", { as: "alice", method: "POST", body: { targetUserId: "u-alice", category: "spam", details: "self" } });
+  assert.equal(selfReport.status, 400);
+  const invalidCategory = await call("reports", { as: "alice", method: "POST", body: { targetUserId: "u-bob", category: "ban-everyone", details: "invalid category" } });
+  assert.equal(invalidCategory.status, 400);
+  const submitted = await call("reports", { as: "alice", method: "POST", body: { targetUserId: "u-bob", category: "harassment", details: "Please review this report." } });
+  assert.equal(submitted.status, 201);
+  const memberQueue = await call("moderation/reports?status=open", { as: "alice" });
+  assert.equal(memberQueue.status, 403);
+  const ownerQueue = await call("moderation/reports?status=open", { as: "owner" });
+  assert.equal(ownerQueue.status, 200);
+  assert.ok(ownerQueue.data.reports.some((report) => report.id === submitted.data.report.id && report.reporter === "alice" && report.target === "bob"));
+});
+
 test("owner moderation works while ordinary users are denied", async () => {
   const report = await call("reports", { as: "alice", method: "POST", body: { targetUserId: "u-bob", category: "spam", details: "Test report details" } });
   assert.equal(report.status, 201);
