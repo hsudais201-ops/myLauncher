@@ -54,7 +54,7 @@ CREATE TABLE IF NOT EXISTS social_reports (
   details TEXT NOT NULL DEFAULT '',
   status TEXT NOT NULL DEFAULT 'open' CHECK (status IN ('open','reviewed','dismissed')),
   created_at INTEGER NOT NULL,
-  reviewed_by TEXT REFERENCES users(id),
+  reviewed_by TEXT REFERENCES users(id) ON DELETE SET NULL,
   reviewed_at INTEGER,
   CHECK (reporter_id <> target_user_id)
 );
