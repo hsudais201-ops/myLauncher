@@ -354,6 +354,47 @@ test("website and launcher accounts share real friend requests, private messages
     });
     assert.equal(blockedMessage.status, 403);
 
+    const reportCreated = await request("/reports", {
+      method: "POST",
+      cookie: firstCookie,
+      body: {
+        targetUserId: secondId,
+        category: "spam",
+        details: "Automated test report for moderation queue."
+      }
+    });
+    assert.equal(reportCreated.status, 201);
+    const reportId = (await reportCreated.json()).reportId;
+
+    const deniedQueue = await request("/moderation/reports", { token: secondToken });
+    assert.equal(deniedQueue.status, 403, "ordinary members must not read the moderation queue");
+
+    fixture.sqlite.prepare("UPDATE users SET role = 'moderator' WHERE id = ?").run(secondId);
+    const queue = await request("/moderation/reports?status=open", { token: secondToken });
+    assert.equal(queue.status, 200);
+    const queuedReports = (await queue.json()).reports;
+    assert.equal(queuedReports.length, 1);
+    assert.equal(queuedReports[0].id, reportId);
+    assert.equal(queuedReports[0].reporterUsername, "mflegend");
+    assert.equal(queuedReports[0].targetUsername, "friend_test");
+
+    const invalidStatus = await request("/moderation/reports/" + reportId, {
+      method: "PATCH",
+      token: secondToken,
+      body: { status: "delete-user" }
+    });
+    assert.equal(invalidStatus.status, 400);
+
+    const resolved = await request("/moderation/reports/" + reportId, {
+      method: "PATCH",
+      token: secondToken,
+      body: { status: "resolved" }
+    });
+    assert.equal(resolved.status, 200);
+    assert.equal((await resolved.json()).status, "resolved");
+    const resolvedQueue = await request("/moderation/reports?status=resolved", { token: secondToken });
+    assert.equal((await resolvedQueue.json()).reports.length, 1);
+
     const logout = await request("/auth/logout", {
       method: "POST",
       cookie: firstCookie,
