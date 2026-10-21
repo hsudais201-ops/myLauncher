@@ -308,13 +308,18 @@ class SocialHubApiContractTests(unittest.TestCase):
             )
 
     def test_blocking_invalidates_pending_requests_in_both_directions(self):
-        self.db.executemany(
+        # The unique unordered-pair index intentionally prevents two opposite
+        # pending requests at once. Model each valid request state in sequence.
+        self.db.execute(
             "INSERT INTO social_friend_requests(id,sender_id,recipient_id,status,created_at) "
-            "VALUES(?,?,?,'pending',?)",
-            [
-                ("outgoing", "u1", "u2", 1),
-                ("incoming", "u2", "u1", 2),
-            ],
+            "VALUES('outgoing','u1','u2','pending',1)"
+        )
+        self.db.execute(
+            "UPDATE social_friend_requests SET status='cancelled' WHERE id='outgoing'"
+        )
+        self.db.execute(
+            "INSERT INTO social_friend_requests(id,sender_id,recipient_id,status,created_at) "
+            "VALUES('incoming','u2','u1','pending',2)"
         )
         # Mirror the status transition used by the blocking API.
         self.db.execute(
