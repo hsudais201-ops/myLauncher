@@ -240,6 +240,12 @@ class FeatureStoreActivity : Activity() {
                     ))
                     return@setOnClickListener
                 }
+                if (feature.id == "instance-notes" && installed) {
+                    startActivity(android.content.Intent(
+                        this@FeatureStoreActivity, InstanceNotesActivity::class.java
+                    ))
+                    return@setOnClickListener
+                }
                 if (installable && !installed) {
                     android.app.AlertDialog.Builder(this@FeatureStoreActivity)
                         .setTitle("Install ${feature.name}?")
