@@ -117,6 +117,19 @@ export class VoidCraftSocialApi {
     });
   }
 
+  async moderationReports({ status, limit = 50 } = {}) {
+    const query = new URLSearchParams({ limit: String(limit) });
+    if (status) query.set("status", status);
+    return this.request("/moderation/reports?" + query.toString());
+  }
+
+  async updateReportStatus(reportId, status) {
+    return this.request("/moderation/reports/" + encodeURIComponent(reportId), {
+      method: "PATCH",
+      body: { status }
+    });
+  }
+
   async request(path, { method = "GET", body } = {}) {
     if (!path.startsWith("/") || path.startsWith("//") || path.includes("..")) {
       throw new Error("Invalid VoidCraft API path.");
