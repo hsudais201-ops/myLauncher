@@ -12,6 +12,8 @@ The proxy keeps the incoming request method, JSON body, headers, cookies, query 
 
 ## Website client rules
 
+The ready-to-copy browser API client is in website-integration/social-api.js. Import it from the website's module script, create one VoidCraftSocialApi instance, and call its methods below. It uses the same-origin Pages routes and never stores browser session tokens in localStorage.
+
 - Use POST /api/auth/register with JSON fields email, username, and password.
 - Use POST /api/auth/login and POST /api/auth/logout for browser sessions. Let the HttpOnly cookie be managed by the browser; do not put the session into localStorage.
 - Use GET /api/auth/me on page load to determine the signed-in account. HTTP 401 means signed out; 503 means the API is not configured. Do not replace these messages with a fake success state.
