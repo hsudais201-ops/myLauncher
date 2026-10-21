@@ -69,6 +69,13 @@ class CustomFeatureStudioActivity : Activity() {
             setPadding(dp(15), dp(16), dp(15), dp(16))
             background = rounded(panel, 14)
         })
+        page.addView(space(8))
+        page.addView(actionText("⇧  Import shared blueprint JSON", 13, accent, true) {
+            showImportDialog()
+        }.apply {
+            setPadding(dp(15), dp(13), dp(15), dp(13))
+            background = rounded(surface, 12)
+        })
         page.addView(space(20))
         page.addView(text("YOUR BLUEPRINTS", 17, fg, true))
         page.addView(space(8))
@@ -171,6 +178,97 @@ class CustomFeatureStudioActivity : Activity() {
             list.addView(card)
             list.addView(space(10))
         }
+    }
+
+
+    /**
+     * Imports only the documented JSON blueprint envelope. IDs and status
+     * supplied by another device are ignored, and imported data is never code.
+     */
+    private fun showImportDialog() {
+        val input = EditText(this).apply {
+            hint = "Paste shared VoidCraft blueprint JSON"
+            textSize = 13f
+            setTextColor(fg)
+            setHintTextColor(muted)
+            inputType = InputType.TYPE_CLASS_TEXT or
+                InputType.TYPE_TEXT_FLAG_MULTI_LINE or
+                InputType.TYPE_TEXT_FLAG_CAP_SENTENCES
+            minLines = 8
+            maxLines = 12
+            setPadding(dp(12), dp(10), dp(12), dp(10))
+            background = rounded(panel, 10)
+        }
+        AlertDialog.Builder(this)
+            .setTitle("Import blueprint")
+            .setMessage("Paste JSON exported by VoidCraft. The import is a design draft only; it cannot install or run code.")
+            .setView(input)
+            .setNegativeButton("Cancel", null)
+            .setPositiveButton("Preview") { _, _ -> previewImport(input.text.toString()) }
+            .show()
+    }
+
+    private fun previewImport(raw: String) {
+        if (raw.isBlank() || raw.length > 12000) {
+            Toast.makeText(this, "Blueprint JSON is empty or too large (12 KB maximum).", Toast.LENGTH_LONG).show()
+            return
+        }
+        val blueprint: JSONObject = try {
+            val envelope = JSONObject(raw)
+            if (envelope.optString("format") != "voidcraft-feature-blueprint" ||
+                envelope.optInt("version", -1) != 1 ||
+                envelope.opt("blueprint") !is JSONObject
+            ) {
+                Toast.makeText(this, "Unsupported blueprint format or version.", Toast.LENGTH_LONG).show()
+                return
+            }
+            envelope.getJSONObject("blueprint")
+        } catch (_: Exception) {
+            Toast.makeText(this, "That JSON could not be read. Check the shared blueprint text.", Toast.LENGTH_LONG).show()
+            return
+        }
+
+        val name = blueprint.optString("name", "").trim()
+        val description = blueprint.optString("description", "").trim()
+        val template = blueprint.optString("template", "utility").trim().ifBlank { "utility" }
+        val notes = blueprint.optString("notes", "").trim()
+        if (name.isBlank() || description.isBlank()) {
+            Toast.makeText(this, "The blueprint needs a name and description.", Toast.LENGTH_LONG).show()
+            return
+        }
+        if (name.length > 60 || description.length > 500 ||
+            template.length > 40 || notes.length > 3000
+        ) {
+            Toast.makeText(this, "The imported blueprint exceeds one or more field limits.", Toast.LENGTH_LONG).show()
+            return
+        }
+        if (drafts.size >= 100) {
+            Toast.makeText(this, "You have reached the 100-draft limit. Delete an old draft first.", Toast.LENGTH_LONG).show()
+            return
+        }
+
+        AlertDialog.Builder(this)
+            .setTitle("Preview: " + name)
+            .setMessage(
+                description + "\n\nTemplate: " + template +
+                    "\n\nDesign notes:\n" + notes +
+                    "\n\nThis will be saved as a new local draft. It is not executable code."
+            )
+            .setNegativeButton("Cancel", null)
+            .setPositiveButton("Import as draft") { _, _ ->
+                val imported = JSONObject()
+                    .put("id", java.util.UUID.randomUUID().toString())
+                    .put("name", name)
+                    .put("description", description)
+                    .put("template", template)
+                    .put("notes", notes)
+                    .put("status", "Draft • not executable")
+                drafts.add(imported)
+                saveDrafts()
+                renderDrafts()
+                Toast.makeText(this, "Blueprint imported as a local draft.", Toast.LENGTH_SHORT).show()
+            }
+            .show()
     }
 
     private fun loadDrafts() {
