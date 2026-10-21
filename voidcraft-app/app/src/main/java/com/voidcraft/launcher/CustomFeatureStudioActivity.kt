@@ -208,19 +208,25 @@ class CustomFeatureStudioActivity : Activity() {
             setPadding(dp(12), dp(10), dp(12), dp(10))
             background = rounded(panel, 10)
         }
-        AlertDialog.Builder(this)
+        val dialog = AlertDialog.Builder(this)
             .setTitle("Import blueprint")
             .setMessage("Paste JSON exported by VoidCraft. The import is a design draft only; it cannot install or run code.")
             .setView(input)
             .setNegativeButton("Cancel", null)
-            .setPositiveButton("Preview") { _, _ -> previewImport(input.text.toString()) }
-            .show()
+            .setPositiveButton("Preview", null)
+            .create()
+        dialog.setOnShowListener {
+            dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
+                if (previewImport(input.text.toString())) dialog.dismiss()
+            }
+        }
+        dialog.show()
     }
 
-    private fun previewImport(raw: String) {
+    private fun previewImport(raw: String): Boolean {
         if (raw.isBlank() || raw.length > 12000) {
             Toast.makeText(this, "Blueprint JSON is empty or too large (12 KB maximum).", Toast.LENGTH_LONG).show()
-            return
+            return false
         }
         val blueprint: JSONObject = try {
             val envelope = JSONObject(raw)
@@ -229,12 +235,12 @@ class CustomFeatureStudioActivity : Activity() {
                 envelope.opt("blueprint") !is JSONObject
             ) {
                 Toast.makeText(this, "Unsupported blueprint format or version.", Toast.LENGTH_LONG).show()
-                return
+                return false
             }
             envelope.getJSONObject("blueprint")
         } catch (_: Exception) {
             Toast.makeText(this, "That JSON could not be read. Check the shared blueprint text.", Toast.LENGTH_LONG).show()
-            return
+            return false
         }
 
         val name = blueprint.optString("name", "").trim()
@@ -243,17 +249,17 @@ class CustomFeatureStudioActivity : Activity() {
         val notes = blueprint.optString("notes", "").trim()
         if (name.isBlank() || description.isBlank()) {
             Toast.makeText(this, "The blueprint needs a name and description.", Toast.LENGTH_LONG).show()
-            return
+            return false
         }
         if (name.length > 60 || description.length > 500 ||
             template.length > 40 || notes.length > 3000
         ) {
             Toast.makeText(this, "The imported blueprint exceeds one or more field limits.", Toast.LENGTH_LONG).show()
-            return
+            return false
         }
         if (drafts.size >= 100) {
             Toast.makeText(this, "You have reached the 100-draft limit. Delete an old draft first.", Toast.LENGTH_LONG).show()
-            return
+            return false
         }
 
         AlertDialog.Builder(this)
@@ -278,6 +284,7 @@ class CustomFeatureStudioActivity : Activity() {
                 Toast.makeText(this, "Blueprint imported as a local draft.", Toast.LENGTH_SHORT).show()
             }
             .show()
+        return true
     }
 
     private fun loadDrafts() {
