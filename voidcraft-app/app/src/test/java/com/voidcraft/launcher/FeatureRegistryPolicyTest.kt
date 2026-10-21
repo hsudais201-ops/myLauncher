@@ -40,17 +40,17 @@ class FeatureRegistryPolicyTest {
     }
 
     @Test
-    fun onlyImplementedBuiltInDiagnosticsCanInstall() {
+    fun onlyImplementedBuiltInsCanInstall() {
+        val implemented = setOf("startup-diagnostics", "instance-notes")
         FeatureRegistry.catalog().forEach { feature ->
-            if (feature.id == "startup-diagnostics") {
+            if (feature.id in implemented) {
                 assertEquals(FeatureRegistry.Status.AVAILABLE, feature.status)
-                assertFalse(FeatureRegistry.canInstall("unknown-feature"))
+                assertTrue(FeatureRegistry.canInstall(feature.id))
             } else {
                 assertFalse("Unexpected installable feature: ${feature.id}",
                     FeatureRegistry.canInstall(feature.id))
             }
         }
-        assertTrue(FeatureRegistry.canInstall("startup-diagnostics"))
         assertFalse(FeatureRegistry.canInstall("unknown-feature"))
         assertFalse(FeatureRegistry.canInstall("../unsafe-path"))
     }
