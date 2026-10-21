@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#090b13">
+<meta name="description" content="Manage a local browser library of Minecraft Java mod JAR files with VoidCraft Advanced Mod Manager.">
+<title>Advanced Mod Manager — VoidCraft</title>
+<link rel="icon" href="assets/logo.svg">
+<link rel="stylesheet" href="assets/styles.css">
+<link rel="stylesheet" href="assets/mod-manager.css">
+</head>
+<body>
+<header><div class="bar">
+<a class="brand" href="index.html"><img src="assets/logo.svg" alt=""><span>VOIDCRAFT</span></a>
+<nav class="nav" aria-label="Main navigation"><a href="index.html">Home</a><a href="downloads.html">Downloads</a><a href="feature-store.html" class="active">Feature Store</a><a href="cosmetic-store.html">Cosmetics</a><a href="servers.html">Servers</a><a href="social-hub.html">Social Hub</a><a href="community.html">Community</a><a href="developers.html">Developers</a><a href="docs.html">Docs</a></nav>
+<div class="account-links"><a href="signin.html">Sign in</a><a href="profile.html">Profile</a></div>
+</div></header>
+<main class="mod-page">
+<section class="mod-hero">
+<div class="eyebrow">VOIDCRAFT FEATURE STORE · OPTIONAL TOOL</div>
+<h1>Advanced <span class="headline-glow">Mod Manager.</span></h1>
+<p class="hero-lead">Keep your Minecraft Java mod JARs organized. Import local files, switch their library status, export copies, and remove items — all in this browser on this device.</p>
+<div class="actions"><button class="btn" id="choose-files" type="button">＋ Import JAR mods</button><a class="btn secondary" href="feature-store.html">← Back to Feature Store</a></div>
+<input id="mod-files" type="file" accept=".jar,application/java-archive,application/zip" multiple hidden>
+<div class="mod-privacy"><strong>Local by design.</strong> Files are saved in this browser's IndexedDB. They are not uploaded to VoidCraft's servers. Clearing browser site data may erase this library.</div>
+</section>
+<section class="mod-panel" aria-labelledby="library-title">
+<div class="mod-panel-head"><div><div class="eyebrow">YOUR LIBRARY</div><h2 id="library-title">Mod collection</h2></div><button class="btn secondary" id="refresh-library" type="button">↻ Refresh</button></div>
+<div class="mod-stats" aria-live="polite"><div><strong id="total-count">0</strong><span>Total mods</span></div><div><strong id="enabled-count">0</strong><span>Enabled in library</span></div><div><strong id="disabled-count">0</strong><span>Disabled in library</span></div></div>
+<div class="mod-tools"><label>Search library<input id="mod-search" type="search" placeholder="Search mod filenames…" autocomplete="off"></label><label>Show<select id="mod-filter"><option value="all">All mods</option><option value="enabled">Enabled</option><option value="disabled">Disabled</option></select></label></div>
+<p id="mod-status" class="mod-status" role="status" aria-live="polite">Opening your local library…</p>
+<div id="mod-list" class="mod-list"></div>
+<div id="empty-state" class="mod-empty" hidden><span class="mod-empty-icon">◇</span><h3>No mods here yet</h3><p>Import one or more .jar files to start building your local collection.</p><button class="btn" id="empty-import" type="button">Import first mod</button></div>
+</section>
+<section class="mod-notice">
+<h2>Important compatibility note</h2>
+<p>This is a working <strong>browser-local library manager</strong>. A web page cannot write directly into Android app-private storage or install files into your Minecraft profile. To use a mod with the VoidCraft Android launcher, export it here and import the JAR through Advanced Mod Manager in the launcher. The launcher’s Minecraft runtime/profile integration is still in development, so enable/disable switches here organize this browser library only; they do not activate mods in-game.</p>
+<p>Only use mods from sources you trust, and check the mod loader and Minecraft version before using a file.</p>
+</section>
+</main>
+<footer><div class="foot"><span>© VoidCraft community project · Independent from Mojang and Microsoft</span><span><a href="privacy.html">Privacy</a> · <a href="terms.html">Terms</a> · <a href="security.html">Security</a></span></div></footer>
+<script src="assets/mod-manager.js" defer></script>
+</body></html>
