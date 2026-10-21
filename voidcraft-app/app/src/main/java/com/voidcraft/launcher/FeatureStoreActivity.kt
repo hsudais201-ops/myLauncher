@@ -250,7 +250,7 @@ class FeatureStoreActivity : Activity() {
                     android.app.AlertDialog.Builder(this@FeatureStoreActivity)
                         .setTitle("Install ${feature.name}?")
                         .setMessage(
-                            "This built-in read-only feature does not download or execute code. " +
+                            "This built-in feature runs locally and does not download or execute add-on code. " +
                                 "Declared capabilities: " +
                                 (FeatureRegistry.find(feature.id)?.permissions?.joinToString() ?: "None")
                         )
