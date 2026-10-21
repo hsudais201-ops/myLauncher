@@ -140,6 +140,8 @@ $("block-player").addEventListener("click",async()=>{if(!selected||!confirm("Blo
 $("report-player").addEventListener("click",async()=>{if(!selected)return;const category=prompt("Report reason: harassment, spam, inappropriate, impersonation, or other","other");if(!category)return;const details=prompt("Optional details (do not include private information)","")||"";try{await api("reports",{method:"POST",body:{targetUserId:selected.id,category:category.trim().toLowerCase(),details}});status("Report submitted for moderator review.","success");}catch(e){status(e.message,"error");}});
 async function start(){try{const response=await fetch("/api/auth/me",{credentials:"same-origin",cache:"no-store"});const data=await response.json();if(!response.ok||!data.authenticated){status("Sign in to your VoidCraft website account to use Social Hub.");$("social-signin").hidden=false;return;}me=await api("me").then(result=>result.user);$("social-account").textContent="Signed in as @"+me.username;$("social-app").hidden=false;status("You're signed in. Find a friend to start chatting.","success");await loadFriends();}catch{status("Could not verify your website session. Refresh and try again.","error");}}
 start();
+// Refresh an open private chat while the tab is visible so incoming messages appear without a manual refresh.
+setInterval(() => { if (document.visibilityState === "visible" && selected) void loadMessages(); }, 5000);
 </script>
 </body>
 </html>
