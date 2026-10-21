@@ -357,6 +357,7 @@ class VoidCraftAccountActivity : Activity() {
                 updateSignOutVisibility()
                 statusLabel.text = "Signed out on this device."
                 statusLabel.setTextColor(secondaryText)
+                setResult(RESULT_OK)
                 notice("VoidCraft session cleared from this device.")
                 recreate()
             }
