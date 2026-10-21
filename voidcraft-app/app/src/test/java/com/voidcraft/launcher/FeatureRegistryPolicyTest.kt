@@ -56,6 +56,14 @@ class FeatureRegistryPolicyTest {
     }
 
     @Test
+    fun networkDiagnosticsDeclaresItsCapability() {
+        val feature = FeatureRegistry.find("network-diagnostics")
+        assertNotNull(feature)
+        assertEquals(FeatureRegistry.Status.AVAILABLE, feature!!.status)
+        assertTrue(feature.permissions.contains("network"))
+    }
+
+    @Test
     fun communityUploadRequiresReview() {
         val upload = FeatureRegistry.find("community-feature-upload")
         assertNotNull(upload)
