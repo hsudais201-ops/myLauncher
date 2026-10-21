@@ -155,6 +155,26 @@ test("removing a friend immediately revokes private-message access", async () =>
   assert.equal(afterRemoval.status, 403);
 });
 
+test("blocking a friend revokes chat and unblocking does not restore friendship", async () => {
+  const sent = await call("friends/requests", { as: "alice", method: "POST", body: { username: "bob" } });
+  assert.equal(sent.status, 201);
+  const accepted = await call("friends/requests/" + sent.data.request.id + "/accept", { as: "bob", method: "POST", body: {} });
+  assert.equal(accepted.status, 200);
+  const beforeBlock = await call("conversations/u-bob/messages", { as: "alice", method: "POST", body: { content: "Before block" } });
+  assert.equal(beforeBlock.status, 201);
+  const blocked = await call("blocks/u-bob", { as: "alice", method: "POST", body: {} });
+  assert.equal(blocked.status, 201);
+  const whileBlocked = await call("conversations/u-bob/messages", { as: "alice", method: "POST", body: { content: "While blocked" } });
+  assert.equal(whileBlocked.status, 403);
+  const unblocked = await call("blocks/u-bob", { as: "alice", method: "DELETE" });
+  assert.equal(unblocked.status, 200);
+  const afterUnblock = await call("conversations/u-bob/messages", { as: "alice", method: "POST", body: { content: "After unblock" } });
+  assert.equal(afterUnblock.status, 403);
+  const friends = await call("friends", { as: "alice" });
+  assert.equal(friends.status, 200);
+  assert.equal(friends.data.friends.some((friend) => friend.id === "u-bob"), false);
+});
+
 test("player search treats underscores as literal characters", async () => {
   const search = await call("players?q=player_", { as: "alice" });
   assert.equal(search.status, 200);
