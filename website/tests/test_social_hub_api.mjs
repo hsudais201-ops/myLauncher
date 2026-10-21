@@ -140,6 +140,21 @@ test("two website accounts can request, accept, and exchange private messages", 
   assert.ok(received.data.messages.some((item) => item.content === "clean"));
 });
 
+test("removing a friend immediately revokes private-message access", async () => {
+  const sent = await call("friends/requests", { as: "alice", method: "POST", body: { username: "bob" } });
+  assert.equal(sent.status, 201);
+  const accepted = await call("friends/requests/" + sent.data.request.id + "/accept", { as: "bob", method: "POST", body: {} });
+  assert.equal(accepted.status, 200);
+  const message = await call("conversations/u-bob/messages", { as: "alice", method: "POST", body: { content: "Before removal" } });
+  assert.equal(message.status, 201);
+  const removed = await call("friends/u-bob", { as: "alice", method: "DELETE" });
+  assert.equal(removed.status, 200);
+  const history = await call("conversations/u-bob/messages", { as: "alice" });
+  assert.equal(history.status, 403);
+  const afterRemoval = await call("conversations/u-bob/messages", { as: "alice", method: "POST", body: { content: "After removal" } });
+  assert.equal(afterRemoval.status, 403);
+});
+
 test("player search treats underscores as literal characters", async () => {
   const search = await call("players?q=player_", { as: "alice" });
   assert.equal(search.status, 200);
