@@ -13,7 +13,7 @@ import android.content.Context
 object FeatureRegistry {
     const val PREFS_NAME = "voidcraft_installed_features"
     private const val KEY_INSTALLED_IDS = "installed_feature_ids"
-    // Explicit allowlist: only the implemented read-only diagnostics feature is enabled.
+    // Explicit allowlist: only built-in features with implemented, tested pages are enabled.
     private val installableBuiltIns = setOf("startup-diagnostics", "instance-notes")
 
     data class Definition(
