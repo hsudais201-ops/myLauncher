@@ -46,6 +46,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -84,7 +85,11 @@ private val VoidMuted = Color(0xFF9AA3B8)
 private const val PREFS = "voidcraft_preferences"
 private const val STORE_ENABLED = "feature_store_enabled"
 private const val INSTALLED_IDS = "installed_feature_ids"
+private const val SOCIAL_FRIENDS = "social_friends"
+private const val SOCIAL_MESSAGES = "social_messages"
 private const val CATALOG_URL = "https://raw.githubusercontent.com/hsudais201-ops/myLauncher/main/store/catalog.json"
+
+data class SocialMessage(val sender: String, val text: String, val sentAt: Long)
 
 data class StoreFeature(
     val id: String,
@@ -127,6 +132,10 @@ private fun VoidcraftApp() {
     var catalog by remember { mutableStateOf(defaultCatalog()) }
     var isRefreshing by remember { mutableStateOf(false) }
     var selectedFeature by remember { mutableStateOf<StoreFeature?>(null) }
+    var socialHubOpen by remember { mutableStateOf(false) }
+    var activeConversation by remember { mutableStateOf<String?>(null) }
+    var socialFriends by remember { mutableStateOf(prefs.getStringSet(SOCIAL_FRIENDS, emptySet())?.toList()?.sorted() ?: emptyList()) }
+    var socialMessages by remember { mutableStateOf(loadSocialMessages(prefs.getString(SOCIAL_MESSAGES, "{}") ?: "{}")) }
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
 
@@ -206,7 +215,7 @@ private fun VoidcraftApp() {
             Spacer(Modifier.height(18.dp))
             if (storeOpen) {
                 StoreHeader(
-                    onBack = { selectedFeature = null; storeOpen = false },
+                    onBack = { selectedFeature = null; socialHubOpen = false; activeConversation = null; storeOpen = false },
                     onRefresh = { scope.launch { refreshCatalog() } },
                     isRefreshing = isRefreshing,
                     onDisable = {
@@ -219,6 +228,40 @@ private fun VoidcraftApp() {
                 )
                 Spacer(Modifier.height(22.dp))
                 if (selectedFeature != null) {
+                    if (socialHubOpen && selectedFeature?.id == "social-hub") {
+                        SocialHubScreen(
+                            friends = socialFriends,
+                            messagesByFriend = socialMessages,
+                            selectedFriend = activeConversation,
+                            onBack = { socialHubOpen = false; activeConversation = null },
+                            onSelectFriend = { activeConversation = it },
+                            onAddFriend = { rawName ->
+                                val username = rawName.trim()
+                                when {
+                                    !username.matches(Regex("^[A-Za-z0-9_]{3,24}$")) ->
+                                        snackbarHostState.showSnackbar("Use a 3–24 character username: letters, numbers, or underscore.")
+                                    username.equals("You", ignoreCase = true) ->
+                                        snackbarHostState.showSnackbar("You cannot add yourself.")
+                                    socialFriends.any { it.equals(username, ignoreCase = true) } ->
+                                        snackbarHostState.showSnackbar("That friend is already on your local list.")
+                                    else -> {
+                                        socialFriends = (socialFriends + username).sorted()
+                                        prefs.edit().putStringSet(SOCIAL_FRIENDS, socialFriends.toSet()).apply()
+                                        snackbarHostState.showSnackbar("$username added to your local friends list.")
+                                    }
+                                }
+                            },
+                            onSendMessage = { friend, rawText ->
+                                val body = rawText.trim()
+                                if (body.isNotEmpty()) {
+                                    val updated = socialMessages.toMutableMap()
+                                    updated[friend] = (updated[friend] ?: emptyList()) + SocialMessage("You", body, System.currentTimeMillis())
+                                    socialMessages = updated
+                                    prefs.edit().putString(SOCIAL_MESSAGES, saveSocialMessages(updated)).apply()
+                                }
+                            }
+                        )
+                    } else {
                     FeatureDetail(
                         feature = selectedFeature!!,
                         installed = selectedFeature!!.id in installedIds,
@@ -226,7 +269,10 @@ private fun VoidcraftApp() {
                             val feature = selectedFeature!!
                             if (feature.builtIn) {
                                 saveInstalled(installedIds + feature.id)
-                                if (feature.id == "theme-neon-night" || feature.id == "theme-void-minimal") {
+                                if (feature.id == "social-hub") {
+                                socialHubOpen = true
+                                activeConversation = null
+                            } else if (feature.id == "theme-neon-night" || feature.id == "theme-void-minimal") {
                                     activeTheme = feature.id
                                     prefs.edit().putString("active_theme", activeTheme).apply()
                                 }
@@ -288,6 +334,7 @@ private fun VoidcraftApp() {
                             }
                         }
                     )
+                    }
                 } else {
                     StoreScreen(
                         features = catalog,
@@ -346,6 +393,168 @@ private fun VoidcraftApp() {
             Spacer(Modifier.height(24.dp))
         }
     }
+    }
+}
+
+
+private fun loadSocialMessages(json: String): Map<String, List<SocialMessage>> {
+    return runCatching {
+        val root = JSONObject(json)
+        buildMap {
+            val keys = root.keys()
+            while (keys.hasNext()) {
+                val friend = keys.next()
+                val array = root.optJSONArray(friend) ?: continue
+                val messages = buildList {
+                    for (index in 0 until array.length()) {
+                        val item = array.optJSONObject(index) ?: continue
+                        add(
+                            SocialMessage(
+                                sender = item.optString("sender", "You"),
+                                text = item.optString("text", ""),
+                                sentAt = item.optLong("sentAt", 0L)
+                            )
+                        )
+                    }
+                }
+                put(friend, messages)
+            }
+        }
+    }.getOrDefault(emptyMap())
+}
+
+private fun saveSocialMessages(messages: Map<String, List<SocialMessage>>): String {
+    val root = JSONObject()
+    messages.forEach { (friend, entries) ->
+        val array = org.json.JSONArray()
+        entries.forEach { message ->
+            array.put(JSONObject().put("sender", message.sender).put("text", message.text).put("sentAt", message.sentAt))
+        }
+        root.put(friend, array)
+    }
+    return root.toString()
+}
+
+@Composable
+private fun SocialHubScreen(
+    friends: List<String>,
+    messagesByFriend: Map<String, List<SocialMessage>>,
+    selectedFriend: String?,
+    onBack: () -> Unit,
+    onSelectFriend: (String) -> Unit,
+    onAddFriend: (String) -> Unit,
+    onSendMessage: (String, String) -> Unit
+) {
+    var newUsername by remember { mutableStateOf("") }
+    var draftMessage by remember(selectedFriend) { mutableStateOf("") }
+    Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            OutlinedButton(onClick = onBack) {
+                Icon(Icons.Default.ArrowBack, contentDescription = null)
+                Text(" Back")
+            }
+            Column(Modifier.weight(1f)) {
+                Text("SOCIAL HUB", fontWeight = FontWeight.Black, letterSpacing = 1.3.sp)
+                Text("Friends & local chats", color = VoidMuted, fontSize = 11.sp)
+            }
+        }
+        Surface(color = Color(0xFF20283A), shape = RoundedCornerShape(16.dp)) {
+            Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text("LOCAL MODE", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary, fontSize = 11.sp)
+                Text("Friends and messages are stored on this device only. No account, internet chat, or notifications are connected yet.", color = VoidMuted, fontSize = 12.sp, lineHeight = 18.sp)
+            }
+        }
+        Text("ADD A FRIEND", fontSize = 11.sp, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold, letterSpacing = 1.2.sp)
+        OutlinedTextField(
+            value = newUsername,
+            onValueChange = { newUsername = it.take(24) },
+            modifier = Modifier.fillMaxWidth(),
+            label = { Text("Voidcraft username") },
+            placeholder = { Text("Example: Alex_123") },
+            singleLine = true,
+            shape = RoundedCornerShape(14.dp)
+        )
+        Button(
+            onClick = {
+                if (newUsername.trim().matches(Regex("^[A-Za-z0-9_]{3,24}$"))) {
+                    onAddFriend(newUsername.trim())
+                    newUsername = ""
+                }
+            },
+            enabled = newUsername.trim().matches(Regex("^[A-Za-z0-9_]{3,24}$")),
+            modifier = Modifier.fillMaxWidth()
+        ) { Text("ADD TO FRIENDS") }
+        Text("FRIENDS (${friends.size})", fontSize = 11.sp, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold, letterSpacing = 1.2.sp)
+        if (friends.isEmpty()) {
+            Surface(color = VoidSurface, shape = RoundedCornerShape(16.dp)) {
+                Column(Modifier.fillMaxWidth().padding(18.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text("Your friends list is empty", fontWeight = FontWeight.Bold)
+                    Text("Add a username above to create a local contact. They will not receive a request until online social services are added.", color = VoidMuted, fontSize = 12.sp, lineHeight = 18.sp)
+                }
+            }
+        } else {
+            friends.forEach { friend ->
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    onClick = { onSelectFriend(friend) },
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(containerColor = if (selectedFriend == friend) Color(0xFF252A45) else VoidSurface)
+                ) {
+                    Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Surface(color = Color(0xFF302B50), shape = CircleShape) {
+                            Text(friend.take(1).uppercase(), modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp), fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                        }
+                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                            Text(friend, fontWeight = FontWeight.Bold)
+                            Text("${(messagesByFriend[friend] ?: emptyList()).size} local messages", color = VoidMuted, fontSize = 11.sp)
+                        }
+                        Text(if (selectedFriend == friend) "OPEN" else "CHAT  →", color = MaterialTheme.colorScheme.primary, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+        }
+        if (selectedFriend != null && friends.contains(selectedFriend)) {
+            val chat = messagesByFriend[selectedFriend] ?: emptyList()
+            Text("CHAT WITH $selectedFriend".uppercase(), fontSize = 11.sp, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold, letterSpacing = 1.1.sp)
+            Surface(color = VoidSurface, shape = RoundedCornerShape(18.dp)) {
+                Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    if (chat.isEmpty()) {
+                        Text("No messages yet. Write a local note below.", color = VoidMuted, fontSize = 12.sp)
+                    } else {
+                        chat.takeLast(30).forEach { message ->
+                            Surface(
+                                color = if (message.sender == "You") Color(0xFF302B50) else Color(0xFF20283A),
+                                shape = RoundedCornerShape(12.dp)
+                            ) {
+                                Column(Modifier.fillMaxWidth().padding(10.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                    Text(message.sender, fontSize = 10.sp, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
+                                    Text(message.text, fontSize = 13.sp, lineHeight = 18.sp)
+                                }
+                            }
+                        }
+                    }
+                    OutlinedTextField(
+                        value = draftMessage,
+                        onValueChange = { draftMessage = it.take(500) },
+                        modifier = Modifier.fillMaxWidth(),
+                        label = { Text("Local message") },
+                        placeholder = { Text("Write a message or note") },
+                        shape = RoundedCornerShape(14.dp)
+                    )
+                    Button(
+                        onClick = {
+                            val body = draftMessage.trim()
+                            if (body.isNotEmpty()) {
+                                onSendMessage(selectedFriend, body)
+                                draftMessage = ""
+                            }
+                        },
+                        enabled = draftMessage.trim().isNotEmpty(),
+                        modifier = Modifier.fillMaxWidth()
+                    ) { Text("SAVE MESSAGE ON THIS DEVICE") }
+                }
+            }
+        }
     }
 }
 
