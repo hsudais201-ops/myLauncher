@@ -152,6 +152,6 @@ test("website social example script parses and renders user text without HTML in
   });
   assert.match(html, /textContent/);
   assert.doesNotMatch(html, /\.innerHTML\s*=/);
-  assert.match(html, /voidcraft-website\.pages\.dev|\/api\/auth\/me/);
+  assert.match(html, /api\.me\(\)|VoidCraftSocialApi/);
   assert.match(html, /not for in-app private messages/);
 });
