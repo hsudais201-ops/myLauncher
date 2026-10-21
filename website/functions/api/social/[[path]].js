@@ -59,6 +59,9 @@ export async function onRequest({ request, env }) {
       const body = await readJson(request);
       const username = clean(body?.username, 20);
       if (!/^[A-Za-z0-9_]{3,20}$/.test(username)) return fail("Enter a valid username.");
+      const requestWindow = now() - 10 * 60 * 1000;
+      const recentRequests = await db.prepare("SELECT COUNT(*) AS total FROM social_friend_requests WHERE sender_id=? AND created_at>=?").bind(user.id,requestWindow).first();
+      if (Number(recentRequests?.total || 0) >= 15) return fail("You have sent too many friend requests. Try again in a few minutes.",429);
       const target = await db.prepare("SELECT id,username,role FROM users WHERE username=? COLLATE NOCASE").bind(username).first();
       if (!target) return fail("No VoidCraft account was found with that username.", 404);
       if (String(target.id) === String(user.id)) return fail("You cannot add yourself.");
@@ -69,7 +72,14 @@ export async function onRequest({ request, env }) {
       const pending = await db.prepare("SELECT id FROM social_friend_requests WHERE status='pending' AND ((sender_id=? AND recipient_id=?) OR (sender_id=? AND recipient_id=?)) LIMIT 1").bind(user.id,target.id,target.id,user.id).first();
       if (pending) return fail("A pending friend request already exists.");
       const requestId=id();
-      await db.prepare("INSERT INTO social_friend_requests(id,sender_id,recipient_id,status,created_at) VALUES(?,?,?,'pending',?)").bind(requestId,user.id,target.id,now()).run();
+      try {
+        await db.prepare("INSERT INTO social_friend_requests(id,sender_id,recipient_id,status,created_at) VALUES(?,?,?,'pending',?)").bind(requestId,user.id,target.id,now()).run();
+      } catch (error) {
+        // The database's unordered-pair unique index closes the simultaneous-request race.
+        const raced = await db.prepare("SELECT id FROM social_friend_requests WHERE status='pending' AND ((sender_id=? AND recipient_id=?) OR (sender_id=? AND recipient_id=?)) LIMIT 1").bind(user.id,target.id,target.id,user.id).first();
+        if (raced) return fail("A pending friend request already exists.",409);
+        throw error;
+      }
       return json({ request:{id:requestId,user:publicUser(target)} },201);
     }
 
@@ -121,13 +131,19 @@ export async function onRequest({ request, env }) {
       return json({messages:(rows.results||[]).reverse().map(m=>({id:m.id,senderId:m.sender_id,recipientId:m.recipient_id,content:m.body,createdAt:m.created_at}))});
     }
     if (match && method === "POST") {
-      const other=match[1], body=await readJson(request), content=clean(body?.content,2000);
+      const other=match[1], body=await readJson(request);
+      const rawContent = typeof body?.content === "string" ? body.content : "";
+      const content = rawContent.replace(/[\\u0000-\\u0008\\u000B\\u000C\\u000E-\\u001F\\u007F]/g, "").trim();
       if (!content) return fail("Message cannot be empty.");
+      if (content.length > 2000) return fail("Messages must be 2000 characters or fewer.");
       const [low,high]=orderPair(user.id,other);
       const friendship=await db.prepare("SELECT 1 FROM social_friendships WHERE user_low=? AND user_high=?").bind(low,high).first();
       if (!friendship) return fail("You must be friends to send private messages.",403);
       if (await blockedEither(db,user.id,other)) return fail("Messaging is unavailable for this player.",403);
-      const msgId=id(), createdAt=now();
+      const createdAt = now();
+      const recentMessages = await db.prepare("SELECT COUNT(*) AS total FROM social_messages WHERE sender_id=? AND created_at>=?").bind(user.id,createdAt-60_000).first();
+      if (Number(recentMessages?.total || 0) >= 30) return fail("You are sending messages too quickly. Please wait a minute.",429);
+      const msgId=id();
       await db.prepare("INSERT INTO social_messages(id,sender_id,recipient_id,body,created_at) VALUES(?,?,?,?,?)").bind(msgId,user.id,other,content,createdAt).run();
       return json({message:{id:msgId,senderId:user.id,recipientId:other,content,createdAt}},201);
     }
