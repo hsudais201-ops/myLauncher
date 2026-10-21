@@ -1,0 +1,42 @@
+{
+  "schemaVersion": 1,
+  "id": "voidcraft.play-journal",
+  "name": "Play Journal",
+  "version": "1.0.0",
+  "author": "VoidCraft Launcher",
+  "owner": "VoidCraft Launcher",
+  "description": "Keep a private manual journal of sessions, worlds, servers and notes. No background tracking is included.",
+  "capabilities": [
+    "Save and manage user-entered local records in app-private storage"
+  ],
+  "minAndroidApi": 21,
+  "maxAndroidApi": 100,
+  "dataUse": "User-entered records stay local unless explicitly copied out. No automatic online sync or upload.",
+  "screen": {
+    "type": "workspace",
+    "title": "Play Journal",
+    "description": "Keep a private manual journal of sessions, worlds, servers and notes. No background tracking is included.",
+    "entryLabel": "Save entry",
+    "emptyLabel": "No entries saved yet.",
+    "maxEntries": 100,
+    "fields": [
+      {
+        "id": "date",
+        "label": "Date / time",
+        "required": true,
+        "maxLength": 80
+      },
+      {
+        "id": "world",
+        "label": "World or server",
+        "maxLength": 140
+      },
+      {
+        "id": "notes",
+        "label": "Session notes",
+        "multiline": true,
+        "maxLength": 3000
+      }
+    ]
+  }
+}

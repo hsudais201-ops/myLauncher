@@ -1,0 +1,43 @@
+{
+  "schemaVersion": 1,
+  "id": "voidcraft.config-change-log",
+  "name": "Configuration Change Log",
+  "version": "1.0.0",
+  "author": "VoidCraft Launcher",
+  "owner": "VoidCraft Launcher",
+  "description": "Record what configuration changed and why. It does not capture diffs, snapshot files, or restore settings.",
+  "capabilities": [
+    "Save and manage user-entered local records in app-private storage"
+  ],
+  "minAndroidApi": 21,
+  "maxAndroidApi": 100,
+  "dataUse": "User-entered records stay local unless explicitly copied out. No automatic online sync or upload.",
+  "screen": {
+    "type": "workspace",
+    "title": "Configuration Change Log",
+    "description": "Record what configuration changed and why. It does not capture diffs, snapshot files, or restore settings.",
+    "entryLabel": "Save entry",
+    "emptyLabel": "No entries saved yet.",
+    "maxEntries": 100,
+    "fields": [
+      {
+        "id": "file",
+        "label": "Config filename / scope",
+        "required": true,
+        "maxLength": 160
+      },
+      {
+        "id": "change",
+        "label": "Change summary",
+        "required": true,
+        "maxLength": 180
+      },
+      {
+        "id": "notes",
+        "label": "Reason / rollback notes",
+        "multiline": true,
+        "maxLength": 2200
+      }
+    ]
+  }
+}

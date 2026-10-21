@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "voidcraft.storage-inspector",
+  "name": "Storage Inspector",
+  "version": "1.0.0",
+  "author": "VoidCraft Launcher",
+  "owner": "VoidCraft Launcher",
+  "description": "See internal-storage availability and the size of Feature Store private files. Does not claim to include inaccessible game or world files.",
+  "capabilities": [
+    "Read internal-storage statistics",
+    "Measure Feature Store private files"
+  ],
+  "minAndroidApi": 21,
+  "maxAndroidApi": 100,
+  "dataUse": "Measures accessible storage metadata locally and does not read or upload world contents.",
+  "screen": {
+    "type": "device_report",
+    "mode": "storage",
+    "title": "Storage Inspector",
+    "description": "See internal-storage availability and the size of Feature Store private files. Does not claim to include inaccessible game or world files."
+  }
+}

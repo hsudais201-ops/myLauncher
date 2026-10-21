@@ -1,0 +1,47 @@
+{
+  "schemaVersion": 1,
+  "id": "voidcraft.server-maintenance",
+  "name": "Server Maintenance Tracker",
+  "version": "1.0.0",
+  "author": "VoidCraft Launcher",
+  "owner": "VoidCraft Launcher",
+  "description": "Record planned maintenance and expected return times manually. It does not verify uptime or monitor in the background.",
+  "capabilities": [
+    "Save and manage user-entered local records in app-private storage"
+  ],
+  "minAndroidApi": 21,
+  "maxAndroidApi": 100,
+  "dataUse": "User-entered records stay local unless explicitly copied out. No automatic online sync or upload.",
+  "screen": {
+    "type": "workspace",
+    "title": "Server Maintenance Tracker",
+    "description": "Record planned maintenance and expected return times manually. It does not verify uptime or monitor in the background.",
+    "entryLabel": "Save entry",
+    "emptyLabel": "No entries saved yet.",
+    "maxEntries": 100,
+    "fields": [
+      {
+        "id": "server",
+        "label": "Server",
+        "required": true,
+        "maxLength": 120
+      },
+      {
+        "id": "status",
+        "label": "Status",
+        "maxLength": 80
+      },
+      {
+        "id": "expected",
+        "label": "Expected time / timezone",
+        "maxLength": 120
+      },
+      {
+        "id": "notes",
+        "label": "Notes",
+        "multiline": true,
+        "maxLength": 1800
+      }
+    ]
+  }
+}

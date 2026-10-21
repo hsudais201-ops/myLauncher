@@ -1,0 +1,43 @@
+{
+  "schemaVersion": 1,
+  "id": "voidcraft.profile-card-draft",
+  "name": "Player Profile Card Draft",
+  "version": "1.0.0",
+  "author": "VoidCraft Launcher",
+  "owner": "VoidCraft Launcher",
+  "description": "Draft a private profile card. It is not published and has no remote presence or sharing backend.",
+  "capabilities": [
+    "Save and manage user-entered local records in app-private storage"
+  ],
+  "minAndroidApi": 21,
+  "maxAndroidApi": 100,
+  "dataUse": "User-entered records stay local unless explicitly copied out. No automatic online sync or upload.",
+  "screen": {
+    "type": "workspace",
+    "title": "Player Profile Card Draft",
+    "description": "Draft a private profile card. It is not published and has no remote presence or sharing backend.",
+    "entryLabel": "Save entry",
+    "emptyLabel": "No entries saved yet.",
+    "maxEntries": 100,
+    "fields": [
+      {
+        "id": "username",
+        "label": "Display username",
+        "required": true,
+        "maxLength": 40
+      },
+      {
+        "id": "bio",
+        "label": "Bio / play style",
+        "multiline": true,
+        "maxLength": 1200
+      },
+      {
+        "id": "servers",
+        "label": "Favorite public servers (optional)",
+        "multiline": true,
+        "maxLength": 1000
+      }
+    ]
+  }
+}

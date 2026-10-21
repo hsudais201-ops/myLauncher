@@ -1,0 +1,359 @@
+{
+  "schemaVersion": 1,
+  "features": [
+    {
+      "id": "voidcraft.theme-studio",
+      "name": "Theme Studio",
+      "version": "1.0.0",
+      "author": "VoidCraft Launcher",
+      "owner": "VoidCraft Launcher",
+      "description": "Choose a separate launcher-wide color palette and preview supported theme presets.",
+      "packageUrl": "https://raw.githubusercontent.com/hsudais201-ops/myLauncher/main/feature-store/packages/theme-studio.vcfeature",
+      "sha256": "651437131a5738e9d63be6ca5554c9b57c2b1023c941600e648b2f0818e131aa",
+      "capabilities": [
+        "Apply colors to supported launcher UI screens"
+      ],
+      "minAndroidApi": 21,
+      "maxAndroidApi": 100,
+      "dataUse": "Applies colors to supported launcher screens only; it does not alter Minecraft's renderer."
+    },
+    {
+      "id": "community.server-status",
+      "name": "Server Status",
+      "version": "1.0.0",
+      "author": "VoidCraft Community",
+      "owner": "VoidCraft Community",
+      "description": "Check a Java Edition server's online/offline state, server icon, MOTD, current/max players, and version.",
+      "packageUrl": "https://raw.githubusercontent.com/hsudais201-ops/myLauncher/main/feature-store/packages/server-status.vcfeature",
+      "sha256": "21913c91fb49927e4e9f8ada960391d47e4e62493ad6b425fbb05722870a7b5d",
+      "capabilities": [
+        "HTTPS lookup of an entered Minecraft server host",
+        "Save server entries in app-private storage"
+      ],
+      "minAndroidApi": 21,
+      "maxAndroidApi": 100,
+      "dataUse": "Refresh sends the entered host to the HTTPS status provider. The saved list remains local."
+    },
+    {
+      "id": "community.community-links",
+      "name": "Community Resources",
+      "version": "1.0.0",
+      "author": "VoidCraft Community",
+      "owner": "VoidCraft Community",
+      "description": "A dedicated screen of links to mod discovery and launcher project resources.",
+      "packageUrl": "https://raw.githubusercontent.com/hsudais201-ops/myLauncher/main/feature-store/packages/community-links.vcfeature",
+      "sha256": "d47b39cd2c40aa90e54811156599dc079ced91750cbd24c4ddf60c52afb7e0ac",
+      "capabilities": [
+        "Open HTTPS resource links when tapped"
+      ],
+      "minAndroidApi": 21,
+      "maxAndroidApi": 100,
+      "dataUse": "The feature itself stores no personal data; a chosen external website receives normal request metadata."
+    },
+    {
+      "id": "voidcraft.social-hub",
+      "name": "Social Hub (Preview)",
+      "version": "1.0.0",
+      "author": "VoidCraft Launcher",
+      "owner": "VoidCraft Launcher",
+      "description": "Mobile-first profile, friend-request, friend-list, remove-friend and chat interface. Local preview only; online delivery and external sign-in are not connected.",
+      "packageUrl": "https://raw.githubusercontent.com/hsudais201-ops/myLauncher/main/feature-store/packages/social-hub.vcfeature",
+      "sha256": "5532b1812c2ba86d7ea64e879488a5428f612995c044fcf90ee384c66f10f804",
+      "capabilities": [
+        "Save local profile, friend request, friend and chat preview data"
+      ],
+      "minAndroidApi": 21,
+      "maxAndroidApi": 100,
+      "dataUse": "Social Hub is local-only. Requests and messages are not delivered online; provider credentials or tokens are not stored."
+    },
+    {
+      "id": "voidcraft.performance-advisor",
+      "name": "Performance Advisor",
+      "version": "1.0.0",
+      "author": "VoidCraft Launcher",
+      "owner": "VoidCraft Launcher",
+      "description": "Review device memory, storage, ABI and thermal conditions and get cautious pre-launch suggestions. Does not edit game settings or measure live FPS.",
+      "packageUrl": "https://raw.githubusercontent.com/hsudais201-ops/myLauncher/main/feature-store/packages/voidcraft.performance-advisor.vcfeature",
+      "sha256": "d27208a5104bdd24a78375816cb1b81d508286c4547a6b40dc6a36d60402be2b",
+      "capabilities": [
+        "Read basic device environment and thermal statistics"
+      ],
+      "minAndroidApi": 21,
+      "maxAndroidApi": 100,
+      "dataUse": "Reads a local pre-launch snapshot. Does not upload device data, change Minecraft options or measure reliable live FPS."
+    },
+    {
+      "id": "voidcraft.device-compatibility",
+      "name": "Device Compatibility Report",
+      "version": "1.0.0",
+      "author": "VoidCraft Launcher",
+      "owner": "VoidCraft Launcher",
+      "description": "Review Android version, CPU ABIs, memory and storage while separating device facts from unverified Minecraft, Java, mod and renderer compatibility.",
+      "packageUrl": "https://raw.githubusercontent.com/hsudais201-ops/myLauncher/main/feature-store/packages/voidcraft.device-compatibility.vcfeature",
+      "sha256": "5eecb2e77639353e8944eca63718bf67954bea79ecec2ed07f497a3a0ce51939",
+      "capabilities": [
+        "Read basic device model, Android API, CPU ABI, memory and storage statistics"
+      ],
+      "minAndroidApi": 21,
+      "maxAndroidApi": 100,
+      "dataUse": "Measurements are displayed locally and are not uploaded automatically."
+    },
+    {
+      "id": "voidcraft.storage-inspector",
+      "name": "Storage Inspector",
+      "version": "1.0.0",
+      "author": "VoidCraft Launcher",
+      "owner": "VoidCraft Launcher",
+      "description": "See internal-storage availability and the size of Feature Store private files. Does not claim to include inaccessible game or world files.",
+      "packageUrl": "https://raw.githubusercontent.com/hsudais201-ops/myLauncher/main/feature-store/packages/voidcraft.storage-inspector.vcfeature",
+      "sha256": "28f5c08b47eecc5c990d046b34f3cb07e32eed1fd2d11e8c4581c70603069342",
+      "capabilities": [
+        "Read internal-storage statistics",
+        "Measure Feature Store private files"
+      ],
+      "minAndroidApi": 21,
+      "maxAndroidApi": 100,
+      "dataUse": "Measures accessible storage metadata locally and does not read or upload world contents."
+    },
+    {
+      "id": "voidcraft.scratchpad",
+      "name": "Launcher Scratchpad",
+      "version": "1.0.0",
+      "author": "VoidCraft Launcher",
+      "owner": "VoidCraft Launcher",
+      "description": "Keep private notes, commands and checklists for your launcher workflow. Copy or delete notes at any time.",
+      "packageUrl": "https://raw.githubusercontent.com/hsudais201-ops/myLauncher/main/feature-store/packages/voidcraft.scratchpad.vcfeature",
+      "sha256": "8185fca70255d5dba599c30603b5ab75d1d859a32314a7b2e3b0df535db932b8",
+      "capabilities": [
+        "Save and manage user-entered local records in app-private storage"
+      ],
+      "minAndroidApi": 21,
+      "maxAndroidApi": 100,
+      "dataUse": "User-entered records stay local unless explicitly copied out. No automatic online sync or upload."
+    },
+    {
+      "id": "voidcraft.personal-goals",
+      "name": "Personal Goal Tracker",
+      "version": "1.0.0",
+      "author": "VoidCraft Launcher",
+      "owner": "VoidCraft Launcher",
+      "description": "Create gameplay goals and mark progress manually. It does not monitor Minecraft game state.",
+      "packageUrl": "https://raw.githubusercontent.com/hsudais201-ops/myLauncher/main/feature-store/packages/voidcraft.personal-goals.vcfeature",
+      "sha256": "ee3d4ce6037828ce286622d454d0cafd434ef6e1141452deba340877de729232",
+      "capabilities": [
+        "Save and manage user-entered local records in app-private storage"
+      ],
+      "minAndroidApi": 21,
+      "maxAndroidApi": 100,
+      "dataUse": "User-entered records stay local unless explicitly copied out. No automatic online sync or upload."
+    },
+    {
+      "id": "voidcraft.build-planner",
+      "name": "Build Planner",
+      "version": "1.0.0",
+      "author": "VoidCraft Launcher",
+      "owner": "VoidCraft Launcher",
+      "description": "Record building project names, dimensions, materials and notes. It does not edit world files.",
+      "packageUrl": "https://raw.githubusercontent.com/hsudais201-ops/myLauncher/main/feature-store/packages/voidcraft.build-planner.vcfeature",
+      "sha256": "2baa2cc28ef34a0ac7e0177e62d1d62faf7d49febdf918d01dface5b69e147f4",
+      "capabilities": [
+        "Save and manage user-entered local records in app-private storage"
+      ],
+      "minAndroidApi": 21,
+      "maxAndroidApi": 100,
+      "dataUse": "User-entered records stay local unless explicitly copied out. No automatic online sync or upload."
+    },
+    {
+      "id": "voidcraft.world-waypoints",
+      "name": "World Notes & Waypoints",
+      "version": "1.0.0",
+      "author": "VoidCraft Launcher",
+      "owner": "VoidCraft Launcher",
+      "description": "Record a world's name, waypoint label, coordinates and notes manually. It does not read or modify saves.",
+      "packageUrl": "https://raw.githubusercontent.com/hsudais201-ops/myLauncher/main/feature-store/packages/voidcraft.world-waypoints.vcfeature",
+      "sha256": "163443fd573c98fc7805ca1989557841d7c0355d1b1680f69bf9a476332622b6",
+      "capabilities": [
+        "Save and manage user-entered local records in app-private storage"
+      ],
+      "minAndroidApi": 21,
+      "maxAndroidApi": 100,
+      "dataUse": "User-entered records stay local unless explicitly copied out. No automatic online sync or upload."
+    },
+    {
+      "id": "voidcraft.play-journal",
+      "name": "Play Journal",
+      "version": "1.0.0",
+      "author": "VoidCraft Launcher",
+      "owner": "VoidCraft Launcher",
+      "description": "Keep a private manual journal of sessions, worlds, servers and notes. No background tracking is included.",
+      "packageUrl": "https://raw.githubusercontent.com/hsudais201-ops/myLauncher/main/feature-store/packages/voidcraft.play-journal.vcfeature",
+      "sha256": "0c93ca11322797a84f4987ea2494b06e7bb371edfd676e1174fe7399df7f7d55",
+      "capabilities": [
+        "Save and manage user-entered local records in app-private storage"
+      ],
+      "minAndroidApi": 21,
+      "maxAndroidApi": 100,
+      "dataUse": "User-entered records stay local unless explicitly copied out. No automatic online sync or upload."
+    },
+    {
+      "id": "voidcraft.server-guidebook",
+      "name": "Server Guidebook",
+      "version": "1.0.0",
+      "author": "VoidCraft Launcher",
+      "owner": "VoidCraft Launcher",
+      "description": "Save server connection instructions, public links and notes. Do not store passwords or tokens here.",
+      "packageUrl": "https://raw.githubusercontent.com/hsudais201-ops/myLauncher/main/feature-store/packages/voidcraft.server-guidebook.vcfeature",
+      "sha256": "d0d26929ba08ca6c251535127495c812394343a5add793f97ca475d125ccdd40",
+      "capabilities": [
+        "Save and manage user-entered local records in app-private storage"
+      ],
+      "minAndroidApi": 21,
+      "maxAndroidApi": 100,
+      "dataUse": "User-entered records stay local unless explicitly copied out. No automatic online sync or upload."
+    },
+    {
+      "id": "voidcraft.server-maintenance",
+      "name": "Server Maintenance Tracker",
+      "version": "1.0.0",
+      "author": "VoidCraft Launcher",
+      "owner": "VoidCraft Launcher",
+      "description": "Record planned maintenance and expected return times manually. It does not verify uptime or monitor in the background.",
+      "packageUrl": "https://raw.githubusercontent.com/hsudais201-ops/myLauncher/main/feature-store/packages/voidcraft.server-maintenance.vcfeature",
+      "sha256": "2d93899d8137f89260a33b61cf01169c24308eb3d78ffd4883bb0a949ea1d02b",
+      "capabilities": [
+        "Save and manage user-entered local records in app-private storage"
+      ],
+      "minAndroidApi": 21,
+      "maxAndroidApi": 100,
+      "dataUse": "User-entered records stay local unless explicitly copied out. No automatic online sync or upload."
+    },
+    {
+      "id": "voidcraft.server-events",
+      "name": "Server Event Calendar",
+      "version": "1.0.0",
+      "author": "VoidCraft Launcher",
+      "owner": "VoidCraft Launcher",
+      "description": "Keep manual event names, dates, timezone notes and details. Calendar sync and notification scheduling are not included.",
+      "packageUrl": "https://raw.githubusercontent.com/hsudais201-ops/myLauncher/main/feature-store/packages/voidcraft.server-events.vcfeature",
+      "sha256": "2ca1148abc4a0f2dbd37d322f9f67effb8c1e2b9b3e53edec89829ed7febcd9a",
+      "capabilities": [
+        "Save and manage user-entered local records in app-private storage"
+      ],
+      "minAndroidApi": 21,
+      "maxAndroidApi": 100,
+      "dataUse": "User-entered records stay local unless explicitly copied out. No automatic online sync or upload."
+    },
+    {
+      "id": "voidcraft.playtime-log",
+      "name": "Manual Playtime Log",
+      "version": "1.0.0",
+      "author": "VoidCraft Launcher",
+      "owner": "VoidCraft Launcher",
+      "description": "Record session duration manually. It does not measure or automatically track Minecraft playtime.",
+      "packageUrl": "https://raw.githubusercontent.com/hsudais201-ops/myLauncher/main/feature-store/packages/voidcraft.playtime-log.vcfeature",
+      "sha256": "6f23de9233854f2adc327279dabfb70612f85f24d648a976807a13e479d15bb5",
+      "capabilities": [
+        "Save and manage user-entered local records in app-private storage"
+      ],
+      "minAndroidApi": 21,
+      "maxAndroidApi": 100,
+      "dataUse": "User-entered records stay local unless explicitly copied out. No automatic online sync or upload."
+    },
+    {
+      "id": "voidcraft.mod-collection-builder",
+      "name": "Mod Collection Builder",
+      "version": "1.0.0",
+      "author": "VoidCraft Launcher",
+      "owner": "VoidCraft Launcher",
+      "description": "Create local lists of mod filenames, versions and notes. No downloads, installation or automatic compatibility checks.",
+      "packageUrl": "https://raw.githubusercontent.com/hsudais201-ops/myLauncher/main/feature-store/packages/voidcraft.mod-collection-builder.vcfeature",
+      "sha256": "45cae346e5f7ce6fce647d65cece588a1168d29073e6c7765d80a50723e21f21",
+      "capabilities": [
+        "Save and manage user-entered local records in app-private storage"
+      ],
+      "minAndroidApi": 21,
+      "maxAndroidApi": 100,
+      "dataUse": "User-entered records stay local unless explicitly copied out. No automatic online sync or upload."
+    },
+    {
+      "id": "voidcraft.launch-preset-notes",
+      "name": "Launch Preset Notes",
+      "version": "1.0.0",
+      "author": "VoidCraft Launcher",
+      "owner": "VoidCraft Launcher",
+      "description": "Document named launch setups, versions, Java choices and notes. Not an automatic settings or JVM-argument applier.",
+      "packageUrl": "https://raw.githubusercontent.com/hsudais201-ops/myLauncher/main/feature-store/packages/voidcraft.launch-preset-notes.vcfeature",
+      "sha256": "e1de3afb2f27451df7a0c39ab8b50d5d61987aa3cf082fdd8a2ee6e3781d20ee",
+      "capabilities": [
+        "Save and manage user-entered local records in app-private storage"
+      ],
+      "minAndroidApi": 21,
+      "maxAndroidApi": 100,
+      "dataUse": "User-entered records stay local unless explicitly copied out. No automatic online sync or upload."
+    },
+    {
+      "id": "voidcraft.config-change-log",
+      "name": "Configuration Change Log",
+      "version": "1.0.0",
+      "author": "VoidCraft Launcher",
+      "owner": "VoidCraft Launcher",
+      "description": "Record what configuration changed and why. It does not capture diffs, snapshot files, or restore settings.",
+      "packageUrl": "https://raw.githubusercontent.com/hsudais201-ops/myLauncher/main/feature-store/packages/voidcraft.config-change-log.vcfeature",
+      "sha256": "f799fce449b07cf117189eee8571f071f78f39c38388cfceae97588160ce4755",
+      "capabilities": [
+        "Save and manage user-entered local records in app-private storage"
+      ],
+      "minAndroidApi": 21,
+      "maxAndroidApi": 100,
+      "dataUse": "User-entered records stay local unless explicitly copied out. No automatic online sync or upload."
+    },
+    {
+      "id": "voidcraft.screenshot-albums",
+      "name": "Screenshot Album Organizer",
+      "version": "1.0.0",
+      "author": "VoidCraft Launcher",
+      "owner": "VoidCraft Launcher",
+      "description": "Create local album names, tags and notes. Does not move, delete or automatically index image files.",
+      "packageUrl": "https://raw.githubusercontent.com/hsudais201-ops/myLauncher/main/feature-store/packages/voidcraft.screenshot-albums.vcfeature",
+      "sha256": "d8b4c654c3ec56470fcc2d1ad47d5ae597d3dfee406e4bb1dda58512790b65c7",
+      "capabilities": [
+        "Save and manage user-entered local records in app-private storage"
+      ],
+      "minAndroidApi": 21,
+      "maxAndroidApi": 100,
+      "dataUse": "User-entered records stay local unless explicitly copied out. No automatic online sync or upload."
+    },
+    {
+      "id": "voidcraft.profile-card-draft",
+      "name": "Player Profile Card Draft",
+      "version": "1.0.0",
+      "author": "VoidCraft Launcher",
+      "owner": "VoidCraft Launcher",
+      "description": "Draft a private profile card. It is not published and has no remote presence or sharing backend.",
+      "packageUrl": "https://raw.githubusercontent.com/hsudais201-ops/myLauncher/main/feature-store/packages/voidcraft.profile-card-draft.vcfeature",
+      "sha256": "d8c4754336c03ca331ee921d2c5cf4c8c04bd0ba6bcc69364a8b7c87fccebab7",
+      "capabilities": [
+        "Save and manage user-entered local records in app-private storage"
+      ],
+      "minAndroidApi": 21,
+      "maxAndroidApi": 100,
+      "dataUse": "User-entered records stay local unless explicitly copied out. No automatic online sync or upload."
+    },
+    {
+      "id": "voidcraft.feedback-drafts",
+      "name": "Feature Feedback Drafts",
+      "version": "1.0.0",
+      "author": "VoidCraft Launcher",
+      "owner": "VoidCraft Launcher",
+      "description": "Draft bug reports and feature suggestions for later review or sharing. It does not submit to GitHub or any server.",
+      "packageUrl": "https://raw.githubusercontent.com/hsudais201-ops/myLauncher/main/feature-store/packages/voidcraft.feedback-drafts.vcfeature",
+      "sha256": "d60f3b7091eb1a36ebbf781d6098b5cb5d2977a166ee0e9a10125657f27e6409",
+      "capabilities": [
+        "Save and manage user-entered local records in app-private storage"
+      ],
+      "minAndroidApi": 21,
+      "maxAndroidApi": 100,
+      "dataUse": "User-entered records stay local unless explicitly copied out. No automatic online sync or upload."
+    }
+  ]
+}

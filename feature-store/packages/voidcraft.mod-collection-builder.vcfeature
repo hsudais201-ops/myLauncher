@@ -1,0 +1,43 @@
+{
+  "schemaVersion": 1,
+  "id": "voidcraft.mod-collection-builder",
+  "name": "Mod Collection Builder",
+  "version": "1.0.0",
+  "author": "VoidCraft Launcher",
+  "owner": "VoidCraft Launcher",
+  "description": "Create local lists of mod filenames, versions and notes. No downloads, installation or automatic compatibility checks.",
+  "capabilities": [
+    "Save and manage user-entered local records in app-private storage"
+  ],
+  "minAndroidApi": 21,
+  "maxAndroidApi": 100,
+  "dataUse": "User-entered records stay local unless explicitly copied out. No automatic online sync or upload.",
+  "screen": {
+    "type": "workspace",
+    "title": "Mod Collection Builder",
+    "description": "Create local lists of mod filenames, versions and notes. No downloads, installation or automatic compatibility checks.",
+    "entryLabel": "Save entry",
+    "emptyLabel": "No entries saved yet.",
+    "maxEntries": 100,
+    "fields": [
+      {
+        "id": "collection",
+        "label": "Collection name",
+        "required": true,
+        "maxLength": 160
+      },
+      {
+        "id": "mods",
+        "label": "Mod filenames / versions",
+        "multiline": true,
+        "maxLength": 3000
+      },
+      {
+        "id": "notes",
+        "label": "Loader and compatibility notes",
+        "multiline": true,
+        "maxLength": 1800
+      }
+    ]
+  }
+}

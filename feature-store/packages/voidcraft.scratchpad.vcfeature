@@ -1,0 +1,37 @@
+{
+  "schemaVersion": 1,
+  "id": "voidcraft.scratchpad",
+  "name": "Launcher Scratchpad",
+  "version": "1.0.0",
+  "author": "VoidCraft Launcher",
+  "owner": "VoidCraft Launcher",
+  "description": "Keep private notes, commands and checklists for your launcher workflow. Copy or delete notes at any time.",
+  "capabilities": [
+    "Save and manage user-entered local records in app-private storage"
+  ],
+  "minAndroidApi": 21,
+  "maxAndroidApi": 100,
+  "dataUse": "User-entered records stay local unless explicitly copied out. No automatic online sync or upload.",
+  "screen": {
+    "type": "workspace",
+    "title": "Launcher Scratchpad",
+    "description": "Keep private notes, commands and checklists for your launcher workflow. Copy or delete notes at any time.",
+    "entryLabel": "Save entry",
+    "emptyLabel": "No entries saved yet.",
+    "maxEntries": 100,
+    "fields": [
+      {
+        "id": "title",
+        "label": "Note title",
+        "required": true,
+        "maxLength": 120
+      },
+      {
+        "id": "details",
+        "label": "Notes / checklist",
+        "multiline": true,
+        "maxLength": 3000
+      }
+    ]
+  }
+}

@@ -1,0 +1,42 @@
+{
+  "schemaVersion": 1,
+  "id": "voidcraft.server-guidebook",
+  "name": "Server Guidebook",
+  "version": "1.0.0",
+  "author": "VoidCraft Launcher",
+  "owner": "VoidCraft Launcher",
+  "description": "Save server connection instructions, public links and notes. Do not store passwords or tokens here.",
+  "capabilities": [
+    "Save and manage user-entered local records in app-private storage"
+  ],
+  "minAndroidApi": 21,
+  "maxAndroidApi": 100,
+  "dataUse": "User-entered records stay local unless explicitly copied out. No automatic online sync or upload.",
+  "screen": {
+    "type": "workspace",
+    "title": "Server Guidebook",
+    "description": "Save server connection instructions, public links and notes. Do not store passwords or tokens here.",
+    "entryLabel": "Save entry",
+    "emptyLabel": "No entries saved yet.",
+    "maxEntries": 100,
+    "fields": [
+      {
+        "id": "server",
+        "label": "Server name",
+        "required": true,
+        "maxLength": 140
+      },
+      {
+        "id": "address",
+        "label": "Public address or link (optional)",
+        "maxLength": 220
+      },
+      {
+        "id": "guide",
+        "label": "Instructions / notes",
+        "multiline": true,
+        "maxLength": 3000
+      }
+    ]
+  }
+}

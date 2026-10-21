@@ -1,0 +1,43 @@
+{
+  "schemaVersion": 1,
+  "id": "voidcraft.feedback-drafts",
+  "name": "Feature Feedback Drafts",
+  "version": "1.0.0",
+  "author": "VoidCraft Launcher",
+  "owner": "VoidCraft Launcher",
+  "description": "Draft bug reports and feature suggestions for later review or sharing. It does not submit to GitHub or any server.",
+  "capabilities": [
+    "Save and manage user-entered local records in app-private storage"
+  ],
+  "minAndroidApi": 21,
+  "maxAndroidApi": 100,
+  "dataUse": "User-entered records stay local unless explicitly copied out. No automatic online sync or upload.",
+  "screen": {
+    "type": "workspace",
+    "title": "Feature Feedback Drafts",
+    "description": "Draft bug reports and feature suggestions for later review or sharing. It does not submit to GitHub or any server.",
+    "entryLabel": "Save entry",
+    "emptyLabel": "No entries saved yet.",
+    "maxEntries": 100,
+    "fields": [
+      {
+        "id": "title",
+        "label": "Title",
+        "required": true,
+        "maxLength": 160
+      },
+      {
+        "id": "details",
+        "label": "Steps / suggestion",
+        "multiline": true,
+        "maxLength": 3000
+      },
+      {
+        "id": "expected",
+        "label": "Expected behavior",
+        "multiline": true,
+        "maxLength": 1500
+      }
+    ]
+  }
+}

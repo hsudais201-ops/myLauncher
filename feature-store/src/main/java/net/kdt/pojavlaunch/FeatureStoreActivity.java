@@ -1,0 +1,2184 @@
+package net.kdt.pojavlaunch;
+
+import android.content.ActivityNotFoundException;
+import android.content.ClipData;
+import android.content.ClipboardManager;
+import android.content.Context;
+import android.content.Intent;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.graphics.Color;
+import android.graphics.Typeface;
+import android.graphics.drawable.GradientDrawable;
+import android.net.Uri;
+import android.util.Base64;
+import android.os.Bundle;
+import android.view.Gravity;
+import android.view.View;
+import android.view.ViewGroup;
+import android.widget.ArrayAdapter;
+import android.widget.Button;
+import android.widget.EditText;
+import android.widget.ImageView;
+import android.widget.LinearLayout;
+import android.widget.ScrollView;
+import android.widget.Spinner;
+import android.widget.Switch;
+import android.widget.TextView;
+import android.widget.Toast;
+
+import androidx.appcompat.app.AlertDialog;
+
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
+
+import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.net.URLEncoder;
+import java.security.MessageDigest;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.regex.Pattern;
+
+/**
+ * Optional, data-only extension marketplace. Feature packages are JSON declarations;
+ * they cannot load DEX, Java, shell commands, or replace launcher/runtime files.
+ */
+public final class FeatureStoreActivity extends BaseActivity {
+    private static final String CATALOG_URL =
+            "https://raw.githubusercontent.com/hsudais201-ops/myLauncher/main/feature-store/catalog.json";
+    private static final String PUBLISH_URL =
+            "https://github.com/hsudais201-ops/myLauncher/tree/main/feature-store";
+    private static final int REQUEST_IMPORT = 7801;
+    private static final int REQUEST_EXPORT = 7802;
+    private static final int MAX_PACKAGE_BYTES = 1024 * 1024;
+    private static final int MAX_CATALOG_BYTES = 1024 * 1024;
+    private static final Pattern SAFE_ID = Pattern.compile("[a-z0-9][a-z0-9._-]{1,79}");
+    private static final Pattern SAFE_HOST = Pattern.compile("[A-Za-z0-9._:-]{1,253}");
+    private static final Pattern SHA256 = Pattern.compile("[a-fA-F0-9]{64}");
+
+    private final ExecutorService io = Executors.newSingleThreadExecutor();
+    private final ArrayList<JSONObject> catalog = new ArrayList<>();
+    private LinearLayout pageBody;
+    private LinearLayout pageRoot;
+    private String currentPage = "browse";
+    private JSONObject currentFeature;
+    private JSONObject pendingExport;
+    private boolean remoteCatalogLoaded;
+    private String catalogSearchQuery = "";
+    private int socialTab = 0;
+    private String activeChatFriend;
+
+    @Override
+    public boolean setFullscreen() {
+        return false;
+    }
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        loadCachedCatalog();
+        showBrowse();
+        refreshRemoteCatalog();
+    }
+
+    @Override
+    protected void onDestroy() {
+        io.shutdownNow();
+        super.onDestroy();
+    }
+
+    private File storeDirectory() {
+        return new File(getFilesDir(), "feature-store");
+    }
+
+    private File installedDirectory() {
+        return new File(storeDirectory(), "installed");
+    }
+
+    private File catalogCacheFile() {
+        return new File(storeDirectory(), "catalog-cache.json");
+    }
+
+    private File installedFile(String id) {
+        if (!isSafeId(id)) throw new IllegalArgumentException("Invalid feature id");
+        return new File(installedDirectory(), id + ".vcfeature");
+    }
+
+    private static boolean isSafeId(String id) {
+        return id != null && SAFE_ID.matcher(id).matches() && !id.contains("..");
+    }
+
+    private void loadCachedCatalog() {
+        File cache = catalogCacheFile();
+        if (!cache.isFile() || cache.length() > MAX_CATALOG_BYTES) return;
+        try (InputStream input = new FileInputStream(cache)) {
+            JSONObject document = validateCatalogDocument(readLimited(input, MAX_CATALOG_BYTES));
+            addCatalogEntries(document.optJSONArray("features"), true);
+        } catch (Exception ignored) {
+            // The cached listing is optional metadata; a corrupt cache must not block the store.
+        }
+    }
+
+    private void refreshRemoteCatalog() {
+        io.execute(() -> {
+            try {
+                String raw = fetchHttps(CATALOG_URL, MAX_CATALOG_BYTES);
+                JSONObject document = validateCatalogDocument(raw);
+                cacheCatalog(raw);
+                JSONArray entries = document.optJSONArray("features");
+                runOnUiThread(() -> {
+                    addCatalogEntries(entries, true);
+                    remoteCatalogLoaded = true;
+                    if ("browse".equals(currentPage)) showBrowse();
+                });
+            } catch (Exception ignored) {
+                // Keep a previously cached listing if the network is unavailable.
+                runOnUiThread(() -> {
+                    if ("browse".equals(currentPage)) showBrowse();
+                });
+            }
+        });
+    }
+
+    private JSONObject validateCatalogDocument(String raw) throws JSONException {
+        JSONObject document = new JSONObject(raw);
+        if (document.optInt("schemaVersion", -1) != 1) {
+            throw new IllegalArgumentException("Unsupported catalog schema");
+        }
+        JSONArray entries = document.optJSONArray("features");
+        if (entries == null || entries.length() > 500) {
+            throw new IllegalArgumentException("Invalid catalog feature list");
+        }
+        ArrayList<String> ids = new ArrayList<>();
+        for (int i = 0; i < entries.length(); i++) {
+            JSONObject entry = entries.optJSONObject(i);
+            if (!validCatalogEntry(entry)) {
+                throw new IllegalArgumentException("Catalog entry " + i + " did not pass validation");
+            }
+            String id = entry.optString("id");
+            if (ids.contains(id)) throw new IllegalArgumentException("Duplicate catalog feature id: " + id);
+            ids.add(id);
+        }
+        return document;
+    }
+
+    private void cacheCatalog(String raw) throws Exception {
+        byte[] bytes = raw.getBytes("UTF-8");
+        if (bytes.length > MAX_CATALOG_BYTES) throw new IllegalArgumentException("Catalog exceeds size limit");
+        File directory = storeDirectory();
+        if (!directory.isDirectory() && !directory.mkdirs()) {
+            throw new IllegalStateException("Could not create Feature Store metadata directory");
+        }
+        File temporary = new File(directory, "catalog-cache.json.tmp");
+        try (FileOutputStream stream = new FileOutputStream(temporary)) {
+            stream.write(bytes);
+            stream.getFD().sync();
+        }
+        File destination = catalogCacheFile();
+        if (destination.exists() && !destination.delete()) {
+            temporary.delete();
+            throw new IllegalStateException("Could not replace the cached catalog");
+        }
+        if (!temporary.renameTo(destination)) {
+            temporary.delete();
+            throw new IllegalStateException("Could not save the cached catalog");
+        }
+    }
+
+    private void addCatalogEntries(JSONArray entries, boolean replace) {
+        if (entries == null) return;
+        Map<String, JSONObject> merged = new LinkedHashMap<>();
+        if (!replace) {
+            for (JSONObject current : catalog) merged.put(current.optString("id"), current);
+        }
+        for (int i = 0; i < entries.length(); i++) {
+            JSONObject entry = entries.optJSONObject(i);
+            if (!validCatalogEntry(entry)) continue;
+            merged.put(entry.optString("id"), entry);
+        }
+        catalog.clear();
+        catalog.addAll(merged.values());
+        Collections.sort(catalog, Comparator.comparing(
+                item -> item.optString("name"), String.CASE_INSENSITIVE_ORDER));
+    }
+
+    private boolean validCatalogEntry(JSONObject entry) {
+        if (entry == null || entry.has("category") || !isSafeId(entry.optString("id"))) return false;
+        if (empty(entry.optString("name")) || empty(entry.optString("author"))
+                || empty(entry.optString("owner")) || empty(entry.optString("version"))) return false;
+        if (!SHA256.matcher(entry.optString("sha256")).matches()) return false;
+        if (!validCompatibility(entry) || !validCapabilities(entry.optJSONArray("capabilities"))
+                || entry.optString("dataUse", "").length() > 400) return false;
+        String url = entry.optString("packageUrl", "");
+        return !empty(url) && isHttpsUrl(url);
+    }
+
+    private void showBrowse() {
+        currentPage = "browse";
+        currentFeature = null;
+        beginPage("Browse features", "One searchable catalog. Optional add-ons stay separate from core launcher systems.");
+        EditText search = editField("Search features by name, description, or creator");
+        search.setSingleLine(true);
+        search.setText(catalogSearchQuery);
+        pageBody.addView(search, matchWrap());
+        addButtonRow("Search", v -> { catalogSearchQuery = search.getText().toString().trim().toLowerCase(Locale.ROOT); showBrowse(); },
+                "Clear", v -> { catalogSearchQuery = ""; showBrowse(); });
+        addButtonRow("Refresh catalog", v -> {
+            addText("Refreshing the public catalog…", 13, false);
+            refreshRemoteCatalog();
+            Toast.makeText(this, "Catalog refresh started", Toast.LENGTH_SHORT).show();
+        }, "Import package", v -> importPackage());
+        if (remoteCatalogLoaded) {
+            addText("This is the online catalog. Feature packages are downloaded only when you tap Install.", 12, false);
+        } else if (!catalog.isEmpty()) {
+            addText("Showing the last saved catalog listing. Refresh when online to check for new features.", 12, false);
+        } else {
+            addText("The catalog contains feature listings only; it does not install features automatically. Connect to the internet to browse available add-ons.", 12, false);
+        }
+        if (catalog.isEmpty()) {
+            addText("No saved catalog listing is available. Connect to the internet and tap Refresh, or import a .vcfeature package you already have.", 15, false);
+            return;
+        }
+        int matchCount = 0;
+        for (JSONObject item : catalog) {
+            String searchable = (item.optString("name", "") + " " + item.optString("description", "") + " " + item.optString("author", "") + " " + item.optString("owner", "")).toLowerCase(Locale.ROOT);
+            if (empty(catalogSearchQuery) || searchable.contains(catalogSearchQuery)) { addCatalogCard(item); matchCount++; }
+        }
+        if (matchCount == 0) addText("No features match this search. Try another name or clear the search.", 14, false);
+    }
+
+    private void addCatalogCard(JSONObject item) {
+        boolean installed = isInstalled(item.optString("id"));
+        LinearLayout card = newCard();
+        addTextTo(card, item.optString("name", "Unnamed feature"), 18, true);
+        addTextTo(card, "Version " + item.optString("version", "1.0.0"), 12, false);
+        addTextTo(card, item.optString("description", ""), 14, false);
+        addTextTo(card, "Owner: " + item.optString("owner", item.optString("author", "Unknown")), 12, false);
+        addTextTo(card, "Declared access: " + capabilitySummary(item.optJSONArray("capabilities")), 12, false);
+        LinearLayout actions = horizontalRow();
+        if (installed) {
+            addButtonTo(actions, "Open", v -> openInstalled(item.optString("id")));
+            addButtonTo(actions, "Update", v -> showInstallReview(item));
+            addButtonTo(actions, "Uninstall", v -> confirmUninstall(item.optString("id"), item.optString("name")));
+        } else {
+            addButtonTo(actions, "Install", v -> showInstallReview(item));
+        }
+        card.addView(actions);
+        pageBody.addView(card);
+    }
+
+    private void showInstalled() {
+        currentPage = "installed";
+        currentFeature = null;
+        beginPage("Installed features", "Every installed feature is listed here and opens its own screen.");
+        addButtonRow("Import package", v -> importPackage(),
+                "Create feature", v -> showCreate());
+        List<JSONObject> installed = readInstalledFeatures();
+        if (installed.isEmpty()) {
+            addText("You have no installed features yet. Browse the catalog or import a .vcfeature file.", 15, false);
+            return;
+        }
+        for (JSONObject item : installed) {
+            LinearLayout card = newCard();
+            addTextTo(card, item.optString("name", "Unnamed feature"), 18, true);
+            addTextTo(card, "Version " + item.optString("version", "1.0.0"), 12, false);
+            addTextTo(card, item.optString("description", ""), 14, false);
+            addTextTo(card, "Owner: " + item.optString("owner", item.optString("author", "Unknown")), 12, false);
+            LinearLayout actions = horizontalRow();
+            addButtonTo(actions, "Open", v -> showFeature(item));
+            addButtonTo(actions, "Export / share", v -> exportPackage(item));
+            addButtonTo(actions, "Uninstall", v -> confirmUninstall(item.optString("id"), item.optString("name")));
+            card.addView(actions);
+            pageBody.addView(card);
+        }
+    }
+
+    private void showCreate() {
+        currentPage = "create";
+        currentFeature = null;
+        beginPage("Create a feature", "Make a small declarative add-on. Custom features do not execute uploaded code.");
+        addText("Feature name", 14, true);
+        EditText name = editField("Example: My server panel");
+        pageBody.addView(name);
+        addText("Owner / author", 14, true);
+        EditText owner = editField("Your name or project name");
+        pageBody.addView(owner);
+        addText("Description", 14, true);
+        EditText description = editField("What does your feature do?");
+        pageBody.addView(description);
+        addText("Screen type", 14, true);
+        Spinner type = new Spinner(this);
+        String[] screenTypes = new String[] {"Custom page", "Theme studio", "Server status", "Social hub (local preview)", "Local workspace", "Device report"};
+        type.setAdapter(new ArrayAdapter<String>(this, android.R.layout.simple_spinner_dropdown_item, screenTypes));
+        pageBody.addView(type, matchWrap());
+        addButtonRow("Create and install", v -> {
+            try {
+                JSONObject feature = makeFeature(name.getText().toString(),
+                        owner.getText().toString(), description.getText().toString(),
+                        type.getSelectedItemPosition());
+                saveInstalledFeature(feature);
+                Toast.makeText(this, "Feature created and installed", Toast.LENGTH_LONG).show();
+                showFeature(feature);
+            } catch (Exception error) {
+                showError("Could not create feature", error);
+            }
+        }, "Import existing", v -> importPackage());
+        addText("To publish for other people, export/share the .vcfeature package and submit it to the public catalog through the repository review process.", 13, false);
+        addButtonRow("Export catalog instructions", v -> openHttps(PUBLISH_URL),
+                "Open public catalog", v -> openHttps(PUBLISH_URL));
+        addText("Community packages are reviewed and listed in feature-store/catalog.json. The app does not embed a GitHub credential or silently upload to someone else's repository.", 12, false);
+    }
+
+    private JSONObject makeFeature(String rawName, String rawOwner, String rawDescription, int typeIndex)
+            throws JSONException {
+        String name = rawName == null ? "" : rawName.trim();
+        String owner = rawOwner == null ? "" : rawOwner.trim();
+        String description = rawDescription == null ? "" : rawDescription.trim();
+        if (name.length() < 2 || name.length() > 80) throw new IllegalArgumentException("Feature name must be 2–80 characters");
+        if (owner.length() < 2 || owner.length() > 80) throw new IllegalArgumentException("Enter an owner or author name");
+        if (description.length() > 400) throw new IllegalArgumentException("Description cannot exceed 400 characters");
+
+        String slug = name.toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9]+", "-");
+        slug = slug.replaceAll("^-+", "").replaceAll("-+$", "");
+        if (slug.length() < 2) slug = "feature";
+        if (slug.length() > 45) slug = slug.substring(0, 45).replaceAll("-+$", "");
+        String id = "custom." + slug;
+        int suffix = 2;
+        while (installedFile(id).exists()) id = "custom." + slug + "-" + suffix++;
+
+        JSONObject feature = new JSONObject();
+        feature.put("schemaVersion", 1);
+        feature.put("id", id);
+        feature.put("name", name);
+        feature.put("version", "1.0.0");
+        feature.put("author", owner);
+        feature.put("owner", owner);
+        feature.put("description", description);
+        JSONObject screen = new JSONObject();
+        if (typeIndex == 1) {
+            screen.put("type", "theme");
+            screen.put("title", name);
+            screen.put("description", empty(description) ? "Choose a launcher appearance preset." : description);
+            screen.put("presets", defaultPresets());
+        } else if (typeIndex == 2) {
+            screen.put("type", "server_status");
+            screen.put("title", name);
+            screen.put("description", empty(description) ? "Check a Minecraft Java Edition server." : description);
+            screen.put("defaultHost", "mc.hypixel.net");
+        } else if (typeIndex == 3) {
+            screen.put("type", "social");
+            screen.put("mode", "local_preview");
+            screen.put("title", name);
+            screen.put("description", empty(description) ? "A mobile-first social interface preview. Profiles, requests and chats are stored locally; online delivery is not connected." : description);
+        } else if (typeIndex == 4) {
+            screen.put("type", "workspace");
+            screen.put("title", name);
+            screen.put("description", empty(description) ? "Save and manage local entries for this feature." : description);
+            screen.put("entryLabel", "Save entry");
+            screen.put("maxEntries", 100);
+            JSONArray fields = new JSONArray();
+            JSONObject titleField = new JSONObject();
+            titleField.put("id", "title"); titleField.put("label", "Title"); titleField.put("required", true); titleField.put("maxLength", 120); fields.put(titleField);
+            JSONObject detailsField = new JSONObject();
+            detailsField.put("id", "details"); detailsField.put("label", "Details / notes"); detailsField.put("multiline", true); detailsField.put("maxLength", 3000); fields.put(detailsField);
+            screen.put("fields", fields);
+        } else if (typeIndex == 5) {
+            screen.put("type", "device_report"); screen.put("mode", "compatibility"); screen.put("title", name);
+            screen.put("description", empty(description) ? "Review device environment information and known limitations." : description);
+        } else {
+            screen.put("type", "page");
+            screen.put("title", name);
+            screen.put("description", empty(description) ? "Your custom feature page." : description);
+            JSONArray widgets = new JSONArray();
+            JSONObject intro = new JSONObject();
+            intro.put("type", "text");
+            intro.put("label", empty(description) ? "Welcome to this custom feature." : description);
+            widgets.put(intro);
+            screen.put("widgets", widgets);
+        }
+        feature.put("screen", screen);
+        return validateFeature(feature);
+    }
+
+    private JSONArray defaultPresets() throws JSONException {
+        JSONArray presets = new JSONArray();
+        presets.put(themePreset("Night Violet", "#171526", "#8158E9", "#F4F0FF"));
+        presets.put(themePreset("Ocean Blue", "#101D2E", "#2486E8", "#EAF4FF"));
+        presets.put(themePreset("Forest Green", "#12251E", "#35A96B", "#ECFFF4"));
+        return presets;
+    }
+
+    private JSONObject themePreset(String name, String background, String accent, String text) throws JSONException {
+        JSONObject item = new JSONObject();
+        item.put("name", name);
+        item.put("background", background);
+        item.put("accent", accent);
+        item.put("text", text);
+        return item;
+    }
+
+    private void openInstalled(String id) {
+        for (JSONObject feature : readInstalledFeatures()) {
+            if (id.equals(feature.optString("id"))) {
+                showFeature(feature);
+                return;
+            }
+        }
+        showBrowse();
+    }
+
+    private void showFeature(JSONObject feature) {
+        try {
+            currentPage = "detail";
+            currentFeature = validateFeature(feature);
+            JSONObject screen = currentFeature.getJSONObject("screen");
+            beginPage(currentFeature.optString("name", "Feature"), currentFeature.optString("description", ""));
+            addButtonRow("← Feature list", v -> showInstalled(),
+                    "Export / share", v -> exportPackage(currentFeature));
+            addText("Owner: " + currentFeature.optString("owner", currentFeature.optString("author")),
+                    12, false);
+            addText("Version " + currentFeature.optString("version", "1.0.0"), 12, false);
+            String type = screen.optString("type", "page");
+            if ("theme".equals(type)) {
+                renderThemeScreen(screen);
+            } else if ("server_status".equals(type)) {
+                renderServerStatus(screen);
+            } else if ("social".equals(type)) {
+                renderSocialScreen(screen);
+            } else if ("workspace".equals(type)) {
+                renderWorkspaceScreen(screen);
+            } else if ("device_report".equals(type)) {
+                renderDeviceReportScreen(screen);
+            } else {
+                renderPageScreen(screen);
+            }
+        } catch (Exception error) {
+            showError("This feature could not be opened", error);
+        }
+    }
+
+    private String workspaceEntriesKey() {
+        return "workspace." + (currentFeature == null ? "unknown" : currentFeature.optString("id", "unknown")) + ".entries";
+    }
+
+    private JSONArray readWorkspaceEntries() {
+        try {
+            JSONArray saved = new JSONArray(getSharedPreferences("voidcraft_feature_store", MODE_PRIVATE)
+                    .getString(workspaceEntriesKey(), "[]"));
+            JSONArray safe = new JSONArray();
+            for (int i = 0; i < Math.min(saved.length(), 200); i++) {
+                JSONObject item = saved.optJSONObject(i);
+                if (item != null && item.optJSONObject("values") != null) safe.put(item);
+            }
+            return safe;
+        } catch (JSONException ignored) {
+            return new JSONArray();
+        }
+    }
+
+    private boolean writeWorkspaceEntries(JSONArray entries) {
+        String content = entries.toString();
+        if (content.length() > 512 * 1024) {
+            showError("Workspace storage limit reached", new IllegalArgumentException("Copy or delete older entries before adding more."));
+            return false;
+        }
+        getSharedPreferences("voidcraft_feature_store", MODE_PRIVATE).edit()
+                .putString(workspaceEntriesKey(), content).apply();
+        return true;
+    }
+
+    private void renderWorkspaceScreen(JSONObject screen) {
+        addText(screen.optString("description", "Manage local entries for this feature."), 14, false);
+        addText("Entries stay in app-private storage on this device. They are not uploaded automatically.", 12, false);
+        JSONArray fields = screen.optJSONArray("fields");
+        if (fields == null || fields.length() < 1 || fields.length() > 8) {
+            addText("This workspace has no valid fields.", 13, false);
+            return;
+        }
+        LinkedHashMap<String, EditText> inputs = new LinkedHashMap<>();
+        for (int i = 0; i < fields.length(); i++) {
+            JSONObject field = fields.optJSONObject(i);
+            if (field == null) continue;
+            String fieldId = field.optString("id", "");
+            String label = field.optString("label", fieldId);
+            if (!isSafeId(fieldId) || empty(label)) continue;
+            addText(label, 14, true);
+            EditText input = editField(label);
+            boolean multiline = field.optBoolean("multiline", false);
+            input.setSingleLine(!multiline);
+            int maxLength = Math.max(1, Math.min(field.optInt("maxLength", 500), 5000));
+            input.setFilters(new android.text.InputFilter[]{new android.text.InputFilter.LengthFilter(maxLength)});
+            if (multiline) input.setInputType(android.text.InputType.TYPE_CLASS_TEXT
+                    | android.text.InputType.TYPE_TEXT_FLAG_MULTI_LINE
+                    | android.text.InputType.TYPE_TEXT_FLAG_CAP_SENTENCES);
+            pageBody.addView(input, matchWrap());
+            inputs.put(fieldId, input);
+        }
+        int maxEntries = Math.max(1, Math.min(screen.optInt("maxEntries", 100), 200));
+        addButtonRow(screen.optString("entryLabel", "Save entry"), v -> {
+            JSONObject values = new JSONObject();
+            boolean anyValue = false;
+            try {
+                for (int i = 0; i < fields.length(); i++) {
+                    JSONObject field = fields.optJSONObject(i);
+                    if (field == null) continue;
+                    String fieldId = field.optString("id", "");
+                    EditText input = inputs.get(fieldId);
+                    if (input == null) continue;
+                    String value = input.getText().toString().trim();
+                    if (field.optBoolean("required", false) && value.isEmpty()) {
+                        Toast.makeText(this, "Fill required field: " + field.optString("label", fieldId), Toast.LENGTH_LONG).show();
+                        return;
+                    }
+                    if (!value.isEmpty()) anyValue = true;
+                    values.put(fieldId, value);
+                }
+                if (!anyValue) {
+                    Toast.makeText(this, "Enter something before saving.", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+                JSONArray entries = readWorkspaceEntries();
+                if (entries.length() >= maxEntries) {
+                    showError("Workspace is full", new IllegalArgumentException("The limit of " + maxEntries + " entries was reached."));
+                    return;
+                }
+                JSONObject entry = new JSONObject();
+                entry.put("createdAt", System.currentTimeMillis());
+                entry.put("values", values);
+                entries.put(entry);
+                if (writeWorkspaceEntries(entries)) {
+                    Toast.makeText(this, "Entry saved locally", Toast.LENGTH_SHORT).show();
+                    showFeature(currentFeature);
+                }
+            } catch (JSONException error) {
+                showError("Could not save entry", error);
+            }
+        }, "Copy all", v -> copyPlainText("VoidCraft workspace export", readWorkspaceEntries().toString()));
+        JSONArray saved = readWorkspaceEntries();
+        addText("Saved entries (" + saved.length() + ")", 18, true);
+        if (saved.length() == 0) addText(screen.optString("emptyLabel", "No saved entries yet."), 13, false);
+        for (int i = saved.length() - 1; i >= 0; i--) {
+            JSONObject entry = saved.optJSONObject(i);
+            if (entry == null) continue;
+            JSONObject values = entry.optJSONObject("values");
+            if (values == null) continue;
+            final int entryIndex = i;
+            LinearLayout card = newCard();
+            StringBuilder copy = new StringBuilder(screen.optString("title", "Workspace"));
+            for (int j = 0; j < fields.length(); j++) {
+                JSONObject field = fields.optJSONObject(j);
+                if (field == null) continue;
+                String fieldId = field.optString("id", "");
+                String value = values.optString(fieldId, "");
+                if (!value.isEmpty()) {
+                    addTextTo(card, field.optString("label", fieldId) + ": " + value, 14, false);
+                    copy.append("\n").append(field.optString("label", fieldId)).append(": ").append(value);
+                }
+            }
+            LinearLayout buttons = horizontalRow();
+            final String copyValue = copy.toString();
+            addButtonTo(buttons, "Copy", v -> copyPlainText("VoidCraft feature entry", copyValue));
+            addButtonTo(buttons, "Delete", v -> new AlertDialog.Builder(this)
+                    .setTitle("Delete saved entry")
+                    .setMessage("Remove this entry from this local workspace?")
+                    .setNegativeButton(android.R.string.cancel, null)
+                    .setPositiveButton("Delete", (dialog, which) -> deleteWorkspaceEntry(entryIndex))
+                    .show());
+            card.addView(buttons);
+        }
+    }
+
+    private void deleteWorkspaceEntry(int index) {
+        JSONArray saved = readWorkspaceEntries();
+        if (index < 0 || index >= saved.length()) return;
+        JSONArray replacement = new JSONArray();
+        for (int i = 0; i < saved.length(); i++) {
+            if (i != index) replacement.put(saved.opt(i));
+        }
+        if (writeWorkspaceEntries(replacement)) showFeature(currentFeature);
+    }
+
+    private void copyPlainText(String label, String content) {
+        ClipboardManager clipboard = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
+        if (clipboard == null) {
+            Toast.makeText(this, "Clipboard is unavailable", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        clipboard.setPrimaryClip(ClipData.newPlainText(label, content == null ? "" : content));
+        Toast.makeText(this, "Copied to clipboard", Toast.LENGTH_SHORT).show();
+    }
+
+    private String formatBytes(long bytes) {
+        if (bytes < 0) return "unknown";
+        if (bytes >= 1024L * 1024L * 1024L) return String.format(Locale.ROOT, "%.1f GB", bytes / (1024d * 1024d * 1024d));
+        if (bytes >= 1024L * 1024L) return String.format(Locale.ROOT, "%.1f MB", bytes / (1024d * 1024d));
+        if (bytes >= 1024L) return String.format(Locale.ROOT, "%.1f KB", bytes / 1024d);
+        return bytes + " bytes";
+    }
+
+    private long measurePrivateDirectory(File target, int depth, int[] visited, String canonicalRoot) {
+        if (target == null || !target.exists() || depth > 16 || visited[0]++ > 20000) return 0L;
+        try {
+            String path = target.getCanonicalPath();
+            if (!path.equals(canonicalRoot) && !path.startsWith(canonicalRoot + File.separator)) return 0L;
+        } catch (Exception ignored) {
+            return 0L;
+        }
+        if (target.isFile()) return Math.max(0L, target.length());
+        File[] children = target.listFiles();
+        if (children == null) return 0L;
+        long total = 0L;
+        for (File child : children) {
+            long size = measurePrivateDirectory(child, depth + 1, visited, canonicalRoot);
+            if (Long.MAX_VALUE - total < size) return Long.MAX_VALUE;
+            total += size;
+        }
+        return total;
+    }
+
+    private String buildDeviceReport(String mode) {
+        StringBuilder report = new StringBuilder();
+        report.append("Device: ").append(android.os.Build.MANUFACTURER).append(" ").append(android.os.Build.MODEL).append("\n");
+        report.append("Android: ").append(android.os.Build.VERSION.RELEASE).append(" (API ").append(android.os.Build.VERSION.SDK_INT).append(")\n");
+        String[] abis = android.os.Build.SUPPORTED_ABIS;
+        report.append("CPU ABI: ").append(abis == null || abis.length == 0 ? "unknown" : android.text.TextUtils.join(", ", abis)).append("\n");
+        android.app.ActivityManager manager = (android.app.ActivityManager) getSystemService(Context.ACTIVITY_SERVICE);
+        android.app.ActivityManager.MemoryInfo memory = new android.app.ActivityManager.MemoryInfo();
+        if (manager != null) {
+            manager.getMemoryInfo(memory);
+            if (memory.totalMem > 0) report.append("Total RAM: ").append(formatBytes(memory.totalMem)).append("\n");
+            report.append("Available RAM: ").append(formatBytes(memory.availMem)).append("\n");
+            report.append("Low-memory state: ").append(memory.lowMemory ? "yes" : "no").append("\n");
+        } else {
+            report.append("Memory: unavailable\n");
+        }
+        try {
+            android.os.StatFs stats = new android.os.StatFs(android.os.Environment.getDataDirectory().getPath());
+            report.append("Internal storage free: ").append(formatBytes(stats.getAvailableBytes()))
+                    .append(" of ").append(formatBytes(stats.getTotalBytes())).append("\n");
+        } catch (Exception ignored) {
+            report.append("Internal storage: unavailable\n");
+        }
+        String thermal = "not exposed by this Android version";
+        if (android.os.Build.VERSION.SDK_INT >= 29) {
+            try {
+                android.os.PowerManager power = (android.os.PowerManager) getSystemService(Context.POWER_SERVICE);
+                if (power != null) {
+                    switch (power.getCurrentThermalStatus()) {
+                        case android.os.PowerManager.THERMAL_STATUS_NONE: thermal = "normal"; break;
+                        case android.os.PowerManager.THERMAL_STATUS_LIGHT: thermal = "light"; break;
+                        case android.os.PowerManager.THERMAL_STATUS_MODERATE: thermal = "moderate"; break;
+                        case android.os.PowerManager.THERMAL_STATUS_SEVERE: thermal = "severe"; break;
+                        case android.os.PowerManager.THERMAL_STATUS_CRITICAL: thermal = "critical"; break;
+                        case android.os.PowerManager.THERMAL_STATUS_EMERGENCY: thermal = "emergency"; break;
+                        case android.os.PowerManager.THERMAL_STATUS_SHUTDOWN: thermal = "shutdown"; break;
+                        default: thermal = "unknown";
+                    }
+                }
+            } catch (Exception ignored) {
+                thermal = "unavailable";
+            }
+        }
+        report.append("Thermal status: ").append(thermal).append("\n");
+        if ("storage".equals(mode)) {
+            long bytes = 0L;
+            try {
+                File root = storeDirectory();
+                if (root.exists()) bytes = measurePrivateDirectory(root, 0, new int[] {0}, root.getCanonicalPath());
+            } catch (Exception ignored) {
+                bytes = 0L;
+            }
+            report.append("Feature Store private files: ").append(formatBytes(bytes)).append("\n");
+            report.append("Scope: does not include every Minecraft profile, world, screenshot, or external-storage directory.\n");
+        } else if ("performance".equals(mode)) {
+            long ramMb = memory.totalMem / (1024L * 1024L);
+            String recommendation = ramMb > 0 && ramMb <= 2048
+                    ? "Low-End: start with reduced render distance and lower resolution scaling"
+                    : ramMb <= 4096
+                    ? "Balanced: start with moderate graphics and render distance"
+                    : "Balanced or Visual Quality: increase settings gradually while monitoring heat";
+            report.append("Suggested starting point: ").append(recommendation).append("\n");
+            report.append("Limit: pre-launch snapshot only. Reliable live FPS/frame-time is unavailable here; no settings are changed and no FPS gain is promised.\n");
+            if ("severe".equals(thermal) || "critical".equals(thermal) || "emergency".equals(thermal) || "shutdown".equals(thermal)) {
+                report.append("Thermal advice: let the device cool before launching or raising graphics settings.\n");
+            }
+        } else {
+            report.append("Compatibility scope: environment facts only. Exact Minecraft version, Java runtime, mod, and renderer compatibility remains unknown until the combination is tested.\n");
+        }
+        return report.toString();
+    }
+
+    private void renderDeviceReportScreen(JSONObject screen) {
+        String mode = screen.optString("mode", "compatibility");
+        addText(screen.optString("description", "Review basic device diagnostics."), 14, false);
+        addText(buildDeviceReport(mode), 14, false);
+        addButtonRow("Copy report", v -> copyPlainText("VoidCraft device report", buildDeviceReport(mode)),
+                "Refresh", v -> showFeature(currentFeature));
+        addText("No additional Android runtime permission is requested. Values are snapshots, not an FPS or compatibility guarantee.", 12, false);
+    }
+
+    private void renderThemeScreen(JSONObject screen) {
+        addText(screen.optString("description", "Choose a launcher palette."), 14, false);
+        JSONArray presets = screen.optJSONArray("presets");
+        if (presets == null || presets.length() == 0) {
+            addText("This theme feature has no valid presets.", 13, false);
+            return;
+        }
+        for (int i = 0; i < presets.length(); i++) {
+            JSONObject preset = presets.optJSONObject(i);
+            if (preset == null || !validHex(preset.optString("background"))
+                    || !validHex(preset.optString("accent")) || !validHex(preset.optString("text"))) continue;
+            final JSONObject choice = preset;
+            LinearLayout card = newCard();
+            addTextTo(card, choice.optString("name", "Theme"), 17, true);
+            addTextTo(card, "Background " + choice.optString("background")
+                    + " · Accent " + choice.optString("accent"), 12, false);
+            Button apply = makeButton("Apply theme");
+            apply.setOnClickListener(v -> {
+                try {
+                    FeatureTheme.applyPreset(this, choice.getString("background"),
+                            choice.getString("accent"), choice.getString("text"));
+                    FeatureTheme.apply(this);
+                    Toast.makeText(this, "Theme applied to supported launcher UI", Toast.LENGTH_LONG).show();
+                } catch (Exception error) {
+                    showError("Could not apply theme", error);
+                }
+            });
+            card.addView(apply);
+            pageBody.addView(card);
+        }
+        addText("Theme changes affect supported launcher screens and buttons; the Minecraft renderer and in-game controls are left alone.", 12, false);
+    }
+
+    private String serverStorageKey() {
+        String featureId = currentFeature == null ? "default" : currentFeature.optString("id", "default");
+        return "server_status." + featureId + ".servers";
+    }
+
+    private android.content.SharedPreferences serverPreferences() {
+        return getSharedPreferences("voidcraft_feature_store", MODE_PRIVATE);
+    }
+
+    private JSONArray loadSavedServers() {
+        JSONArray stored;
+        try {
+            stored = new JSONArray(serverPreferences().getString(serverStorageKey(), "[]"));
+        } catch (JSONException ignored) {
+            return new JSONArray();
+        }
+        JSONArray valid = new JSONArray();
+        for (int i = 0; i < Math.min(stored.length(), 100); i++) {
+            JSONObject server = stored.optJSONObject(i);
+            if (server == null) continue;
+            String id = server.optString("id", "");
+            String name = server.optString("name", "").trim();
+            String host = server.optString("host", "").trim();
+            if (empty(id) || empty(name) || name.length() > 80 || !validServerHost(host)) continue;
+            JSONObject clean = new JSONObject();
+            try {
+                clean.put("id", id);
+                clean.put("name", name);
+                clean.put("host", host);
+                valid.put(clean);
+            } catch (JSONException ignored) {
+                // Skip malformed stored entries and keep the rest of the list usable.
+            }
+        }
+        return valid;
+    }
+
+    private void saveServerList(JSONArray servers) {
+        serverPreferences().edit().putString(serverStorageKey(), servers.toString()).apply();
+    }
+
+    private boolean validServerHost(String host) {
+        return host != null && host.length() <= 253
+                && SAFE_HOST.matcher(host).matches() && !host.contains("..")
+                && !host.startsWith(".") && !host.endsWith(".");
+    }
+
+    private boolean serverIdExists(JSONArray servers, String id) {
+        for (int i = 0; i < servers.length(); i++) {
+            JSONObject item = servers.optJSONObject(i);
+            if (item != null && id.equals(item.optString("id", ""))) return true;
+        }
+        return false;
+    }
+
+    private void renderServerStatus(JSONObject screen) {
+        addText(screen.optString("description",
+                "Save Minecraft Java Edition servers and check their live status."), 14, false);
+        addButtonRow("＋ Add server",
+                v -> showServerEditor(null, screen.optString("defaultHost", "")));
+        JSONArray servers = loadSavedServers();
+        if (servers.length() == 0) {
+            addText("No servers saved yet. Add a server with a display name and host/IP to start monitoring it.", 15, false);
+        }
+        for (int i = 0; i < servers.length(); i++) {
+            JSONObject server = servers.optJSONObject(i);
+            if (server != null) renderSavedServerCard(server);
+        }
+        addText("Status and player counts come from mcsrvstat.us over HTTPS. Results may be cached by that service. A failed lookup is UNKNOWN, not automatically OFFLINE.", 12, false);
+    }
+
+    private void renderSavedServerCard(JSONObject server) {
+        final String id = server.optString("id");
+        final String name = server.optString("name", "Minecraft server");
+        final String address = server.optString("host", "");
+        LinearLayout card = newCard();
+        addTextTo(card, name, 18, true);
+        addTextTo(card, address, 13, false);
+
+        LinearLayout header = horizontalRow();
+        ImageView logo = new ImageView(this);
+        logo.setImageResource(android.R.drawable.ic_menu_gallery);
+        logo.setScaleType(ImageView.ScaleType.CENTER_CROP);
+        logo.setContentDescription(name + " server icon");
+        LinearLayout.LayoutParams logoParams = new LinearLayout.LayoutParams(dp(64), dp(64));
+        logoParams.setMargins(0, 0, dp(12), 0);
+        header.addView(logo, logoParams);
+
+        LinearLayout summary = new LinearLayout(this);
+        summary.setOrientation(LinearLayout.VERTICAL);
+        TextView state = addTextTo(summary, "NOT CHECKED", 17, true);
+        TextView playersLabel = addTextTo(summary, "Players online: —", 14, true);
+        TextView versionLabel = addTextTo(summary, "Version: —", 12, false);
+        header.addView(summary, new LinearLayout.LayoutParams(
+                0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        card.addView(header);
+
+        TextView motd = addTextTo(card, "MOTD: Not checked yet.", 14, false);
+        TextView detail = addTextTo(card, "Tap Refresh to check this server.", 12, false);
+
+        LinearLayout actions = horizontalRow();
+        Button refresh = makeButton("Refresh");
+        refresh.setOnClickListener(v -> refreshServerStatus(
+                address, state, playersLabel, versionLabel, motd, detail, logo, refresh));
+        LinearLayout.LayoutParams actionParams = new LinearLayout.LayoutParams(
+                0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
+        actionParams.setMargins(dp(3), dp(4), dp(3), dp(4));
+        actions.addView(refresh, actionParams);
+        addButtonTo(actions, "Edit", v -> showServerEditor(id, address));
+        addButtonTo(actions, "Remove", v -> confirmRemoveServer(id, name));
+        card.addView(actions);
+    }
+
+    private void showServerEditor(String serverId, String defaultHost) {
+        JSONArray servers = loadSavedServers();
+        JSONObject existing = null;
+        if (!empty(serverId)) {
+            for (int i = 0; i < servers.length(); i++) {
+                JSONObject item = servers.optJSONObject(i);
+                if (item != null && serverId.equals(item.optString("id", ""))) {
+                    existing = item;
+                    break;
+                }
+            }
+            if (existing == null) {
+                Toast.makeText(this, "This saved server could not be found.", Toast.LENGTH_SHORT).show();
+                showFeature(currentFeature);
+                return;
+            }
+        }
+        if (existing == null && servers.length() >= 100) {
+            Toast.makeText(this, "You can save up to 100 servers in this feature.", Toast.LENGTH_LONG).show();
+            return;
+        }
+
+        LinearLayout form = new LinearLayout(this);
+        form.setOrientation(LinearLayout.VERTICAL);
+        form.setPadding(dp(20), dp(4), dp(20), dp(4));
+        addTextTo(form, "Display name", 14, true);
+        EditText nameInput = editField("e.g. My Survival Server");
+        nameInput.setSingleLine(true);
+        if (existing != null) nameInput.setText(existing.optString("name", ""));
+        form.addView(nameInput, matchWrap());
+        addTextTo(form, "Server IP / address", 14, true);
+        EditText hostInput = editField("play.example.net or 192.0.2.10:25565");
+        hostInput.setSingleLine(true);
+        hostInput.setInputType(android.text.InputType.TYPE_CLASS_TEXT
+                | android.text.InputType.TYPE_TEXT_VARIATION_URI);
+        if (existing != null) hostInput.setText(existing.optString("host", ""));
+        else if (!empty(defaultHost)) hostInput.setText(defaultHost);
+        form.addView(hostInput, matchWrap());
+
+        AlertDialog dialog = new AlertDialog.Builder(this)
+                .setTitle(existing == null ? "Add server" : "Edit server")
+                .setView(form)
+                .setNegativeButton(android.R.string.cancel, null)
+                .setPositiveButton("Save", null)
+                .create();
+        final JSONObject original = existing;
+        dialog.setOnShowListener(ignored -> dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v -> {
+            String name = nameInput.getText().toString().trim();
+            String host = hostInput.getText().toString().trim();
+            if (name.length() < 1 || name.length() > 80) {
+                nameInput.setError("Name must be 1–80 characters");
+                return;
+            }
+            if (!validServerHost(host)) {
+                hostInput.setError("Enter a valid host name or IP, optionally with :port. Do not enter a URL.");
+                return;
+            }
+            try {
+                String id = original == null ? "server-" + Long.toHexString(System.currentTimeMillis())
+                        : original.optString("id");
+                while (original == null && serverIdExists(servers, id)) id += "x";
+                JSONObject saved = new JSONObject();
+                saved.put("id", id);
+                saved.put("name", name);
+                saved.put("host", host);
+                JSONArray updated = new JSONArray();
+                boolean replaced = false;
+                for (int i = 0; i < servers.length(); i++) {
+                    JSONObject item = servers.optJSONObject(i);
+                    if (item == null) continue;
+                    if (!empty(serverId) && serverId.equals(item.optString("id", ""))) {
+                        updated.put(saved);
+                        replaced = true;
+                    } else {
+                        updated.put(item);
+                    }
+                }
+                if (!replaced) updated.put(saved);
+                saveServerList(updated);
+                dialog.dismiss();
+                showFeature(currentFeature);
+                Toast.makeText(this, original == null ? "Server added" : "Server updated", Toast.LENGTH_SHORT).show();
+            } catch (Exception error) {
+                showError("Could not save server", error);
+            }
+        }));
+        dialog.show();
+    }
+
+    private void confirmRemoveServer(String serverId, String serverName) {
+        new AlertDialog.Builder(this)
+                .setTitle("Remove server")
+                .setMessage("Remove \"" + serverName + "\" from this saved server list? This does not change the actual Minecraft server.")
+                .setNegativeButton(android.R.string.cancel, null)
+                .setPositiveButton("Remove", (dialog, which) -> {
+                    JSONArray saved = loadSavedServers();
+                    JSONArray updated = new JSONArray();
+                    boolean removed = false;
+                    for (int i = 0; i < saved.length(); i++) {
+                        JSONObject item = saved.optJSONObject(i);
+                        if (item == null) continue;
+                        if (serverId.equals(item.optString("id", ""))) removed = true;
+                        else updated.put(item);
+                    }
+                    saveServerList(updated);
+                    showFeature(currentFeature);
+                    Toast.makeText(this, removed ? "Server removed" : "Server was already removed",
+                            Toast.LENGTH_SHORT).show();
+                }).show();
+    }
+
+    private void refreshServerStatus(String address, TextView state, TextView playersLabel,
+                                     TextView versionLabel, TextView motd, TextView detail,
+                                     ImageView logo, Button refresh) {
+        if (!validServerHost(address)) {
+            detail.setText("This saved address is invalid. Edit the server to fix it.");
+            return;
+        }
+        refresh.setEnabled(false);
+        state.setText("CHECKING…");
+        state.setTextColor(Color.parseColor("#B8A7F7"));
+        playersLabel.setText("Players online: Checking…");
+        versionLabel.setText("Version: —");
+        motd.setText("MOTD: Checking…");
+        detail.setText(address);
+
+        io.execute(() -> {
+            boolean online = false;
+            boolean lookupSucceeded = false;
+            String playerCount = "Players online: unavailable";
+            String serverVersion = "Version: unavailable";
+            String motdText = "MOTD: Not provided by this server.";
+            String details = address;
+            Bitmap serverIcon = null;
+            try {
+                JSONObject response = new JSONObject(fetchHttps(
+                        "https://api.mcsrvstat.us/3/" + URLEncoder.encode(address, "UTF-8"), 256 * 1024));
+                lookupSucceeded = response.has("online");
+                online = response.optBoolean("online", false);
+                if (online) {
+                    JSONObject players = response.optJSONObject("players");
+                    if (players != null && players.has("online")) {
+                        int onlinePlayers = Math.max(0, players.optInt("online", 0));
+                        if (players.has("max")) {
+                            playerCount = "Players online: " + onlinePlayers + " / "
+                                    + Math.max(0, players.optInt("max", 0));
+                        } else {
+                            playerCount = "Players online: " + onlinePlayers;
+                        }
+                    }
+                    String versionText = response.optString("version", "");
+                    JSONObject protocol = response.optJSONObject("protocol");
+                    if (empty(versionText) && protocol != null) versionText = protocol.optString("name", "");
+                    if (!empty(versionText)) serverVersion = "Version: " + versionText;
+
+                    JSONObject motdObject = response.optJSONObject("motd");
+                    JSONArray clean = motdObject == null ? null : motdObject.optJSONArray("clean");
+                    JSONArray raw = motdObject == null ? null : motdObject.optJSONArray("raw");
+                    JSONArray selectedLines = clean != null ? clean : raw;
+                    if (selectedLines != null && selectedLines.length() > 0) {
+                        StringBuilder text = new StringBuilder("MOTD: ");
+                        for (int i = 0; i < Math.min(selectedLines.length(), 3); i++) {
+                            if (i > 0) text.append('\n');
+                            text.append(selectedLines.optString(i));
+                        }
+                        motdText = text.toString();
+                        if (motdText.length() > 500) motdText = motdText.substring(0, 497) + "…";
+                    }
+                } else {
+                    details = address + "\nNo status response is currently reporting this server online.";
+                }
+
+                serverIcon = decodeServerIcon(response.optString("icon", ""));
+                if (serverIcon == null) {
+                    try {
+                        byte[] png = fetchHttpsBytes(
+                                "https://api.mcsrvstat.us/icon/" + URLEncoder.encode(address, "UTF-8"),
+                                64 * 1024);
+                        serverIcon = decodeServerPng(png);
+                    } catch (Exception ignored) {
+                        // Use the neutral placeholder when an icon is not available.
+                    }
+                }
+            } catch (Exception error) {
+                lookupSucceeded = false;
+                details = "Status lookup failed. Check the address and internet connection.";
+            }
+
+            final boolean finalOnline = online;
+            final boolean finalLookupSucceeded = lookupSucceeded;
+            final String finalPlayerCount = playerCount;
+            final String finalVersion = serverVersion;
+            final String finalMotd = motdText;
+            final String finalDetails = details;
+            final Bitmap finalIcon = serverIcon;
+            runOnUiThread(() -> {
+                refresh.setEnabled(true);
+                if (!finalLookupSucceeded) {
+                    state.setText("UNKNOWN");
+                    state.setTextColor(Color.parseColor("#F0B35A"));
+                    playersLabel.setText("Players online: unavailable");
+                    versionLabel.setText("Version: unavailable");
+                    motd.setText("MOTD: unavailable");
+                } else if (finalOnline) {
+                    state.setText("● ONLINE");
+                    state.setTextColor(Color.parseColor("#35D07F"));
+                    playersLabel.setText(finalPlayerCount);
+                    versionLabel.setText(finalVersion);
+                    motd.setText(finalMotd);
+                } else {
+                    state.setText("● OFFLINE");
+                    state.setTextColor(Color.parseColor("#FF7777"));
+                    playersLabel.setText("Players online: unavailable while offline");
+                    versionLabel.setText("Version: unavailable");
+                    motd.setText("MOTD: unavailable while offline");
+                }
+                detail.setText(finalDetails);
+                if (finalIcon != null) logo.setImageBitmap(finalIcon);
+                else logo.setImageResource(android.R.drawable.ic_menu_gallery);
+            });
+        });
+    }
+
+    private Bitmap decodeServerIcon(String dataUri) {
+        if (empty(dataUri) || dataUri.length() > 96 * 1024
+                || !dataUri.startsWith("data:image/png;base64,")) return null;
+        try {
+            String encoded = dataUri.substring("data:image/png;base64,".length());
+            byte[] bytes = Base64.decode(encoded, Base64.DEFAULT);
+            return decodeServerPng(bytes);
+        } catch (IllegalArgumentException ignored) {
+            return null;
+        }
+    }
+
+    private Bitmap decodeServerPng(byte[] bytes) {
+        if (bytes == null || bytes.length < 24 || bytes.length > 64 * 1024) return null;
+        if ((bytes[0] & 0xff) != 0x89 || bytes[1] != 'P' || bytes[2] != 'N'
+                || bytes[3] != 'G' || bytes[4] != 0x0d || bytes[5] != 0x0a
+                || bytes[6] != 0x1a || bytes[7] != 0x0a) return null;
+        BitmapFactory.Options bounds = new BitmapFactory.Options();
+        bounds.inJustDecodeBounds = true;
+        BitmapFactory.decodeByteArray(bytes, 0, bytes.length, bounds);
+        if (bounds.outWidth < 1 || bounds.outHeight < 1 || bounds.outWidth > 256
+                || bounds.outHeight > 256 || (long) bounds.outWidth * bounds.outHeight > 65536) return null;
+        return BitmapFactory.decodeByteArray(bytes, 0, bytes.length);
+    }
+
+    private static byte[] fetchHttpsBytes(String address, int limit) throws Exception {
+        if (!isHttpsUrl(address)) throw new IllegalArgumentException("Only HTTPS URLs are allowed");
+        HttpURLConnection connection = null;
+        try {
+            URL url = new URL(address);
+            connection = (HttpURLConnection) url.openConnection();
+            connection.setConnectTimeout(7000);
+            connection.setReadTimeout(9000);
+            connection.setInstanceFollowRedirects(false);
+            connection.setRequestMethod("GET");
+            connection.setRequestProperty("User-Agent", "VoidCraft-FeatureStore/1");
+            connection.setRequestProperty("Accept", "image/png");
+            int status = connection.getResponseCode();
+            if (status != HttpURLConnection.HTTP_OK) throw new IllegalStateException("Icon service returned HTTP " + status);
+            long length = connection.getContentLengthLong();
+            if (length > limit) throw new IllegalArgumentException("Server icon exceeds size limit");
+            try (InputStream input = connection.getInputStream();
+                 ByteArrayOutputStream output = new ByteArrayOutputStream()) {
+                byte[] buffer = new byte[4096];
+                int total = 0;
+                int read;
+                while ((read = input.read(buffer)) != -1) {
+                    total += read;
+                    if (total > limit) throw new IllegalArgumentException("Server icon exceeds size limit");
+                    output.write(buffer, 0, read);
+                }
+                return output.toByteArray();
+            }
+        } finally {
+            if (connection != null) connection.disconnect();
+        }
+    }
+
+    private android.content.SharedPreferences socialPreferences() {
+        return getSharedPreferences("voidcraft_feature_store", MODE_PRIVATE);
+    }
+
+    private String socialKey(String suffix) {
+        String id = currentFeature == null ? "social" : currentFeature.optString("id", "social");
+        return "social." + id + "." + suffix;
+    }
+
+    private JSONArray socialArray(String name) {
+        try {
+            return new JSONArray(socialPreferences().getString(socialKey(name), "[]"));
+        } catch (JSONException ignored) {
+            return new JSONArray();
+        }
+    }
+
+    private void saveSocialArray(String name, JSONArray values) {
+        socialPreferences().edit().putString(socialKey(name), values.toString()).apply();
+    }
+
+    private boolean socialContainsUser(JSONArray entries, String username) {
+        for (int i = 0; i < entries.length(); i++) {
+            JSONObject entry = entries.optJSONObject(i);
+            if (entry != null && username.equalsIgnoreCase(entry.optString("username", ""))) return true;
+        }
+        return false;
+    }
+
+    private boolean validSocialUsername(String username) {
+        return username != null && Pattern.matches("[A-Za-z0-9_]{3,16}", username);
+    }
+
+    private void showSocialProviderNotice(String provider) {
+        new AlertDialog.Builder(this)
+                .setTitle(provider + " sign-in")
+                .setMessage("This provider button is a UI placeholder in the Social Hub preview. No password or token is requested or saved. Provider OAuth, account linking, server-side verification, and online friend/chat delivery need a configured authentication backend. Your existing Minecraft/Microsoft launcher sign-in remains separate and unchanged.")
+                .setPositiveButton(android.R.string.ok, null)
+                .show();
+    }
+
+    private void renderSocialScreen(JSONObject screen) {
+        addText("SOCIAL HUB  ·  PREVIEW", 12, true);
+        addText("Profiles, friend requests, contacts and message screens. This install currently stores preview data on this device only; nothing is sent to another player.", 13, false);
+        addButtonRow("Profile", v -> { socialTab = 0; showFeature(currentFeature); },
+                "Friends", v -> { socialTab = 1; showFeature(currentFeature); });
+        addButtonRow("Requests", v -> { socialTab = 2; showFeature(currentFeature); },
+                "Chats", v -> { socialTab = 3; showFeature(currentFeature); });
+        addButtonRow("← Previous", v -> { socialTab = (socialTab + 3) % 4; showFeature(currentFeature); },
+                "Swipe → Next", v -> { socialTab = (socialTab + 1) % 4; showFeature(currentFeature); });
+
+        if (socialTab == 0) renderSocialProfile();
+        else if (socialTab == 1) renderSocialFriends();
+        else if (socialTab == 2) renderSocialRequests();
+        else renderSocialChats();
+
+        addText("Online-service status: not connected. Microsoft/Xbox, Google and other-provider sign-in buttons are not live authentication yet.", 12, false);
+    }
+
+    private void renderSocialProfile() {
+        addText("Social profile", 19, true);
+        EditText username = editField("Username: 3–16 letters, numbers or underscores");
+        username.setSingleLine(true);
+        username.setText(socialPreferences().getString(socialKey("username"), ""));
+        pageBody.addView(username);
+        addButtonRow("Save username", v -> {
+            String value = username.getText().toString().trim();
+            if (!validSocialUsername(value)) {
+                Toast.makeText(this, "Use 3–16 letters, numbers, or underscores.", Toast.LENGTH_LONG).show();
+                return;
+            }
+            socialPreferences().edit().putString(socialKey("username"), value).apply();
+            Toast.makeText(this, "Saved local Social Hub profile", Toast.LENGTH_LONG).show();
+            showFeature(currentFeature);
+        });
+        addText("This username belongs to the add-on preview. It does not alter the selected Minecraft profile, Microsoft gamertag, or official account.", 12, false);
+        addText("Account providers", 16, true);
+        LinearLayout providers = horizontalRow();
+        addButtonTo(providers, "Microsoft / Xbox", v -> showSocialProviderNotice("Microsoft / Xbox"));
+        addButtonTo(providers, "Google", v -> showSocialProviderNotice("Google"));
+        pageBody.addView(providers);
+        addButtonRow("Other account provider", v -> showSocialProviderNotice("Other account provider"));
+        addText("Real account sign-in requires provider registration, secure token exchange, and server-side account linking. Never paste passwords or tokens into this preview.", 12, false);
+    }
+
+    private void renderSocialFriends() {
+        addText("Friends", 19, true);
+        JSONArray friends = socialArray("friends");
+        if (friends.length() == 0) addText("No contacts yet. Add a demo contact to try the friend and chat screens.", 13, false);
+        for (int i = 0; i < Math.min(friends.length(), 100); i++) {
+            JSONObject friend = friends.optJSONObject(i);
+            if (friend == null) continue;
+            String name = friend.optString("username", "");
+            LinearLayout card = newCard();
+            addTextTo(card, "@" + name, 17, true);
+            addTextTo(card, "Local preview contact · not an online presence indicator", 12, false);
+            LinearLayout actions = horizontalRow();
+            addButtonTo(actions, "Open chat", v -> {
+                activeChatFriend = name;
+                socialTab = 3;
+                showFeature(currentFeature);
+            });
+            addButtonTo(actions, "Remove friend", v -> confirmRemoveSocialFriend(name));
+            card.addView(actions);
+        }
+
+        addText("Find player / send friend request", 16, true);
+        EditText target = editField("Player username");
+        target.setSingleLine(true);
+        pageBody.addView(target);
+        addButtonRow("Create local request preview", v -> {
+            String name = target.getText().toString().trim();
+            if (!validSocialUsername(name)) {
+                Toast.makeText(this, "Enter a username with 3–16 letters, numbers, or underscores.", Toast.LENGTH_LONG).show();
+                return;
+            }
+            String own = socialPreferences().getString(socialKey("username"), "");
+            if (!empty(own) && own.equalsIgnoreCase(name)) {
+                Toast.makeText(this, "You cannot send a friend request to your own username.", Toast.LENGTH_LONG).show();
+                return;
+            }
+            JSONArray currentFriends = socialArray("friends");
+            JSONArray requests = socialArray("requests");
+            if (socialContainsUser(currentFriends, name) || socialContainsUser(requests, name)) {
+                Toast.makeText(this, "That username is already a contact or pending request.", Toast.LENGTH_LONG).show();
+                return;
+            }
+            if (requests.length() >= 100) {
+                Toast.makeText(this, "The preview is limited to 100 pending requests.", Toast.LENGTH_LONG).show();
+                return;
+            }
+            try {
+                JSONObject request = new JSONObject();
+                request.put("username", name);
+                request.put("direction", "outgoing");
+                request.put("state", "pending");
+                requests.put(request);
+                saveSocialArray("requests", requests);
+                socialTab = 2;
+                showFeature(currentFeature);
+            } catch (JSONException error) {
+                showError("Could not create preview request", error);
+            }
+        });
+        addButtonRow("Add demo contact", v -> addDemoSocialContact());
+        addText("Requests created here are saved locally for UI testing only. They are not delivered to the named player.", 12, false);
+    }
+
+    private void renderSocialRequests() {
+        addText("Friend requests", 19, true);
+        JSONArray requests = socialArray("requests");
+        if (requests.length() == 0) addText("No pending preview requests.", 13, false);
+        for (int i = 0; i < Math.min(requests.length(), 100); i++) {
+            JSONObject request = requests.optJSONObject(i);
+            if (request == null) continue;
+            final String name = request.optString("username", "");
+            final String direction = request.optString("direction", "outgoing");
+            LinearLayout card = newCard();
+            addTextTo(card, "@" + name, 17, true);
+            addTextTo(card, ("incoming".equals(direction) ? "Incoming demo request" : "Outgoing demo request")
+                    + " · Pending locally", 12, false);
+            LinearLayout actions = horizontalRow();
+            if ("incoming".equals(direction)) {
+                addButtonTo(actions, "Accept", v -> resolveSocialRequest(name, true));
+                addButtonTo(actions, "Decline", v -> resolveSocialRequest(name, false));
+            } else {
+                addButtonTo(actions, "Cancel request", v -> resolveSocialRequest(name, false));
+            }
+            card.addView(actions);
+        }
+        addText("Preview an incoming request", 16, true);
+        EditText incoming = editField("Incoming player username");
+        incoming.setSingleLine(true);
+        pageBody.addView(incoming);
+        addButtonRow("Add incoming demo request", v -> {
+            String name = incoming.getText().toString().trim();
+            if (!validSocialUsername(name)) {
+                Toast.makeText(this, "Enter a username with 3–16 letters, numbers, or underscores.", Toast.LENGTH_LONG).show();
+                return;
+            }
+            if (socialContainsUser(socialArray("friends"), name) || socialContainsUser(socialArray("requests"), name)) {
+                Toast.makeText(this, "That username is already a contact or request.", Toast.LENGTH_LONG).show();
+                return;
+            }
+            JSONArray requestsNow = socialArray("requests");
+            if (requestsNow.length() >= 100) {
+                Toast.makeText(this, "The preview is limited to 100 pending requests.", Toast.LENGTH_LONG).show();
+                return;
+            }
+            try {
+                JSONObject request = new JSONObject();
+                request.put("username", name);
+                request.put("direction", "incoming");
+                request.put("state", "pending");
+                requestsNow.put(request);
+                saveSocialArray("requests", requestsNow);
+                showFeature(currentFeature);
+            } catch (JSONException error) {
+                showError("Could not create demo request", error);
+            }
+        });
+        addText("Incoming requests are simulated on this device so you can test Accept and Decline. They do not originate from another account.", 12, false);
+    }
+
+    private void resolveSocialRequest(String username, boolean accept) {
+        JSONArray requests = socialArray("requests");
+        JSONArray remaining = new JSONArray();
+        String direction = "";
+        try {
+            for (int i = 0; i < requests.length(); i++) {
+                JSONObject item = requests.optJSONObject(i);
+                if (item == null) continue;
+                if (username.equalsIgnoreCase(item.optString("username", ""))) {
+                    direction = item.optString("direction", "");
+                    continue;
+                }
+                remaining.put(item);
+            }
+            if (accept && "incoming".equals(direction)) {
+                JSONArray friends = socialArray("friends");
+                if (!socialContainsUser(friends, username)) {
+                    JSONObject friend = new JSONObject();
+                    friend.put("username", username);
+                    friends.put(friend);
+                    saveSocialArray("friends", friends);
+                }
+            }
+            saveSocialArray("requests", remaining);
+            showFeature(currentFeature);
+        } catch (JSONException error) {
+            showError("Could not update friend request", error);
+        }
+    }
+
+    private void addDemoSocialContact() {
+        JSONArray friends = socialArray("friends");
+        String username = "DemoPlayer";
+        int suffix = 2;
+        while (socialContainsUser(friends, username)) username = "DemoPlayer" + suffix++;
+        try {
+            JSONObject friend = new JSONObject();
+            friend.put("username", username);
+            friends.put(friend);
+            saveSocialArray("friends", friends);
+            activeChatFriend = username;
+            socialTab = 1;
+            showFeature(currentFeature);
+        } catch (JSONException error) {
+            showError("Could not create demo contact", error);
+        }
+    }
+
+    private void confirmRemoveSocialFriend(String username) {
+        new AlertDialog.Builder(this)
+                .setTitle("Remove friend")
+                .setMessage("Remove @" + username + " from this device's Social Hub preview?")
+                .setNegativeButton(android.R.string.cancel, null)
+                .setPositiveButton("Remove", (dialog, which) -> {
+                    JSONArray friends = socialArray("friends");
+                    JSONArray remaining = new JSONArray();
+                    for (int i = 0; i < friends.length(); i++) {
+                        JSONObject friend = friends.optJSONObject(i);
+                        if (friend != null && !username.equalsIgnoreCase(friend.optString("username", ""))) remaining.put(friend);
+                    }
+                    saveSocialArray("friends", remaining);
+                    if (username.equalsIgnoreCase(activeChatFriend)) activeChatFriend = null;
+                    showFeature(currentFeature);
+                }).show();
+    }
+
+    private void renderSocialChats() {
+        addText("Chats", 19, true);
+        JSONArray friends = socialArray("friends");
+        if (empty(activeChatFriend) || !socialContainsUser(friends, activeChatFriend)) {
+            addText("Choose a contact to open its conversation preview.", 13, false);
+            for (int i = 0; i < Math.min(friends.length(), 100); i++) {
+                JSONObject friend = friends.optJSONObject(i);
+                if (friend == null) continue;
+                String name = friend.optString("username", "");
+                addButtonRow("Chat with @" + name, v -> {
+                    activeChatFriend = name;
+                    showFeature(currentFeature);
+                });
+            }
+            addButtonRow("Add demo contact", v -> addDemoSocialContact());
+            return;
+        }
+
+        final String conversationFriend = activeChatFriend;
+        addTextTo(pageBody, "Conversation with @" + conversationFriend, 17, true);
+        addButtonRow("Choose another friend", v -> { activeChatFriend = null; showFeature(currentFeature); });
+        String messageKey = "messages." + conversationFriend.toLowerCase(Locale.ROOT);
+        JSONArray messages = socialArray(messageKey);
+        if (messages.length() == 0) addText("No preview messages yet. Your messages stay on this device.", 13, false);
+        for (int i = Math.max(0, messages.length() - 100); i < messages.length(); i++) {
+            JSONObject message = messages.optJSONObject(i);
+            if (message == null) continue;
+            String from = message.optString("from", "");
+            String body = message.optString("text", "");
+            addText((from.equalsIgnoreCase(socialPreferences().getString(socialKey("username"), "")) ? "You" : "@" + from)
+                    + ": " + body, 14, false);
+        }
+        EditText composer = editField("Write a local preview message…");
+        pageBody.addView(composer);
+        addButtonRow("Send local preview message", v -> {
+            String body = composer.getText().toString().trim();
+            if (empty(body)) {
+                Toast.makeText(this, "Type a message first.", Toast.LENGTH_SHORT).show();
+                return;
+            }
+            if (body.length() > 1000) {
+                Toast.makeText(this, "Preview messages are limited to 1,000 characters.", Toast.LENGTH_LONG).show();
+                return;
+            }
+            try {
+                JSONArray currentMessages = socialArray(messageKey);
+                JSONObject message = new JSONObject();
+                String own = socialPreferences().getString(socialKey("username"), "Me");
+                message.put("from", empty(own) ? "Me" : own);
+                message.put("text", body);
+                message.put("createdAt", System.currentTimeMillis());
+                currentMessages.put(message);
+                JSONArray bounded = new JSONArray();
+                for (int i = Math.max(0, currentMessages.length() - 200); i < currentMessages.length(); i++) {
+                    bounded.put(currentMessages.get(i));
+                }
+                saveSocialArray(messageKey, bounded);
+                showFeature(currentFeature);
+            } catch (JSONException error) {
+                showError("Could not save preview message", error);
+            }
+        });
+        addText("Messages are saved as local UI previews, not delivered to the other contact.", 12, false);
+    }
+
+    private void renderPageScreen(JSONObject screen) {
+        addText(screen.optString("description", "Feature page"), 14, false);
+        JSONArray widgets = screen.optJSONArray("widgets");
+        if (widgets == null) {
+            addText("This page has no widgets.", 13, false);
+            return;
+        }
+        for (int i = 0; i < Math.min(widgets.length(), 100); i++) {
+            JSONObject widget = widgets.optJSONObject(i);
+            if (widget == null) continue;
+            String type = widget.optString("type", "text");
+            if ("text".equals(type)) {
+                addText(widget.optString("label", ""), 14, false);
+            } else if ("link".equals(type)) {
+                String label = widget.optString("label", "Open link");
+                String url = widget.optString("url", "");
+                addButtonRow(label, v -> openHttps(url));
+            } else if ("button".equals(type)) {
+                String label = widget.optString("label", "Action");
+                JSONObject action = widget.optJSONObject("action");
+                addButtonRow(label, v -> runWidgetAction(action));
+            } else if ("toggle".equals(type)) {
+                String label = widget.optString("label", "Setting");
+                String settingId = widget.optString("id", "toggle-" + i);
+                if (!isSafeId(settingId)) continue;
+                Switch toggle = new Switch(this);
+                toggle.setText(label);
+                toggle.setTextColor(Color.parseColor("#F4F0FF"));
+                toggle.setChecked(getSharedPreferences("voidcraft_feature_store", MODE_PRIVATE)
+                        .getBoolean("widget." + currentFeature.optString("id") + "." + settingId, false));
+                toggle.setOnCheckedChangeListener((button, checked) ->
+                        getSharedPreferences("voidcraft_feature_store", MODE_PRIVATE).edit()
+                                .putBoolean("widget." + currentFeature.optString("id") + "." + settingId, checked)
+                                .apply());
+                pageBody.addView(toggle);
+            }
+        }
+    }
+
+    private void runWidgetAction(JSONObject action) {
+        if (action == null) {
+            Toast.makeText(this, "This feature has no supported action", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        String type = action.optString("type", "");
+        try {
+            if ("open_url".equals(type)) {
+                openHttps(action.optString("url", ""));
+            } else if ("set_theme".equals(type)) {
+                FeatureTheme.applyPreset(this, action.optString("background"),
+                        action.optString("accent"), action.optString("text"));
+                FeatureTheme.apply(this);
+                Toast.makeText(this, "Launcher theme applied", Toast.LENGTH_SHORT).show();
+            } else if ("copy_text".equals(type)) {
+                ClipboardManager clipboard = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
+                if (clipboard != null) clipboard.setPrimaryClip(
+                        ClipData.newPlainText("Feature text", action.optString("text", "")));
+                Toast.makeText(this, "Copied", Toast.LENGTH_SHORT).show();
+            } else {
+                Toast.makeText(this, "Unsupported feature action", Toast.LENGTH_SHORT).show();
+            }
+        } catch (Exception error) {
+            showError("Feature action failed", error);
+        }
+    }
+
+    private String capabilitySummary(JSONArray capabilities) {
+        if (capabilities == null || capabilities.length() == 0) return "No extra capabilities declared";
+        ArrayList<String> values = new ArrayList<>();
+        for (int i = 0; i < Math.min(capabilities.length(), 2); i++) {
+            String value = capabilities.optString(i, "").trim();
+            if (!value.isEmpty()) values.add(value);
+        }
+        String summary = android.text.TextUtils.join("; ", values);
+        if (capabilities.length() > 2) summary += "; +" + (capabilities.length() - 2) + " more";
+        return summary;
+    }
+
+    private void showInstallReview(JSONObject entry) {
+        if (!validCatalogEntry(entry)) {
+            showError("Invalid catalog entry", new IllegalArgumentException("Catalog metadata did not pass validation"));
+            return;
+        }
+        int minApi = entry.optInt("minAndroidApi", 21);
+        int maxApi = entry.optInt("maxAndroidApi", 100);
+        if (android.os.Build.VERSION.SDK_INT < minApi || android.os.Build.VERSION.SDK_INT > maxApi) {
+            showError("Feature is not compatible", new IllegalArgumentException(
+                    "Supported Android API: " + minApi + "–" + maxApi + ". This device is API " + android.os.Build.VERSION.SDK_INT + "."));
+            return;
+        }
+        StringBuilder summary = new StringBuilder(entry.optString("description", "Optional feature."));
+        summary.append("\n\nDeclared capabilities:\n");
+        JSONArray capabilities = entry.optJSONArray("capabilities");
+        if (capabilities == null || capabilities.length() == 0) {
+            summary.append("- No additional capabilities declared.");
+        } else {
+            for (int i = 0; i < Math.min(capabilities.length(), 20); i++) {
+                summary.append("- ").append(capabilities.optString(i, "Unknown")).append("\n");
+            }
+        }
+        summary.append("\nData use: ").append(entry.optString("dataUse", "No data-use statement was supplied."));
+        summary.append("\n\nAndroid compatibility: API ").append(minApi).append("–").append(maxApi)
+                .append(" (this device: API ").append(android.os.Build.VERSION.SDK_INT).append(").");
+        summary.append("\n\nPackage SHA-256 is checked before activation. Packages are declarative JSON, not executable plug-in code.");
+        boolean update = isInstalled(entry.optString("id"));
+        new AlertDialog.Builder(this)
+                .setTitle((update ? "Review feature update: " : "Review feature install: ") + entry.optString("name", "Feature"))
+                .setMessage(summary.toString())
+                .setNegativeButton(android.R.string.cancel, null)
+                .setPositiveButton(update ? "Update" : "Install", (dialog, which) -> installCatalogFeature(entry))
+                .show();
+    }
+
+    private boolean validCompatibility(JSONObject object) {
+        int minApi = object.optInt("minAndroidApi", 21);
+        int maxApi = object.optInt("maxAndroidApi", 100);
+        return minApi >= 1 && maxApi >= minApi && maxApi <= 100;
+    }
+
+    private boolean validCapabilities(JSONArray capabilities) {
+        if (capabilities == null) return true;
+        if (capabilities.length() > 20) return false;
+        for (int i = 0; i < capabilities.length(); i++) {
+            Object item = capabilities.opt(i);
+            if (!(item instanceof String)) return false;
+            String value = ((String) item).trim();
+            if (value.isEmpty() || value.length() > 180) return false;
+        }
+        return true;
+    }
+
+    private boolean sameCapabilities(JSONArray a, JSONArray b) {
+        JSONArray first = a == null ? new JSONArray() : a;
+        JSONArray second = b == null ? new JSONArray() : b;
+        if (first.length() != second.length()) return false;
+        for (int i = 0; i < first.length(); i++) {
+            if (!first.optString(i, "").equals(second.optString(i, ""))) return false;
+        }
+        return true;
+    }
+
+    private void installCatalogFeature(JSONObject entry) {
+        if (!validCatalogEntry(entry)) {
+            showError("Invalid catalog entry", new IllegalArgumentException("Catalog metadata did not pass validation"));
+            return;
+        }
+        if (!validCompatibility(entry) || android.os.Build.VERSION.SDK_INT < entry.optInt("minAndroidApi", 21)
+                || android.os.Build.VERSION.SDK_INT > entry.optInt("maxAndroidApi", 100)) {
+            showError("Feature is not compatible", new IllegalArgumentException("The current Android API is outside the supported range."));
+            return;
+        }
+        Toast.makeText(this, "Downloading and validating feature…", Toast.LENGTH_SHORT).show();
+        io.execute(() -> {
+            try {
+                String expectedHash = entry.getString("sha256").toLowerCase(Locale.ROOT);
+                String url = entry.optString("packageUrl", "");
+                if (!isHttpsUrl(url)) throw new IllegalArgumentException("Feature package URL must use HTTPS");
+                // Never load a feature from APK assets: every catalog installation is an explicit download.
+                String packageText = fetchHttps(url, MAX_PACKAGE_BYTES);
+                if (!sha256(packageText).equals(expectedHash)) {
+                    throw new IllegalArgumentException("Feature package SHA-256 did not match the catalog");
+                }
+                JSONObject feature = validateFeature(new JSONObject(packageText));
+                if (!entry.optString("id").equals(feature.optString("id"))) {
+                    throw new IllegalArgumentException("Catalog id does not match package id");
+                }
+                if (!sameCapabilities(entry.optJSONArray("capabilities"), feature.optJSONArray("capabilities"))
+                        || entry.optInt("minAndroidApi", 21) != feature.optInt("minAndroidApi", 21)
+                        || entry.optInt("maxAndroidApi", 100) != feature.optInt("maxAndroidApi", 100)
+                        || !entry.optString("dataUse", "").equals(feature.optString("dataUse", ""))) {
+                    throw new IllegalArgumentException("Catalog and package capability/compatibility metadata do not match");
+                }
+                saveInstalledFeature(feature);
+                runOnUiThread(() -> {
+                    Toast.makeText(this, "Installed " + feature.optString("name"), Toast.LENGTH_LONG).show();
+                    if ("browse".equals(currentPage)) showBrowse();
+                    else showInstalled();
+                });
+            } catch (Exception error) {
+                runOnUiThread(() -> showError("Could not install feature", error));
+            }
+        });
+    }
+
+    private JSONObject validateFeature(JSONObject feature) {
+        if (feature == null || feature.optInt("schemaVersion", -1) != 1) {
+            throw new IllegalArgumentException("Unsupported feature package schema");
+        }
+        String id = feature.optString("id", "");
+        String name = feature.optString("name", "").trim();
+        String version = feature.optString("version", "").trim();
+        String author = feature.optString("author", "").trim();
+        String owner = feature.optString("owner", "").trim();
+        String description = feature.optString("description", "");
+        if (!isSafeId(id)) throw new IllegalArgumentException("Feature id is invalid");
+        if (name.length() < 2 || name.length() > 80) throw new IllegalArgumentException("Feature name is invalid");
+        if (version.length() < 1 || version.length() > 40) throw new IllegalArgumentException("Feature version is invalid");
+        if (author.length() < 2 || author.length() > 80 || owner.length() < 2 || owner.length() > 80) {
+            throw new IllegalArgumentException("Feature owner/author is required");
+        }
+        if (description.length() > 400) throw new IllegalArgumentException("Feature description is too long");
+        if (!validCompatibility(feature)) throw new IllegalArgumentException("Feature Android compatibility range is invalid");
+        if (!validCapabilities(feature.optJSONArray("capabilities"))) throw new IllegalArgumentException("Feature capabilities are invalid");
+        if (feature.optString("dataUse", "").length() > 400) throw new IllegalArgumentException("Feature data-use statement is too long");
+        JSONObject screen = feature.optJSONObject("screen");
+        if (screen == null) throw new IllegalArgumentException("Feature screen is missing");
+        String type = screen.optString("type", "");
+        if (!("page".equals(type) || "theme".equals(type) || "server_status".equals(type)
+                || "social".equals(type) || "workspace".equals(type) || "device_report".equals(type))) {
+            throw new IllegalArgumentException("Unsupported feature screen type");
+        }
+        if ("social".equals(type) && !"local_preview".equals(screen.optString("mode", "local_preview"))) {
+            throw new IllegalArgumentException("Only the explicitly local-preview social mode is supported until an online service is configured");
+        }
+        if ("theme".equals(type)) {
+            JSONArray presets = screen.optJSONArray("presets");
+            if (presets == null || presets.length() < 1 || presets.length() > 30) {
+                throw new IllegalArgumentException("Theme feature must have 1–30 presets");
+            }
+            for (int i = 0; i < presets.length(); i++) {
+                JSONObject preset = presets.optJSONObject(i);
+                if (preset == null || !validHex(preset.optString("background"))
+                        || !validHex(preset.optString("accent")) || !validHex(preset.optString("text"))) {
+                    throw new IllegalArgumentException("Theme preset colors must be #RRGGBB values");
+                }
+            }
+        } else if ("page".equals(type)) {
+            JSONArray widgets = screen.optJSONArray("widgets");
+            if (widgets != null && widgets.length() > 100) throw new IllegalArgumentException("Too many page widgets");
+            if (widgets != null) {
+                for (int i = 0; i < widgets.length(); i++) {
+                    JSONObject widget = widgets.optJSONObject(i);
+                    if (widget == null) throw new IllegalArgumentException("Invalid page widget");
+                    String widgetType = widget.optString("type", "text");
+                    if (!("text".equals(widgetType) || "link".equals(widgetType)
+                            || "button".equals(widgetType) || "toggle".equals(widgetType))) {
+                        throw new IllegalArgumentException("Unsupported page widget");
+                    }
+                    if ("link".equals(widgetType) && !isHttpsUrl(widget.optString("url", ""))) {
+                        throw new IllegalArgumentException("Feature links must use HTTPS");
+                    }
+                    if ("button".equals(widgetType)) validateWidgetAction(widget.optJSONObject("action"));
+                    if ("toggle".equals(widgetType) && !isSafeId(widget.optString("id", ""))) {
+                        throw new IllegalArgumentException("Toggle id is invalid");
+                    }
+                }
+            }
+        }
+        if ("workspace".equals(type)) {
+            JSONArray fields = screen.optJSONArray("fields");
+            if (fields == null || fields.length() < 1 || fields.length() > 8) throw new IllegalArgumentException("Workspace needs 1–8 fields");
+            int maxEntries = screen.optInt("maxEntries", 100);
+            if (maxEntries < 1 || maxEntries > 200) throw new IllegalArgumentException("Workspace entry limit is invalid");
+            ArrayList<String> ids = new ArrayList<>();
+            for (int i = 0; i < fields.length(); i++) {
+                JSONObject field = fields.optJSONObject(i);
+                if (field == null) throw new IllegalArgumentException("Workspace field is invalid");
+                String fieldId = field.optString("id", "");
+                String label = field.optString("label", "").trim();
+                int maxLength = field.optInt("maxLength", 500);
+                if (!isSafeId(fieldId) || ids.contains(fieldId) || label.isEmpty() || label.length() > 80 || maxLength < 1 || maxLength > 5000) throw new IllegalArgumentException("Workspace field metadata is invalid");
+                ids.add(fieldId);
+            }
+        }
+        if ("device_report".equals(type)) {
+            String mode = screen.optString("mode", "compatibility");
+            if (!("performance".equals(mode) || "compatibility".equals(mode) || "storage".equals(mode))) throw new IllegalArgumentException("Device report mode is unsupported");
+        }
+        return feature;
+    }
+
+    private void validateWidgetAction(JSONObject action) {
+        if (action == null) throw new IllegalArgumentException("Feature button action is missing");
+        String type = action.optString("type", "");
+        if ("open_url".equals(type)) {
+            if (!isHttpsUrl(action.optString("url", ""))) {
+                throw new IllegalArgumentException("Feature action URLs must use HTTPS");
+            }
+        } else if ("set_theme".equals(type)) {
+            if (!validHex(action.optString("background")) || !validHex(action.optString("accent"))
+                    || !validHex(action.optString("text"))) {
+                throw new IllegalArgumentException("Theme action has invalid colors");
+            }
+        } else if ("copy_text".equals(type)) {
+            if (action.optString("text", "").length() > 2000) {
+                throw new IllegalArgumentException("Copied text is too long");
+            }
+        } else {
+            throw new IllegalArgumentException("Unsupported feature action type");
+        }
+    }
+
+    private void saveInstalledFeature(JSONObject feature) throws Exception {
+        JSONObject validated = validateFeature(feature);
+        File directory = installedDirectory();
+        if (!directory.isDirectory() && !directory.mkdirs()) {
+            throw new IllegalStateException("Could not create feature storage directory");
+        }
+        File destination = installedFile(validated.getString("id"));
+        File temp = new File(directory, destination.getName() + ".tmp");
+        byte[] bytes = validated.toString(2).getBytes("UTF-8");
+        if (bytes.length > MAX_PACKAGE_BYTES) throw new IllegalArgumentException("Feature package exceeds 1 MiB");
+        try (FileOutputStream stream = new FileOutputStream(temp)) {
+            stream.write(bytes);
+            stream.getFD().sync();
+        }
+        if (destination.exists() && !destination.delete()) {
+            temp.delete();
+            throw new IllegalStateException("Could not replace the installed feature");
+        }
+        if (!temp.renameTo(destination)) {
+            temp.delete();
+            throw new IllegalStateException("Could not finish installing the feature");
+        }
+    }
+
+    private List<JSONObject> readInstalledFeatures() {
+        ArrayList<JSONObject> result = new ArrayList<>();
+        File directory = installedDirectory();
+        File[] files = directory.listFiles((dir, name) -> name.endsWith(".vcfeature") && !name.endsWith(".tmp.vcfeature"));
+        if (files == null) return result;
+        for (File file : files) {
+            try {
+                if (!file.isFile() || file.length() > MAX_PACKAGE_BYTES) continue;
+                String content;
+                try (InputStream input = new FileInputStream(file)) {
+                    content = readLimited(input, MAX_PACKAGE_BYTES);
+                }
+                JSONObject feature = validateFeature(new JSONObject(content));
+                if ((feature.optString("id") + ".vcfeature").equals(file.getName())) result.add(feature);
+            } catch (Exception ignored) {
+                // Corrupt third-party data is ignored rather than blocking other installed features.
+            }
+        }
+        Collections.sort(result, Comparator.comparing(
+                item -> item.optString("name"), String.CASE_INSENSITIVE_ORDER));
+        return result;
+    }
+
+    private boolean isInstalled(String id) {
+        if (!isSafeId(id)) return false;
+        File file = installedFile(id);
+        return file.isFile() && file.length() <= MAX_PACKAGE_BYTES;
+    }
+
+    private void confirmUninstall(String id, String name) {
+        if (!isSafeId(id)) return;
+        new AlertDialog.Builder(this)
+                .setTitle("Uninstall feature")
+                .setMessage("Remove " + name + "? Core launcher files, game data, worlds, Java runtimes, renderers, loaders, and modpack integrations will not be changed. Choose whether to keep this feature's saved data.")
+                .setNegativeButton(android.R.string.cancel, null)
+                .setPositiveButton("Uninstall, keep data", (dialog, which) -> uninstallFeature(id, false))
+                .setNeutralButton("Delete data & uninstall", (dialog, which) -> uninstallFeature(id, true))
+                .show();
+    }
+
+    private void uninstallFeature(String id, boolean deleteData) {
+        File file = installedFile(id);
+        if (!file.isFile() || !file.delete()) {
+            Toast.makeText(this, "Could not remove the feature package", Toast.LENGTH_LONG).show();
+        } else {
+            if (deleteData) removeFeatureData(id);
+            Toast.makeText(this, deleteData ? "Feature and its saved data were removed" : "Feature uninstalled; saved data kept", Toast.LENGTH_SHORT).show();
+        }
+        if ("browse".equals(currentPage)) showBrowse(); else showInstalled();
+    }
+
+    private void removeFeatureData(String id) {
+        android.content.SharedPreferences preferences = getSharedPreferences("voidcraft_feature_store", MODE_PRIVATE);
+        java.util.Map<String, ?> values = preferences.getAll();
+        android.content.SharedPreferences.Editor editor = preferences.edit();
+        String[] prefixes = new String[] {
+                "workspace." + id + ".", "server_status." + id + ".",
+                "social." + id + ".", "widget." + id + "."
+        };
+        for (String key : values.keySet()) {
+            for (String prefix : prefixes) {
+                if (key.startsWith(prefix)) {
+                    editor.remove(key);
+                    break;
+                }
+            }
+        }
+        editor.apply();
+    }
+
+    private void showImportedFeatureReview(JSONObject feature) {
+        int minApi = feature.optInt("minAndroidApi", 21);
+        int maxApi = feature.optInt("maxAndroidApi", 100);
+        if (android.os.Build.VERSION.SDK_INT < minApi || android.os.Build.VERSION.SDK_INT > maxApi) {
+            showError("Imported feature is not compatible", new IllegalArgumentException(
+                    "Supported Android API: " + minApi + "–" + maxApi
+                            + ". This device is API " + android.os.Build.VERSION.SDK_INT + "."));
+            return;
+        }
+        StringBuilder summary = new StringBuilder(feature.optString("description", "Imported declarative feature."));
+        summary.append("\n\nDeclared capabilities:\n");
+        JSONArray capabilities = feature.optJSONArray("capabilities");
+        if (capabilities == null || capabilities.length() == 0) {
+            summary.append("- This package declares no capability metadata. Treat its source as unverified.");
+        } else {
+            for (int i = 0; i < Math.min(capabilities.length(), 20); i++) {
+                summary.append("- ").append(capabilities.optString(i, "Unknown")).append("\n");
+            }
+        }
+        summary.append("\nData use: ").append(feature.optString("dataUse",
+                "No data-use statement supplied by this package."));
+        summary.append("\n\nCompatibility: Android API ").append(minApi).append("–").append(maxApi)
+                .append(" (this device: API ").append(android.os.Build.VERSION.SDK_INT).append(").");
+        summary.append("\n\nThis package was selected from a local document, not verified against the remote catalog. The package schema and supported declarative actions are validated; SHA-256 trust is not available for a standalone imported file.");
+        new AlertDialog.Builder(this)
+                .setTitle("Review imported feature: " + feature.optString("name", "Feature"))
+                .setMessage(summary.toString())
+                .setNegativeButton(android.R.string.cancel, null)
+                .setPositiveButton("Install imported feature", (dialog, which) -> io.execute(() -> {
+                    try {
+                        saveInstalledFeature(feature);
+                        runOnUiThread(() -> {
+                            Toast.makeText(this, "Imported " + feature.optString("name"), Toast.LENGTH_LONG).show();
+                            showInstalled();
+                        });
+                    } catch (Exception error) {
+                        runOnUiThread(() -> showError("Import installation failed", error));
+                    }
+                }))
+                .show();
+    }
+
+    private void importPackage() {
+        Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
+        intent.addCategory(Intent.CATEGORY_OPENABLE);
+        intent.setType("*/*");
+        intent.putExtra(Intent.EXTRA_MIME_TYPES, new String[] {"application/json", "text/json", "application/octet-stream"});
+        try {
+            startActivityForResult(intent, REQUEST_IMPORT);
+        } catch (ActivityNotFoundException error) {
+            showError("No file picker is available", error);
+        }
+    }
+
+    private void exportPackage(JSONObject feature) {
+        try {
+            pendingExport = validateFeature(feature);
+            Intent intent = new Intent(Intent.ACTION_CREATE_DOCUMENT);
+            intent.addCategory(Intent.CATEGORY_OPENABLE);
+            intent.setType("application/json");
+            intent.putExtra(Intent.EXTRA_TITLE, pendingExport.getString("id") + ".vcfeature");
+            startActivityForResult(intent, REQUEST_EXPORT);
+        } catch (Exception error) {
+            showError("Could not export feature", error);
+        }
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (resultCode != RESULT_OK || data == null || data.getData() == null) return;
+        Uri uri = data.getData();
+        if (requestCode == REQUEST_IMPORT) {
+            io.execute(() -> {
+                try (InputStream input = getContentResolver().openInputStream(uri)) {
+                    if (input == null) throw new IllegalArgumentException("Could not read selected package");
+                    JSONObject feature = validateFeature(new JSONObject(readLimited(input, MAX_PACKAGE_BYTES)));
+                    runOnUiThread(() -> showImportedFeatureReview(feature));
+                } catch (Exception error) {
+                    runOnUiThread(() -> showError("Import rejected", error));
+                }
+            });
+        } else if (requestCode == REQUEST_EXPORT && pendingExport != null) {
+            try (OutputStream output = getContentResolver().openOutputStream(uri, "wt")) {
+                if (output == null) throw new IllegalArgumentException("Could not write selected file");
+                byte[] bytes = pendingExport.toString(2).getBytes("UTF-8");
+                output.write(bytes);
+                output.flush();
+                Toast.makeText(this, "Feature exported. Share the .vcfeature file or submit it to the catalog.", Toast.LENGTH_LONG).show();
+            } catch (Exception error) {
+                showError("Export failed", error);
+            } finally {
+                pendingExport = null;
+            }
+        }
+    }
+
+    private static String readLimited(InputStream input, int limit) throws Exception {
+        ByteArrayOutputStream output = new ByteArrayOutputStream();
+        byte[] buffer = new byte[8192];
+        int total = 0;
+        int read;
+        while ((read = input.read(buffer)) != -1) {
+            total += read;
+            if (total > limit) throw new IllegalArgumentException("File exceeds size limit");
+            output.write(buffer, 0, read);
+        }
+        return new String(output.toByteArray(), "UTF-8");
+    }
+
+    private static String fetchHttps(String address, int limit) throws Exception {
+        if (!isHttpsUrl(address)) throw new IllegalArgumentException("Only HTTPS URLs are allowed");
+        HttpURLConnection connection = null;
+        try {
+            URL url = new URL(address);
+            connection = (HttpURLConnection) url.openConnection();
+            connection.setConnectTimeout(7000);
+            connection.setReadTimeout(9000);
+            connection.setInstanceFollowRedirects(false);
+            connection.setRequestMethod("GET");
+            connection.setRequestProperty("User-Agent", "VoidCraft-FeatureStore/1");
+            connection.setRequestProperty("Accept", "application/json");
+            int status = connection.getResponseCode();
+            if (status != HttpURLConnection.HTTP_OK) {
+                throw new IllegalStateException("Server returned HTTP " + status);
+            }
+            long length = connection.getContentLengthLong();
+            if (length > limit) throw new IllegalArgumentException("Remote file exceeds size limit");
+            try (InputStream input = connection.getInputStream()) {
+                return readLimited(input, limit);
+            }
+        } finally {
+            if (connection != null) connection.disconnect();
+        }
+    }
+
+    private static boolean isHttpsUrl(String value) {
+        if (value == null || value.length() > 2048 || !value.regionMatches(true, 0, "https://", 0, 8)) return false;
+        try {
+            Uri uri = Uri.parse(value);
+            return "https".equalsIgnoreCase(uri.getScheme()) && uri.getHost() != null
+                    && uri.getUserInfo() == null;
+        } catch (Exception ignored) {
+            return false;
+        }
+    }
+
+    private static String sha256(String content) throws Exception {
+        MessageDigest digest = MessageDigest.getInstance("SHA-256");
+        byte[] bytes = digest.digest(content.getBytes("UTF-8"));
+        StringBuilder result = new StringBuilder(64);
+        for (byte value : bytes) result.append(String.format(Locale.ROOT, "%02x", value & 0xff));
+        return result.toString();
+    }
+
+    private static boolean validHex(String value) {
+        if (value == null || value.length() != 7 || value.charAt(0) != '#') return false;
+        for (int i = 1; i < value.length(); i++) {
+            char c = value.charAt(i);
+            if (!((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f')
+                    || (c >= 'A' && c <= 'F'))) return false;
+        }
+        return true;
+    }
+
+    private static boolean empty(String value) {
+        return value == null || value.trim().isEmpty();
+    }
+
+    private void openHttps(String address) {
+        try {
+            if (!isHttpsUrl(address)) throw new IllegalArgumentException("Only HTTPS links are allowed");
+            startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(address)));
+        } catch (Exception error) {
+            showError("Could not open link", error);
+        }
+    }
+
+    private void showError(String title, Exception error) {
+        String message = error == null || empty(error.getMessage())
+                ? "The operation could not be completed." : error.getMessage();
+        new AlertDialog.Builder(this).setTitle(title).setMessage(message)
+                .setPositiveButton(android.R.string.ok, null).show();
+    }
+
+    private void beginPage(String title, String subtitle) {
+        pageRoot = new LinearLayout(this);
+        pageRoot.setOrientation(LinearLayout.VERTICAL);
+        pageRoot.setPadding(dp(16), dp(12), dp(16), dp(12));
+        pageRoot.setBackgroundColor(Color.parseColor("#171526"));
+
+        TextView brand = addTextTo(pageRoot, "VOIDCRAFT  /  FEATURE STORE", 12, true);
+        brand.setTextColor(Color.parseColor("#B8A7F7"));
+        addTextTo(pageRoot, title, 25, true);
+        addTextTo(pageRoot, subtitle, 13, false);
+
+        LinearLayout navigation = horizontalRow();
+        addButtonTo(navigation, "Browse", v -> showBrowse());
+        addButtonTo(navigation, "Installed", v -> showInstalled());
+        addButtonTo(navigation, "Create", v -> showCreate());
+        addButtonTo(navigation, "Import", v -> importPackage());
+        pageRoot.addView(navigation);
+
+        ScrollView scroll = new ScrollView(this);
+        scroll.setFillViewport(false);
+        pageBody = new LinearLayout(this);
+        pageBody.setOrientation(LinearLayout.VERTICAL);
+        pageBody.setPadding(0, dp(8), 0, dp(18));
+        scroll.addView(pageBody, new ScrollView.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        pageRoot.addView(scroll, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f));
+        setContentView(pageRoot);
+    }
+
+    private void addButtonRow(String firstLabel, View.OnClickListener first,
+                              String secondLabel, View.OnClickListener second) {
+        LinearLayout row = horizontalRow();
+        addButtonTo(row, firstLabel, first);
+        if (secondLabel != null && second != null) addButtonTo(row, secondLabel, second);
+        pageBody.addView(row);
+    }
+
+    private void addButtonRow(String label, View.OnClickListener listener) {
+        addButtonRow(label, listener, null, null);
+    }
+
+    private LinearLayout newCard() {
+        LinearLayout card = new LinearLayout(this);
+        card.setOrientation(LinearLayout.VERTICAL);
+        card.setPadding(dp(12), dp(10), dp(12), dp(10));
+        GradientDrawable background = new GradientDrawable();
+        background.setColor(Color.parseColor("#242138"));
+        background.setCornerRadius(dp(14));
+        background.setStroke(dp(1), Color.parseColor("#40385C"));
+        card.setBackground(background);
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        params.topMargin = dp(8);
+        params.bottomMargin = dp(4);
+        pageBody.addView(card, params);
+        return card;
+    }
+
+    private TextView addText(String text, int size, boolean bold) {
+        return addTextTo(pageBody, text, size, bold);
+    }
+
+    private TextView addTextTo(LinearLayout parent, String text, int size, boolean bold) {
+        TextView view = new TextView(this);
+        view.setText(text == null ? "" : text);
+        view.setTextSize(size);
+        view.setTextColor(Color.parseColor("#F4F0FF"));
+        view.setPadding(0, dp(4), 0, dp(4));
+        if (bold) view.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
+        parent.addView(view, matchWrap());
+        return view;
+    }
+
+    private EditText editField(String hint) {
+        EditText edit = new EditText(this);
+        edit.setHint(hint);
+        edit.setTextColor(Color.parseColor("#F4F0FF"));
+        edit.setHintTextColor(Color.parseColor("#A9A3C3"));
+        edit.setSingleLine(false);
+        edit.setPadding(dp(10), dp(8), dp(10), dp(8));
+        return edit;
+    }
+
+    private LinearLayout horizontalRow() {
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setGravity(Gravity.CENTER_VERTICAL);
+        return row;
+    }
+
+    private Button makeButton(String label) {
+        Button button = new Button(this);
+        button.setText(label);
+        button.setTextColor(Color.WHITE);
+        button.setAllCaps(false);
+        button.setMinHeight(dp(40));
+        return button;
+    }
+
+    private void addButtonTo(LinearLayout parent, String label, View.OnClickListener listener) {
+        Button button = makeButton(label);
+        button.setOnClickListener(listener);
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
+                0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
+        params.setMargins(dp(3), dp(4), dp(3), dp(4));
+        parent.addView(button, params);
+    }
+
+    private LinearLayout.LayoutParams matchWrap() {
+        return new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+    }
+
+    private int dp(int value) {
+        return Math.round(value * getResources().getDisplayMetrics().density);
+    }
+}

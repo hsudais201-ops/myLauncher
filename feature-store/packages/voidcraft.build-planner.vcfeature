@@ -1,0 +1,42 @@
+{
+  "schemaVersion": 1,
+  "id": "voidcraft.build-planner",
+  "name": "Build Planner",
+  "version": "1.0.0",
+  "author": "VoidCraft Launcher",
+  "owner": "VoidCraft Launcher",
+  "description": "Record building project names, dimensions, materials and notes. It does not edit world files.",
+  "capabilities": [
+    "Save and manage user-entered local records in app-private storage"
+  ],
+  "minAndroidApi": 21,
+  "maxAndroidApi": 100,
+  "dataUse": "User-entered records stay local unless explicitly copied out. No automatic online sync or upload.",
+  "screen": {
+    "type": "workspace",
+    "title": "Build Planner",
+    "description": "Record building project names, dimensions, materials and notes. It does not edit world files.",
+    "entryLabel": "Save entry",
+    "emptyLabel": "No entries saved yet.",
+    "maxEntries": 100,
+    "fields": [
+      {
+        "id": "project",
+        "label": "Build name",
+        "required": true,
+        "maxLength": 160
+      },
+      {
+        "id": "dimensions",
+        "label": "Dimensions",
+        "maxLength": 100
+      },
+      {
+        "id": "materials",
+        "label": "Materials and notes",
+        "multiline": true,
+        "maxLength": 3000
+      }
+    ]
+  }
+}
