@@ -1,0 +1,61 @@
+name: Social Hub checks
+
+on:
+  pull_request:
+    paths:
+      - "website/functions/api/social/**"
+      - "website/social.html"
+      - "website/README.md"
+      - "website/migrations/0005_social_hub.sql"
+      - "website/tests/test_social_hub_schema.py"
+      - "website/tests/test_social_hub_api.mjs"
+      - ".github/workflows/social-hub-check.yml"
+  push:
+    branches:
+      - main
+    paths:
+      - "website/functions/api/social/**"
+      - "website/social.html"
+      - "website/README.md"
+      - "website/migrations/0005_social_hub.sql"
+      - "website/tests/test_social_hub_schema.py"
+      - ".github/workflows/social-hub-check.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Check Social Hub API module syntax
+        run: node --input-type=module --check < "website/functions/api/social/[[path]].js"
+      - name: Check embedded Social Hub browser module syntax
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          html = Path("website/social.html").read_text(encoding="utf-8")
+          match = re.search(r'<script type="module">\s*(.*?)\s*</script>', html, re.S)
+          if not match:
+              raise SystemExit("Social Hub module script was not found")
+          Path("/tmp/voidcraft-social-hub.mjs").write_text(match.group(1), encoding="utf-8")
+          PY
+          node --check /tmp/voidcraft-social-hub.mjs
+      - name: Test Social Hub migration and SQLite constraints
+        run: python -m unittest discover -s website/tests -p "test_social_hub*.py" -v
+      - name: Test Social Hub API integration against isolated SQLite
+        env:
+          SOCIAL_HUB_HANDLER: ${{ github.workspace }}/website/functions/api/social/[[path]].js
+        run: node --test website/tests/test_social_hub_api.mjs
