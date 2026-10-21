@@ -377,7 +377,7 @@ async function route(request, env) {
       "FROM friendships f JOIN users u ON u.id = CASE WHEN f.user_id = ? THEN f.friend_id ELSE f.user_id END " +
       "WHERE f.user_id = ? OR f.friend_id = ? ORDER BY u.username_normalized LIMIT 200"
     ).bind(userId, userId, userId).all();
-    return json({ friends: friends.results || [] });
+    return json({ friends: (friends.results || []).map(safeUser) });
   }
 
   if (path === "/api/friends/requests" && method === "GET") {
