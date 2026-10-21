@@ -70,7 +70,7 @@ export async function onRequest({ request, env }) {
       const friendship = await db.prepare("SELECT 1 FROM social_friendships WHERE user_low=? AND user_high=?").bind(low,high).first();
       if (friendship) return fail("You are already friends.");
       const pending = await db.prepare("SELECT id FROM social_friend_requests WHERE status='pending' AND ((sender_id=? AND recipient_id=?) OR (sender_id=? AND recipient_id=?)) LIMIT 1").bind(user.id,target.id,target.id,user.id).first();
-      if (pending) return fail("A pending friend request already exists.");
+      if (pending) return fail("A pending friend request already exists.",409);
       const requestId=id();
       const requestCreatedAt=now();
       try {
