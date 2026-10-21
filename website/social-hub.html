@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#090b13">
+<meta name="description" content="VoidCraft Social Hub beta for friend requests and private messages.">
+<title>Social Hub Beta — VoidCraft</title>
+<link rel="icon" href="assets/logo.svg">
+<link rel="stylesheet" href="assets/styles.css">
+<link rel="stylesheet" href="assets/social-hub.css">
+</head>
+<body>
+<header><div class="bar">
+<a class="brand" href="index.html"><img src="assets/logo.svg" alt=""><span>VOIDCRAFT</span></a>
+<nav class="nav" aria-label="Main navigation">
+<a href="index.html">Home</a><a href="downloads.html">Downloads</a><a href="feature-store.html">Feature Store</a><a href="cosmetic-store.html">Cosmetics</a><a href="servers.html">Servers</a><a href="social-hub.html" class="active" aria-current="page">Social Hub</a><a href="community.html">Community</a><a href="developers.html">Developers</a><a href="docs.html">Docs</a>
+</nav><div class="account-links"><a href="signin.html">Website sign in</a><a href="profile.html">Profile</a></div>
+</div></header>
+<main class="social-main">
+<section class="hero social-hero">
+<div class="eyebrow">VOIDCRAFT · SOCIAL HUB BETA</div>
+<h1>Find your people.<br><span class="social-gradient">Keep the chat close.</span></h1>
+<p>Send friend requests and message accepted friends from your browser. This uses the same beta Social Hub service as the VoidCraft launcher.</p>
+<div id="service-banner" class="social-status" role="status" aria-live="polite"><span class="status-light"></span><span id="service-status">Checking Social Hub service…</span><b>STAGING BETA</b></div>
+</section>
+
+<section id="auth-view" class="social-auth-layout">
+<div class="social-panel auth-panel">
+<div class="auth-tabs"><button type="button" id="login-tab" class="is-active">Sign in</button><button type="button" id="register-tab">Create beta account</button></div>
+<h2 id="auth-title">Welcome back</h2><p id="auth-copy">Sign in with your Social Hub username and password.</p>
+<form id="auth-form">
+<label for="username">Social Hub username</label><input id="username" name="username" type="text" minlength="3" maxlength="24" pattern="[A-Za-z0-9_]{3,24}" autocomplete="username" autocapitalize="none" spellcheck="false" required>
+<label for="password">Password</label><input id="password" name="password" type="password" autocomplete="current-password" required>
+<div id="confirm-wrap" hidden><label for="confirm-password">Confirm password</label><input id="confirm-password" type="password" autocomplete="new-password"></div>
+<p id="auth-feedback" class="feedback" role="status" aria-live="polite"></p>
+<button id="auth-submit" type="submit" class="btn social-submit">Sign in to Social Hub</button>
+</form>
+<p class="small-note">Use a unique password you do not use anywhere else. New beta accounts require at least 12 characters.</p>
+</div>
+<aside class="social-panel beta-panel">
+<div class="eyebrow">BEFORE YOU JOIN</div><h2>Beta access, clearly labelled.</h2>
+<div class="info-row"><span>◇</span><div><strong>Separate account</strong><p>This is separate from the website account and does not sign you into Microsoft, Xbox or Minecraft.</p></div></div>
+<div class="info-row"><span>⌁</span><div><strong>Friend-only messages</strong><p>Private messages unlock only after a friend request is accepted. You can block or report users.</p></div></div>
+<div class="info-row"><span>!</span><div><strong>Staging service</strong><p>Email verification and password recovery are not available. Messages are stored by the service and are not end-to-end encrypted.</p></div></div>
+<p class="small-note">Do not share personal or sensitive information in beta chats. Push notifications are not supported.</p>
+</aside>
+</section>
+
+<section id="app-view" hidden>
+<div class="social-account-bar"><div><div class="eyebrow">SIGNED IN TO SOCIAL HUB</div><h2>Welcome, <span id="me-name"></span></h2><p>Friends, requests and private conversations.</p></div><button type="button" id="logout" class="btn secondary">Sign out</button></div>
+<p id="app-feedback" class="feedback" role="status" aria-live="polite"></p>
+<div class="social-workspace">
+<aside class="social-panel sidebar">
+<section class="side-section"><h3>Add a friend</h3><form id="add-friend-form"><label class="sr-only" for="friend-name">Friend username</label><input id="friend-name" minlength="3" maxlength="24" pattern="[A-Za-z0-9_]{3,24}" placeholder="Exact username" autocomplete="off" autocapitalize="none" required><button class="btn compact" type="submit">Send request</button></form><p id="friend-feedback" class="feedback" role="status" aria-live="polite"></p></section>
+<section class="side-section"><div class="section-heading"><h3>Incoming requests</h3><span id="incoming-count" class="count">0</span></div><div id="incoming-list" class="side-list"></div></section>
+<section class="side-section"><div class="section-heading"><h3>Sent requests</h3><span id="outgoing-count" class="count">0</span></div><div id="outgoing-list" class="side-list"></div></section>
+<section class="side-section"><div class="section-heading"><h3>Your friends</h3><button type="button" id="refresh-friends" class="text-btn">Refresh</button></div><div id="friends-list" class="side-list"></div></section>
+<section class="side-section"><div class="section-heading"><h3>Blocked users</h3><button type="button" id="refresh-blocked" class="text-btn">Refresh</button></div><div id="blocked-list" class="side-list"></div></section>
+</aside>
+
+<section class="social-panel chat-panel" aria-label="Private messages">
+<div class="chat-heading"><div><div class="eyebrow">PRIVATE CONVERSATION</div><h2 id="chat-title">Choose a friend</h2><p id="chat-subtitle">Messages are available between accepted friends.</p></div><button type="button" id="refresh-messages" class="refresh-btn">Refresh messages</button></div>
+<div id="chat-empty" class="chat-empty"><span>✦</span><h3>Your next conversation starts here.</h3><p>Choose a friend or send a friend request by username.</p></div>
+<div id="messages" class="messages" role="log" aria-live="polite" aria-relevant="additions text" hidden></div>
+<p id="thread-feedback" class="feedback" role="status" aria-live="polite"></p>
+<form id="message-form" class="compose" hidden><label class="sr-only" for="message-text">Private message</label><textarea id="message-text" rows="3" maxlength="2000" placeholder="Write a message… (up to 2,000 characters)" required></textarea><div class="compose-footer"><span id="message-count">0 / 2000</span><button id="send-message" class="btn" type="submit">Send message ↗</button></div></form>
+<div id="chat-actions" class="chat-actions" hidden><span>Safety tools</span><button type="button" id="open-report" class="text-btn">Report user</button><button type="button" id="remove-friend" class="text-btn danger">Remove friend</button><button type="button" id="block-friend" class="text-btn danger">Block user</button></div>
+<form id="report-form" class="report-panel" hidden><h3>Report <span id="report-name"></span></h3><label for="report-category">Reason</label><select id="report-category"><option value="harassment">Harassment or bullying</option><option value="spam">Spam</option><option value="inappropriate">Inappropriate content</option><option value="impersonation">Impersonation</option><option value="other">Other</option></select><label for="report-details">Details (optional)</label><textarea id="report-details" rows="2" maxlength="1000" placeholder="Provide relevant context, without sensitive information."></textarea><div class="report-actions"><button class="btn compact" type="submit">Submit report</button><button class="text-btn" type="button" id="cancel-report">Cancel</button></div></form>
+</section>
+</div>
+<p class="small-note">Beta reminder: be respectful, avoid sharing private information, and report misuse. The service is not a production security sign-off.</p>
+</section>
+</main>
+<footer><div class="foot"><span>© VoidCraft community project · Independent from Mojang and Microsoft</span><span><a href="privacy.html">Privacy</a> · <a href="terms.html">Terms</a> · <a href="security.html">Security</a></span></div></footer>
+<script src="assets/app.js" defer></script><script src="assets/social-hub.js" defer></script>
+</body></html>
