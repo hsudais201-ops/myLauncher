@@ -72,8 +72,14 @@ export async function onRequest({ request, env }) {
       const pending = await db.prepare("SELECT id FROM social_friend_requests WHERE status='pending' AND ((sender_id=? AND recipient_id=?) OR (sender_id=? AND recipient_id=?)) LIMIT 1").bind(user.id,target.id,target.id,user.id).first();
       if (pending) return fail("A pending friend request already exists.");
       const requestId=id();
+      const requestCreatedAt=now();
       try {
-        await db.prepare("INSERT INTO social_friend_requests(id,sender_id,recipient_id,status,created_at) VALUES(?,?,?,'pending',?)").bind(requestId,user.id,target.id,now()).run();
+        // Enforce the quota inside the INSERT itself so concurrent requests cannot all pass a separate COUNT check.
+        const inserted = await db.prepare(
+          "INSERT INTO social_friend_requests(id,sender_id,recipient_id,status,created_at) " +
+          "SELECT ?,?,?,'pending',? WHERE (SELECT COUNT(*) FROM social_friend_requests WHERE sender_id=? AND created_at>=?) < 15"
+        ).bind(requestId,user.id,target.id,requestCreatedAt,user.id,requestWindow).run();
+        if (Number(inserted?.meta?.changes || 0) < 1) return fail("You have sent too many friend requests. Try again in a few minutes.",429);
       } catch (error) {
         // The database's unordered-pair unique index closes the simultaneous-request race.
         const raced = await db.prepare("SELECT id FROM social_friend_requests WHERE status='pending' AND ((sender_id=? AND recipient_id=?) OR (sender_id=? AND recipient_id=?)) LIMIT 1").bind(user.id,target.id,target.id,user.id).first();
@@ -145,7 +151,11 @@ export async function onRequest({ request, env }) {
       const recentMessages = await db.prepare("SELECT COUNT(*) AS total FROM social_messages WHERE sender_id=? AND created_at>=?").bind(user.id,createdAt-60_000).first();
       if (Number(recentMessages?.total || 0) >= 30) return fail("You are sending messages too quickly. Please wait a minute.",429);
       const msgId=id();
-      await db.prepare("INSERT INTO social_messages(id,sender_id,recipient_id,body,created_at) VALUES(?,?,?,?,?)").bind(msgId,user.id,other,content,createdAt).run();
+      const inserted = await db.prepare(
+        "INSERT INTO social_messages(id,sender_id,recipient_id,body,created_at) " +
+        "SELECT ?,?,?,?,? WHERE (SELECT COUNT(*) FROM social_messages WHERE sender_id=? AND created_at>=?) < 30"
+      ).bind(msgId,user.id,other,content,createdAt,user.id,createdAt-60_000).run();
+      if (Number(inserted?.meta?.changes || 0) < 1) return fail("You are sending messages too quickly. Please wait a minute.",429);
       return json({message:{id:msgId,senderId:user.id,recipientId:other,content,createdAt}},201);
     }
 
@@ -183,7 +193,11 @@ export async function onRequest({ request, env }) {
       const recentReports=await db.prepare("SELECT COUNT(*) AS total FROM social_reports WHERE reporter_id=? AND created_at>=?").bind(user.id,createdAt-60*60*1000).first();
       if (Number(recentReports?.total || 0) >= 10) return fail("You have submitted too many reports. Please try again later.",429);
       const reportId=id();
-      await db.prepare("INSERT INTO social_reports(id,reporter_id,target_user_id,category,details,status,created_at) VALUES(?,?,?,?,?,'open',?)").bind(reportId,user.id,targetId,category,details,createdAt).run();
+      const inserted = await db.prepare(
+        "INSERT INTO social_reports(id,reporter_id,target_user_id,category,details,status,created_at) " +
+        "SELECT ?,?,?,?,?, 'open',? WHERE (SELECT COUNT(*) FROM social_reports WHERE reporter_id=? AND created_at>=?) < 10"
+      ).bind(reportId,user.id,targetId,category,details,createdAt,user.id,createdAt-60*60*1000).run();
+      if (Number(inserted?.meta?.changes || 0) < 1) return fail("You have submitted too many reports. Please try again later.",429);
       return json({report:{id:reportId,status:"open"}},201);
     }
     if (path === "moderation/reports" && method === "GET") {
