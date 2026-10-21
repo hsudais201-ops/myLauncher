@@ -79,10 +79,10 @@ import java.net.HttpURLConnection
 import java.net.URL
 
 private val VoidBackground = Color(0xFF0A0C12)
-private val VoidSurface = Color(0xFF141824)
+val VoidSurface = Color(0xFF141824)
 private val VoidAccent = Color(0xFF9B8CFF)
 private val VoidMint = Color(0xFF70E1C1)
-private val VoidMuted = Color(0xFF9AA3B8)
+val VoidMuted = Color(0xFF9AA3B8)
 private const val PREFS = "voidcraft_preferences"
 private const val STORE_ENABLED = "feature_store_enabled"
 private const val INSTALLED_IDS = "installed_feature_ids"
