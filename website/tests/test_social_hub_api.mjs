@@ -147,7 +147,7 @@ test("blocking invalidates incoming and outgoing requests in the correct directi
   assert.equal(row.status, "rejected");
 
   await call("blocks/u-alice", { as: "bob", method: "DELETE" });
-  const outgoing = await call("friends/requests", { as: "bob", method: "POST", body: { username: "alice" } });
+  const outgoing = await call("friends/requests", { as: "alice", method: "POST", body: { username: "bob" } });
   assert.equal(outgoing.status, 201);
   const aliceBlocksBob = await call("blocks/u-bob", { as: "alice", method: "POST", body: {} });
   assert.equal(aliceBlocksBob.status, 201);
