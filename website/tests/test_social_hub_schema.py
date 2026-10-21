@@ -244,6 +244,16 @@ class SocialHubApiContractTests(unittest.TestCase):
         self.assertIn("recentReports?.total", self.api)
         self.assertIn("reporter_id,target_user_id,category,details,status,created_at", self.api)
 
+    def test_moderation_status_is_allowlisted_and_missing_report_returns_404(self):
+        self.assertIn('["open","reviewed","dismissed"].includes(status)', self.api)
+        self.assertIn('["reviewed","dismissed"].includes(status)', self.api)
+        self.assertIn('if (Number(result?.meta?.changes || 0) < 1) return fail("Report not found.",404);', self.api)
+
+    def test_blocking_removes_friendship_and_disables_conversation_access(self):
+        self.assertIn('DELETE FROM social_friendships WHERE user_low=? AND user_high=?', self.api)
+        self.assertGreaterEqual(self.api.count("blockedEither(db,user.id,other)"), 2)
+
+
     def test_page_renders_user_supplied_content_as_text_not_html(self):
         self.assertIn(".textContent=", self.page)
         self.assertNotRegex(self.page, r"\\.innerHTML\\s*=")
