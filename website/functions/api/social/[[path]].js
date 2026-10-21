@@ -161,7 +161,10 @@ export async function onRequest({ request, env }) {
       const [low,high]=orderPair(user.id,match[1]);
       await db.batch([
         db.prepare("INSERT OR IGNORE INTO social_blocks(blocker_id,blocked_id,created_at) VALUES(?,?,?)").bind(user.id,match[1],now()),
-        db.prepare("DELETE FROM social_friendships WHERE user_low=? AND user_high=?").bind(low,high)
+        db.prepare("DELETE FROM social_friendships WHERE user_low=? AND user_high=?").bind(low,high),
+        // A block must also invalidate pending requests, so unblocking later cannot
+        // unexpectedly revive an old request or let it be accepted.
+        db.prepare("UPDATE social_friend_requests SET status=CASE WHEN sender_id=? THEN 'cancelled' ELSE 'rejected' END WHERE status='pending' AND ((sender_id=? AND recipient_id=?) OR (sender_id=? AND recipient_id=?))").bind(user.id,user.id,match[1],match[1],user.id)
       ]);
       return json({ok:true},201);
     }
