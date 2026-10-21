@@ -117,7 +117,7 @@ class ThemeStudioActivity : Activity() {
             setBackgroundColor(this@ThemeStudioActivity.background)
         }
         root.addView(scroll, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f))
-        root.addView(LauncherNavigationBar.create(this, "Settings"))
+        root.addView(LauncherNavigationBar.create(this, "Store"))
         setContentView(root)
         updatePreview()
     }
