@@ -265,7 +265,7 @@ class SocialHubActivity : Activity() {
     private fun showSafetyGuidelines() {
         AlertDialog.Builder(this)
             .setTitle("VoidCraft community safety")
-            .setMessage("• Never share passwords, recovery codes, or private account tokens.\\n\\n• Treat unknown downloads and links carefully.\\n\\n• Do not post private information about yourself or other players.\\n\\n• Use Discord reporting and moderator tools for harassment or suspicious activity.\\n\\nIn-app blocking and reporting are not available until the launcher social backend exists.")
+            .setMessage("• Never share passwords, recovery codes, or private account tokens.\n\n• Treat unknown downloads and links carefully.\n\n• Do not post private information about yourself or other players.\n\n• Use Discord reporting and moderator tools for harassment or suspicious activity.\n\nIn-app blocking and reporting are not available until the launcher social backend exists.")
             .setPositiveButton("Got it", null)
             .show()
     }
