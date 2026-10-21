@@ -8,6 +8,7 @@
         android:usesCleartextTraffic="false">
         <activity android:name=".AccountActivity" android:exported="false" />
         <activity android:name=".FeatureStoreActivity" android:exported="false" />
+        <activity android:name=".CustomFeatureStudioActivity" android:exported="false" />
         <activity android:name=".ThemeStudioActivity" android:exported="false" />
         <activity android:name=".StartupDiagnosticsActivity" android:exported="false" />
         <activity android:name=".InstanceNotesActivity" android:exported="false" />
