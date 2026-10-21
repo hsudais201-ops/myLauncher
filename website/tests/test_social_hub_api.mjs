@@ -145,6 +145,33 @@ test("two website accounts can request, accept, and exchange private messages", 
   assert.ok(received.data.messages.some((item) => item.content === "clean"));
 });
 
+test("message pagination does not skip messages sharing the same millisecond timestamp", async () => {
+  const sent = await call("friends/requests", { as: "alice", method: "POST", body: { username: "bob" } });
+  assert.equal(sent.status, 201);
+  const accepted = await call("friends/requests/" + sent.data.request.id + "/accept", { as: "bob", method: "POST", body: {} });
+  assert.equal(accepted.status, 200);
+
+  for (const [id, body] of [["a-message", "oldest"], ["b-message", "middle"], ["c-message", "newest"]]) {
+    database.prepare("INSERT INTO social_messages(id,sender_id,recipient_id,body,created_at) VALUES(?,?,?,?,?)")
+      .run(id, "u-alice", "u-bob", body, 12345);
+  }
+
+  const firstPage = await call("conversations/u-bob/messages?limit=2", { as: "alice" });
+  assert.equal(firstPage.status, 200);
+  assert.deepEqual(firstPage.data.messages.map((message) => message.id), ["b-message", "c-message"]);
+
+  const cursorMessage = firstPage.data.messages[0];
+  const secondPage = await call(
+    "conversations/u-bob/messages?limit=2&before=" + cursorMessage.createdAt + "&beforeId=" + encodeURIComponent(cursorMessage.id),
+    { as: "alice" }
+  );
+  assert.equal(secondPage.status, 200);
+  assert.deepEqual(secondPage.data.messages.map((message) => message.id), ["a-message"]);
+
+  const timestampWithoutId = await call("conversations/u-bob/messages?before=12345", { as: "alice" });
+  assert.equal(timestampWithoutId.status, 400);
+});
+
 test("removing a friend immediately revokes private-message access", async () => {
   const sent = await call("friends/requests", { as: "alice", method: "POST", body: { username: "bob" } });
   assert.equal(sent.status, 201);
