@@ -256,6 +256,14 @@ class SocialHubApiContractTests(unittest.TestCase):
         self.assertIn("Messages must be 2000 characters or fewer.", self.api)
         self.assertIn("recentMessages?.total", self.api)
 
+    def test_owner_moderation_ui_loads_reports_and_submits_allowlisted_statuses(self):
+        self.assertIn('id="moderation-panel"', self.page)
+        self.assertIn('if(me.role==="owner")', self.page)
+        self.assertIn('api("moderation/reports?status="', self.page)
+        self.assertIn('method: "PATCH", body: { status: nextStatus }', self.page)
+        self.assertIn('details.textContent = report.details ||', self.page)
+        self.assertIn('["reviewed", "Mark reviewed"], ["dismissed", "Dismiss report"]', self.page)
+
     def test_owner_role_is_checked_server_side_for_moderation(self):
         self.assertGreaterEqual(self.api.count('user.role!=="owner"'), 2)
         self.assertIn("Owner permission required.", self.api)
