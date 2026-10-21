@@ -5,7 +5,7 @@
   "type": "module",
   "description": "Shared VoidCraft website and launcher accounts, friends, and private messages API",
   "scripts": {
-    "check": "node --check src/index.mjs && node --check pages/functions/api/[[path]].js && node --check website-integration/social-api.js && node --check test/index.test.mjs",
+    "check": "node --check src/index.mjs && node --check 'pages/functions/api/[[path]].js' && node --check website-integration/social-api.js && node --check test/index.test.mjs",
     "test": "node --test",
     "verify": "npm run check && npm test"
   }
