@@ -1,6 +1,6 @@
 # Voidcraft Social Hub API (staging)
 
-This Worker is the staging backend for Voidcraft Social Hub, bound to the D1 database `voidcraft-auth-staging-socialhub`. Do not bind it to the production `voidcraft-auth` database.
+This Worker is deployed as the public staging backend for Voidcraft Social Hub at `https://voidcraft-social-hub-staging.hsudais201.workers.dev`. The health route is `/api/health`. It binds to the D1 database `voidcraft-auth-staging-socialhub`. Do not bind it to the production `voidcraft-auth` database. The Android client has a first online integration for accounts, friend requests, and polling-based messaging; this is not a public production release.
 
 ## Endpoints
 
