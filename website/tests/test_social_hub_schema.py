@@ -116,6 +116,22 @@ class SocialHubSchemaTests(unittest.TestCase):
                 ("x" * 2001,),
             )
 
+    def test_reports_reject_self_target_and_unknown_category(self):
+        with self.assertRaises(sqlite3.IntegrityError):
+            self.db.execute(
+                "INSERT INTO social_reports(id,reporter_id,target_user_id,category,created_at) "
+                "VALUES('rp1','u1','u1','spam',1)"
+            )
+        with self.assertRaises(sqlite3.IntegrityError):
+            self.db.execute(
+                "INSERT INTO social_reports(id,reporter_id,target_user_id,category,created_at) "
+                "VALUES('rp2','u1','u2','not-a-category',1)"
+            )
+        self.db.execute(
+            "INSERT INTO social_reports(id,reporter_id,target_user_id,category,created_at) "
+            "VALUES('rp3','u1','u2','spam',1)"
+        )
+
     def test_blocks_disallow_self_blocks_and_ignore_duplicates(self):
         self.db.execute(
             "INSERT INTO social_blocks(blocker_id,blocked_id,created_at) VALUES('u1','u2',1)"
