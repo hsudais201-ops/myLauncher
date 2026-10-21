@@ -142,6 +142,8 @@ private fun VoidcraftApp() {
     var socialHubOpen by remember { mutableStateOf(false) }
     var serverStateOpen by remember { mutableStateOf(false) }
     var themeStudioOpen by remember { mutableStateOf(false) }
+    var cosmeticStoreOpen by remember { mutableStateOf(false) }
+    var equippedCosmetic by remember { mutableStateOf(prefs.getString("equipped_cosmetic_id", null)) }
     var activeConversation by remember { mutableStateOf<String?>(null) }
     var socialFriends by remember { mutableStateOf<List<String>>(prefs.getStringSet(SOCIAL_FRIENDS, emptySet<String>())?.toList()?.sorted() ?: emptyList<String>()) }
     var socialMessages by remember { mutableStateOf(loadSocialMessages(prefs.getString(SOCIAL_MESSAGES, "{}") ?: "{}")) }
@@ -250,7 +252,7 @@ private fun VoidcraftApp() {
                 LauncherTab.entries.forEachIndexed { index, tab ->
                     NavigationBarItem(
                         selected = !storeOpen && selectedTab == index,
-                        onClick = { storeOpen = false; selectedFeature = null; serverStateOpen = false; themeStudioOpen = false; selectedTab = index },
+                        onClick = { storeOpen = false; selectedFeature = null; serverStateOpen = false; themeStudioOpen = false; cosmeticStoreOpen = false; selectedTab = index },
                         icon = { Icon(tab.icon, contentDescription = tab.label) },
                         label = { Text(tab.label) }
                     )
@@ -529,6 +531,10 @@ private fun VoidcraftApp() {
                                 activeTheme = "default"
                                 prefs.edit().putString("active_theme", activeTheme).apply()
                             }
+                            if (feature.id == "cosmetic-store") {
+                                equippedCosmetic = null
+                                prefs.edit().remove("equipped_cosmetic_id").apply()
+                            }
                             scope.launch { snackbarHostState.showSnackbar("${feature.name} removed from Voidcraft.") }
                         },
                         onOpen = {
@@ -553,6 +559,13 @@ private fun VoidcraftApp() {
                                 storeOpen = false
                                 serverStateOpen = false
                                 themeStudioOpen = true
+                            } else if (feature.id == "cosmetic-store") {
+                                selectedFeature = null
+                                socialHubOpen = false
+                                storeOpen = false
+                                serverStateOpen = false
+                                themeStudioOpen = false
+                                cosmeticStoreOpen = true
                             } else if (feature.id == "theme-neon-night" || feature.id == "theme-void-minimal") {
                                 activeTheme = feature.id
                                 prefs.edit().putString("active_theme", activeTheme).apply()
@@ -571,6 +584,21 @@ private fun VoidcraftApp() {
                         onSelect = { selectedFeature = it }
                     )
                 }
+            } else if (cosmeticStoreOpen) {
+                CosmeticStoreScreen(
+                    equippedId = equippedCosmetic,
+                    onEquip = { id ->
+                        equippedCosmetic = id
+                        prefs.edit().putString("equipped_cosmetic_id", id).apply()
+                        scope.launch { snackbarHostState.showSnackbar("Cosmetic equipped for your launcher profile.") }
+                    },
+                    onUnequip = {
+                        equippedCosmetic = null
+                        prefs.edit().remove("equipped_cosmetic_id").apply()
+                        scope.launch { snackbarHostState.showSnackbar("Cosmetic unequipped.") }
+                    },
+                    onBack = { cosmeticStoreOpen = false }
+                )
             } else if (themeStudioOpen) {
                 ThemeStudioScreen(
                     currentAccent = studioAccent,
