@@ -98,7 +98,7 @@ class SocialHubActivity : Activity() {
         })
         page.addView(space(10))
         page.addView(infoCard(
-            "◈", "Player profile", "Edit your shared VoidCraft display name and short bio.",
+            "◈", "Player profile", "Manage your shared VoidCraft profile, display name, and short bio.",
             if (accountConnected) "ONLINE PROFILE" else "LOCAL ONLY", mint
         ) {
             startActivityForResult(Intent(this, VoidCraftAccountActivity::class.java), REQUEST_VOIDCRAFT_ACCOUNT)
