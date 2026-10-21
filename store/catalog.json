@@ -43,6 +43,20 @@
       "packageUrl": null,
       "availability": "available",
       "builtIn": true
+    },
+    {
+      "id": "theme-studio",
+      "name": "Theme Studio",
+      "tagline": "Customize the VoidCraft launcher accent with presets or custom RGB colors.",
+      "description": "Optional built-in theme editor. Choose Neon Mint, Void Violet, Arctic Ice, Solar Ember, or customize RGB channels. Preview the color, apply it to the launcher's primary accent, and save the choice locally on this device. This does not modify Minecraft textures or resource packs.",
+      "kind": "launcher",
+      "category": "Personalization",
+      "version": "1.0",
+      "compatibility": "VoidCraft Android beta",
+      "license": "VoidCraft",
+      "packageUrl": null,
+      "availability": "available",
+      "builtIn": true
     }
   ]
 }
