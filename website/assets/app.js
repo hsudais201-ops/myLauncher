@@ -1555,5 +1555,31 @@ document.addEventListener("click", (event) => {
 })();
 
 
-/* Global Social Hub navigation link for every website page. */
-(() => { const nav=document.querySelector(".nav"); if(!nav||nav.querySelector('a[href="social-hub.html"]'))return; const link=document.createElement("a"); link.href="social-hub.html"; link.textContent="Social Hub"; const community=nav.querySelector('a[href="community.html"]'); if(community)community.insertAdjacentElement("beforebegin",link); else nav.appendChild(link); })();
+/* Global, clearly visible Social Hub navigation and mobile quick action. */
+(() => {
+  const nav = document.querySelector(".nav");
+  if (nav && !nav.querySelector('a[href="social-hub.html"]')) {
+    const link = document.createElement("a");
+    link.href = "social-hub.html";
+    link.textContent = "Chat & Friends";
+    const community = nav.querySelector('a[href="community.html"]');
+    if (community) community.insertAdjacentElement("beforebegin", link);
+    else nav.appendChild(link);
+  } else if (nav) {
+    const link = nav.querySelector('a[href="social-hub.html"]');
+    if (link) link.textContent = "Chat & Friends";
+  }
+  if (!document.querySelector(".social-hub-quick-link") && !/social-hub\.html$/.test(location.pathname)) {
+    const quick = document.createElement("a");
+    quick.className = "social-hub-quick-link";
+    quick.href = "social-hub.html";
+    quick.setAttribute("aria-label", "Open VoidCraft Social Hub chat and friends");
+    const icon = document.createElement("span");
+    icon.className = "quick-link-icon";
+    icon.textContent = "✉";
+    const label = document.createElement("span");
+    label.textContent = "Chat & Friends";
+    quick.append(icon, label);
+    document.body.appendChild(quick);
+  }
+})();
