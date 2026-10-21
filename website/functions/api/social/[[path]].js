@@ -111,8 +111,12 @@ export async function onRequest({ request, env }) {
       const friendship=await db.prepare("SELECT 1 FROM social_friendships WHERE user_low=? AND user_high=?").bind(low,high).first();
       if (!friendship) return fail("You must be friends to view private messages.",403);
       if (await blockedEither(db,user.id,other)) return fail("Messaging is unavailable for this player.",403);
-      const before=Number(url.searchParams.get("before")||Number.MAX_SAFE_INTEGER);
-      const limit=Math.min(100,Math.max(1,Number(url.searchParams.get("limit")||40)));
+      const beforeParam=url.searchParams.get("before");
+      const limitParam=url.searchParams.get("limit");
+      const before=beforeParam===null ? Number.MAX_SAFE_INTEGER : Number(beforeParam);
+      const limit=limitParam===null ? 40 : Number(limitParam);
+      if (!Number.isSafeInteger(before) || before < 0) return fail("Invalid message pagination cursor.");
+      if (!Number.isSafeInteger(limit) || limit < 1 || limit > 100) return fail("Message limit must be between 1 and 100.");
       const rows=await db.prepare("SELECT id,sender_id,recipient_id,body,created_at FROM social_messages WHERE ((sender_id=? AND recipient_id=?) OR (sender_id=? AND recipient_id=?)) AND created_at<? ORDER BY created_at DESC LIMIT ?").bind(user.id,other,other,user.id,before,limit).all();
       return json({messages:(rows.results||[]).reverse().map(m=>({id:m.id,senderId:m.sender_id,recipientId:m.recipient_id,content:m.body,createdAt:m.created_at}))});
     }
