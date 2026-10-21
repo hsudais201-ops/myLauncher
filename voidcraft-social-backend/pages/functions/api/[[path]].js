@@ -11,7 +11,8 @@
  */
 export async function onRequest(context) {
   const configured = context.env.VOIDCRAFT_SOCIAL_API_URL;
-  if (!configured) {
+  const proxySecret = context.env.VOIDCRAFT_PROXY_SECRET;
+  if (!configured || !proxySecret || proxySecret.length < 32) {
     return Response.json(
       { error: "VoidCraft social service is not configured on this website yet." },
       {
@@ -47,9 +48,15 @@ export async function onRequest(context) {
   target.host = upstream.host;
 
   try {
-    const response = await fetch(new Request(target.toString(), context.request), {
-      redirect: "manual"
-    });
+    const forwardedRequest = new Request(target.toString(), context.request);
+    const clientIp = context.request.headers.get("CF-Connecting-IP");
+    // Always overwrite these values from the trusted Pages request/environment.
+    // A caller cannot choose a rate-limit identity by supplying its own header.
+    forwardedRequest.headers.set("X-VC-Proxy-Secret", proxySecret);
+    if (clientIp) forwardedRequest.headers.set("X-VC-Client-IP", clientIp);
+    else forwardedRequest.headers.delete("X-VC-Client-IP");
+
+    const response = await fetch(forwardedRequest, { redirect: "manual" });
     const headers = new Headers(response.headers);
     headers.set("Cache-Control", "no-store");
     headers.set("X-Content-Type-Options", "nosniff");
