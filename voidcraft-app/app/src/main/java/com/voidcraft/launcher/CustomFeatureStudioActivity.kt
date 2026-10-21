@@ -102,22 +102,29 @@ class CustomFeatureStudioActivity : Activity() {
         form.addView(label("STARTING TEMPLATE")); form.addView(template); form.addView(space(8))
         form.addView(label("HOW IT SHOULD WORK")); form.addView(behavior)
         val scroller = ScrollView(this).apply { addView(form) }
-        AlertDialog.Builder(this)
+        val dialog = AlertDialog.Builder(this)
             .setTitle(if (existing == null) "New feature blueprint" else "Edit blueprint")
             .setView(scroller)
             .setNegativeButton("Cancel", null)
-            .setNeutralButton(if (existing == null) "Save draft" else "Save changes") { _, _ ->
+            .setPositiveButton(if (existing == null) "Save draft" else "Save changes") { _, _ -> }
+            .create()
+        dialog.setOnShowListener {
+            dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
                 val n = name.text.toString().trim()
                 val d = description.text.toString().trim()
                 val t = template.text.toString().trim().ifBlank { "utility" }
                 val b = behavior.text.toString().trim()
                 if (n.isBlank() || d.isBlank()) {
                     Toast.makeText(this, "Add a feature name and description first.", Toast.LENGTH_LONG).show()
-                    return@setNeutralButton
+                    return@setOnClickListener
                 }
                 if (n.length > 60 || d.length > 500 || b.length > 3000 || t.length > 40) {
                     Toast.makeText(this, "Please shorten one of the fields.", Toast.LENGTH_LONG).show()
-                    return@setNeutralButton
+                    return@setOnClickListener
+                }
+                if (existing == null && drafts.size >= 100) {
+                    Toast.makeText(this, "You have reached the 100-draft limit. Delete an old draft first.", Toast.LENGTH_LONG).show()
+                    return@setOnClickListener
                 }
                 val item = existing ?: JSONObject().put("id", java.util.UUID.randomUUID().toString())
                 item.put("name", n).put("description", d).put("template", t).put("notes", b)
@@ -126,8 +133,10 @@ class CustomFeatureStudioActivity : Activity() {
                 saveDrafts()
                 renderDrafts()
                 Toast.makeText(this, "Blueprint saved on this device.", Toast.LENGTH_SHORT).show()
+                dialog.dismiss()
             }
-            .show()
+        }
+        dialog.show()
     }
 
     private fun renderDrafts() {
