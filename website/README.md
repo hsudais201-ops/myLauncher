@@ -54,7 +54,7 @@ For a separate or newly created authentication database, apply `migrations/0002_
 
 ## Social Hub integration (migration required)
 
-- `social.html` is the website-account-based Social Hub UI. It checks the existing `/api/auth/me` session; it does not register a second Social Hub account or store credentials in browser storage.
+- `social.html` is the website-account-based Social Hub UI. It checks the existing website session through `/api/social/me` (which reuses the shared authentication cookie); it does not register a second Social Hub account or store credentials in browser storage.
 - `functions/api/social/[[path]].js` uses the existing `VOIDCRAFT_AUTH` D1 binding and existing website session cookie. It provides player search, incoming/outgoing friend requests, accepted-friend private text messages, blocking/unblocking, reports, and owner-only report review.
 - Before using these routes, apply `migrations/0005_social_hub.sql` to the intended authentication database. This creates only social tables and references the existing `users` table. Do not deploy the social routes without the migration.
 - **Preview safety:** the current Cloudflare Pages configuration has preview and production bound to the same `voidcraft-auth` D1 database, and preview deployments are disabled. Do not enable previews or apply migration 0005 until the preview binding has been changed to an isolated staging D1 database. Never test the Social Hub migration against the shared live database.
