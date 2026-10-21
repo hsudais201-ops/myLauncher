@@ -19,6 +19,16 @@
 <div class="actions"><a class="btn" href="developers.html">Create a cosmetic →</a><a class="btn secondary" href="feature-store.html">Browse features</a></div>
 <div class="cosmetic-orb-scene" aria-hidden="true"><div class="cosmetic-orb orb-one"></div><div class="cosmetic-orb orb-two"></div><div class="cosmetic-orb orb-three"></div><div class="cosmetic-orb-ring"></div></div>
 </section>
+<section class="wardrobe-section" aria-labelledby="wardrobe-title">
+<style>
+.wardrobe-section{margin:30px 0;padding:24px;border:1px solid var(--line);border-radius:24px;background:linear-gradient(140deg,#17152a,#0d1420)}.wardrobe-head{display:flex;gap:20px;align-items:start;justify-content:space-between;flex-wrap:wrap}.wardrobe-head p{max-width:650px;color:var(--muted)}.wardrobe-status{font-size:13px;color:var(--muted);min-height:22px}.wardrobe-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin:22px 0}.wardrobe-item{border:1px solid var(--line);border-radius:18px;padding:16px;background:#0a0e19;color:#f4f5ff}.wardrobe-item[aria-pressed=true]{outline:2px solid var(--wardrobe-color,#9c7bff);border-color:var(--wardrobe-color,#9c7bff)}.wardrobe-avatar{height:116px;display:grid;place-items:center;border-radius:14px;background:radial-gradient(circle,var(--wardrobe-color,#9c7bff)22,#101625 72%);margin-bottom:14px}.wardrobe-orb{width:58px;height:58px;border-radius:50%;background:var(--wardrobe-color,#9c7bff);box-shadow:0 0 24px var(--wardrobe-color,#9c7bff);border:5px solid #f4f5ff}.wardrobe-item h3{font-size:16px;margin:5px 0}.wardrobe-item p{font-size:12px;color:#a7aec8;min-height:32px}.wardrobe-item button{width:100%;margin-top:8px}.wardrobe-section [disabled]{opacity:.45;cursor:not-allowed}@media(max-width:760px){.wardrobe-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:400px){.wardrobe-grid{grid-template-columns:1fr}}
+</style>
+<div class="wardrobe-head"><div><div class="eyebrow">LOCAL PROFILE · COSMETIC TRY-ON</div><h2 id="wardrobe-title">Your Cosmetic Wardrobe</h2><p>Try on original VoidCraft profile effects. Install Cosmetic Store from the Feature Store to equip a style. Your selection is saved only in this browser and currently affects this website profile preview, not Minecraft in-game cosmetics.</p></div><div class="actions"><a class="btn secondary" id="wardrobe-install-link" href="feature-store.html">Install in Feature Store</a><button class="btn secondary" id="wardrobe-unequip" type="button">Unequip</button></div></div>
+<p id="wardrobe-status" class="wardrobe-status" aria-live="polite">Checking Cosmetic Store installation…</p>
+<div class="wardrobe-grid" id="wardrobe-grid">
+<article class="wardrobe-item"><div class="wardrobe-avatar"><div class="wardrobe-orb"></div></div><h3>Void Aura</h3><p>Signature violet energy glow.</p><button class="btn" disabled>Equip</button></article>
+</div>
+</section>
 <section class="store-toolbar-section">
 <div class="store-toolbar-heading"><div><div class="eyebrow">THE COLLECTION</div><h2>Cosmetic Store</h2></div><button class="btn secondary store-refresh" type="button" data-store-refresh>↻ Refresh</button></div>
 <div class="store-toolbar">
@@ -33,8 +43,9 @@
 </div>
 </section>
 <section class="cosmetic-feature-strip"><div><span class="eyebrow">ORIGINAL DESIGN</span><h2>Made for the VoidCraft identity</h2><p>Cosmetic submissions should be original or properly licensed. No trademarked assets, stolen themes or unlicensed artwork.</p></div><a class="btn secondary" href="security.html">Read creator rules →</a></section>
-<div class="notice store-status-notice"><strong>Marketplace status:</strong> The online catalog and listing review are connected. Theme installation, package uploads and payment checkout still need their respective integrations. Preview cards are clearly marked and cannot be purchased as if they were finished items.</div>
+<div class="notice store-status-notice"><strong>Marketplace status:</strong> The online catalog and listing review are connected. The local profile wardrobe can equip original browser-only effects after installing Cosmetic Store from the Feature Store. Downloadable cosmetic packages, Minecraft skin/game integration, and payment checkout are not enabled yet. Preview listings cannot be purchased as finished items.</div>
 </main>
 <footer><div class="foot"><span>© VoidCraft community project · Independent from Mojang and Microsoft</span><span><a href="privacy.html">Privacy</a> · <a href="terms.html">Terms</a> · <a href="security.html">Security</a></span></div></footer>
 <script src="assets/app.js" defer></script>
+<script src="assets/cosmetic-wardrobe.js" defer></script>
 </body></html>
