@@ -2,6 +2,9 @@ package com.voidcraft.launcher
 
 import android.app.Activity
 import android.app.AlertDialog
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
 import android.content.Intent
 import android.graphics.Color
 import android.graphics.Typeface
@@ -184,6 +187,21 @@ class SocialHubActivity : Activity() {
         }
         panel.addView(shareButton)
         panel.addView(space(8))
+        val copyButton = TextView(this).apply {
+            text = "Copy invite link"
+            textSize = 12f
+            typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+            setTextColor(mint)
+            gravity = Gravity.CENTER
+            setPadding(dp(10), dp(10), dp(10), dp(10))
+            background = rounded(Color.TRANSPARENT, 12, border)
+            isClickable = true
+            isFocusable = true
+            contentDescription = "Copy VoidCraft Discord invite link"
+            setOnClickListener { copyDiscordInvite() }
+        }
+        panel.addView(copyButton)
+        panel.addView(space(8))
         panel.addView(label("Invite: discord.gg/FM6myW8ZFb", 11, textMuted, false))
         return panel
     }
@@ -273,6 +291,16 @@ class SocialHubActivity : Activity() {
     private fun localDisplayName(): String = getSharedPreferences(
         LauncherPreferences.PREFS_NAME, MODE_PRIVATE
     ).getString("launcher_display_name", "Player")?.trim()?.takeIf { it.isNotEmpty() } ?: "Player"
+
+    private fun copyDiscordInvite() {
+        val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
+        if (clipboard == null) {
+            notice("Clipboard unavailable. Invite: $discordInvite")
+            return
+        }
+        clipboard.setPrimaryClip(ClipData.newPlainText("VoidCraft Discord invite", discordInvite))
+        notice("VoidCraft Discord invite copied")
+    }
 
     private fun shareDiscordInvite() {
         val send = Intent(Intent.ACTION_SEND).apply {
