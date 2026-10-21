@@ -8,6 +8,10 @@ spec = importlib.util.spec_from_file_location("customize_mojo", Path(__file__).w
 assert spec is not None and spec.loader is not None
 customizer = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(customizer)
+logo_spec = importlib.util.spec_from_file_location("apply_logo", Path(__file__).with_name("apply_logo.py"))
+assert logo_spec is not None and logo_spec.loader is not None
+logo_applier = importlib.util.module_from_spec(logo_spec)
+logo_spec.loader.exec_module(logo_applier)
 
 class MojoCustomizerTests(unittest.TestCase):
     def fixture(self, root: Path) -> None:
@@ -70,6 +74,10 @@ return "justicia-build-label"
                 self.assertIn("VoidCraft Launcher", text)
             self.assertIn("#8D6BFF", (root / "app_mojo/src/main/res/values/colors.xml").read_text())
             self.assertTrue((root / "VOIDCRAFT_MOJO_LICENSE.txt").is_file())
+            logo_applier.main(root)
+            manifest = (root / "app_mojo/src/main/AndroidManifest.xml").read_text()
+            self.assertIn("@drawable/voidcraft_launcher_logo", manifest)
+            self.assertTrue((root / "app_mojo/src/main/res/drawable-nodpi/voidcraft_launcher_logo.webp").is_file())
 
     def test_patch_is_idempotent(self):
         with tempfile.TemporaryDirectory() as tmp:
