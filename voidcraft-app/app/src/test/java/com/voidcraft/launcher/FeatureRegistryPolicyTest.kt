@@ -41,7 +41,7 @@ class FeatureRegistryPolicyTest {
 
     @Test
     fun onlyImplementedBuiltInsCanInstall() {
-        val implemented = setOf("startup-diagnostics", "instance-notes")
+        val implemented = setOf("startup-diagnostics", "instance-notes", "network-diagnostics")
         FeatureRegistry.catalog().forEach { feature ->
             if (feature.id in implemented) {
                 assertEquals(FeatureRegistry.Status.AVAILABLE, feature.status)
