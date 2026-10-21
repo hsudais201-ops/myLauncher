@@ -104,6 +104,26 @@ class FeatureStoreActivity : Activity() {
         ).apply { setPadding(0, dp(6), 0, 0) })
         page.addView(space(15))
         page.addView(safetyBanner())
+        page.addView(space(12))
+        val createOwn = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(15), dp(14), dp(15), dp(14))
+            background = rounded(panel, 16, accent)
+            isClickable = true
+            isFocusable = true
+            contentDescription = "Create your own custom feature blueprint"
+            setOnClickListener {
+                startActivity(android.content.Intent(
+                    this@FeatureStoreActivity, CustomFeatureStudioActivity::class.java
+                ))
+            }
+        }
+        createOwn.addView(text("＋  CREATE YOUR OWN FEATURE", 14, primaryText, true))
+        createOwn.addView(text(
+            "Build and save a custom feature blueprint on this device. No coding required; drafts cannot execute code.",
+            12, secondaryText, false
+        ).apply { setPadding(0, dp(5), 0, 0) })
+        page.addView(createOwn)
         page.addView(space(15))
 
         searchField = EditText(this).apply {
