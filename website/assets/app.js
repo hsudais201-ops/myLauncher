@@ -1,3 +1,26 @@
+/* Add Chat to the shared website navigation without duplicating the link on chat.html. */
+(() => {
+  const isChatPage = /(?:^|\/)chat\.html$/.test(window.location.pathname);
+  document.querySelectorAll(".nav").forEach((nav) => {
+    let link = nav.querySelector('a[href="chat.html"]');
+    if (!link) {
+      link = document.createElement("a");
+      link.href = "chat.html";
+      link.textContent = "Chat";
+      const developerLink = nav.querySelector('a[href="developers.html"]');
+      if (developerLink) nav.insertBefore(link, developerLink);
+      else nav.append(link);
+    }
+    if (isChatPage) {
+      link.classList.add("active");
+      link.setAttribute("aria-current", "page");
+    } else {
+      link.classList.remove("active");
+      link.removeAttribute("aria-current");
+    }
+  });
+})();
+
 document.addEventListener("click", (event) => {
   const demo = event.target.closest("[data-demo]");
   if (demo) {

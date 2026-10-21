@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#090b13">
+  <meta name="description" content="Find VoidCraft players, manage friend requests, and chat privately using your existing VoidCraft website account.">
+  <title>Chat — VoidCraft</title>
+  <link rel="icon" href="assets/logo.svg">
+  <link rel="stylesheet" href="assets/styles.css">
+</head>
+<body>
+<header>
+  <div class="bar">
+    <a class="brand" href="index.html"><img src="assets/logo.svg" alt=""><span>VOIDCRAFT</span></a>
+    <nav class="nav" aria-label="Main navigation">
+      <a href="index.html">Home</a><a href="downloads.html">Downloads</a><a href="feature-store.html">Feature Store</a><a href="cosmetic-store.html">Cosmetics</a><a href="servers.html">Servers</a><a href="community.html">Community</a><a href="chat.html" class="active" aria-current="page">Chat</a><a href="developers.html">Developers</a><a href="docs.html">Docs</a>
+    </nav>
+    <div class="account-links"><a href="signin.html">Sign in</a><a href="profile.html">Profile</a></div>
+  </div>
+</header>
+<main class="chat-page">
+  <section class="hero chat-hero">
+    <div class="eyebrow">VOIDCRAFT SOCIAL HUB · PRIVATE WEB CHAT</div>
+    <h1>Your people.<br><span class="headline-glow">Your conversations.</span></h1>
+    <p>Use your existing VoidCraft website account to find players, send friend requests, and exchange private messages on the website. This is VoidCraft chat—not Discord chat.</p>
+    <div class="actions">
+      <a class="btn" href="signin.html?next=chat.html">Sign in to Chat →</a>
+      <a class="btn secondary" href="https://discord.gg/FM6myW8ZFb" target="_blank" rel="noopener noreferrer">Open Discord community ↗</a>
+    </div>
+  </section>
+
+  <div id="chat-status" class="form-feedback" role="status" aria-live="polite"></div>
+  <section id="chat-login" class="card chat-login-card" hidden>
+    <div class="chat-login-icon" aria-hidden="true">✉</div>
+    <div>
+      <h2>Sign in to open Chat</h2>
+      <p>Chat uses the same VoidCraft website session as your profile and stores messages in the website's D1 account database. No second chat account is needed.</p>
+      <a class="btn" href="signin.html?next=chat.html">Sign in or create account →</a>
+      <p class="chat-small-note">Newly created accounts can sign in and use Chat as soon as the website chat database migration is applied.</p>
+    </div>
+  </section>
+
+  <section id="chat-app" hidden>
+    <div class="chat-account-bar">
+      <div><span class="eyebrow">SIGNED IN</span><strong id="chat-account-name">Checking account…</strong></div>
+      <div class="chat-account-actions"><a class="btn secondary" href="profile.html">Profile</a><button id="chat-refresh" type="button" class="btn secondary">Refresh</button></div>
+    </div>
+
+    <div class="chat-grid">
+      <aside class="chat-column">
+        <section class="chat-panel">
+          <div class="chat-panel-heading"><div><span class="eyebrow">DISCOVER</span><h2>Find players</h2></div><span class="chat-panel-glyph" aria-hidden="true">⌕</span></div>
+          <p class="chat-help">Search usernames, then send a friend request. Use at least 3 characters.</p>
+          <form id="player-search-form" class="chat-search-form">
+            <label for="player-query">Player username</label>
+            <div class="chat-input-row"><input id="player-query" name="q" minlength="3" maxlength="20" pattern="[A-Za-z0-9_]{3,20}" required placeholder="Search username"><button class="btn" type="submit">Search</button></div>
+          </form>
+          <div id="player-results" class="chat-list" aria-live="polite"><div class="chat-empty-small">Search for a player to get started.</div></div>
+        </section>
+
+        <section class="chat-panel">
+          <div class="chat-panel-heading"><div><span class="eyebrow">INBOX</span><h2>Recent chats</h2></div></div>
+          <div id="conversation-list" class="chat-list"><div class="chat-empty-small">Your conversations will appear here.</div></div>
+        </section>
+      </aside>
+
+      <section class="chat-panel chat-thread-panel" aria-label="Private conversation">
+        <div id="chat-thread-empty" class="chat-thread-empty">
+          <div class="chat-thread-orb" aria-hidden="true">VC</div>
+          <h2>Make the first connection.</h2>
+          <p>Choose a friend or find a player. Messages are available only between accepted friends.</p>
+          <span class="chat-lock-note">⌁ Private conversations · Block and report controls</span>
+        </div>
+        <div id="chat-thread-active" hidden>
+          <div class="chat-thread-header">
+            <div><h2 id="thread-title">Conversation</h2><p id="thread-subtitle">Private message thread</p></div>
+            <div class="chat-thread-actions">
+              <button id="thread-report" type="button" class="text-button">Report</button>
+              <button id="thread-block" type="button" class="text-button danger-text">Block</button>
+            </div>
+          </div>
+          <div id="message-list" class="chat-message-list" role="log" aria-live="polite" aria-label="Messages"></div>
+          <div id="message-feedback" class="form-feedback" role="status" aria-live="polite"></div>
+          <form id="message-form" class="chat-message-form">
+            <label class="sr-only" for="message-input">Write a private message</label>
+            <textarea id="message-input" name="content" rows="2" maxlength="2000" placeholder="Write a message…" required></textarea>
+            <div class="chat-message-footer"><span>Text only · Up to 2,000 characters</span><button id="message-submit" class="btn" type="submit">Send message ↑</button></div>
+          </form>
+        </div>
+      </section>
+
+      <aside class="chat-column">
+        <section class="chat-panel">
+          <div class="chat-panel-heading"><div><span class="eyebrow">CONNECTIONS</span><h2>Friend requests</h2></div></div>
+          <div id="request-list" class="chat-list"><div class="chat-empty-small">No pending requests.</div></div>
+        </section>
+        <section class="chat-panel">
+          <div class="chat-panel-heading"><div><span class="eyebrow">YOUR CIRCLE</span><h2>Friends</h2></div></div>
+          <div id="friend-list" class="chat-list"><div class="chat-empty-small">Your accepted friends will appear here.</div></div>
+        </section>
+        <details class="chat-panel chat-blocked-panel">
+          <summary>Blocked players</summary>
+          <div id="blocked-list" class="chat-list"><div class="chat-empty-small">No blocked players.</div></div>
+        </details>
+      </aside>
+    </div>
+
+    <section id="moderation-panel" class="chat-panel chat-moderation" hidden>
+      <div class="chat-panel-heading"><div><span class="eyebrow">OWNER TOOLS</span><h2>Chat report queue</h2></div><label class="moderation-filter-label" for="moderation-filter">Status</label></div>
+      <div class="chat-input-row"><select id="moderation-filter" aria-label="Filter reports"><option value="open">Open</option><option value="reviewing">Reviewing</option><option value="resolved">Resolved</option><option value="dismissed">Dismissed</option></select><button id="moderation-refresh" type="button" class="btn secondary">Refresh queue</button></div>
+      <div id="moderation-feedback" class="form-feedback" role="status" aria-live="polite"></div>
+      <div id="moderation-reports" class="chat-list"><div class="chat-empty-small">Loading reports…</div></div>
+    </section>
+  </section>
+</main>
+<footer>
+  <div class="foot"><span>© VoidCraft community project · Independent from Mojang and Microsoft</span><span><a href="privacy.html">Privacy</a> · <a href="terms.html">Terms</a> · <a href="security.html">Security</a> · <a href="https://discord.gg/FM6myW8ZFb" target="_blank" rel="noopener noreferrer">Discord</a></span></div>
+</footer>
+<script src="assets/app.js" defer></script>
+<script src="assets/chat.js" defer></script>
+</body>
+</html>
