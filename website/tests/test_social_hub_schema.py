@@ -240,6 +240,16 @@ class SocialHubApiContractTests(unittest.TestCase):
         self.assertIn("status='pending' AND (sender_id=? OR recipient_id=?)", self.api)
         self.assertIn("Pending friend request not found.", self.api)
 
+    def test_private_message_control_character_filter_uses_actual_codepoint_escapes(self):
+        self.assertIn(
+            r"rawContent.replace(/[\\u0000-\\u0008\\u000B\\u000C\\u000E-\\u001F\\u007F]/g",
+            self.api,
+        )
+        self.assertNotIn(
+            r"rawContent.replace(/[\\\\u0000-\\\\u0008",
+            self.api,
+        )
+
     def test_private_messages_require_friendship_and_no_active_block(self):
         self.assertGreaterEqual(self.api.count("You must be friends to"), 2)
         self.assertGreaterEqual(self.api.count("blockedEither(db,user.id,other)"), 2)
