@@ -39,7 +39,7 @@ class MojoCustomizerTests(unittest.TestCase):
 return "justicia-build-label"
 ''', encoding="utf-8")
         (root / "settings.gradle").write_text("rootProject.name='MojoLauncher'\n", encoding="utf-8")
-        (app / "src/main/AndroidManifest.xml").write_text("<manifest />\n", encoding="utf-8")
+        (app / "src/main/AndroidManifest.xml").write_text('<?xml version="1.0" encoding="utf-8"?><manifest xmlns:android="http://schemas.android.com/apk/res/android"><application android:icon="@mipmap/ic_launcher" /></manifest>\n', encoding="utf-8")
         (res / "values/colors.xml").write_text('''<resources>
 <color name="minebutton_color">#91dffb</color>
 <color name="background_app">#181818</color>
