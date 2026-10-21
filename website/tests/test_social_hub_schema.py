@@ -227,5 +227,51 @@ class SocialHubApiContractTests(unittest.TestCase):
 
 
 
+    def test_request_sender_cancels_and_recipient_rejects_pending_request(self):
+        self.db.execute(
+            "INSERT INTO social_friend_requests(id,sender_id,recipient_id,status,created_at) "
+            "VALUES('cancel-me','u1','u2','pending',1)"
+        )
+        self.db.execute(
+            "UPDATE social_friend_requests SET status=CASE WHEN sender_id=? "
+            "THEN 'cancelled' ELSE 'rejected' END WHERE id=? AND status='pending' "
+            "AND (sender_id=? OR recipient_id=?)",
+            ("u1", "cancel-me", "u1", "u1"),
+        )
+        self.assertEqual(
+            "cancelled",
+            self.db.execute(
+                "SELECT status FROM social_friend_requests WHERE id='cancel-me'"
+            ).fetchone()[0],
+        )
+        self.db.execute(
+            "INSERT INTO social_friend_requests(id,sender_id,recipient_id,status,created_at) "
+            "VALUES('decline-me','u1','u2','pending',2)"
+        )
+        self.db.execute(
+            "UPDATE social_friend_requests SET status=CASE WHEN sender_id=? "
+            "THEN 'cancelled' ELSE 'rejected' END WHERE id=? AND status='pending' "
+            "AND (sender_id=? OR recipient_id=?)",
+            ("u2", "decline-me", "u2", "u2"),
+        )
+        self.assertEqual(
+            "rejected",
+            self.db.execute(
+                "SELECT status FROM social_friend_requests WHERE id='decline-me'"
+            ).fetchone()[0],
+        )
+
+    def test_moderation_status_constraint_accepts_only_supported_states(self):
+        self.db.execute(
+            "INSERT INTO social_reports(id,reporter_id,target_user_id,category,status,created_at) "
+            "VALUES('rp-review','u1','u2','spam','reviewed',1)"
+        )
+        with self.assertRaises(sqlite3.IntegrityError):
+            self.db.execute(
+                "INSERT INTO social_reports(id,reporter_id,target_user_id,category,status,created_at) "
+                "VALUES('rp-invalid','u1','u2','spam','approved',2)"
+            )
+
+
 if __name__ == "__main__":
     unittest.main()
