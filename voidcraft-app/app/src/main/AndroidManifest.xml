@@ -7,6 +7,9 @@
         android:theme="@android:style/Theme.Material.NoActionBar"
         android:usesCleartextTraffic="false">
         <activity android:name=".AccountActivity" android:exported="false" />
+        <activity android:name=".VoidCraftAccountActivity" android:exported="false" />
+        <activity android:name=".SocialFriendsActivity" android:exported="false" />
+        <activity android:name=".SocialChatActivity" android:exported="false" />
         <activity android:name=".SocialHubActivity" android:exported="false" />
         <activity android:name=".FeatureStoreActivity" android:exported="false" />
         <activity android:name=".CustomFeatureStudioActivity" android:exported="false" />
