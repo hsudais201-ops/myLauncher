@@ -239,15 +239,15 @@ private fun VoidcraftApp() {
                                 val username = rawName.trim()
                                 when {
                                     !username.matches(Regex("^[A-Za-z0-9_]{3,24}$")) ->
-                                        snackbarHostState.showSnackbar("Use a 3–24 character username: letters, numbers, or underscore.")
+                                        scope.launch { snackbarHostState.showSnackbar("Use a 3–24 character username: letters, numbers, or underscore.") }
                                     username.equals("You", ignoreCase = true) ->
-                                        snackbarHostState.showSnackbar("You cannot add yourself.")
+                                        scope.launch { snackbarHostState.showSnackbar("You cannot add yourself.") }
                                     socialFriends.any { it.equals(username, ignoreCase = true) } ->
-                                        snackbarHostState.showSnackbar("That friend is already on your local list.")
+                                        scope.launch { snackbarHostState.showSnackbar("That friend is already on your local list.") }
                                     else -> {
                                         socialFriends = (socialFriends + username).sorted()
                                         prefs.edit().putStringSet(SOCIAL_FRIENDS, socialFriends.toSet()).apply()
-                                        snackbarHostState.showSnackbar("$username added to your local friends list.")
+                                        scope.launch { snackbarHostState.showSnackbar("$username added to your local friends list.") }
                                     }
                                 }
                             },
@@ -269,10 +269,7 @@ private fun VoidcraftApp() {
                             val feature = selectedFeature!!
                             if (feature.builtIn) {
                                 saveInstalled(installedIds + feature.id)
-                                if (feature.id == "social-hub") {
-                                socialHubOpen = true
-                                activeConversation = null
-                            } else if (feature.id == "theme-neon-night" || feature.id == "theme-void-minimal") {
+                                if (feature.id == "theme-neon-night" || feature.id == "theme-void-minimal") {
                                     activeTheme = feature.id
                                     prefs.edit().putString("active_theme", activeTheme).apply()
                                 }
@@ -324,7 +321,10 @@ private fun VoidcraftApp() {
                         },
                         onOpen = {
                             val feature = selectedFeature!!
-                            if (feature.id == "theme-neon-night" || feature.id == "theme-void-minimal") {
+                            if (feature.id == "social-hub") {
+                                socialHubOpen = true
+                                activeConversation = null
+                            } else if (feature.id == "theme-neon-night" || feature.id == "theme-void-minimal") {
                                 activeTheme = feature.id
                                 prefs.edit().putString("active_theme", activeTheme).apply()
                                 saveInstalled(installedIds + feature.id)
