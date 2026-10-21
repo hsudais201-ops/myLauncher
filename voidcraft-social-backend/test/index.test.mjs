@@ -102,6 +102,11 @@ test("Pages proxy fails closed if its Worker URL is not configured", async () =>
   assert.deepEqual(await response.json(), {
     error: "VoidCraft social service is not configured on this website yet."
   });
+  const noSecret = await pagesProxy({
+    request,
+    env: { VOIDCRAFT_SOCIAL_API_URL: "https://social.example.workers.dev" }
+  });
+  assert.equal(noSecret.status, 503);
 });
 
 test("Pages proxy refuses non-HTTPS or self-referential upstreams", async () => {
