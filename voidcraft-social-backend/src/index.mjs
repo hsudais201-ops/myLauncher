@@ -313,6 +313,21 @@ async function route(request, env) {
     return json({ user: { ...safeUser(user), email: String(user.email) } });
   }
 
+  const knownProtectedPath =
+    path === "/api/auth/me" ||
+    path === "/api/profile" ||
+    path === "/api/players" ||
+    path === "/api/friends" ||
+    path === "/api/friends/requests" ||
+    path === "/api/conversations" ||
+    path === "/api/blocks" ||
+    path === "/api/reports" ||
+    /^\\/api\\/friends\\/requests\\/[0-9]+(?:\\/accept)?$/.test(path) ||
+    /^\\/api\\/friends\\/[0-9]+$/.test(path) ||
+    /^\\/api\\/conversations\\/[0-9]+\\/messages$/.test(path) ||
+    /^\\/api\\/blocks\\/[0-9]+$/.test(path);
+  if (!knownProtectedPath) fail(404, "API endpoint not found.");
+
   const user = await requireUser(request, env);
   const userId = Number(user.id);
 
