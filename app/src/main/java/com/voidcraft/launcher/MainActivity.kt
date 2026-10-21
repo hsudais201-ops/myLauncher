@@ -135,11 +135,13 @@ private fun VoidcraftApp() {
     var storeEnabled by remember { mutableStateOf(prefs.getBoolean(STORE_ENABLED, false)) }
     var installedIds by remember { mutableStateOf(prefs.getStringSet(INSTALLED_IDS, emptySet())?.toSet() ?: emptySet()) }
     var activeTheme by remember { mutableStateOf(prefs.getString("active_theme", "default") ?: "default") }
+    var studioAccent by remember { mutableIntStateOf(prefs.getInt("theme_studio_accent", 0xFF9C7BFF.toInt())) }
     var catalog by remember { mutableStateOf(loadBundledCatalog(context)) }
     var isRefreshing by remember { mutableStateOf(false) }
     var selectedFeature by remember { mutableStateOf<StoreFeature?>(null) }
     var socialHubOpen by remember { mutableStateOf(false) }
     var serverStateOpen by remember { mutableStateOf(false) }
+    var themeStudioOpen by remember { mutableStateOf(false) }
     var activeConversation by remember { mutableStateOf<String?>(null) }
     var socialFriends by remember { mutableStateOf<List<String>>(prefs.getStringSet(SOCIAL_FRIENDS, emptySet<String>())?.toList()?.sorted() ?: emptyList<String>()) }
     var socialMessages by remember { mutableStateOf(loadSocialMessages(prefs.getString(SOCIAL_MESSAGES, "{}") ?: "{}")) }
@@ -226,6 +228,7 @@ private fun VoidcraftApp() {
     MaterialTheme(
         colorScheme = darkColorScheme(
             primary = when (activeTheme) {
+                "theme-studio" -> Color(studioAccent)
                 "theme-neon-night" -> Color(0xFF70E1C1)
                 "theme-void-minimal" -> Color(0xFFB7C0D8)
                 else -> VoidAccent
@@ -247,7 +250,7 @@ private fun VoidcraftApp() {
                 LauncherTab.entries.forEachIndexed { index, tab ->
                     NavigationBarItem(
                         selected = !storeOpen && selectedTab == index,
-                        onClick = { storeOpen = false; selectedFeature = null; serverStateOpen = false; selectedTab = index },
+                        onClick = { storeOpen = false; selectedFeature = null; serverStateOpen = false; themeStudioOpen = false; selectedTab = index },
                         icon = { Icon(tab.icon, contentDescription = tab.label) },
                         label = { Text(tab.label) }
                     )
@@ -544,6 +547,12 @@ private fun VoidcraftApp() {
                                 socialHubOpen = false
                                 storeOpen = false
                                 serverStateOpen = true
+                            } else if (feature.id == "theme-studio") {
+                                selectedFeature = null
+                                socialHubOpen = false
+                                storeOpen = false
+                                serverStateOpen = false
+                                themeStudioOpen = true
                             } else if (feature.id == "theme-neon-night" || feature.id == "theme-void-minimal") {
                                 activeTheme = feature.id
                                 prefs.edit().putString("active_theme", activeTheme).apply()
@@ -562,6 +571,17 @@ private fun VoidcraftApp() {
                         onSelect = { selectedFeature = it }
                     )
                 }
+            } else if (themeStudioOpen) {
+                ThemeStudioScreen(
+                    currentAccent = studioAccent,
+                    onApply = { color ->
+                        studioAccent = color
+                        activeTheme = "theme-studio"
+                        prefs.edit().putInt("theme_studio_accent", color).putString("active_theme", activeTheme).apply()
+                        scope.launch { snackbarHostState.showSnackbar("Theme Studio accent applied.") }
+                    },
+                    onBack = { themeStudioOpen = false }
+                )
             } else if (serverStateOpen) {
                 ServerStateScreen(onBack = { serverStateOpen = false })
             } else {
