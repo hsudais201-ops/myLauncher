@@ -185,11 +185,22 @@ class SocialChatActivity : Activity() {
                 }.onFailure { error ->
                     statusLabel.text = "Private chat could not connect."
                     statusLabel.setTextColor(Color.rgb(255, 190, 104))
-                    if (renderedSignature.isEmpty()) {
+                    if (!SocialApiClient(applicationContext).isSignedIn) {
+                        renderedSignature = ""
+                        messagesColumn.removeAllViews()
+                        messagesColumn.addView(emptyState(
+                            "Sign in again",
+                            "Your VoidCraft session expired. Return to your account to sign in again."
+                        ))
+                        messagesColumn.addView(space(10))
+                        messagesColumn.addView(actionButton("Sign in to VoidCraft", accent) {
+                            startActivityForResult(Intent(this, VoidCraftAccountActivity::class.java), REQUEST_ACCOUNT)
+                        })
+                    } else if (renderedSignature.isEmpty()) {
                         messagesColumn.removeAllViews()
                         messagesColumn.addView(emptyState(
                             "Messages unavailable",
-                            error.message ?: "Sign in again or check the website social service."
+                            error.message ?: "Check the website social service and try again."
                         ))
                     }
                 }
