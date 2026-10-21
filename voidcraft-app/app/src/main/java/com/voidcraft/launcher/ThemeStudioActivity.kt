@@ -39,7 +39,7 @@ class ThemeStudioActivity : Activity() {
         window.navigationBarColor = surface
         LauncherPreferences.applyWindowFlags(this)
 
-        val scroll = ScrollView(this).apply { setBackgroundColor(background) }
+        val scroll = ScrollView(this).apply { setBackgroundColor(this@ThemeStudioActivity.background) }
         val page = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(dp(18), dp(14), dp(18), dp(28))
@@ -114,7 +114,7 @@ class ThemeStudioActivity : Activity() {
 
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setBackgroundColor(background)
+            setBackgroundColor(this@ThemeStudioActivity.background)
         }
         root.addView(scroll, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f))
         root.addView(LauncherNavigationBar.create(this, "Settings"))
