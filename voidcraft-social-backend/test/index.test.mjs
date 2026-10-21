@@ -4,6 +4,7 @@ import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
 import worker from "../src/index.mjs";
+import { onRequest as pagesProxy } from "../pages/functions/api/[[path]].js";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const env = {
@@ -71,4 +72,70 @@ test("D1 migration defines separate accounts, session, friend, message, block, r
   assert.match(migration, /password_hash TEXT NOT NULL/);
   assert.match(migration, /token_hash TEXT NOT NULL UNIQUE/);
   assert.match(migration, /CHECK \(sender_id <> recipient_id\)/);
+});
+
+
+test("Pages proxy fails closed if its Worker URL is not configured", async () => {
+  const request = new Request("https://voidcraft-website.pages.dev/api/auth/me");
+  const response = await pagesProxy({ request, env: {} });
+  assert.equal(response.status, 503);
+  assert.deepEqual(await response.json(), {
+    error: "VoidCraft social service is not configured on this website yet."
+  });
+});
+
+test("Pages proxy refuses non-HTTPS or self-referential upstreams", async () => {
+  const request = new Request("https://voidcraft-website.pages.dev/api/auth/me");
+  const httpResponse = await pagesProxy({
+    request,
+    env: { VOIDCRAFT_SOCIAL_API_URL: "http://social.example.workers.dev" }
+  });
+  assert.equal(httpResponse.status, 500);
+  const selfResponse = await pagesProxy({
+    request,
+    env: { VOIDCRAFT_SOCIAL_API_URL: "https://voidcraft-website.pages.dev" }
+  });
+  assert.equal(selfResponse.status, 500);
+});
+
+test("Pages proxy forwards path, query, origin and session headers without rewriting the response cookie", async () => {
+  const originalFetch = globalThis.fetch;
+  let capturedRequest;
+  globalThis.fetch = async (request) => {
+    capturedRequest = request;
+    return new Response(JSON.stringify({ ok: true }), {
+      status: 201,
+      headers: { "Content-Type": "application/json", "Set-Cookie": "vc_session=example; Path=/; HttpOnly; Secure; SameSite=Strict" }
+    });
+  };
+  try {
+    const request = new Request(
+      "https://voidcraft-website.pages.dev/api/auth/register?source=join",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Origin": "https://voidcraft-website.pages.dev",
+          "Cookie": "existing=session",
+          "Authorization": "Bearer native-token"
+        },
+        body: JSON.stringify({ username: "test_user" })
+      }
+    );
+    const response = await pagesProxy({
+      request,
+      env: { VOIDCRAFT_SOCIAL_API_URL: "https://social.example.workers.dev" }
+    });
+    assert.equal(response.status, 201);
+    assert.equal(new URL(capturedRequest.url).origin, "https://social.example.workers.dev");
+    assert.equal(new URL(capturedRequest.url).pathname, "/api/auth/register");
+    assert.equal(new URL(capturedRequest.url).search, "?source=join");
+    assert.equal(capturedRequest.headers.get("origin"), "https://voidcraft-website.pages.dev");
+    assert.equal(capturedRequest.headers.get("cookie"), "existing=session");
+    assert.equal(capturedRequest.headers.get("authorization"), "Bearer native-token");
+    assert.match(response.headers.get("set-cookie"), /HttpOnly/);
+    assert.deepEqual(await response.json(), { ok: true });
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
 });
