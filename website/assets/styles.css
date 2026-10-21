@@ -467,3 +467,44 @@ footer{background:linear-gradient(180deg,#090b1300,#090b13bb)}
  .text-button{text-align:left}
 }
 @media(prefers-reduced-motion:reduce){.vc-cart-toast{transition:none}}
+
+
+/* Make the Social Hub destination unmistakable across every page. */
+.nav a[href="social-hub.html"] {
+  color: #e7e0ff;
+  background: linear-gradient(120deg, #34285c, #153944);
+  border: 1px solid #8c78db;
+  border-radius: 999px;
+  padding: 7px 12px;
+  font-weight: 850;
+  box-shadow: 0 0 0 1px #9d8bff18, 0 0 18px #7660d51c;
+}
+.nav a[href="social-hub.html"]:hover,
+.nav a[href="social-hub.html"].active {
+  color: #ffffff;
+  border-color: #83e8e9;
+  background: linear-gradient(120deg, #4a347d, #17545c);
+}
+.social-hub-quick-link {
+  position: fixed;
+  right: max(16px, env(safe-area-inset-right));
+  bottom: max(16px, env(safe-area-inset-bottom));
+  z-index: 20;
+  display: none;
+  align-items: center;
+  gap: 9px;
+  padding: 13px 17px;
+  border: 1px solid #b8a5ff;
+  border-radius: 999px;
+  background: linear-gradient(110deg, #7652d5, #166d78);
+  box-shadow: 0 12px 35px #0008, 0 0 22px #8f7bff33;
+  color: #fff;
+  text-decoration: none;
+  font-size: 13px;
+  font-weight: 900;
+}
+.social-hub-quick-link .quick-link-icon { font-size: 17px; line-height: 1; }
+@media (max-width: 650px) {
+  .social-hub-quick-link { display: inline-flex; }
+  .nav a[href="social-hub.html"] { font-size: 12px; padding: 7px 10px; }
+}
