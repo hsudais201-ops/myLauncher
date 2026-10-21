@@ -2,7 +2,7 @@ name: Build VoidCraft Launcher APK
 
 on:
   push:
-    branches: [main]
+    branches: [main, migration/mojolauncher-base]
     paths:
       - '.github/workflows/build.yml'
       - '.github/scripts/**'
@@ -22,7 +22,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: voidcraft-mojo-build-${{ github.ref }}
+  group: voidcraft-mojo-build-${{ github.head_ref || github.ref_name }}
   cancel-in-progress: true
 
 jobs:
