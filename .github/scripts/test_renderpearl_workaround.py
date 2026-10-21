@@ -103,19 +103,15 @@ class LauncherPreferences {
 
 
 class RenderPearlWorkflowTests(unittest.TestCase):
-    def test_android_workflow_compiles_and_applies_the_patch(self) -> None:
+    def test_mojo_workflow_does_not_run_amethyst_specific_patch(self) -> None:
         workflow_path = Path(__file__).parents[1] / "workflows" / "build.yml"
         workflow = workflow_path.read_text(encoding="utf-8")
-        self.assertIn("patch_renderpearl_workaround.py .", workflow)
-        self.assertIn("python3 .github/scripts/patch_renderpearl_workaround.py upstream", workflow)
-        self.assertLess(
-            workflow.index("Apply and inspect VoidCraft Launcher customization"),
-            workflow.index("Apply RenderPearl MobileGlues compatibility workaround"),
-        )
-        self.assertLess(
-            workflow.index("Apply RenderPearl MobileGlues compatibility workaround"),
-            workflow.index("Apply VoidCraft Launcher logo"),
-        )
+        self.assertIn("Apply VoidCraft package identity, app label, and night-violet palette", workflow)
+        self.assertNotIn("python3 .github/scripts/patch_renderpearl_workaround.py upstream", workflow)
+        self.assertNotIn("Apply RenderPearl MobileGlues compatibility workaround", workflow)
+        # The standalone patcher tests remain useful for its old upstream fixture,
+        # but it must not be applied to the Mojo module without a separate port.
+        self.assertIn("patch_renderpearl_workaround.py", Path(__file__).with_name("patch_renderpearl_workaround.py").name)
 
 
 if __name__ == "__main__":
