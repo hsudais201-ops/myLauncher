@@ -246,6 +246,12 @@ class FeatureStoreActivity : Activity() {
                     ))
                     return@setOnClickListener
                 }
+                if (feature.id == "network-diagnostics" && installed) {
+                    startActivity(android.content.Intent(
+                        this@FeatureStoreActivity, NetworkDiagnosticsActivity::class.java
+                    ))
+                    return@setOnClickListener
+                }
                 if (installable && !installed) {
                     android.app.AlertDialog.Builder(this@FeatureStoreActivity)
                         .setTitle("Install ${feature.name}?")
