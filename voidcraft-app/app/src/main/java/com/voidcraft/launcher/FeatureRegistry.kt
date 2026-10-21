@@ -14,7 +14,7 @@ object FeatureRegistry {
     const val PREFS_NAME = "voidcraft_installed_features"
     private const val KEY_INSTALLED_IDS = "installed_feature_ids"
     // Explicit allowlist: only the implemented read-only diagnostics feature is enabled.
-    private val installableBuiltIns = setOf("startup-diagnostics")
+    private val installableBuiltIns = setOf("startup-diagnostics", "instance-notes")
 
     data class Definition(
         val id: String,
@@ -177,7 +177,7 @@ object FeatureRegistry {
             "instance-notes",
             "Instance Notes",
             "Keep private notes and troubleshooting reminders attached to an instance.",
-            Status.PLANNED,
+            Status.AVAILABLE,
             listOf("profile_metadata")
         ),
         Definition(
