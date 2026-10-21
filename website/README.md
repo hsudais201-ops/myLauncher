@@ -50,3 +50,12 @@ For a separate or newly created authentication database, apply `migrations/0002_
 - A cart shortcut appears in the site header. The cart stores item IDs and quantities in browser storage. Prices, catalog state, package links and purchase eligibility are re-read server-side at checkout. Direct Buy Now goes straight to checkout; Add to Cart persists the item across page visits. Preview-only listings have purchase actions disabled.
 - Checkout is currently validation-only. `POST /api/store/checkout` requires a session and validates current server-owned prices, package availability and quantities, then returns a safe not-configured response because a payment provider and entitlement delivery are not configured. It never creates a fake order or claims a charge succeeded.
 - The public catalog exposes only a boolean `packageAvailable` for paid listings; it does not return paid package URLs. A future delivery endpoint must check a confirmed payment entitlement before returning a signed/private download URL.
+
+
+## Social Hub integration (migration required)
+
+- `social.html` is the website-account-based Social Hub UI. It checks the existing `/api/auth/me` session; it does not register a second Social Hub account or store credentials in browser storage.
+- `functions/api/social/[[path]].js` uses the existing `VOIDCRAFT_AUTH` D1 binding and existing website session cookie. It provides player search, friend requests, accepted-friend private text messages, blocking, reports, and owner/moderator report review.
+- Before using these routes, apply `migrations/0005_social_hub.sql` to the same `voidcraft-auth` database. This creates only social tables and references the existing `users` table. Do not deploy the social routes without the migration.
+- Verify the migration on a preview first. Test two ordinary website accounts end-to-end: session reuse, friend request/accept, message persistence, blocking, report submission, and non-moderator rejection from moderation endpoints. Owner/moderator privileges must come only from the server-side `users.role` field.
+- This source change does not itself apply the D1 migration or publish production. Do not advertise Social Hub as live until migration and production smoke tests pass.
