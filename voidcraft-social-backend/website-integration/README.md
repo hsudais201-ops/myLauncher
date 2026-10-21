@@ -14,6 +14,8 @@ The proxy keeps the incoming request method, JSON body, headers, cookies, query 
 
 The ready-to-copy browser API client is in website-integration/social-api.js. Import it from the website's module script, create one VoidCraftSocialApi instance, and call its methods below. It uses the same-origin Pages routes and never stores browser session tokens in localStorage.
 
+A responsive proof-of-integration page is included at website-integration/social-page.example.html. It contains real sign-in/registration forms, profile editing, player search, friend requests, friends, recent conversations, private text chat, block/report controls, and the separate Discord community link. Copy it and social-api.js into the website repository after the Pages proxy is configured. The example is not yet part of the live website and will show a service error until the API is deployed.
+
 - Use POST /api/auth/register with JSON fields email, username, and password.
 - Use POST /api/auth/login and POST /api/auth/logout for browser sessions. Let the HttpOnly cookie be managed by the browser; do not put the session into localStorage.
 - Use GET /api/auth/me on page load to determine the signed-in account. HTTP 401 means signed out; 503 means the API is not configured. Do not replace these messages with a fake success state.
