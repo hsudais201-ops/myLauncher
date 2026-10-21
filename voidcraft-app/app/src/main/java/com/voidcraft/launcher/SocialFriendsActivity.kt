@@ -34,6 +34,7 @@ class SocialFriendsActivity : Activity() {
     private lateinit var socialContent: LinearLayout
     private var friends: List<VoidCraftFriend> = emptyList()
     private var requests: List<VoidCraftFriendRequest> = emptyList()
+    private var conversations: List<VoidCraftConversation> = emptyList()
     private var foundPlayers: List<VoidCraftFriend> = emptyList()
     private var loading = false
 
@@ -124,15 +125,19 @@ class SocialFriendsActivity : Activity() {
         loading = true
         statusLabel.text = "Loading friends and requests…"
         executor.execute {
-            val result = runCatching { api.friends() to api.friendRequests() }
+            val result = runCatching {
+                Triple(api.friends(), api.friendRequests(), api.conversations())
+            }
             runOnUiThread {
                 loading = false
                 if (isFinishing || isDestroyed) return@runOnUiThread
-                result.onSuccess { (loadedFriends, loadedRequests) ->
+                result.onSuccess { (loadedFriends, loadedRequests, loadedConversations) ->
                     friends = loadedFriends
                     requests = loadedRequests
+                    conversations = loadedConversations
                     statusLabel.text = "Signed-in account • " + friends.size + " friend(s) • " +
-                        requests.count { it.direction == "incoming" } + " incoming request(s)"
+                        requests.count { it.direction == "incoming" } + " incoming request(s) • " +
+                        conversations.size + " recent chat(s)"
                     statusLabel.setTextColor(mint)
                     renderSocialContent()
                     renderSearchResults()
@@ -200,6 +205,21 @@ class SocialFriendsActivity : Activity() {
         }
 
         socialContent.addView(space(12))
+        socialContent.addView(sectionTitle("RECENT MESSAGES"))
+        socialContent.addView(space(9))
+        if (conversations.isEmpty()) {
+            socialContent.addView(emptyState(
+                "No conversations yet",
+                "Once you and an accepted VoidCraft friend exchange a message, the latest conversation will appear here."
+            ))
+        } else {
+            conversations.forEach { conversation ->
+                socialContent.addView(conversationCard(conversation))
+                socialContent.addView(space(8))
+            }
+        }
+
+        socialContent.addView(space(12))
         socialContent.addView(sectionTitle("YOUR FRIENDS"))
         socialContent.addView(space(9))
         if (friends.isEmpty()) {
@@ -256,6 +276,28 @@ class SocialFriendsActivity : Activity() {
         row.addView(actionButton("Decline", panel) { respondToRequest(request.id, accept = false) },
             LinearLayout.LayoutParams(0, -2, 1f).apply { marginStart = dp(5) })
         box.addView(row)
+        return box
+    }
+
+    private fun conversationCard(conversation: VoidCraftConversation): View {
+        val box = card()
+        val row = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+        }
+        row.addView(label(conversation.displayName, 14, primaryText, true),
+            LinearLayout.LayoutParams(0, -2, 1f))
+        row.addView(label("@" + conversation.username, 10, mint, true))
+        box.addView(row)
+        box.addView(space(6))
+        box.addView(label(conversation.lastMessage.take(160), 12, secondaryText, false))
+        box.addView(space(9))
+        box.addView(actionButton("Open private chat", accent) {
+            openChat(VoidCraftFriend(
+                conversation.userId, conversation.username, conversation.displayName,
+                "", "member", conversation.lastMessageAt
+            ))
+        })
         return box
     }
 
