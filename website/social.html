@@ -54,6 +54,8 @@
         <div id="search-results" class="social-list"><div class="social-empty">Search for a player to get started.</div></div>
         <h3 class="social-section-title">Friend requests</h3>
         <div id="incoming-requests" class="social-list"><div class="social-empty">No pending requests.</div></div>
+        <h3 class="social-section-title">Outgoing requests</h3>
+        <div id="outgoing-requests" class="social-list"><div class="social-empty">No outgoing requests.</div></div>
         <h3 class="social-section-title">Your friends</h3>
         <div id="friends-list" class="social-list"><div class="social-empty">No friends yet.</div></div>
         <p class="social-muted">Only accepted friends can message you. You can block or report a player from their chat.</p>
@@ -108,7 +110,10 @@ async function loadFriends() {
   for(const p of friends){const b=personButton(p,"Open chat",()=>openChat(p));b.style.cursor="pointer";b.addEventListener("click",()=>openChat(p));list.append(b);}
   const req=$("incoming-requests"); req.replaceChildren();
   if(!(r.incoming||[]).length) empty(req,"No pending requests.");
-  for(const item of r.incoming||[]){const b=personButton(item.user,"Accept",async()=>{try{await api("friends/requests/"+encodeURIComponent(item.id)+"/accept",{method:"POST",body:{}});status("Friend request accepted.","success");await loadFriends();}catch(e){status(e.message,"error");}});const decline=document.createElement("button");decline.type="button";decline.className="social-btn";decline.textContent="Decline";decline.style.marginTop="8px";decline.addEventListener("click",async()=>{try{await api("friends/requests/"+encodeURIComponent(item.id),{method:"DELETE"});await loadFriends();}catch(e){status(e.message,"error");}});b.append(decline);req.append(b);}
+  for(const item of r.incoming||[]){const b=personButton(item.user,"Accept",async()=>{try{await api("friends/requests/"+encodeURIComponent(item.id)+"/accept",{method:"POST",body:{}});status("Friend request accepted.","success");await loadFriends();}catch(e){status(e.message,"error");}});const decline=document.createElement("button");decline.type="button";decline.className="social-btn";decline.textContent="Decline";decline.style.marginTop="8px";decline.addEventListener("click",async()=>{try{await api("friends/requests/"+encodeURIComponent(item.id),{method:"DELETE"});status("Friend request declined.","success");await loadFriends();}catch(e){status(e.message,"error");}});b.append(decline);req.append(b);}
+  const outgoing=$("outgoing-requests"); outgoing.replaceChildren();
+  if(!(r.outgoing||[]).length) empty(outgoing,"No outgoing requests.");
+  for(const item of r.outgoing||[]){const b=personButton(item.user,"Pending",()=>{});const pending=b.querySelector("button");pending.disabled=true;pending.setAttribute("aria-label","Friend request pending");outgoing.append(b);}
 }
 async function openChat(p) {
   selected=p; $("chat-title").textContent=p.displayName||p.username; $("chat-subtitle").textContent="@"+p.username+" · private chat";
@@ -128,7 +133,7 @@ $("message-form").addEventListener("submit",async e=>{e.preventDefault();if(!sel
 $("refresh-chat").addEventListener("click",loadMessages);
 $("block-player").addEventListener("click",async()=>{if(!selected||!confirm("Block @"+selected.username+"? They will no longer be able to message you."))return;try{await api("blocks/"+encodeURIComponent(selected.id),{method:"POST",body:{}});selected=null;$("chat-title").textContent="Private chat";$("chat-subtitle").textContent="Player blocked.";empty($("messages"),"This conversation is unavailable.");$("message-input").disabled=true;$("send-message").disabled=true;$("block-player").disabled=true;$("report-player").disabled=true;$("refresh-chat").disabled=true;status("Player blocked.","success");}catch(e){status(e.message,"error");}});
 $("report-player").addEventListener("click",async()=>{if(!selected)return;const category=prompt("Report reason: harassment, spam, inappropriate, impersonation, or other","other");if(!category)return;const details=prompt("Optional details (do not include private information)","")||"";try{await api("reports",{method:"POST",body:{targetUserId:selected.id,category:category.trim().toLowerCase(),details}});status("Report submitted for moderator review.","success");}catch(e){status(e.message,"error");}});
-async function start(){try{const response=await fetch("/api/auth/me",{credentials:"same-origin",cache:"no-store"});const data=await response.json();if(!response.ok||!data.authenticated){status("Sign in to your VoidCraft website account to use Social Hub.");$("social-signin").hidden=false;return;}me={id:data.user.id,username:data.user.username,role:data.user.role};$("social-account").textContent="Signed in as @"+me.username;$("social-app").hidden=false;status("You're signed in. Find a friend to start chatting.","success");await loadFriends();}catch{status("Could not verify your website session. Refresh and try again.","error");}}
+async function start(){try{const response=await fetch("/api/auth/me",{credentials:"same-origin",cache:"no-store"});const data=await response.json();if(!response.ok||!data.authenticated){status("Sign in to your VoidCraft website account to use Social Hub.");$("social-signin").hidden=false;return;}me=await api("me").then(result=>result.user);$("social-account").textContent="Signed in as @"+me.username;$("social-app").hidden=false;status("You're signed in. Find a friend to start chatting.","success");await loadFriends();}catch{status("Could not verify your website session. Refresh and try again.","error");}}
 start();
 </script>
 </body>
