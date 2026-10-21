@@ -41,7 +41,7 @@ class FeatureRegistryPolicyTest {
 
     @Test
     fun onlyImplementedBuiltInsCanInstall() {
-        val implemented = setOf("startup-diagnostics", "instance-notes", "network-diagnostics")
+        val implemented = setOf("startup-diagnostics", "instance-notes", "network-diagnostics", "theme-studio")
         FeatureRegistry.catalog().forEach { feature ->
             if (feature.id in implemented) {
                 assertEquals(FeatureRegistry.Status.AVAILABLE, feature.status)
@@ -53,6 +53,15 @@ class FeatureRegistryPolicyTest {
         }
         assertFalse(FeatureRegistry.canInstall("unknown-feature"))
         assertFalse(FeatureRegistry.canInstall("../unsafe-path"))
+    }
+
+    @Test
+    fun themeStudioIsAvailableAndDeclaresLocalPreferenceCapability() {
+        val feature = FeatureRegistry.find("theme-studio")
+        assertNotNull(feature)
+        assertEquals(FeatureRegistry.Status.AVAILABLE, feature!!.status)
+        assertTrue(feature.permissions.contains("launcher_preferences"))
+        assertTrue(FeatureRegistry.canInstall("theme-studio"))
     }
 
     @Test
