@@ -10,6 +10,7 @@ import { onRequest as pagesProxy } from "../pages/functions/api/[[path]].js";
 const here = dirname(fileURLToPath(import.meta.url));
 const env = {
   APP_ORIGIN: "https://voidcraft-website.pages.dev",
+  VOIDCRAFT_PROXY_SECRET: "test-secret-with-at-least-32-characters-long",
   DB: {
     prepare(sql) {
       return {
@@ -27,7 +28,9 @@ const env = {
 
 test("health endpoint confirms API and database binding respond", async () => {
   const response = await worker.fetch(
-    new Request("https://social.example/api/health"),
+    new Request("https://social.example/api/health", {
+      headers: { "X-VC-Proxy-Secret": env.VOIDCRAFT_PROXY_SECRET }
+    }),
     env
   );
   assert.equal(response.status, 200);
@@ -36,10 +39,23 @@ test("health endpoint confirms API and database binding respond", async () => {
   assert.equal(response.headers.get("x-content-type-options"), "nosniff");
 });
 
+
+
+test("Worker rejects direct requests without its private proxy secret", async () => {
+  const response = await worker.fetch(
+    new Request("https://social.example/api/health"),
+    env
+  );
+  assert.equal(response.status, 403);
+  assert.deepEqual(await response.json(), {
+    error: "Request must go through the configured VoidCraft website proxy."
+  });
+});
+
 test("preflight is limited to the configured website origin", async () => {
   const response = await worker.fetch(new Request("https://social.example/api/auth/login", {
     method: "OPTIONS",
-    headers: { Origin: env.APP_ORIGIN }
+    headers: { Origin: env.APP_ORIGIN, "X-VC-Proxy-Secret": env.VOIDCRAFT_PROXY_SECRET }
   }), env);
   assert.equal(response.status, 204);
   assert.equal(response.headers.get("access-control-allow-origin"), env.APP_ORIGIN);
@@ -49,14 +65,16 @@ test("preflight is limited to the configured website origin", async () => {
 
 test("requests from a different browser origin are denied", async () => {
   const response = await worker.fetch(new Request("https://social.example/api/health", {
-    headers: { Origin: "https://attacker.invalid" }
+    headers: { Origin: "https://attacker.invalid", "X-VC-Proxy-Secret": env.VOIDCRAFT_PROXY_SECRET }
   }), env);
   assert.equal(response.status, 403);
   assert.equal(response.headers.get("access-control-allow-origin"), null);
 });
 
 test("unknown API paths return a plain not-found error", async () => {
-  const response = await worker.fetch(new Request("https://social.example/api/health/extra"), env);
+  const response = await worker.fetch(new Request("https://social.example/api/health/extra", {
+    headers: { "X-VC-Proxy-Secret": env.VOIDCRAFT_PROXY_SECRET }
+  }), env);
   assert.equal(response.status, 404);
   assert.deepEqual(await response.json(), { error: "API endpoint not found." });
 });
@@ -90,12 +108,12 @@ test("Pages proxy refuses non-HTTPS or self-referential upstreams", async () => 
   const request = new Request("https://voidcraft-website.pages.dev/api/auth/me");
   const httpResponse = await pagesProxy({
     request,
-    env: { VOIDCRAFT_SOCIAL_API_URL: "http://social.example.workers.dev" }
+    env: { VOIDCRAFT_SOCIAL_API_URL: "http://social.example.workers.dev", VOIDCRAFT_PROXY_SECRET: env.VOIDCRAFT_PROXY_SECRET }
   });
   assert.equal(httpResponse.status, 500);
   const selfResponse = await pagesProxy({
     request,
-    env: { VOIDCRAFT_SOCIAL_API_URL: "https://voidcraft-website.pages.dev" }
+    env: { VOIDCRAFT_SOCIAL_API_URL: "https://voidcraft-website.pages.dev", VOIDCRAFT_PROXY_SECRET: env.VOIDCRAFT_PROXY_SECRET }
   });
   assert.equal(selfResponse.status, 500);
 });
@@ -119,14 +137,18 @@ test("Pages proxy forwards path, query, origin and session headers without rewri
           "Content-Type": "application/json",
           "Origin": "https://voidcraft-website.pages.dev",
           "Cookie": "existing=session",
-          "Authorization": "Bearer native-token"
+          "Authorization": "Bearer native-token",
+          "CF-Connecting-IP": "203.0.113.10"
         },
         body: JSON.stringify({ username: "test_user" })
       }
     );
     const response = await pagesProxy({
       request,
-      env: { VOIDCRAFT_SOCIAL_API_URL: "https://social.example.workers.dev" }
+      env: {
+        VOIDCRAFT_SOCIAL_API_URL: "https://social.example.workers.dev",
+        VOIDCRAFT_PROXY_SECRET: env.VOIDCRAFT_PROXY_SECRET
+      }
     });
     assert.equal(response.status, 201);
     assert.equal(new URL(capturedRequest.url).origin, "https://social.example.workers.dev");
@@ -135,6 +157,8 @@ test("Pages proxy forwards path, query, origin and session headers without rewri
     assert.equal(capturedRequest.headers.get("origin"), "https://voidcraft-website.pages.dev");
     assert.equal(capturedRequest.headers.get("cookie"), "existing=session");
     assert.equal(capturedRequest.headers.get("authorization"), "Bearer native-token");
+    assert.equal(capturedRequest.headers.get("x-vc-proxy-secret"), env.VOIDCRAFT_PROXY_SECRET);
+    assert.equal(capturedRequest.headers.get("x-vc-client-ip"), "203.0.113.10");
     assert.match(response.headers.get("set-cookie"), /HttpOnly/);
     assert.deepEqual(await response.json(), { ok: true });
   } finally {
