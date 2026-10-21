@@ -79,6 +79,7 @@ beforeEach(async () => {
   await createUser("u-alice", "alice");
   await createUser("u-bob", "bob");
   await createUser("u-owner", "owner", "owner");
+  await createUser("u-literal", "playerXone");
   for (let i = 0; i < 55; i++) {
     const suffix = String(i).padStart(2, "0");
     await createUser("p" + suffix, "player_" + suffix);
@@ -123,10 +124,28 @@ test("two website accounts can request, accept, and exchange private messages", 
   const message = await call("conversations/u-bob/messages", { as: "alice", method: "POST", body: { content: "Hello from VoidCraft 🌌" } });
   assert.equal(message.status, 201);
   assert.equal(message.data.message.content, "Hello from VoidCraft 🌌");
+  const cleaned = await call("conversations/u-bob/messages", { as: "alice", method: "POST", body: { content: "\u0001clean\u007f" } });
+  assert.equal(cleaned.status, 201);
+  assert.equal(cleaned.data.message.content, "clean");
+
+  const invalidLimit = await call("conversations/u-alice/messages?limit=101", { as: "bob" });
+  assert.equal(invalidLimit.status, 400);
+  const invalidCursor = await call("conversations/u-alice/messages?before=-1", { as: "bob" });
+  assert.equal(invalidCursor.status, 400);
+
   const received = await call("conversations/u-alice/messages?limit=40", { as: "bob" });
   assert.equal(received.status, 200);
-  assert.equal(received.data.messages.length, 1);
-  assert.equal(received.data.messages[0].content, "Hello from VoidCraft 🌌");
+  assert.equal(received.data.messages.length, 2);
+  assert.ok(received.data.messages.some((item) => item.content === "Hello from VoidCraft 🌌"));
+  assert.ok(received.data.messages.some((item) => item.content === "clean"));
+});
+
+test("player search treats underscores as literal characters", async () => {
+  const search = await call("players?q=player_", { as: "alice" });
+  assert.equal(search.status, 200);
+  assert.ok(search.data.players.length > 0);
+  assert.ok(search.data.players.every((player) => player.username.includes("_")));
+  assert.ok(!search.data.players.some((player) => player.username === "playerXone"));
 });
 
 test("rejects duplicate reverse friend requests and requires friendship for messages", async () => {
