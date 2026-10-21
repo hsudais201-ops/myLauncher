@@ -50,11 +50,12 @@ CREATE TABLE IF NOT EXISTS social_reports (
   id TEXT PRIMARY KEY,
   reporter_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   target_user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  category TEXT NOT NULL,
+  category TEXT NOT NULL CHECK (category IN ('harassment','spam','inappropriate','impersonation','other')),
   details TEXT NOT NULL DEFAULT '',
   status TEXT NOT NULL DEFAULT 'open' CHECK (status IN ('open','reviewed','dismissed')),
   created_at INTEGER NOT NULL,
   reviewed_by TEXT REFERENCES users(id),
-  reviewed_at INTEGER
+  reviewed_at INTEGER,
+  CHECK (reporter_id <> target_user_id)
 );
 CREATE INDEX IF NOT EXISTS social_reports_status_idx ON social_reports(status,created_at DESC);
