@@ -1,5 +1,20 @@
 {
   "schemaVersion": 1,
   "updatedAt": "2026-10-21",
-  "items": []
+  "items": [
+    {
+      "id": "social-hub",
+      "name": "Social Hub",
+      "tagline": "A home for friends, community, and server groups.",
+      "description": "Social Hub is added to the Voidcraft Feature Store catalog. Friend lists, chat, invites, and online community services are not implemented yet, so this listing is currently a preview and cannot be installed.",
+      "kind": "launcher",
+      "category": "Community",
+      "version": "Preview",
+      "compatibility": "Not verified",
+      "license": "Voidcraft",
+      "packageUrl": null,
+      "availability": "preview",
+      "builtIn": false
+    }
+  ]
 }
