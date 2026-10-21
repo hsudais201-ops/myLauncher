@@ -6,7 +6,9 @@ This integration is designed for the existing Cloudflare Pages origin. The accou
 
 Copy the catch-all file at pages/functions/api/[[path]].js into the website repository as functions/api/[[path]].js, preserving the relative API path.
 
-In Cloudflare Pages project settings, add an environment variable named VOIDCRAFT_SOCIAL_API_URL for the Production/Preview environment that should be tested. Set it to the Worker origin (HTTPS only, no path), after the Worker has been independently deployed. Keep the Worker variable APP_ORIGIN set to the exact website origin. Redeploy only after code and configuration review.
+In Cloudflare Pages project settings, add VOIDCRAFT_SOCIAL_API_URL for the Production/Preview environment being tested. Set it to the Worker origin (HTTPS only, no path), after the Worker has been independently deployed. Also add VOIDCRAFT_PROXY_SECRET as a secret in the Pages environment and as a Worker secret using npx wrangler secret put VOIDCRAFT_PROXY_SECRET. Both sides must use the same randomly generated value (at least 32 characters); never commit it. Keep the Worker variable APP_ORIGIN set to the exact website origin. Redeploy only after code and configuration review.
+
+The proxy overwrites X-VC-Proxy-Secret with the server-side secret and adds X-VC-Client-IP from the Pages request's CF-Connecting-IP. The Worker accepts that IP header only after validating the proxy secret. This matters because Cloudflare may replace CF-Connecting-IP with a proxy IP on cross-zone Worker subrequests; do not trust a client-supplied X-Forwarded-For or X-VC-Client-IP header.
 
 The proxy keeps the incoming request method, JSON body, headers, cookies, query string, and the Worker response's Set-Cookie header. It does not store credentials. If the API URL is absent or invalid it fails closed with a clear error rather than pretending the service works.
 
