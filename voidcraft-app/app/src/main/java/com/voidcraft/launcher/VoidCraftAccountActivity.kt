@@ -63,7 +63,7 @@ class VoidCraftAccountActivity : Activity() {
     private fun buildScreen(): View {
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setBackgroundColor(this@VoidCraftAccountActivity@this.background)
+            setBackgroundColor(this@VoidCraftAccountActivity.background)
         }
         val scroll = ScrollView(this).apply { clipToPadding = false }
         val page = LinearLayout(this).apply {
