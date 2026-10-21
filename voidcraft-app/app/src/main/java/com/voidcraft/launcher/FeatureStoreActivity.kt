@@ -25,7 +25,7 @@ class FeatureStoreActivity : Activity() {
     private val background = Color.rgb(10, 14, 24)
     private val surface = Color.rgb(18, 25, 40)
     private val panel = Color.rgb(23, 33, 52)
-    private val accent = Color.rgb(139, 124, 255)
+    private val accent by lazy { LauncherPreferences.accentColor(this) }
     private val mint = Color.rgb(51, 216, 190)
     private val primaryText = Color.rgb(243, 246, 255)
     private val secondaryText = Color.rgb(157, 174, 199)
@@ -234,6 +234,12 @@ class FeatureStoreActivity : Activity() {
             setOnClickListener {
                 val installed = FeatureRegistry.isInstalled(this@FeatureStoreActivity, feature.id)
                 val installable = FeatureRegistry.canInstall(feature.id)
+                if (feature.id == "theme-studio" && installed) {
+                    startActivity(android.content.Intent(
+                        this@FeatureStoreActivity, ThemeStudioActivity::class.java
+                    ))
+                    return@setOnClickListener
+                }
                 if (feature.id == "startup-diagnostics" && installed) {
                     startActivity(android.content.Intent(
                         this@FeatureStoreActivity, StartupDiagnosticsActivity::class.java
