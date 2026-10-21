@@ -24,8 +24,8 @@ adb shell am force-stop "$PACKAGE_ID" || true
 adb shell monkey -p "$PACKAGE_ID" 1
 
 dump_ui() {
-  timeout -k 3s 15s adb shell uiautomator dump /sdcard/voidcraft-mojo-ui.xml >/dev/null 2>&1 &&
-    timeout -k 3s 10s adb exec-out cat /sdcard/voidcraft-mojo-ui.xml > "$UI_XML" &&
+  timeout -k 1s 8s adb shell uiautomator dump /sdcard/voidcraft-mojo-ui.xml >/dev/null 2>&1 &&
+    timeout -k 1s 5s adb exec-out cat /sdcard/voidcraft-mojo-ui.xml > "$UI_XML" &&
     test -s "$UI_XML"
 }
 
@@ -57,12 +57,12 @@ PY
 }
 
 home_ready=""
-for _ in $(seq 1 40); do
+for _ in $(seq 1 12); do
   if dump_ui && ui_has text "VOIDCRAFT" && ui_has id "play_button"; then
     home_ready=1
     break
   fi
-  sleep 2
+  sleep 1
 done
 
 adb shell dumpsys activity activities > "$ACTIVITY_LOG" 2>/dev/null || true
