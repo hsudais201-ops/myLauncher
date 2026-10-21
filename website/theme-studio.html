@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#090b13">
+<meta name="description" content="Customize VoidCraft's website theme with custom colors and presets.">
+<title>Theme Studio — VoidCraft</title><link rel="icon" href="assets/logo.svg"><link rel="stylesheet" href="assets/styles.css">
+<style>
+.studio-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(260px,.8fr);gap:22px;margin-top:28px}.studio-panel{padding:24px}.theme-controls{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}.color-control{border:1px solid var(--line);border-radius:14px;padding:12px;background:var(--panel)}.color-control label{margin:0 0 8px}.color-control input[type=color]{height:46px;padding:4px;cursor:pointer}.presets{display:flex;gap:10px;flex-wrap:wrap;margin:18px 0}.preset{border:1px solid var(--line);background:var(--panel);color:var(--text);padding:10px 13px;border-radius:12px;font-weight:750}.preset-swatch{display:inline-block;width:12px;height:12px;border-radius:50%;margin-right:7px;vertical-align:middle}.preview-card{padding:22px;border-radius:18px;border:1px solid var(--studio-line,var(--line));background:var(--studio-panel,var(--panel));color:var(--studio-text,var(--text));min-height:250px}.preview-card p{color:var(--studio-muted,var(--muted))}.preview-pill{display:inline-block;border-radius:999px;padding:5px 10px;background:var(--studio-accent,var(--violet));color:white;font-size:12px;font-weight:800}.preview-button{display:inline-block;border-radius:10px;padding:10px 14px;background:var(--studio-highlight,var(--cyan));color:#10121a;font-weight:800}.studio-status{min-height:24px;color:var(--muted)}button:disabled{opacity:.45;cursor:not-allowed}@media(max-width:720px){.studio-grid{grid-template-columns:1fr}.theme-controls{grid-template-columns:1fr 1fr}}@media(max-width:420px){.theme-controls{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<header><div class="bar"><a class="brand" href="index.html"><img src="assets/logo.svg" alt=""><span>VOIDCRAFT</span></a><nav class="nav" aria-label="Main navigation"><a href="index.html">Home</a><a href="downloads.html">Downloads</a><a href="feature-store.html">Feature Store</a><a href="cosmetic-store.html">Cosmetics</a><a href="servers.html">Servers</a><a href="community.html">Community</a><a href="developers.html">Developers</a><a href="docs.html">Docs</a></nav><div class="account-links"><a href="signin.html">Sign in</a><a href="profile.html">Profile</a></div></div></header>
+<main>
+<section class="hero"><div class="eyebrow">VOIDCRAFT · PERSONALIZATION</div><h1>Your look.<br><span class="headline-glow">Your rules.</span></h1><p>Theme Studio lets you personalize the VoidCraft website with color presets or your own palette. Save your theme on this browser and it will apply across pages that load the VoidCraft site styles.</p><div class="actions"><a class="btn secondary" href="feature-store.html">← Feature Store</a><button class="btn" id="theme-save-top" type="button">Save and apply theme</button></div></section>
+<section class="studio-grid">
+<div class="card studio-panel"><div class="eyebrow">CUSTOM PALETTE</div><h2>Build your theme</h2><p>Pick colors below. The preview updates immediately; save to apply the theme to the website.</p>
+<div class="presets" aria-label="Theme presets"><button class="preset" data-preset="void" type="button"><span class="preset-swatch" style="background:#9c7bff"></span>Void Violet</button><button class="preset" data-preset="mint" type="button"><span class="preset-swatch" style="background:#63e8c1"></span>Neon Mint</button><button class="preset" data-preset="ice" type="button"><span class="preset-swatch" style="background:#63e8ed"></span>Arctic Ice</button><button class="preset" data-preset="ember" type="button"><span class="preset-swatch" style="background:#ff966b"></span>Solar Ember</button></div>
+<div class="theme-controls">
+<div class="color-control"><label for="theme-bg">Page background</label><input id="theme-bg" type="color" value="#090b13"></div>
+<div class="color-control"><label for="theme-panel">Card / surface</label><input id="theme-panel" type="color" value="#121624"></div>
+<div class="color-control"><label for="theme-text">Main text</label><input id="theme-text" type="color" value="#f4f5ff"></div>
+<div class="color-control"><label for="theme-muted">Secondary text</label><input id="theme-muted" type="color" value="#a7aec8"></div>
+<div class="color-control"><label for="theme-accent">Primary accent</label><input id="theme-accent" type="color" value="#9c7bff"></div>
+<div class="color-control"><label for="theme-highlight">Highlight</label><input id="theme-highlight" type="color" value="#63e8ed"></div>
+</div><div class="actions"><button class="btn" id="theme-save" type="button">Save and apply</button><button class="btn secondary" id="theme-reset" type="button">Reset to default</button></div><p class="studio-status" id="theme-status" aria-live="polite">Unsaved changes are preview-only.</p>
+</div>
+<div class="card studio-panel"><div class="eyebrow">LIVE PREVIEW</div><h2>Example interface</h2><div class="preview-card" id="theme-preview"><span class="preview-pill">VOIDCRAFT THEME</span><h3>Ready for your next world?</h3><p>Your colors, your atmosphere. This sample reflects your current palette.</p><span class="preview-button">Launch preview</span><hr style="border:0;border-top:1px solid var(--studio-line,#252c42);margin:22px 0"><p style="font-size:13px">Saved locally in this browser. No account or upload required.</p></div><p>Theme Studio changes the website appearance only; it does not change Minecraft resource packs or in-game textures.</p></div>
+</section>
+</main><footer><div class="foot"><span>© VoidCraft community project · Independent from Mojang and Microsoft</span><span><a href="privacy.html">Privacy</a> · <a href="terms.html">Terms</a> · <a href="security.html">Security</a></span></div></footer>
+<script src="assets/app.js" defer></script><script src="assets/theme-studio.js" defer></script>
+</body></html>
