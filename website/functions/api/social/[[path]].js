@@ -175,8 +175,11 @@ export async function onRequest({ request, env }) {
       if (!targetId || targetId===String(user.id)) return fail("Choose another player to report.");
       const target=await db.prepare("SELECT id FROM users WHERE id=?").bind(targetId).first();
       if (!target) return fail("Player not found.",404);
+      const createdAt=now();
+      const recentReports=await db.prepare("SELECT COUNT(*) AS total FROM social_reports WHERE reporter_id=? AND created_at>=?").bind(user.id,createdAt-60*60*1000).first();
+      if (Number(recentReports?.total || 0) >= 10) return fail("You have submitted too many reports. Please try again later.",429);
       const reportId=id();
-      await db.prepare("INSERT INTO social_reports(id,reporter_id,target_user_id,category,details,status,created_at) VALUES(?,?,?,?,?,'open',?)").bind(reportId,user.id,targetId,category,details,now()).run();
+      await db.prepare("INSERT INTO social_reports(id,reporter_id,target_user_id,category,details,status,created_at) VALUES(?,?,?,?,?,'open',?)").bind(reportId,user.id,targetId,category,details,createdAt).run();
       return json({report:{id:reportId,status:"open"}},201);
     }
     if (path === "moderation/reports" && method === "GET") {
