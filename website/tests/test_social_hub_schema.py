@@ -242,11 +242,11 @@ class SocialHubApiContractTests(unittest.TestCase):
 
     def test_private_message_control_character_filter_uses_actual_codepoint_escapes(self):
         self.assertIn(
-            r"rawContent.replace(/[\\u0000-\\u0008\\u000B\\u000C\\u000E-\\u001F\\u007F]/g",
+            r"rawContent.replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g",
             self.api,
         )
         self.assertNotIn(
-            r"rawContent.replace(/[\\\\u0000-\\\\u0008",
+            r"rawContent.replace(/[\\u0000-\\u0008",
             self.api,
         )
 
