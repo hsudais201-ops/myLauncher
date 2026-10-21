@@ -23,7 +23,8 @@
     .social-chat{display:flex;flex-direction:column;min-height:410px}.social-messages{flex:1;display:flex;flex-direction:column;gap:9px;min-height:230px;max-height:440px;overflow:auto;padding:12px 2px}
     .social-message{max-width:min(85%,520px);padding:10px 12px;border-radius:14px;background:#282638;overflow-wrap:anywhere}.social-message.mine{align-self:flex-end;background:#514093}.social-message small{display:block;opacity:.68;margin-top:4px}
     .social-compose{display:flex;gap:8px;margin-top:12px}.social-section-title{margin:20px 0 8px;font-size:1rem}.social-empty{padding:16px;text-align:center;opacity:.7;border:1px dashed #ffffff25;border-radius:12px}
-    @media(max-width:760px){.social-grid{grid-template-columns:1fr}.social-chat{min-height:360px}.social-wrap{width:calc(100% - 20px)}}
+    #moderation-panel{grid-column:1/-1}.social-report-detail{white-space:pre-wrap;overflow-wrap:anywhere;margin:9px 0}.social-report-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+    @media(max-width:760px){.social-grid{grid-template-columns:1fr}#moderation-panel{grid-column:auto}.social-chat{min-height:360px}.social-wrap{width:calc(100% - 20px)}}
     @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;scroll-behavior:auto!important}}
   </style>
 </head>
@@ -79,6 +80,17 @@
           <button id="refresh-chat" class="social-btn" type="button" disabled>Refresh</button>
         </div>
       </section>
+      <section id="moderation-panel" class="social-panel" hidden aria-labelledby="moderation-heading">
+        <div class="social-row" style="justify-content:space-between">
+          <div><h2 id="moderation-heading">Community moderation</h2><p class="social-muted">Review player reports. Moderation permissions are enforced by the server.</p></div>
+          <div class="social-row">
+            <label for="report-filter" class="sr-only">Report status</label>
+            <select id="report-filter" aria-label="Filter reports by status"><option value="open">Open reports</option><option value="reviewed">Reviewed reports</option><option value="dismissed">Dismissed reports</option></select>
+            <button id="refresh-reports" class="social-btn" type="button">Refresh reports</button>
+          </div>
+        </div>
+        <div id="moderation-reports" class="social-list"><div class="social-empty">Loading reports…</div></div>
+      </section>
     </div>
   </main>
 <script type="module">
@@ -132,6 +144,54 @@ async function loadFriends() {
   if(!(b.blocks||[]).length) empty(blocked,"No blocked players.");
   for(const p of b.blocks||[]){blocked.append(personButton(p,"Unblock",async()=>{try{await api("blocks/"+encodeURIComponent(p.id),{method:"DELETE"});status("@"+p.username+" unblocked.","success");await loadFriends();}catch(e){status(e.message,"error");}}));}
 }
+async function loadReports() {
+  if (!me || me.role !== "owner") return;
+  const list = $("moderation-reports");
+  empty(list, "Loading reports…");
+  try {
+    const data = await api("moderation/reports?status=" + encodeURIComponent($("report-filter").value));
+    list.replaceChildren();
+    if (!(data.reports || []).length) { empty(list, "No reports in this status."); return; }
+    for (const report of data.reports) {
+      const card = document.createElement("article");
+      card.className = "social-person";
+      const title = document.createElement("strong");
+      title.textContent = "@" + report.reporter + " reported @" + report.target;
+      const meta = document.createElement("p");
+      meta.className = "social-muted";
+      meta.textContent = (report.category || "other") + " · " + new Date(report.created_at).toLocaleString() + " · " + report.status;
+      const details = document.createElement("p");
+      details.className = "social-report-detail";
+      details.textContent = report.details || "No additional details provided.";
+      card.append(title, meta, details);
+      if (report.status === "open") {
+        const actions = document.createElement("div");
+        actions.className = "social-report-actions";
+        for (const [nextStatus, label] of [["reviewed", "Mark reviewed"], ["dismissed", "Dismiss report"]]) {
+          const button = document.createElement("button");
+          button.type = "button";
+          button.className = "social-btn" + (nextStatus === "reviewed" ? " primary" : "");
+          button.textContent = label;
+          button.addEventListener("click", async () => {
+            button.disabled = true;
+            try {
+              await api("moderation/reports/" + encodeURIComponent(report.id), { method: "PATCH", body: { status: nextStatus } });
+              status(nextStatus === "reviewed" ? "Report marked as reviewed." : "Report dismissed.", "success");
+              await loadReports();
+            } catch (error) { status(error.message, "error"); button.disabled = false; }
+          });
+          actions.append(button);
+        }
+        card.append(actions);
+      }
+      list.append(card);
+    }
+  } catch (error) {
+    empty(list, error.message || "Could not load reports.");
+  }
+}
+$("report-filter").addEventListener("change", loadReports);
+$("refresh-reports").addEventListener("click", loadReports);
 async function openChat(p) {
   selected=p; $("chat-title").textContent=p.displayName||p.username; $("chat-subtitle").textContent="@"+p.username+" · private chat";
   $("message-input").disabled=false;$("send-message").disabled=false;$("block-player").disabled=false;$("report-player").disabled=false;$("refresh-chat").disabled=false;
@@ -156,7 +216,7 @@ $("message-form").addEventListener("submit",async e=>{e.preventDefault();if(!sel
 $("refresh-chat").addEventListener("click",loadMessages);
 $("block-player").addEventListener("click",async()=>{if(!selected||!confirm("Block @"+selected.username+"? They will no longer be able to message you."))return;try{await api("blocks/"+encodeURIComponent(selected.id),{method:"POST",body:{}});selected=null;$("chat-title").textContent="Private chat";$("chat-subtitle").textContent="Player blocked.";empty($("messages"),"This conversation is unavailable.");$("message-input").disabled=true;$("send-message").disabled=true;$("block-player").disabled=true;$("report-player").disabled=true;$("refresh-chat").disabled=true;status("Player blocked.","success");await loadFriends();}catch(e){status(e.message,"error");}});
 $("report-player").addEventListener("click",async()=>{if(!selected)return;const category=prompt("Report reason: harassment, spam, inappropriate, impersonation, or other","other");if(!category)return;const details=prompt("Optional details (do not include private information)","")||"";try{await api("reports",{method:"POST",body:{targetUserId:selected.id,category:category.trim().toLowerCase(),details}});status("Report submitted for moderator review.","success");}catch(e){status(e.message,"error");}});
-async function start(){try{const response=await fetch("/api/auth/me",{credentials:"same-origin",cache:"no-store"});const data=await response.json();if(!response.ok||!data.authenticated){status("Sign in to your VoidCraft website account to use Social Hub.");$("social-signin").hidden=false;return;}me=await api("me").then(result=>result.user);$("social-account").textContent="Signed in as @"+me.username;$("social-app").hidden=false;status("You're signed in. Find a friend to start chatting.","success");await loadFriends();}catch(error){status(error?.message || "The Social Hub could not finish loading. Refresh and try again.","error");}}
+async function start(){try{const response=await fetch("/api/auth/me",{credentials:"same-origin",cache:"no-store"});const data=await response.json();if(!response.ok||!data.authenticated){status("Sign in to your VoidCraft website account to use Social Hub.");$("social-signin").hidden=false;return;}me=await api("me").then(result=>result.user);$("social-account").textContent="Signed in as @"+me.username;$("social-app").hidden=false;if(me.role==="owner"){$("moderation-panel").hidden=false;void loadReports();}status("You're signed in. Find a friend to start chatting.","success");await loadFriends();}catch(error){status(error?.message || "The Social Hub could not finish loading. Refresh and try again.","error");}}
 start();
 // Refresh an open private chat while the tab is visible so incoming messages appear without a manual refresh.
 setInterval(() => { if (document.visibilityState === "visible" && selected) void loadMessages(); }, 5000);
