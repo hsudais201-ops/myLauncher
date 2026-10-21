@@ -6,24 +6,13 @@
         android:label="VoidCraft Launcher (Prototype)"
         android:theme="@android:style/Theme.Material.NoActionBar"
         android:usesCleartextTraffic="false">
-        <activity
-            android:name=".AccountActivity"
-            android:exported="false" />
-        <activity
-            android:name=".FeatureStoreActivity"
-            android:exported="false" />
-        <activity
-            android:name=".StartupDiagnosticsActivity"
-            android:exported="false" />
-        <activity
-            android:name=".SettingsActivity"
-            android:exported="false" />
-        <activity
-            android:name=".VersionBrowserActivity"
-            android:exported="false" />
-        <activity
-            android:name=".InstanceListActivity"
-            android:exported="false" />
+        <activity android:name=".AccountActivity" android:exported="false" />
+        <activity android:name=".FeatureStoreActivity" android:exported="false" />
+        <activity android:name=".StartupDiagnosticsActivity" android:exported="false" />
+        <activity android:name=".InstanceNotesActivity" android:exported="false" />
+        <activity android:name=".SettingsActivity" android:exported="false" />
+        <activity android:name=".VersionBrowserActivity" android:exported="false" />
+        <activity android:name=".InstanceListActivity" android:exported="false" />
         <activity
             android:name=".MainActivity"
             android:exported="true"
