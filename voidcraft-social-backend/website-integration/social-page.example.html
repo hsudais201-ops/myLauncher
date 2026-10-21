@@ -236,7 +236,7 @@
       pollTimer = null;
     }
 
-    function showApp(user) {
+    async function showApp(user) {
       currentUser = user;
       $("auth-panel").classList.add("hidden");
       $("app-panel").classList.remove("hidden");
