@@ -68,6 +68,11 @@ class SocialHubSchemaTests(unittest.TestCase):
             "INSERT INTO social_friend_requests(id,sender_id,recipient_id,status,created_at) "
             "VALUES('r3','u2','u1','pending',3)"
         )
+        self.db.execute("UPDATE social_friend_requests SET status='cancelled' WHERE id='r3'")
+        self.db.execute(
+            "INSERT INTO social_friend_requests(id,sender_id,recipient_id,status,created_at) "
+            "VALUES('r4','u1','u2','pending',4)"
+        )
 
     def test_rate_limit_indexes_exist(self):
         names = {
