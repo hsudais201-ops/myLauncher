@@ -1,12 +1,19 @@
 # VoidCraft Launcher feature scope and delivery tracker
+# VoidCraft Launcher feature scope and delivery tracker
 
-**Owner / developer: MF**
+**Owner / developer:** MF
 
-## Important status rule
+## Current upstream migration status (2026-10-21)
 
-This document tracks the complete requested feature scope. A feature appearing in this list does **not** by itself mean the feature is implemented or has passed a runtime test. The project builds the pinned [Amethyst-Android engine](https://github.com/AngelAuraMC/Amethyst-Android) and applies VoidCraft Launcher patches; existing engine features should be audited and exposed before reimplementing them. Every unverified item below needs a source check and/or an acceptance test before it is described as shipped.
+The active migration branch switches the APK build from the pinned Amethyst-Android checkout to MojoLauncher (LGPL-3.0), branch `v3_openjdk`, commit `8ffba8f4ea0b9466854aa9f7a375c77b4fb96bdd`. The active build pipeline and branding customizer now target MojoLauncher's `app_mojo` module. This is still an in-progress migration until GitHub Actions builds the APK and passes package validation plus the Android emulator launch check.
 
-## Current source audit
+This first layer deliberately changes only the app ID/provider authorities, visible app/crash labels, version prefix, and night-violet palette. It does not yet port the previous Amethyst-specific VoidCraft enhancements. In particular, prior UI/folder utilities, world backup screens, settings import/export, Performance Advisor, Feature Store, social/server-status add-ons, and previous launch-smoke UI automation need explicit adaptation and acceptance tests against Mojo before being marked available. Do not delete or overwrite user worlds/configuration during migration.
+
+## Historical Amethyst source audit (not current evidence for the Mojo migration)
+
+The source audit below documents the previous Amethyst-based implementation only. It must not be treated as evidence that those customizations exist in the new Mojo-based APK. Retest each requirement against the pinned Mojo source and the actual generated APK before marking it complete.
+
+## Historical source audit detail
 
 | Area | Current evidence | Status |
 |---|---|---|
