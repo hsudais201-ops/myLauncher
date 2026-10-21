@@ -22,7 +22,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: voidcraft-mojo-build
+  group: voidcraft-mojo-build-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -36,7 +36,7 @@ jobs:
 
       - name: Validate VoidCraft source customizer and regression tests
         run: |
-          python3 -m py_compile .github/scripts/customize_mojo.py .github/scripts/test_mojo_customizer.py
+          python3 -m py_compile .github/scripts/customize_mojo.py .github/scripts/test_mojo_customizer.py .github/scripts/apply_logo.py
           sh -n .github/scripts/prepare_emulator_kvm.sh
           bash -n .github/scripts/mojo_emulator_smoke_test.sh
           python3 -m unittest discover -s .github/scripts -p 'test_mojo_customizer.py' -v
@@ -89,6 +89,7 @@ jobs:
       - name: Apply VoidCraft package identity, app label, and night-violet palette
         run: |
           python3 .github/scripts/customize_mojo.py upstream
+          python3 .github/scripts/apply_logo.py upstream
           git -C upstream diff --check
 
       - name: Build full debug APK
