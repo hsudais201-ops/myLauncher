@@ -97,7 +97,8 @@ export async function onRequest({ request, env }) {
     }
     match = path.match(/^friends\/requests\/([0-9a-f-]+)$/i);
     if (match && method === "DELETE") {
-      await db.prepare("UPDATE social_friend_requests SET status='rejected' WHERE id=? AND recipient_id=? AND status='pending'").bind(match[1],user.id).run();
+      const result = await db.prepare("UPDATE social_friend_requests SET status=CASE WHEN sender_id=? THEN 'cancelled' ELSE 'rejected' END WHERE id=? AND status='pending' AND (sender_id=? OR recipient_id=?)").bind(user.id,match[1],user.id,user.id).run();
+      if (Number(result?.meta?.changes || 0) < 1) return fail("Pending friend request not found.",404);
       return json({ ok:true });
     }
     match = path.match(/^friends\/([^/]+)$/);
