@@ -50,3 +50,16 @@ For a separate or newly created authentication database, apply `migrations/0002_
 - A cart shortcut appears in the site header. The cart stores item IDs and quantities in browser storage. Prices, catalog state, package links and purchase eligibility are re-read server-side at checkout. Direct Buy Now goes straight to checkout; Add to Cart persists the item across page visits. Preview-only listings have purchase actions disabled.
 - Checkout is currently validation-only. `POST /api/store/checkout` requires a session and validates current server-owned prices, package availability and quantities, then returns a safe not-configured response because a payment provider and entitlement delivery are not configured. It never creates a fake order or claims a charge succeeded.
 - The public catalog exposes only a boolean `packageAvailable` for paid listings; it does not return paid package URLs. A future delivery endpoint must check a confirmed payment entitlement before returning a signed/private download URL.
+
+
+## Website Social Hub and private Chat
+
+The dedicated `chat.html` page adds a Chat link to the shared site navigation and provides player search, friend requests, a friend list, recent conversations, one-to-one text messages, blocking, reporting, and an owner-only report queue. Discord is linked separately and is not used as the chat transport.
+
+Chat uses the existing `VOIDCRAFT_AUTH` D1 binding, website account IDs, and the existing HttpOnly website session. It does not create a second set of chat passwords or read/write browser storage for credentials. Message content is rendered as text, writes require same-origin requests, the API applies per-account rate limits, and only accepted friends may exchange messages.
+
+Before enabling the page in production, apply `migrations/0005_social_chat.sql` to the same D1 database used by the account API. This creates social tables referencing the existing `users(id)` records; it does not change the account schema or seed fake accounts. The Pages Functions route is `/api/chat/*`. After applying the migration, test with two ordinary website accounts: search, send/accept request, message in both directions, block, report, sign out, and sign back in. The owner-only moderation queue appears only for a session whose database role is `owner`.
+
+The chat test suite includes static checks plus a database-backed API flow using an in-memory SQLite adapter to exercise the existing cookie session, player search, friend requests, messaging, blocking, abuse reports, and the owner report queue.
+
+The social page and backend in this change are source updates only until the website branch is merged/deployed and the D1 migration is applied. Do not claim live chat availability before those deployment steps and an end-to-end test.
