@@ -2,6 +2,7 @@ package com.voidcraft.launcher
 
 import android.app.Activity
 import android.content.Intent
+import android.net.Uri
 import android.graphics.Color
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
@@ -27,7 +28,7 @@ class MainActivity : Activity() {
     private val surface = Color.rgb(18, 25, 40)
     private val cardSurface = Color.rgb(23, 33, 52)
     private val cardRaised = Color.rgb(29, 42, 65)
-    private val accent = Color.rgb(139, 124, 255)
+    private val accent by lazy { LauncherPreferences.accentColor(this) }
     private val mint = Color.rgb(51, 216, 190)
     private val primaryText = Color.rgb(243, 246, 255)
     private val secondaryText = Color.rgb(157, 174, 199)
@@ -103,6 +104,14 @@ class MainActivity : Activity() {
             startActivity(Intent(this, SettingsActivity::class.java))
         }, weightedParams(1f, dp(6)))
         page.addView(secondRow)
+        page.addView(space(10))
+        page.addView(shortcutCard("◉", "Discord Community", "Announcements, support & feedback") {
+            openDiscordCommunity()
+        })
+        page.addView(space(10))
+        page.addView(shortcutCard("♧", "Social Hub", "Friends, community & support") {
+            startActivity(Intent(this, SocialHubActivity::class.java))
+        })
         page.addView(space(22))
 
         page.addView(sectionHeading("SETUP STATUS", "Prototype"))
@@ -346,6 +355,15 @@ class MainActivity : Activity() {
             LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
         row.addView(text(action, 12, accent, true))
         return row
+    }
+
+    private fun openDiscordCommunity() {
+        val invite = Uri.parse("https://discord.gg/FM6myW8ZFb")
+        try {
+            startActivity(Intent(Intent.ACTION_VIEW, invite))
+        } catch (_: Exception) {
+            notice("Could not open Discord. Try https://discord.gg/FM6myW8ZFb")
+        }
     }
 
     private fun buildBottomNav(): View =

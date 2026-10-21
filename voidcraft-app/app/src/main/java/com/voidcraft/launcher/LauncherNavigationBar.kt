@@ -41,6 +41,7 @@ object LauncherNavigationBar {
             Triple("▦", "Instances", InstanceListActivity::class.java),
             Triple("⇩", "Versions", VersionBrowserActivity::class.java),
             Triple("◎", "Account", AccountActivity::class.java),
+            Triple("♧", "Social", SocialHubActivity::class.java),
             Triple("◇", "Store", FeatureStoreActivity::class.java),
             Triple("⚙", "Settings", SettingsActivity::class.java)
         )

@@ -17,62 +17,66 @@ import android.widget.TextView
 import android.widget.Toast
 
 /**
- * Feature Store UI preview. No category taxonomy is used. Install/uninstall
- * is intentionally not simulated until signed manifests, permission handling,
- * compatibility validation, and rollback are connected.
+ * Category-free Feature Store catalog. Only reviewed built-in features that
+ * have real implementations may be installed; remote/community code is never
+ * executed by this UI or by the local registry.
  */
 class FeatureStoreActivity : Activity() {
     private val background = Color.rgb(10, 14, 24)
     private val surface = Color.rgb(18, 25, 40)
     private val panel = Color.rgb(23, 33, 52)
-    private val accent = Color.rgb(139, 124, 255)
+    private val accent by lazy { LauncherPreferences.accentColor(this) }
     private val mint = Color.rgb(51, 216, 190)
     private val primaryText = Color.rgb(243, 246, 255)
     private val secondaryText = Color.rgb(157, 174, 199)
     private val border = Color.rgb(42, 58, 85)
 
     private data class Feature(
+        val id: String,
         val name: String,
         val description: String,
         val state: String,
         val icon: String
     )
 
-    private val features = listOf(
-        Feature("Smart Performance Advisor",
-            "Read device diagnostics and suggest reversible, device-aware settings without imposing an FPS cap.",
-            "Planned", "↗"),
-        Feature("Minecraft Server Status",
-            "Track saved servers, online state, MOTD, player count, and server icon.",
-            "Planned", "◉"),
-        Feature("Friends & Chat",
-            "A separate social page for profiles, friend requests, and private messages.",
-            "Planned", "✉"),
-        Feature("Theme Studio",
-            "Customize VoidCraft colors, backgrounds, and interface accents.",
-            "Planned", "✦"),
-        Feature("Crash Report Center",
-            "Read crash logs, summarize likely causes, and prepare a shareable bug report.",
-            "Planned", "⚑"),
-        Feature("Screenshot Gallery",
-            "Browse and organize Minecraft screenshots without leaving the launcher.",
-            "Planned", "▧"),
-        Feature("World Backup Scheduler",
-            "Create scheduled backups with integrity checks and restore previews.",
-            "Planned", "◫"),
-        Feature("Mod Compatibility Checker",
-            "Inspect mod metadata for Minecraft version and loader compatibility conflicts.",
-            "Planned", "◇"),
-        Feature("Shader Preset Manager",
-            "Save renderer-aware shader presets and switch between named configurations.",
-            "Planned", "☼"),
-        Feature("Startup Diagnostics",
-            "Review runtime, storage, memory, and native-library readiness before launch.",
-            "Planned", "✓"),
-        Feature("Community Feature Upload",
-            "Prepare user-submitted add-ons for permission review and compatibility validation.",
-            "Review required", "⇧")
-    )
+    // The UI and install policy share one catalog; no category taxonomy is used.
+    private val features = FeatureRegistry.catalog().map { item ->
+        Feature(
+            item.id,
+            item.name,
+            item.description,
+            when (item.status) {
+                FeatureRegistry.Status.AVAILABLE -> "Available"
+                FeatureRegistry.Status.PLANNED -> "Planned"
+                FeatureRegistry.Status.REVIEW_REQUIRED -> "Review required"
+            },
+            when (item.id) {
+                "smart-performance-advisor" -> "↗"
+                "server-status" -> "◉"
+                "friends-chat" -> "✉"
+                "theme-studio" -> "✦"
+                "crash-report-center" -> "⚑"
+                "screenshot-gallery" -> "▧"
+                "world-backup-scheduler" -> "◫"
+                "mod-compatibility-checker" -> "◇"
+                "shader-preset-manager" -> "☼"
+                "startup-diagnostics" -> "✓"
+                "resource-pack-manager" -> "▤"
+                "resource-pack-compatibility" -> "◇"
+                "world-details-viewer" -> "▣"
+                "local-playtime-tracker" -> "◷"
+                "accessibility-presets" -> "◉"
+                "profile-icon-studio" -> "✎"
+                "configuration-backup" -> "⤓"
+                "network-diagnostics" -> "⌁"
+                "release-watch" -> "◴"
+                "controller-presets" -> "⌘"
+                "resource-usage-history" -> "▥"
+                "instance-notes" -> "≡"
+                else -> "⇧"
+            }
+        )
+    }
 
     private lateinit var searchField: EditText
     private lateinit var featureList: LinearLayout
@@ -100,6 +104,26 @@ class FeatureStoreActivity : Activity() {
         ).apply { setPadding(0, dp(6), 0, 0) })
         page.addView(space(15))
         page.addView(safetyBanner())
+        page.addView(space(12))
+        val createOwn = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(15), dp(14), dp(15), dp(14))
+            background = rounded(panel, 16, accent)
+            isClickable = true
+            isFocusable = true
+            contentDescription = "Create your own custom feature blueprint"
+            setOnClickListener {
+                startActivity(android.content.Intent(
+                    this@FeatureStoreActivity, CustomFeatureStudioActivity::class.java
+                ))
+            }
+        }
+        createOwn.addView(text("＋  CREATE YOUR OWN FEATURE", 14, primaryText, true))
+        createOwn.addView(text(
+            "Build and save a custom feature blueprint on this device. No coding required; drafts cannot execute code.",
+            12, secondaryText, false
+        ).apply { setPadding(0, dp(5), 0, 0) })
+        page.addView(createOwn)
         page.addView(space(15))
 
         searchField = EditText(this).apply {
@@ -126,7 +150,7 @@ class FeatureStoreActivity : Activity() {
         page.addView(featureList)
         page.addView(space(18))
         page.addView(text(
-            "Install and uninstall controls will be enabled only after signed feature manifests, permission prompts, compatibility checks, and rollback tests are implemented.",
+            "Only completed built-in features can be installed. Remote packages stay blocked until signed manifests, integrity checks, compatibility rules, permission enforcement, and rollback tests exist.",
             12, secondaryText, false
         ))
         val root = LinearLayout(this).apply {
@@ -158,7 +182,7 @@ class FeatureStoreActivity : Activity() {
         val visible = features.filter {
             it.name.lowercase().contains(query) || it.description.lowercase().contains(query)
         }
-        countLabel.text = "${visible.size} features • browse without categories"
+        countLabel.text = "${visible.size} features • ${FeatureRegistry.installedIds(this).size} installed • no categories"
         if (visible.isEmpty()) {
             featureList.addView(text("No features match that search.", 14, secondaryText, false)
                 .apply { setPadding(dp(10), dp(18), dp(10), dp(18)) })
@@ -194,9 +218,17 @@ class FeatureStoreActivity : Activity() {
             setPadding(dp(12), 0, 0, 0)
         }
         titleStack.addView(text(feature.name, 15, primaryText, true))
-        titleStack.addView(text(feature.state.uppercase(), 9,
-            if (feature.state == "Review required") Color.rgb(255, 190, 104) else mint, true
-        ).apply {
+        val statusColor = when (feature.state) {
+            "Available" -> mint
+            "Review required" -> Color.rgb(255, 190, 104)
+            else -> secondaryText
+        }
+        val displayState = if (FeatureRegistry.isInstalled(this@FeatureStoreActivity, feature.id)) {
+            "INSTALLED"
+        } else {
+            feature.state.uppercase()
+        }
+        titleStack.addView(text(displayState, 9, statusColor, true).apply {
             letterSpacing = 0.05f
             setPadding(0, dp(4), 0, 0)
         })
@@ -206,7 +238,11 @@ class FeatureStoreActivity : Activity() {
             setPadding(0, dp(12), 0, dp(12))
         })
         val button = TextView(this).apply {
-            text = "VIEW DETAILS  ›"
+            text = when {
+                FeatureRegistry.isInstalled(this@FeatureStoreActivity, feature.id) -> "OPEN FEATURE  ›"
+                FeatureRegistry.canInstall(feature.id) -> "INSTALL FEATURE  ↓"
+                else -> "VIEW DETAILS  ›"
+            }
             textSize = 11f
             typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
             setTextColor(primaryText)
@@ -216,14 +252,104 @@ class FeatureStoreActivity : Activity() {
             isClickable = true
             isFocusable = true
             setOnClickListener {
-                Toast.makeText(
-                    this@FeatureStoreActivity,
-                    "${feature.name}: UI preview only. Secure installation is not connected yet.",
-                    Toast.LENGTH_LONG
-                ).show()
+                val installed = FeatureRegistry.isInstalled(this@FeatureStoreActivity, feature.id)
+                val installable = FeatureRegistry.canInstall(feature.id)
+                if (feature.id == "theme-studio" && installed) {
+                    startActivity(android.content.Intent(
+                        this@FeatureStoreActivity, ThemeStudioActivity::class.java
+                    ))
+                    return@setOnClickListener
+                }
+                if (feature.id == "startup-diagnostics" && installed) {
+                    startActivity(android.content.Intent(
+                        this@FeatureStoreActivity, StartupDiagnosticsActivity::class.java
+                    ))
+                    return@setOnClickListener
+                }
+                if (feature.id == "instance-notes" && installed) {
+                    startActivity(android.content.Intent(
+                        this@FeatureStoreActivity, InstanceNotesActivity::class.java
+                    ))
+                    return@setOnClickListener
+                }
+                if (feature.id == "network-diagnostics" && installed) {
+                    startActivity(android.content.Intent(
+                        this@FeatureStoreActivity, NetworkDiagnosticsActivity::class.java
+                    ))
+                    return@setOnClickListener
+                }
+                if (installable && !installed) {
+                    android.app.AlertDialog.Builder(this@FeatureStoreActivity)
+                        .setTitle("Install ${feature.name}?")
+                        .setMessage(
+                            "This built-in feature runs locally and does not download or execute add-on code. " +
+                                "Declared capabilities: " +
+                                (FeatureRegistry.find(feature.id)?.permissions?.joinToString() ?: "None")
+                        )
+                        .setNegativeButton("Cancel", null)
+                        .setPositiveButton("Install") { _, _ ->
+                            val result = FeatureRegistry.install(this@FeatureStoreActivity, feature.id)
+                            if (result.isSuccess) {
+                                Toast.makeText(this@FeatureStoreActivity, "Feature installed", Toast.LENGTH_SHORT).show()
+                                renderFeatures()
+                            } else {
+                                Toast.makeText(
+                                    this@FeatureStoreActivity,
+                                    result.exceptionOrNull()?.message ?: "Install failed",
+                                    Toast.LENGTH_LONG
+                                ).show()
+                            }
+                        }
+                        .show()
+                    return@setOnClickListener
+                }
+                val definition = FeatureRegistry.find(feature.id)
+                val capabilities = definition?.permissions?.takeIf { it.isNotEmpty() }
+                    ?.joinToString(", ") ?: "None declared"
+                val stateText = if (installed) "Installed locally."
+                    else "Not installable yet. Implementation and security checks are not ready."
+                android.app.AlertDialog.Builder(this@FeatureStoreActivity)
+                    .setTitle(feature.name)
+                    .setMessage(
+                        "${feature.description}\n\nStatus: ${feature.state}\n" +
+                            "Declared capabilities: $capabilities\n\n$stateText"
+                    )
+                    .setPositiveButton("Close", null)
+                    .show()
             }
         }
         card.addView(button)
+        if (FeatureRegistry.isInstalled(this, feature.id)) {
+            card.addView(space(7))
+            val uninstall = TextView(this).apply {
+                text = "UNINSTALL FEATURE"
+                textSize = 10f
+                typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+                setTextColor(Color.rgb(255, 170, 170))
+                gravity = Gravity.CENTER
+                background = rounded(panel, 11, border)
+                setPadding(dp(12), dp(10), dp(12), dp(10))
+                isClickable = true
+                isFocusable = true
+                setOnClickListener {
+                    android.app.AlertDialog.Builder(this@FeatureStoreActivity)
+                        .setTitle("Uninstall ${feature.name}?")
+                        .setMessage("This removes the feature's installed-state entry. It does not delete worlds, game files, or user data.")
+                        .setNegativeButton("Cancel", null)
+                        .setPositiveButton("Uninstall") { _, _ ->
+                            val result = FeatureRegistry.uninstall(this@FeatureStoreActivity, feature.id)
+                            if (result.isSuccess) {
+                                Toast.makeText(this@FeatureStoreActivity, "Feature uninstalled", Toast.LENGTH_SHORT).show()
+                                renderFeatures()
+                            } else {
+                                Toast.makeText(this@FeatureStoreActivity, "Uninstall failed", Toast.LENGTH_LONG).show()
+                            }
+                        }
+                        .show()
+                }
+            }
+            card.addView(uninstall)
+        }
         return card
     }
 

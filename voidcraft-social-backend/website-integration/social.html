@@ -1,0 +1,593 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>VoidCraft Social Hub</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #090d17; --surface: #121a2a; --panel: #19243a; --line: #2c3a58;
+      --text: #f3f6ff; --muted: #a5b3cc; --accent: #8b7cff; --mint: #33d8be;
+      --danger: #ff8398; --warning: #ffca83;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: radial-gradient(circle at top left,#20204a 0,transparent 36rem),var(--bg); color:var(--text); font:15px/1.5 system-ui,-apple-system,Segoe UI,sans-serif; }
+    button,input,textarea,select { font:inherit; }
+    button { cursor:pointer; border:1px solid var(--line); background:#252d4b; color:var(--text); border-radius:12px; padding:10px 13px; font-weight:650; }
+    button.primary { background:linear-gradient(110deg,#8b7cff,#5367ef); border-color:transparent; }
+    button.subtle { background:transparent; }
+    button.danger { color:var(--danger); }
+    button:disabled { opacity:.55; cursor:not-allowed; }
+    input,textarea,select { width:100%; min-width:0; background:#0c1321; color:var(--text); border:1px solid var(--line); border-radius:11px; padding:11px 12px; }
+    label { display:block; color:var(--muted); font-size:.78rem; font-weight:750; letter-spacing:.07em; margin:0 0 6px; text-transform:uppercase; }
+    form { display:grid; gap:11px; }
+    a { color:var(--mint); }
+    .shell { max-width:1180px; margin:auto; padding:22px 16px 60px; }
+    .brand { display:flex; align-items:center; gap:12px; margin-bottom:25px; }
+    .logo { display:grid; place-items:center; width:48px;height:48px; border-radius:15px; background:linear-gradient(135deg,var(--accent),#3a62e8); font-size:20px; font-weight:900; }
+    h1 { font-size:clamp(1.7rem,5vw,2.6rem); line-height:1.12; margin:0; }
+    h2 { font-size:1.1rem; margin:0 0 12px; }
+    h3 { font-size:1rem; margin:0; }
+    p { margin:6px 0 0; color:var(--muted); }
+    .eyebrow { color:var(--accent); text-transform:uppercase; letter-spacing:.12em; font-size:.72rem; font-weight:850; }
+    .card { border:1px solid var(--line); border-radius:19px; background:rgba(18,26,42,.92); padding:17px; box-shadow:0 16px 45px #0002; }
+    .grid { display:grid; grid-template-columns:minmax(0, .95fr) minmax(0, 1.2fr); gap:16px; align-items:start; }
+    .stack { display:grid; gap:16px; min-width:0; }
+    .row { display:flex; align-items:center; gap:9px; flex-wrap:wrap; }
+    .row.spread { justify-content:space-between; }
+    .muted { color:var(--muted); }
+    .small { font-size:.82rem; }
+    .badge { border:1px solid var(--line); border-radius:999px; padding:4px 8px; color:var(--mint); font-size:.72rem; font-weight:800; }
+    .notice { padding:12px 14px; border-radius:12px; border:1px solid var(--line); background:#111a2b; margin:0 0 17px; }
+    .notice.error { color:var(--danger); border-color:#673343; }
+    .notice.success { color:var(--mint); }
+    .list { display:grid; gap:8px; }
+    .item { padding:12px; border:1px solid var(--line); border-radius:13px; background:#101828; min-width:0; }
+    .item p { overflow-wrap:anywhere; }
+    .empty { color:var(--muted); border:1px dashed var(--line); border-radius:13px; padding:14px; font-size:.9rem; }
+    .hidden { display:none !important; }
+    .split { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+    .chatbox { min-height:180px; max-height:42vh; overflow:auto; display:grid; align-content:start; gap:9px; padding:10px 0; }
+    .bubble { max-width:min(85%,500px); background:#1c2840; border:1px solid var(--line); padding:10px 12px; border-radius:14px; overflow-wrap:anywhere; white-space:pre-wrap; }
+    .bubble.mine { margin-left:auto; background:#353363; }
+    .bubble .meta { color:var(--muted); font-size:.7rem; margin-bottom:5px; }
+    .footer { margin-top:20px; color:var(--muted); font-size:.85rem; }
+    @media(max-width:820px) { .grid { grid-template-columns:1fr; } .shell { padding:16px 12px 42px; } }
+    @media(max-width:480px) { .split { grid-template-columns:1fr; } .card { padding:14px; } }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <header class="brand">
+      <div class="logo" aria-hidden="true">VC</div>
+      <div>
+        <div class="eyebrow">Official VoidCraft community</div>
+        <h1>Social, on your terms.</h1>
+        <p>One VoidCraft account for the website and launcher.</p>
+      </div>
+    </header>
+
+    <div id="notice" class="notice" role="status" aria-live="polite">Checking the VoidCraft account service…</div>
+
+    <section id="auth-panel" class="card">
+      <div class="eyebrow">VoidCraft identity</div>
+      <h2 id="auth-title">Sign in to VoidCraft</h2>
+      <p>These are VoidCraft credentials—not your Microsoft or Minecraft password.</p>
+      <div class="split" style="margin-top:15px">
+        <button id="show-login" class="primary" type="button">Sign in</button>
+        <button id="show-register" type="button">Create account</button>
+      </div>
+      <form id="login-form" style="margin-top:14px">
+        <div>
+          <label for="login-identifier">Username or email</label>
+          <input id="login-identifier" autocomplete="username" required maxlength="254">
+        </div>
+        <div>
+          <label for="login-password">Password</label>
+          <input id="login-password" type="password" autocomplete="current-password" required maxlength="128">
+        </div>
+        <button class="primary" type="submit">Sign in</button>
+      </form>
+      <form id="register-form" class="hidden" style="margin-top:14px">
+        <div>
+          <label for="register-email">Email</label>
+          <input id="register-email" type="email" autocomplete="email" required maxlength="254">
+        </div>
+        <div>
+          <label for="register-username">Username</label>
+          <input id="register-username" autocomplete="username" required minlength="3" maxlength="20" pattern="[A-Za-z0-9_]+" title="3–20 letters, numbers, or underscores">
+        </div>
+        <div>
+          <label for="register-password">Password</label>
+          <input id="register-password" type="password" autocomplete="new-password" required minlength="12" maxlength="128">
+          <p class="small">Use at least 12 characters. Never reuse your Microsoft password.</p>
+        </div>
+        <button class="primary" type="submit">Create VoidCraft account</button>
+      </form>
+      <p class="footer">Website integration page. Before enabling public registration, configure email verification, password recovery, abuse moderation, and review the deployment security settings.</p>
+    </section>
+
+    <section id="app-panel" class="hidden">
+      <div class="card row spread" style="margin-bottom:16px">
+        <div>
+          <div class="eyebrow">Signed in</div>
+          <h2 id="current-user" style="margin:3px 0 0"></h2>
+          <p id="current-role" class="small"></p>
+        </div>
+        <button id="logout" class="subtle" type="button">Sign out</button>
+      </div>
+
+      <section id="moderation-panel" class="card hidden" style="margin-bottom:16px">
+        <div class="row spread">
+          <div>
+            <div class="eyebrow">Staff tools</div>
+            <h2 style="margin:4px 0 0">Report moderation</h2>
+            <p class="small">Only server-assigned moderators and owners can access this queue.</p>
+          </div>
+          <button id="refresh-reports" class="subtle" type="button">Refresh queue</button>
+        </div>
+        <div class="row" style="margin:12px 0">
+          <label for="moderation-status">Filter reports</label>
+          <select id="moderation-status">
+            <option value="">All statuses</option>
+            <option value="open">Open</option>
+            <option value="reviewing">Reviewing</option>
+            <option value="resolved">Resolved</option>
+            <option value="dismissed">Dismissed</option>
+          </select>
+        </div>
+        <div id="moderation-reports" class="list"><div class="empty">Report queue not loaded.</div></div>
+      </section>
+
+      <div class="grid">
+        <div class="stack">
+          <section class="card">
+            <h2>Shared player profile</h2>
+            <form id="profile-form">
+              <div><label for="display-name">Display name</label><input id="display-name" required maxlength="32"></div>
+              <div><label for="bio">Bio</label><textarea id="bio" maxlength="280" rows="3"></textarea></div>
+              <button class="primary" type="submit">Save profile</button>
+            </form>
+          </section>
+
+          <section class="card">
+            <h2>Find a player</h2>
+            <form id="search-form">
+              <input id="player-search" placeholder="Username (at least 3 characters)" required minlength="3" maxlength="20" pattern="[A-Za-z0-9_]+">
+              <button class="primary" type="submit">Search players</button>
+            </form>
+            <div id="search-results" class="list" style="margin-top:12px"></div>
+          </section>
+
+          <section class="card">
+            <h2>Friend requests <span id="request-count" class="badge">0</span></h2>
+            <div id="requests" class="list"><div class="empty">No pending requests.</div></div>
+          </section>
+
+          <section class="card">
+            <h2>Your friends</h2>
+            <div id="friends" class="list"><div class="empty">Loading friends…</div></div>
+          </section>
+        </div>
+
+        <div class="stack">
+          <section class="card">
+            <h2>Chat</h2>
+            <p class="small" style="margin-bottom:10px">Messages stay inside VoidCraft. Discord is not used for private chat.</p>
+            <div id="conversations" class="list"><div class="empty">Loading conversations…</div></div>
+          </section>
+
+          <section id="chat-panel" class="card">
+            <div class="row spread">
+              <div>
+                <div class="eyebrow">VoidCraft private chat</div>
+                <h2 id="chat-title" style="margin:4px 0 0">Choose a friend</h2>
+              </div>
+              <span id="chat-status" class="badge">Offline</span>
+            </div>
+            <div id="chat-messages" class="chatbox"><div class="empty">Choose an accepted friend to view messages.</div></div>
+            <form id="message-form" class="row" style="align-items:stretch">
+              <input id="message-input" placeholder="Message your friend…" maxlength="2000" autocomplete="off" disabled required style="flex:1">
+              <button id="send-message" class="primary" type="submit" disabled>Send</button>
+            </form>
+            <div class="split" style="margin-top:12px">
+              <button id="block-player" class="danger subtle" type="button" disabled>Block player</button>
+              <button id="report-player" class="subtle" type="button" disabled>Report player</button>
+            </div>
+          </section>
+        </div>
+      </div>
+    </section>
+
+    <footer class="footer">
+      <a href="https://discord.gg/FM6myW8ZFb" target="_blank" rel="noopener noreferrer">VoidCraft Discord community</a>
+      — for support and announcements, not for in-app private messages.
+    </footer>
+  </main>
+
+  <script type="module">
+    import { VoidCraftSocialApi } from "./social-api.js";
+
+    const api = new VoidCraftSocialApi();
+    const $ = (id) => document.getElementById(id);
+    let currentUser = null;
+    let activePeer = null;
+    let pollTimer = null;
+    let pollCount = 0;
+
+    function announce(message, type = "") {
+      const node = $("notice");
+      node.textContent = message;
+      node.className = "notice" + (type ? " " + type : "");
+    }
+
+    function el(tag, text, className = "") {
+      const node = document.createElement(tag);
+      node.textContent = text == null ? "" : String(text);
+      if (className) node.className = className;
+      return node;
+    }
+
+    function button(text, action, className = "") {
+      const node = el("button", text, className);
+      node.type = "button";
+      node.addEventListener("click", action);
+      return node;
+    }
+
+    function replaceList(id, children, emptyMessage) {
+      const list = $(id);
+      list.replaceChildren();
+      if (!children.length) list.append(el("div", emptyMessage, "empty"));
+      else children.forEach((child) => list.append(child));
+    }
+
+    function showAuth() {
+      currentUser = null;
+      activePeer = null;
+      $("auth-panel").classList.remove("hidden");
+      $("app-panel").classList.add("hidden");
+      $("chat-messages").replaceChildren(el("div", "Choose an accepted friend to view messages.", "empty"));
+      $("message-input").disabled = true;
+      $("send-message").disabled = true;
+      $("block-player").disabled = true;
+      $("report-player").disabled = true;
+      if (pollTimer) clearInterval(pollTimer);
+      pollTimer = null;
+    }
+
+    async function showApp(user) {
+      currentUser = user;
+      $("auth-panel").classList.add("hidden");
+      $("app-panel").classList.remove("hidden");
+      $("current-user").textContent = (user.displayName || user.username) + "  @" + user.username;
+      $("current-role").textContent = user.role === "owner" ? "Owner account" :
+        (user.role === "moderator" ? "Community moderator" : "VoidCraft member");
+      const canModerate = user.role === "owner" || user.role === "moderator";
+      $("moderation-panel").classList.toggle("hidden", !canModerate);
+      $("display-name").value = user.displayName || user.username;
+      $("bio").value = user.bio || "";
+      if (pollTimer) clearInterval(pollTimer);
+      pollCount = 0;
+      pollTimer = setInterval(() => {
+        if (!currentUser) return;
+        pollCount += 1;
+        if (activePeer) loadMessages(false).catch((error) => announce(error.message, "error"));
+        if (pollCount % 3 === 0) {
+          refreshSocial().catch((error) => announce(error.message, "error"));
+        }
+      }, 4000);
+      try {
+        await refreshSocial();
+      } catch (error) {
+        announce(error.message + " Your sign-in is valid, but the social lists could not refresh.", "error");
+      }
+    }
+
+    async function refreshSocial() {
+      const results = await Promise.all([api.friends(), api.friendRequests(), api.conversations()]);
+      renderFriends(results[0].friends || []);
+      renderRequests(results[1].requests || []);
+      renderConversations(results[2].conversations || []);
+      if (currentUser && ["owner", "moderator"].includes(currentUser.role)) {
+        await refreshModerationQueue();
+      }
+    }
+
+    async function refreshModerationQueue() {
+      if (!currentUser || !["owner", "moderator"].includes(currentUser.role)) return;
+      const status = $("moderation-status").value;
+      const result = await api.moderationReports({ status, limit: 100 });
+      const nodes = (result.reports || []).map((report) => {
+        const card = el("div", "", "item");
+        card.append(el("div", "#" + report.id + " · " + report.category + " · " + report.status.toUpperCase()));
+        card.append(el("p", "From @" + report.reporterUsername + " about @" + report.targetUsername, "small"));
+        card.append(el("p", report.details || "No additional details supplied.", "small"));
+        card.append(el("p", "Submitted " + new Date(report.createdAt).toLocaleString(), "small"));
+        const controls = el("div", "", "row");
+        controls.style.marginTop = "8px";
+        const statusSelect = document.createElement("select");
+        statusSelect.setAttribute("aria-label", "New status for report #" + report.id);
+        for (const [value, label] of [["open", "Open"], ["reviewing", "Reviewing"], ["resolved", "Resolved"], ["dismissed", "Dismissed"]]) {
+          const option = document.createElement("option");
+          option.value = value;
+          option.textContent = label;
+          option.selected = value === report.status;
+          statusSelect.append(option);
+        }
+        controls.append(statusSelect);
+        controls.append(button("Save status", async () => {
+          try {
+            await api.updateReportStatus(report.id, statusSelect.value);
+            await refreshModerationQueue();
+            announce("Report #" + report.id + " updated.", "success");
+          } catch (error) { announce(error.message, "error"); }
+        }, "primary"));
+        card.append(controls);
+        return card;
+      });
+      replaceList("moderation-reports", nodes, "No reports match this filter.");
+    }
+
+    function renderFriends(friends) {
+      const nodes = friends.map((friend) => {
+        const card = el("div", "", "item");
+        const header = el("div", friend.displayName + "  @" + friend.username);
+        header.style.fontWeight = "750";
+        card.append(header);
+        if (friend.bio) card.append(el("p", friend.bio, "small"));
+        const actions = el("div", "", "row");
+        actions.style.marginTop = "9px";
+        actions.append(button("Message", () => openChat(friend), "primary"));
+        actions.append(button("Remove", async () => {
+          if (!window.confirm("Remove @" + friend.username + " from your VoidCraft friends?")) return;
+          try {
+            await api.removeFriend(friend.id);
+            if (activePeer && activePeer.id === friend.id) clearChat();
+            await refreshSocial();
+            announce("Friend removed.", "success");
+          } catch (error) { announce(error.message, "error"); }
+        }));
+        card.append(actions);
+        return card;
+      });
+      replaceList("friends", nodes, "Your friend list is empty. Search for a player to get started.");
+    }
+
+    function renderRequests(requests) {
+      const incoming = requests.filter((item) => item.direction === "incoming");
+      $("request-count").textContent = String(incoming.length);
+      const nodes = requests.map((request) => {
+        const card = el("div", "", "item");
+        card.append(el("div", request.displayName + "  @" + request.username));
+        card.append(el("p", request.direction === "incoming" ? "Sent you a friend request." : "Waiting for their response.", "small"));
+        if (request.direction === "incoming") {
+          const actions = el("div", "", "row");
+          actions.style.marginTop = "8px";
+          actions.append(button("Accept", async () => {
+            try { await api.acceptFriendRequest(request.id); await refreshSocial(); announce("Friend request accepted.", "success"); }
+            catch (error) { announce(error.message, "error"); }
+          }, "primary"));
+          actions.append(button("Decline", async () => {
+            try { await api.declineFriendRequest(request.id); await refreshSocial(); }
+            catch (error) { announce(error.message, "error"); }
+          }));
+          card.append(actions);
+        }
+        return card;
+      });
+      replaceList("requests", nodes, "No pending friend requests.");
+    }
+
+    function renderConversations(conversations) {
+      const nodes = conversations.map((conversation) => {
+        const id = Number(conversation.user_id);
+        const card = el("div", "", "item");
+        card.append(el("div", (conversation.display_name || conversation.username) + "  @" + conversation.username));
+        card.append(el("p", conversation.last_message || "", "small"));
+        card.append(button("Open conversation", () => openChat({
+          id,
+          username: conversation.username,
+          displayName: conversation.display_name || conversation.username,
+          bio: "",
+          role: "member"
+        }), "primary"));
+        return card;
+      });
+      replaceList("conversations", nodes, "No conversations yet. Message an accepted friend to begin.");
+    }
+
+    async function openChat(peer) {
+      activePeer = peer;
+      $("chat-title").textContent = (peer.displayName || peer.username) + "  @" + peer.username;
+      $("chat-status").textContent = "Connected";
+      $("message-input").disabled = false;
+      $("send-message").disabled = false;
+      $("block-player").disabled = false;
+      $("report-player").disabled = false;
+      await loadMessages(true);
+    }
+
+    function clearChat() {
+      activePeer = null;
+      $("chat-title").textContent = "Choose a friend";
+      $("chat-status").textContent = "Offline";
+      $("message-input").disabled = true;
+      $("send-message").disabled = true;
+      $("block-player").disabled = true;
+      $("report-player").disabled = true;
+      $("chat-messages").replaceChildren(el("div", "Choose an accepted friend to view messages.", "empty"));
+    }
+
+    async function loadMessages(scrollToBottom) {
+      if (!activePeer || !currentUser) return;
+      const response = await api.messages(activePeer.id, { limit: 40 });
+      const messages = response.messages || [];
+      const container = $("chat-messages");
+      container.replaceChildren();
+      if (!messages.length) container.append(el("div", "Start the conversation with @" + activePeer.username + ".", "empty"));
+      messages.forEach((message) => {
+        const mine = Number(message.senderId) === Number(currentUser.id);
+        const bubble = el("article", "", "bubble" + (mine ? " mine" : ""));
+        bubble.append(el("div", mine ? "You" : "@" + message.senderUsername, "meta"));
+        bubble.append(el("div", message.body));
+        container.append(bubble);
+      });
+      if (scrollToBottom) container.scrollTop = container.scrollHeight;
+    }
+
+    $("show-login").addEventListener("click", () => {
+      $("login-form").classList.remove("hidden");
+      $("register-form").classList.add("hidden");
+      $("auth-title").textContent = "Sign in to VoidCraft";
+      $("show-login").classList.add("primary");
+      $("show-register").classList.remove("primary");
+    });
+    $("show-register").addEventListener("click", () => {
+      $("login-form").classList.add("hidden");
+      $("register-form").classList.remove("hidden");
+      $("auth-title").textContent = "Create your VoidCraft account";
+      $("show-register").classList.add("primary");
+      $("show-login").classList.remove("primary");
+    });
+
+    $("login-form").addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const buttonNode = event.currentTarget.querySelector("button[type=submit]");
+      buttonNode.disabled = true;
+      try {
+        const result = await api.login({
+          identifier: $("login-identifier").value.trim(),
+          password: $("login-password").value
+        });
+        $("login-password").value = "";
+        await showApp(result.user);
+        announce("Signed in to VoidCraft.", "success");
+      } catch (error) { announce(error.message, "error"); }
+      finally { buttonNode.disabled = false; }
+    });
+
+    $("register-form").addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const buttonNode = event.currentTarget.querySelector("button[type=submit]");
+      buttonNode.disabled = true;
+      try {
+        const result = await api.register({
+          email: $("register-email").value.trim(),
+          username: $("register-username").value.trim(),
+          password: $("register-password").value
+        });
+        $("register-password").value = "";
+        await showApp(result.user);
+        announce("VoidCraft account created.", "success");
+      } catch (error) { announce(error.message, "error"); }
+      finally { buttonNode.disabled = false; }
+    });
+
+    $("logout").addEventListener("click", async () => {
+      try { await api.logout(); }
+      catch (error) { announce(error.message, "error"); return; }
+      showAuth();
+      announce("Signed out of VoidCraft.", "success");
+    });
+
+    $("profile-form").addEventListener("submit", async (event) => {
+      event.preventDefault();
+      try {
+        const response = await api.updateProfile({
+          displayName: $("display-name").value,
+          bio: $("bio").value
+        });
+        showApp(response.user);
+        announce("Shared VoidCraft profile saved.", "success");
+      } catch (error) { announce(error.message, "error"); }
+    });
+
+    $("search-form").addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const target = $("search-results");
+      target.replaceChildren(el("div", "Searching…", "empty"));
+      try {
+        const response = await api.searchPlayers($("player-search").value.trim());
+        const nodes = (response.players || []).map((player) => {
+          const card = el("div", "", "item");
+          card.append(el("div", (player.displayName || player.username) + "  @" + player.username));
+          if (player.bio) card.append(el("p", player.bio, "small"));
+          card.append(button("Send friend request", async () => {
+            try { await api.sendFriendRequest(player.username); await refreshSocial(); announce("Friend request sent.", "success"); }
+            catch (error) { announce(error.message, "error"); }
+          }, "primary"));
+          return card;
+        });
+        target.replaceChildren(...(nodes.length ? nodes : [el("div", "No matching players found.", "empty")]));
+      } catch (error) {
+        target.replaceChildren(el("div", error.message, "empty"));
+        announce(error.message, "error");
+      }
+    });
+
+    $("message-form").addEventListener("submit", async (event) => {
+      event.preventDefault();
+      if (!activePeer) return;
+      const input = $("message-input");
+      const content = input.value.trim();
+      if (!content) return;
+      $("send-message").disabled = true;
+      try {
+        await api.sendMessage(activePeer.id, content);
+        input.value = "";
+        await loadMessages(true);
+        await api.conversations().then((result) => renderConversations(result.conversations || []));
+      } catch (error) { announce(error.message, "error"); }
+      finally { $("send-message").disabled = false; }
+    });
+
+    $("block-player").addEventListener("click", async () => {
+      if (!activePeer || !window.confirm("Block @" + activePeer.username + "? This prevents requests and messages in either direction.")) return;
+      try {
+        await api.blockPlayer(activePeer.id);
+        clearChat();
+        await refreshSocial();
+        announce("Player blocked.", "success");
+      } catch (error) { announce(error.message, "error"); }
+    });
+
+    $("refresh-reports").addEventListener("click", () => {
+      refreshModerationQueue().catch((error) => announce(error.message, "error"));
+    });
+    $("moderation-status").addEventListener("change", () => {
+      refreshModerationQueue().catch((error) => announce(error.message, "error"));
+    });
+
+    $("report-player").addEventListener("click", async () => {
+      if (!activePeer) return;
+      const categories = ["harassment", "spam", "impersonation", "inappropriate-content", "other"];
+      const choice = window.prompt("Report category: " + categories.join(", "), "harassment");
+      if (!choice || !categories.includes(choice)) {
+        if (choice) announce("Choose one of the listed report categories.", "error");
+        return;
+      }
+      const details = window.prompt("Optional details for a moderator (do not include private account secrets).", "") || "";
+      try {
+        await api.reportPlayer({ targetUserId: activePeer.id, category: choice, details });
+        announce("Report submitted for moderator review.", "success");
+      } catch (error) { announce(error.message, "error"); }
+    });
+
+    async function boot() {
+      try {
+        const result = await api.me();
+        await showApp(result.user);
+        announce("Connected to your VoidCraft account.", "success");
+      } catch (error) {
+        showAuth();
+        if (error.status === 401) announce("Sign in with your VoidCraft account to use friends and private messages.");
+        else announce(error.message + " The website API proxy may not be configured yet.", "error");
+      }
+    }
+    boot();
+  </script>
+</body>
+</html>

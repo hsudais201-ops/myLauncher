@@ -1,0 +1,16 @@
+name = "voidcraft-social-backend"
+main = "src/index.mjs"
+compatibility_date = "2026-10-21"
+workers_dev = true
+
+[vars]
+APP_ORIGIN = "https://voidcraft-website.pages.dev"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "voidcraft-social"
+database_id = "REPLACE_WITH_D1_DATABASE_ID"
+migrations_dir = "migrations"
+
+[observability]
+enabled = true
