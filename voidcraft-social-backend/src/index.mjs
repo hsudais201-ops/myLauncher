@@ -66,16 +66,48 @@ async function readJson(request) {
   if (!contentType.toLowerCase().includes("application/json")) {
     fail(415, "Send a JSON request body.");
   }
-  const raw = await request.text();
-  if (textEncoder.encode(raw).byteLength > MAX_BODY_BYTES) fail(413, "Request body is too large.");
+  const declaredLength = Number(request.headers.get("Content-Length") || "0");
+  if (Number.isFinite(declaredLength) && declaredLength > MAX_BODY_BYTES) {
+    fail(413, "Request body is too large.");
+  }
+  if (!request.body) fail(400, "Expected a JSON request body.");
+
+  const reader = request.body.getReader();
+  const chunks = [];
+  let total = 0;
   try {
-    const value = JSON.parse(raw);
-    if (!value || Array.isArray(value) || typeof value !== "object") fail(400, "Expected a JSON object.");
-    return value;
+    while (true) {
+      const part = await reader.read();
+      if (part.done) break;
+      total += part.value.byteLength;
+      if (total > MAX_BODY_BYTES) {
+        await reader.cancel();
+        fail(413, "Request body is too large.");
+      }
+      chunks.push(part.value);
+    }
   } catch (error) {
     if (error instanceof HttpError) throw error;
+    fail(400, "Could not read request body.");
+  }
+  const bytes = new Uint8Array(total);
+  let offset = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+
+  let value;
+  try {
+    const raw = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
+    value = JSON.parse(raw);
+  } catch {
     fail(400, "Invalid JSON request body.");
   }
+  if (!value || Array.isArray(value) || typeof value !== "object") {
+    fail(400, "Expected a JSON object.");
+  }
+  return value;
 }
 
 function cleanText(value, maxLength) {
@@ -130,6 +162,8 @@ async function enforceRateLimit(request, env, bucketLabel, identity, maxHits, wi
   const bucket = await sha256Hex(bucketLabel + ":" + subject);
   const now = Date.now();
   const resetAt = now + windowMs;
+  await env.DB.prepare("DELETE FROM rate_limits WHERE reset_at < ?")
+    .bind(now - windowMs * 4).run();
   await env.DB.prepare(
     "INSERT INTO rate_limits (bucket, count, reset_at) VALUES (?, 1, ?) " +
     "ON CONFLICT(bucket) DO UPDATE SET " +
