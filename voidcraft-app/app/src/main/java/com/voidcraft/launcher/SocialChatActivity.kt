@@ -89,7 +89,7 @@ class SocialChatActivity : Activity() {
     private fun buildScreen(): View {
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setBackgroundColor(this@SocialChatActivity@this.background)
+            setBackgroundColor(this@SocialChatActivity.background)
         }
         val pageTop = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
