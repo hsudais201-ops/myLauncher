@@ -1582,6 +1582,8 @@ class BuildWorkflowTests(unittest.TestCase):
         self.assertIn("upstream/voidcraft-mojo-emulator-screenshot.png", self.workflow)
         self.assertIn("upstream/voidcraft-mojo-emulator-logcat.txt", self.workflow)
         self.assertIn("name: voidcraft-mojo-debug-apk", self.workflow)
+        self.assertIn("python3 .github/scripts/customize_mojo_ui.py upstream", self.workflow)
+        self.assertLess(self.workflow.index("customize_mojo_ui.py upstream"), self.workflow.index("apply_logo.py upstream"))
         self.assertIn("python3 .github/scripts/apply_logo.py upstream", self.workflow)
 
     def test_workflow_checks_mojo_source_pin_and_android_9_apk(self) -> None:
