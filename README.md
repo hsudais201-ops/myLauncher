@@ -6,11 +6,11 @@ VoidCraft Launcher is an Android launcher for Minecraft: Java Edition, built on 
 
 ## Current migration status
 
-This is a source-base migration, not a claim that every previous VoidCraft customization has already been ported. The initial layer changes the application ID/provider authorities, app and crash labels, version prefix, and night-violet palette. MojoLauncher’s launcher, Java/runtime integration, native libraries, renderers, version downloads, and account flow are retained from the pinned upstream source.
+This is a source-base migration, not a claim that every previous VoidCraft customization has already been ported. The initial layer changes the application ID/provider authorities, app and crash labels, version prefix, night-violet palette, original VC monogram app icon, and home-screen hero panel. MojoLauncher’s launcher, Java/runtime integration, native libraries, renderers, version downloads, and account flow are retained from the pinned upstream source.
 
 **Not yet ported/verified in this migration:** prior Amethyst-specific VoidCraft UI patches and extras such as enhanced folder toggles, world-backup screens, redacted log sharing, settings export/import, the Performance Advisor, the optional Feature Store, and other custom screens. These must be adapted to Mojo’s source and regression-tested before they are described as available here.
 
-The first acceptance gate is a reproducible APK build, package/signature validation, and Android 9 emulator install/launch. That smoke test does not prove that Minecraft enters a single-player world or runs on physical Chromebooks/phones.
+The first acceptance gate passed on CI run [#39622376823](https://github.com/hsudais201-ops/myLauncher/actions/runs/39622376823): the full debug APK built, package/signature/minimum-SDK checks passed, and the APK installed and launched in an Android 9/API 28 x86_64 emulator. The recorded build was produced from commit `c0fd0dc5ffe2f544f558183c46ed30150f166908`; the current branch additionally hardens one layout-anchor matcher. This smoke test does not prove that Minecraft enters a single-player world or runs on physical Chromebooks/phones.
 
 ## Build
 
