@@ -73,6 +73,7 @@ test("D1 migration defines separate accounts, session, friend, message, block, r
   assert.match(migration, /password_hash TEXT NOT NULL/);
   assert.match(migration, /token_hash TEXT NOT NULL UNIQUE/);
   assert.match(migration, /CHECK \(sender_id <> recipient_id\)/);
+  assert.doesNotMatch(migration, /PRAGMA foreign_keys/i);
 });
 
 
