@@ -196,6 +196,29 @@ class SocialHubApiContractTests(unittest.TestCase):
         cls.api = (root / "functions" / "api" / "social" / "[[path]].js").read_text(encoding="utf-8")
         cls.page = (root / "social.html").read_text(encoding="utf-8")
 
+    def setUp(self):
+        self.db = sqlite3.connect(":memory:")
+        self.db.execute("PRAGMA foreign_keys = ON")
+        self.db.executescript(
+            """
+            CREATE TABLE users (
+                id TEXT PRIMARY KEY,
+                username TEXT NOT NULL UNIQUE COLLATE NOCASE,
+                role TEXT NOT NULL DEFAULT 'member'
+                    CHECK (role IN ('member', 'owner')),
+                created_at TEXT NOT NULL
+            );
+            INSERT INTO users(id, username, role, created_at) VALUES
+                ('u1', 'alice', 'member', '2026-01-01'),
+                ('u2', 'player_one', 'member', '2026-01-01'),
+                ('u4', 'owner', 'owner', '2026-01-01');
+            """
+        )
+        self.db.executescript(MIGRATION.read_text(encoding="utf-8"))
+
+    def tearDown(self):
+        self.db.close()
+
     def test_api_requires_existing_signed_in_session_and_origin_checks_mutations(self):
         self.assertIn("await signedIn(request, env)", self.api)
         self.assertIn('if (method !== "GET" && !sameOrigin(request))', self.api)
