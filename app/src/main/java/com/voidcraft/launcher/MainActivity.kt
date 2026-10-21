@@ -213,6 +213,10 @@ private fun VoidcraftApp() {
         }
     }
 
+    LaunchedEffect(socialHubOpen, onlineToken) {
+        if (socialHubOpen && onlineToken != null) refreshOnlineData()
+    }
+
     fun saveInstalled(next: Set<String>) {
         installedIds = next
         prefs.edit().putStringSet(INSTALLED_IDS, next).apply()
@@ -902,10 +906,11 @@ private fun SocialHubScreen(
                             }
                         }
                     }
-                    if (selectedOnlineFriend != null && onlineFriends.contains(selectedOnlineFriend)) {
-                        val chat = onlineMessages[selectedOnlineFriend] ?: emptyList()
-                        Text("ONLINE CHAT WITH $selectedOnlineFriend".uppercase(), color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold, fontSize = 11.sp)
-                        OutlinedButton(onClick = { onLoadOnlineMessages(selectedOnlineFriend!!) }, enabled = !onlineBusy, modifier = Modifier.fillMaxWidth()) { Text("REFRESH CHAT") }
+                    val activeOnlineFriend = selectedOnlineFriend
+                    if (activeOnlineFriend != null && onlineFriends.contains(activeOnlineFriend)) {
+                        val chat = onlineMessages[activeOnlineFriend] ?: emptyList()
+                        Text("ONLINE CHAT WITH $activeOnlineFriend".uppercase(), color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold, fontSize = 11.sp)
+                        OutlinedButton(onClick = { onLoadOnlineMessages(activeOnlineFriend) }, enabled = !onlineBusy, modifier = Modifier.fillMaxWidth()) { Text("REFRESH CHAT") }
                         if (chat.isEmpty()) Text("No online messages yet.", color = VoidMuted, fontSize = 12.sp)
                         chat.takeLast(50).forEach { message ->
                             Surface(
@@ -928,15 +933,16 @@ private fun SocialHubScreen(
                         Button(
                             onClick = {
                                 val body = onlineDraftMessage.trim()
-                                if (body.isNotEmpty()) { onSendOnlineMessage(selectedOnlineFriend!!, body); onlineDraftMessage = "" }
+                                if (body.isNotEmpty()) { onSendOnlineMessage(activeOnlineFriend, body); onlineDraftMessage = "" }
                             },
                             enabled = !onlineBusy && onlineDraftMessage.trim().isNotEmpty(),
                             modifier = Modifier.fillMaxWidth()
                         ) { Text("SEND ONLINE MESSAGE") }
                     }
                 }
-                if (!onlineStatus.isNullOrBlank()) {
-                    Text(onlineStatus, color = if (onlineStatus.startsWith("Could not") || onlineStatus.contains("failed", true) || onlineStatus.contains("expired", true)) Color(0xFFFF9C9C) else VoidMuted, fontSize = 12.sp, lineHeight = 17.sp)
+                val statusText = onlineStatus
+                if (!statusText.isNullOrBlank()) {
+                    Text(statusText, color = if (statusText.startsWith("Could not") || statusText.contains("failed", true) || statusText.contains("expired", true) || statusText.contains("request failed", true)) Color(0xFFFF9C9C) else VoidMuted, fontSize = 12.sp, lineHeight = 17.sp)
                 }
             }
         }
