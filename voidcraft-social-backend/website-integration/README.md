@@ -28,3 +28,12 @@ A responsive proof-of-integration page is included at website-integration/social
 ## Before public registration
 
 This is not a one-click production release. Set up a development Worker and D1 database, run migrations, deploy the Pages proxy to Preview first, and test registration/login/logout, token expiry, friend request boundaries, messages from both devices, blocking in either direction, report creation, and error states. Add email verification, password reset/recovery, account deletion/export, abuse-report review workflow, and external security review before inviting public users. The worker/API code was committed to GitHub only; no Pages or Worker resource has been created or deployed by this change.
+
+
+## Add the Social Hub page to the actual website
+
+The file `social.html` is the dedicated website Social Hub page. To make the chat option visible on the live site, copy `social.html` and `social-api.js` into the deployed website's public root (or adapt the import path if your site uses a nested route). Add a visible **Social Hub / Chat** link to the website's main navigation pointing to `/social.html`. The page includes account registration/sign-in, player search, friend requests, friends, recent conversations, and private messaging; it does not use Discord for chat.
+
+For the page to function, deploy the Pages Function proxy at `functions/api/[[path]].js` and configure `VOIDCRAFT_SOCIAL_API_URL` plus the same randomly generated `VOIDCRAFT_PROXY_SECRET` on both the Pages project and Worker. Deploy the Worker and D1 migration, set its `APP_ORIGIN` to the exact production website origin, and run the documented integration tests. Merely copying the HTML will show the interface but cannot make registration or messages work until the backend is deployed and connected.
+
+**Deployment status:** these are integration files in this launcher repository. They have not been deployed to `voidcraft-website.pages.dev`; do not claim the live site is fixed until the actual website repository/project is updated and tested.
