@@ -508,3 +508,37 @@ footer{background:linear-gradient(180deg,#090b1300,#090b13bb)}
   .social-hub-quick-link { display: inline-flex; }
   .nav a[href="social-hub.html"] { font-size: 12px; padding: 7px 10px; }
 }
+
+/* Homepage journey cards and quick answers */
+.welcome-journey{position:relative;overflow:hidden;margin:8px 0 76px;padding:clamp(22px,4vw,42px);border:1px solid #383456;border-radius:28px;background:radial-gradient(ellipse at 95% 0%,#43316b66,transparent 42%),linear-gradient(145deg,#15182a,#0b101a 72%);box-shadow:0 24px 70px #0002}
+.journey-heading{display:flex;align-items:center;justify-content:space-between;gap:20px;margin-bottom:25px}
+.journey-heading h2{font-size:clamp(26px,4vw,38px);letter-spacing:-.035em;margin:9px 0}
+.journey-heading p{margin:0}
+.journey-orbit{display:grid;place-items:center;flex:0 0 64px;width:64px;height:64px;border:1px solid #8173c5;border-radius:50%;color:#d8ccff;font-size:28px;background:#a28bff12;box-shadow:0 0 35px #9c7bff22}
+.journey-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+.journey-card{position:relative;display:flex;min-height:245px;flex-direction:column;align-items:flex-start;padding:22px;border:1px solid #333951;border-radius:19px;background:linear-gradient(155deg,#1b2034,#10131f);text-decoration:none;transition:transform .2s ease,border-color .2s ease,box-shadow .2s ease}
+.journey-card:hover,.journey-card:focus-visible{transform:translateY(-5px);border-color:#9c8aff;box-shadow:0 15px 35px #0003,0 0 24px #9c7bff13;outline:none}
+.journey-download{background:radial-gradient(ellipse at 100% 0%,#327d8c30,transparent 50%),linear-gradient(155deg,#1b2034,#10131f)}
+.journey-store{background:radial-gradient(ellipse at 100% 0%,#7251b83b,transparent 50%),linear-gradient(155deg,#1b2034,#10131f)}
+.journey-social{background:radial-gradient(ellipse at 100% 0%,#2a9d8f30,transparent 50%),linear-gradient(155deg,#1b2034,#10131f)}
+.journey-number{font-size:10px;font-weight:850;letter-spacing:.14em;color:#b7bdd5}
+.journey-icon{display:grid;place-items:center;width:44px;height:44px;margin:22px 0 13px;border:1px solid #655a98;border-radius:13px;background:#a38aff14;color:#d8ceff;font-size:25px}
+.journey-card h3{font-size:19px;margin:0 0 7px;letter-spacing:-.02em}
+.journey-card p{font-size:13px;line-height:1.6;margin:0 0 18px}
+.journey-link{display:flex;justify-content:space-between;align-items:center;gap:16px;width:100%;margin-top:auto;padding-top:13px;border-top:1px solid #34384e;color:var(--cyan);font-size:13px;font-weight:850}
+.journey-foot{display:flex;justify-content:space-between;gap:14px;flex-wrap:wrap;align-items:center;margin-top:22px;padding-top:18px;border-top:1px solid #343147;font-size:12px;color:var(--muted)}
+.journey-foot>span{display:flex;align-items:center;gap:9px}
+.journey-foot a{color:#d8ccff;text-decoration:none;font-weight:750}
+.journey-foot a:hover{text-decoration:underline}
+.journey-pulse{width:8px;height:8px;border-radius:50%;background:#63e8b2;box-shadow:0 0 0 4px #63e8b21a,0 0 12px #63e8b277}
+.quick-answers{margin-bottom:68px}
+.answer-list{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:24px}
+.answer-list details{align-self:start;border:1px solid var(--line);border-radius:15px;background:#111522;padding:17px}
+.answer-list summary{cursor:pointer;list-style:none;font-weight:800;font-size:14px;padding-right:18px;position:relative}
+.answer-list summary::-webkit-details-marker{display:none}
+.answer-list summary:after{content:"+";position:absolute;right:0;top:-2px;color:var(--cyan);font-size:20px}
+.answer-list details[open] summary:after{content:"−"}
+.answer-list details p{font-size:13px;line-height:1.7;margin:13px 0 0}
+.answer-list details a{color:var(--cyan);font-weight:700}
+@media(max-width:760px){.journey-grid{grid-template-columns:1fr}.journey-card{min-height:205px}.journey-icon{margin-top:15px}.answer-list{grid-template-columns:1fr}.journey-heading{align-items:flex-start}.journey-orbit{flex-basis:48px;width:48px;height:48px;font-size:22px}.welcome-journey{border-radius:21px}}
+@media(prefers-reduced-motion:reduce){.journey-card{transition:none}.journey-card:hover,.journey-card:focus-visible{transform:none}}
