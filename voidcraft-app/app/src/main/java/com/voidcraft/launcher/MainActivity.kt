@@ -108,6 +108,10 @@ class MainActivity : Activity() {
         page.addView(shortcutCard("◉", "Discord Community", "Announcements, support & feedback") {
             openDiscordCommunity()
         })
+        page.addView(space(10))
+        page.addView(shortcutCard("♧", "Social Hub", "Friends, community & support") {
+            startActivity(Intent(this, SocialHubActivity::class.java))
+        })
         page.addView(space(22))
 
         page.addView(sectionHeading("SETUP STATUS", "Prototype"))
