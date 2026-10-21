@@ -157,7 +157,10 @@ function verifyWriteOrigin(request, env, pathname) {
 }
 
 async function enforceRateLimit(request, env, bucketLabel, identity, maxHits, windowMs) {
-  const ip = request.headers.get("CF-Connecting-IP") || "unknown";
+  // Trust X-VC-Client-IP only after the Worker-level proxy secret has been verified.
+  // Cross-zone Workers subrequests may replace CF-Connecting-IP with a proxy IP.
+  const ip = request.headers.get("X-VC-Client-IP") ||
+    request.headers.get("CF-Connecting-IP") || "unknown";
   const subject = String(identity || ip);
   const bucket = await sha256Hex(bucketLabel + ":" + subject);
   const now = Date.now();
@@ -644,6 +647,11 @@ export default {
   async fetch(request, env) {
     let response;
     try {
+      const configuredSecret = String(env.VOIDCRAFT_PROXY_SECRET || "");
+      const suppliedSecret = request.headers.get("X-VC-Proxy-Secret") || "";
+      if (configuredSecret.length < 32 || !constantTimeEqual(suppliedSecret, configuredSecret)) {
+        fail(403, "Request must go through the configured VoidCraft website proxy.");
+      }
       const url = new URL(request.url);
       const origin = request.headers.get("Origin");
       const appOrigin = String(env.APP_ORIGIN || "").replace(/\/+$/, "");
