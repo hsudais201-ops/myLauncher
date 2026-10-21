@@ -109,7 +109,12 @@ async function loadFriends() {
   const [f,r,b]=await Promise.all([api("friends"),api("friends/requests"),api("blocks")]); friends=f.friends||[];
   const list=$("friends-list"); list.replaceChildren();
   if(!friends.length) empty(list,"No friends yet. Search a username to send a request.");
-  for(const p of friends){const b=personButton(p,"Open chat",()=>openChat(p));b.style.cursor="pointer";b.addEventListener("click",()=>openChat(p));list.append(b);}
+  for(const p of friends){
+    const card=personButton(p,"Open chat",()=>openChat(p));card.style.cursor="pointer";card.addEventListener("click",()=>openChat(p));
+    const remove=document.createElement("button");remove.type="button";remove.className="social-btn";remove.textContent="Remove friend";remove.style.marginTop="8px";
+    remove.addEventListener("click",async e=>{e.stopPropagation();if(!confirm("Remove @"+p.username+" from your friends?"))return;remove.disabled=true;try{await api("friends/"+encodeURIComponent(p.id),{method:"DELETE"});if(selected&&String(selected.id)===String(p.id)){selected=null;$("chat-title").textContent="Private chat";$("chat-subtitle").textContent="Friend removed.";empty($("messages"),"Choose a friend to open a conversation.");$("message-input").disabled=true;$("send-message").disabled=true;$("block-player").disabled=true;$("report-player").disabled=true;$("refresh-chat").disabled=true;}status("@"+p.username+" removed from your friends.","success");await loadFriends();}catch(err){status(err.message,"error");remove.disabled=false;}});
+    card.append(remove);list.append(card);
+  }
   const req=$("incoming-requests"); req.replaceChildren();
   if(!(r.incoming||[]).length) empty(req,"No pending requests.");
   for(const item of r.incoming||[]){const b=personButton(item.user,"Accept",async()=>{try{await api("friends/requests/"+encodeURIComponent(item.id)+"/accept",{method:"POST",body:{}});status("Friend request accepted.","success");await loadFriends();}catch(e){status(e.message,"error");}});const decline=document.createElement("button");decline.type="button";decline.className="social-btn";decline.textContent="Decline";decline.style.marginTop="8px";decline.addEventListener("click",async()=>{try{await api("friends/requests/"+encodeURIComponent(item.id),{method:"DELETE"});status("Friend request declined.","success");await loadFriends();}catch(e){status(e.message,"error");}});b.append(decline);req.append(b);}
