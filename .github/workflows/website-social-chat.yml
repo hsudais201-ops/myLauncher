@@ -26,4 +26,4 @@ jobs:
           node --check "website/functions/api/chat/[[path]].js"
           node --check website/assets/chat.js
       - name: Run website chat integration checks
-        run: node --test website/tests/social-chat.test.mjs
+        run: node --test website/tests/*.test.mjs

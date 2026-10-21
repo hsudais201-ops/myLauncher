@@ -60,4 +60,6 @@ Chat uses the existing `VOIDCRAFT_AUTH` D1 binding, website account IDs, and the
 
 Before enabling the page in production, apply `migrations/0005_social_chat.sql` to the same D1 database used by the account API. This creates social tables referencing the existing `users(id)` records; it does not change the account schema or seed fake accounts. The Pages Functions route is `/api/chat/*`. After applying the migration, test with two ordinary website accounts: search, send/accept request, message in both directions, block, report, sign out, and sign back in. The owner-only moderation queue appears only for a session whose database role is `owner`.
 
+The chat test suite includes static checks plus a database-backed API flow using an in-memory SQLite adapter to exercise the existing cookie session, player search, friend requests, messaging, blocking, abuse reports, and the owner report queue.
+
 The social page and backend in this change are source updates only until the website branch is merged/deployed and the D1 migration is applied. Do not claim live chat availability before those deployment steps and an end-to-end test.
