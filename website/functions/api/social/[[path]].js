@@ -37,7 +37,7 @@ export async function onRequest({ request, env }) {
     if (path === "players" && method === "GET") {
       const q = clean(url.searchParams.get("q"), 32);
       if (q.length < 2) return json({ players: [] });
-      const rows = await db.prepare("SELECT id,username,role FROM users WHERE username COLLATE NOCASE LIKE ? ESCAPE '\' AND id<>? ORDER BY username LIMIT 20")
+      const rows = await db.prepare("SELECT id,username,role FROM users WHERE username COLLATE NOCASE LIKE ? ESCAPE '\\' AND id<>? ORDER BY username LIMIT 20")
         .bind("%" + q.replace(/[\\%_]/g, ch => "\\" + ch) + "%", user.id).all();
       return json({ players: (rows.results || []).map(publicUser) });
     }
