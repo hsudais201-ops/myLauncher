@@ -58,6 +58,7 @@ Report submissions are stored for review, but this milestone has no moderation d
 - Browser authentication uses an HttpOnly cookie, not localStorage.
 - CORS is restricted to APP_ORIGIN; there is no wildcard origin.
 - API inputs are bounded and SQL values are passed with prepared-statement binding.
+- The schema relies on Cloudflare D1's default foreign-key enforcement; it does not try to toggle the foreign-key PRAGMA from inside a migration.
 - Password and session hashes, email addresses, and bearer tokens must not be logged.
 - New accounts always start with the member role. Do not auto-promote a username (including mflegend) from a user-controlled field. Owner promotion must happen through a separately authenticated administrative process after verifying account ownership.
 - Email verification, password-reset email delivery, account deletion/export, report moderation, and account lock/appeal flows remain required before public release.
