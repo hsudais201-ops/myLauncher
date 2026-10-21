@@ -29,6 +29,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import java.net.HttpURLConnection
@@ -122,7 +123,7 @@ fun ServerStateScreen(onBack: () -> Unit) {
             modifier = Modifier.fillMaxWidth()
         ) { Text("ADD SERVER") }
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            OutlinedButton(onClick = { addresses.value.forEach { checkServer(it) } }, enabled = !busy) { Text("REFRESH ALL") }
+            OutlinedButton(onClick = { scope.launch { val saved = addresses.value; for (item in saved) { while (busy) delay(100); checkServer(item); while (busy) delay(100) } } }, enabled = !busy) { Text("REFRESH ALL") }
             Text("Saved locally · no auto-install", color = VoidMuted, fontSize = 11.sp, modifier = Modifier.padding(top = 12.dp))
         }
         Text(notice, color = VoidMuted, fontSize = 11.sp, lineHeight = 16.sp)
