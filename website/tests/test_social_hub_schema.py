@@ -307,6 +307,27 @@ class SocialHubApiContractTests(unittest.TestCase):
                 "VALUES('rp-invalid','u1','u2','spam','approved',2)"
             )
 
+    def test_blocking_invalidates_pending_requests_in_both_directions(self):
+        self.db.executemany(
+            "INSERT INTO social_friend_requests(id,sender_id,recipient_id,status,created_at) "
+            "VALUES(?,?,?,'pending',?)",
+            [
+                ("outgoing", "u1", "u2", 1),
+                ("incoming", "u2", "u1", 2),
+            ],
+        )
+        # Mirror the status transition used by the blocking API.
+        self.db.execute(
+            "UPDATE social_friend_requests SET status=CASE WHEN sender_id=? "
+            "THEN 'cancelled' ELSE 'rejected' END WHERE status='pending' "
+            "AND ((sender_id=? AND recipient_id=?) OR (sender_id=? AND recipient_id=?))",
+            ("u1", "u1", "u2", "u2", "u1"),
+        )
+        statuses = dict(self.db.execute(
+            "SELECT id,status FROM social_friend_requests ORDER BY id"
+        ).fetchall())
+        self.assertEqual({"incoming": "rejected", "outgoing": "cancelled"}, statuses)
+
 
 if __name__ == "__main__":
     unittest.main()
