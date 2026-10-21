@@ -157,7 +157,7 @@ private fun VoidcraftApp() {
                 }
             }.getOrNull()
         }
-        if (!remote.isNullOrEmpty()) {
+        if (remote != null) {
             catalog = remote.distinctBy { it.id }
         }
         isRefreshing = false
