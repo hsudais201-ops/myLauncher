@@ -134,7 +134,7 @@ export async function onRequest({ request, env }) {
     if (match && method === "POST") {
       const other=match[1], body=await readJson(request);
       const rawContent = typeof body?.content === "string" ? body.content : "";
-      const content = rawContent.replace(/[\\u0000-\\u0008\\u000B\\u000C\\u000E-\\u001F\\u007F]/g, "").trim();
+      const content = rawContent.replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, "").trim();
       if (!content) return fail("Message cannot be empty.");
       if (content.length > 2000) return fail("Messages must be 2000 characters or fewer.");
       const [low,high]=orderPair(user.id,other);
