@@ -5,6 +5,7 @@ on:
     paths:
       - "website/functions/api/social/**"
       - "website/social.html"
+      - "website/README.md"
       - "website/migrations/0005_social_hub.sql"
       - "website/tests/test_social_hub_schema.py"
       - ".github/workflows/social-hub-check.yml"
@@ -14,6 +15,7 @@ on:
     paths:
       - "website/functions/api/social/**"
       - "website/social.html"
+      - "website/README.md"
       - "website/migrations/0005_social_hub.sql"
       - "website/tests/test_social_hub_schema.py"
       - ".github/workflows/social-hub-check.yml"
