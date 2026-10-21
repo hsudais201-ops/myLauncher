@@ -134,7 +134,7 @@ private fun VoidcraftApp() {
     var selectedFeature by remember { mutableStateOf<StoreFeature?>(null) }
     var socialHubOpen by remember { mutableStateOf(false) }
     var activeConversation by remember { mutableStateOf<String?>(null) }
-    var socialFriends by remember { mutableStateOf(prefs.getStringSet(SOCIAL_FRIENDS, emptySet())?.toList()?.sorted() ?: emptyList()) }
+    var socialFriends by remember { mutableStateOf<List<String>>(prefs.getStringSet(SOCIAL_FRIENDS, emptySet<String>())?.toList()?.sorted() ?: emptyList<String>()) }
     var socialMessages by remember { mutableStateOf(loadSocialMessages(prefs.getString(SOCIAL_MESSAGES, "{}") ?: "{}")) }
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
