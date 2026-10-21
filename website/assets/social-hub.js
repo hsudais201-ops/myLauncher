@@ -1,6 +1,6 @@
 (() => {
   "use strict";
-  const API = "https://voidcraft-social-hub-staging.hsudais201.workers.dev";
+  const API = "/social-api";
   const KEY = "voidcraft.socialHub.beta.token";
   const state = { token: getStored(), me: "", mode: "login", friends: [], incoming: [], outgoing: [], blocked: [], selected: "", cursors: Object.create(null), poll: null, busy: false };
   const el = (id) => document.getElementById(id);
