@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#11101d">
+  <meta name="description" content="VoidCraft Social Hub — find friends and chat privately using your VoidCraft website account.">
+  <title>Social Hub | VoidCraft</title>
+  <link rel="stylesheet" href="/assets/styles.css">
+  <style>
+    .social-wrap{width:min(1180px,calc(100% - 28px));margin:32px auto 70px}
+    .social-hero{padding:clamp(22px,5vw,42px);border:1px solid #a99bff35;border-radius:24px;background:linear-gradient(125deg,#1b1732ee,#101b2bee);box-shadow:0 22px 65px #0004}
+    .social-grid{display:grid;grid-template-columns:minmax(245px,.85fr) minmax(0,1.5fr);gap:18px;margin-top:18px}
+    .social-panel{border:1px solid #a99bff2e;border-radius:18px;background:#151522eF;padding:18px;min-width:0}
+    .social-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+    .social-row input,.social-row select,.social-compose input{min-width:0;flex:1;padding:11px 12px;border-radius:10px;border:1px solid #716b8b;background:#0e0d18;color:inherit}
+    .social-btn{border:1px solid #7d72ad;border-radius:10px;padding:10px 13px;color:#fff;background:#292340;cursor:pointer}
+    .social-btn.primary{background:#7258dc;border-color:#9a88f2}.social-btn:disabled{opacity:.5;cursor:wait}
+    .social-list{display:grid;gap:8px;margin-top:12px}
+    .social-person{width:100%;text-align:left;border:1px solid #ffffff12;background:#ffffff06;border-radius:12px;padding:12px;color:inherit;cursor:pointer}
+    .social-person[aria-pressed=true]{border-color:#a99bff;background:#7764d51c}
+    .social-muted{opacity:.72;font-size:.9rem}.social-status{min-height:1.5em;margin:10px 0}.social-status.error{color:#ff9caa}.social-status.success{color:#8de7c0}
+    .social-chat{display:flex;flex-direction:column;min-height:410px}.social-messages{flex:1;display:flex;flex-direction:column;gap:9px;min-height:230px;max-height:440px;overflow:auto;padding:12px 2px}
+    .social-message{max-width:min(85%,520px);padding:10px 12px;border-radius:14px;background:#282638;overflow-wrap:anywhere}.social-message.mine{align-self:flex-end;background:#514093}.social-message small{display:block;opacity:.68;margin-top:4px}
+    .social-compose{display:flex;gap:8px;margin-top:12px}.social-section-title{margin:20px 0 8px;font-size:1rem}.social-empty{padding:16px;text-align:center;opacity:.7;border:1px dashed #ffffff25;border-radius:12px}
+    @media(max-width:760px){.social-grid{grid-template-columns:1fr}.social-chat{min-height:360px}.social-wrap{width:calc(100% - 20px)}}
+    @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;scroll-behavior:auto!important}}
+  </style>
+</head>
+<body>
+  <main class="social-wrap">
+    <section class="social-hero">
+      <div class="eyebrow">Official VoidCraft community</div>
+      <h1>Social Hub</h1>
+      <p>Find VoidCraft members, send friend requests, and talk privately inside VoidCraft. Private messages do not use Discord.</p>
+      <div class="social-row">
+        <a class="social-btn" href="/">Home</a>
+        <a class="social-btn" href="/feature-store.html">Feature Store</a>
+        <a class="social-btn" href="/cosmetic-store.html">Cosmetic Store</a>
+        <a class="social-btn" href="https://discord.gg/FM6myW8ZFb" target="_blank" rel="noopener noreferrer">Discord community ↗</a>
+      </div>
+      <p id="social-status" class="social-status" role="status" aria-live="polite">Checking your VoidCraft account…</p>
+      <p id="social-account" class="social-muted"></p>
+      <a id="social-signin" class="social-btn primary" href="/sign-in.html" hidden>Sign in to VoidCraft</a>
+    </section>
+    <div id="social-app" class="social-grid" hidden>
+      <section class="social-panel">
+        <h2>Players</h2>
+        <form id="search-form" class="social-row">
+          <label for="player-query" class="sr-only">Search username</label>
+          <input id="player-query" autocomplete="off" minlength="2" maxlength="32" placeholder="Search username">
+          <button class="social-btn primary" type="submit">Search</button>
+        </form>
+        <div id="search-results" class="social-list"><div class="social-empty">Search for a player to get started.</div></div>
+        <h3 class="social-section-title">Friend requests</h3>
+        <div id="incoming-requests" class="social-list"><div class="social-empty">No pending requests.</div></div>
+        <h3 class="social-section-title">Your friends</h3>
+        <div id="friends-list" class="social-list"><div class="social-empty">No friends yet.</div></div>
+        <p class="social-muted">Only accepted friends can message you. You can block or report a player from their chat.</p>
+      </section>
+      <section class="social-panel social-chat">
+        <div>
+          <h2 id="chat-title">Private chat</h2>
+          <p id="chat-subtitle" class="social-muted">Choose a friend to open a conversation.</p>
+        </div>
+        <div id="messages" class="social-messages" aria-live="polite"><div class="social-empty">Your private messages will appear here.</div></div>
+        <form id="message-form" class="social-compose">
+          <label for="message-input" class="sr-only">Message</label>
+          <input id="message-input" maxlength="2000" autocomplete="off" placeholder="Write a private message…" disabled>
+          <button id="send-message" class="social-btn primary" type="submit" disabled>Send</button>
+        </form>
+        <div class="social-row" style="margin-top:10px">
+          <button id="block-player" class="social-btn" type="button" disabled>Block player</button>
+          <button id="report-player" class="social-btn" type="button" disabled>Report player</button>
+          <button id="refresh-chat" class="social-btn" type="button" disabled>Refresh</button>
+        </div>
+      </section>
+    </div>
+  </main>
+<script type="module">
+const $ = (id) => document.getElementById(id);
+let me = null, selected = null, friends = [];
+const api = async (path, options = {}) => {
+  const headers = { Accept: "application/json", ...(options.body ? { "Content-Type": "application/json" } : {}) };
+  let response;
+  try { response = await fetch("/api/social/" + path, { ...options, headers, credentials: "same-origin", cache: "no-store", redirect: "error", body: options.body ? JSON.stringify(options.body) : undefined }); }
+  catch { throw new Error("Could not reach the Social Hub. Please try again."); }
+  let data = {};
+  try { data = await response.json(); } catch {}
+  if (!response.ok) throw new Error(typeof data.error === "string" ? data.error : "Social Hub returned HTTP " + response.status + ".");
+  return data;
+};
+function status(message, kind = "") { $("social-status").textContent = message; $("social-status").className = "social-status " + kind; }
+function empty(node, message) { node.replaceChildren(); const el=document.createElement("div"); el.className="social-empty"; el.textContent=message; node.append(el); }
+function personButton(user, actionText, action) {
+  const wrap=document.createElement("div"); wrap.className="social-person";
+  const line=document.createElement("div"); line.className="social-row";
+  const name=document.createElement("strong"); name.textContent=user.displayName || user.username;
+  const handle=document.createElement("span"); handle.className="social-muted"; handle.textContent="@" + user.username;
+  line.append(name,handle); wrap.append(line);
+  if (actionText) { const btn=document.createElement("button"); btn.type="button"; btn.className="social-btn"; btn.textContent=actionText; btn.style.marginTop="9px"; btn.addEventListener("click",e=>{e.stopPropagation();action();}); wrap.append(btn); }
+  return wrap;
+}
+async function loadFriends() {
+  const [f,r]=await Promise.all([api("friends"),api("friends/requests")]); friends=f.friends||[];
+  const list=$("friends-list"); list.replaceChildren();
+  if(!friends.length) empty(list,"No friends yet. Search a username to send a request.");
+  for(const p of friends){const b=personButton(p,"Open chat",()=>openChat(p));b.style.cursor="pointer";b.addEventListener("click",()=>openChat(p));list.append(b);}
+  const req=$("incoming-requests"); req.replaceChildren();
+  if(!(r.incoming||[]).length) empty(req,"No pending requests.");
+  for(const item of r.incoming||[]){const b=personButton(item.user,"Accept",async()=>{try{await api("friends/requests/"+encodeURIComponent(item.id)+"/accept",{method:"POST",body:{}});status("Friend request accepted.","success");await loadFriends();}catch(e){status(e.message,"error");}});const decline=document.createElement("button");decline.type="button";decline.className="social-btn";decline.textContent="Decline";decline.style.marginTop="8px";decline.addEventListener("click",async()=>{try{await api("friends/requests/"+encodeURIComponent(item.id),{method:"DELETE"});await loadFriends();}catch(e){status(e.message,"error");}});b.append(decline);req.append(b);}
+}
+async function openChat(p) {
+  selected=p; $("chat-title").textContent=p.displayName||p.username; $("chat-subtitle").textContent="@"+p.username+" · private chat";
+  $("message-input").disabled=false;$("send-message").disabled=false;$("block-player").disabled=false;$("report-player").disabled=false;$("refresh-chat").disabled=false;
+  await loadMessages();
+}
+async function loadMessages() {
+  if(!selected)return;
+  try { const data=await api("conversations/"+encodeURIComponent(selected.id)+"/messages?limit=60"); const box=$("messages");box.replaceChildren();
+    if(!(data.messages||[]).length) empty(box,"No messages yet. Say hello!");
+    for(const m of data.messages||[]){const el=document.createElement("div");el.className="social-message"+(String(m.senderId)===String(me.id)?" mine":"");el.textContent=m.content;const time=document.createElement("small");time.textContent=new Date(m.createdAt).toLocaleString();el.append(time);box.append(el);}
+    box.scrollTop=box.scrollHeight;
+  } catch(e) { empty($("messages"),e.message); }
+}
+$("search-form").addEventListener("submit",async e=>{e.preventDefault();const q=$("player-query").value.trim();if(q.length<2)return;const box=$("search-results");empty(box,"Searching…");try{const data=await api("players?q="+encodeURIComponent(q));box.replaceChildren();if(!data.players.length)empty(box,"No players found.");for(const p of data.players){const b=personButton(p,"Send friend request",async()=>{try{await api("friends/requests",{method:"POST",body:{username:p.username}});status("Friend request sent to @"+p.username+".","success");b.querySelector("button").disabled=true;}catch(err){status(err.message,"error");}});box.append(b);}}catch(err){status(err.message,"error");}});
+$("message-form").addEventListener("submit",async e=>{e.preventDefault();if(!selected)return;const content=$("message-input").value.trim();if(!content)return;$("send-message").disabled=true;try{await api("conversations/"+encodeURIComponent(selected.id)+"/messages",{method:"POST",body:{content}});$("message-input").value="";await loadMessages();status("Message sent.","success");}catch(err){status(err.message,"error");}finally{$("send-message").disabled=false;}});
+$("refresh-chat").addEventListener("click",loadMessages);
+$("block-player").addEventListener("click",async()=>{if(!selected||!confirm("Block @"+selected.username+"? They will no longer be able to message you."))return;try{await api("blocks/"+encodeURIComponent(selected.id),{method:"POST",body:{}});selected=null;$("chat-title").textContent="Private chat";$("chat-subtitle").textContent="Player blocked.";empty($("messages"),"This conversation is unavailable.");$("message-input").disabled=true;$("send-message").disabled=true;$("block-player").disabled=true;$("report-player").disabled=true;$("refresh-chat").disabled=true;status("Player blocked.","success");}catch(e){status(e.message,"error");}});
+$("report-player").addEventListener("click",async()=>{if(!selected)return;const category=prompt("Report reason: harassment, spam, inappropriate, impersonation, or other","other");if(!category)return;const details=prompt("Optional details (do not include private information)","")||"";try{await api("reports",{method:"POST",body:{targetUserId:selected.id,category:category.trim().toLowerCase(),details}});status("Report submitted for moderator review.","success");}catch(e){status(e.message,"error");}});
+async function start(){try{const response=await fetch("/api/auth/me",{credentials:"same-origin",cache:"no-store"});const data=await response.json();if(!response.ok||!data.authenticated){status("Sign in to your VoidCraft website account to use Social Hub.");$("social-signin").hidden=false;return;}me={id:data.user.id,username:data.user.username,role:data.user.role};$("social-account").textContent="Signed in as @"+me.username;$("social-app").hidden=false;status("You're signed in. Find a friend to start chatting.","success");await loadFriends();}catch{status("Could not verify your website session. Refresh and try again.","error");}}
+start();
+</script>
+</body>
+</html>
