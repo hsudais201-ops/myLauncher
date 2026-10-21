@@ -58,6 +58,8 @@
         <div id="outgoing-requests" class="social-list"><div class="social-empty">No outgoing requests.</div></div>
         <h3 class="social-section-title">Your friends</h3>
         <div id="friends-list" class="social-list"><div class="social-empty">No friends yet.</div></div>
+        <h3 class="social-section-title">Blocked players</h3>
+        <div id="blocked-list" class="social-list"><div class="social-empty">No blocked players.</div></div>
         <p class="social-muted">Only accepted friends can message you. You can block or report a player from their chat.</p>
       </section>
       <section class="social-panel social-chat">
@@ -104,7 +106,7 @@ function personButton(user, actionText, action) {
   return wrap;
 }
 async function loadFriends() {
-  const [f,r]=await Promise.all([api("friends"),api("friends/requests")]); friends=f.friends||[];
+  const [f,r,b]=await Promise.all([api("friends"),api("friends/requests"),api("blocks")]); friends=f.friends||[];
   const list=$("friends-list"); list.replaceChildren();
   if(!friends.length) empty(list,"No friends yet. Search a username to send a request.");
   for(const p of friends){const b=personButton(p,"Open chat",()=>openChat(p));b.style.cursor="pointer";b.addEventListener("click",()=>openChat(p));list.append(b);}
@@ -114,6 +116,9 @@ async function loadFriends() {
   const outgoing=$("outgoing-requests"); outgoing.replaceChildren();
   if(!(r.outgoing||[]).length) empty(outgoing,"No outgoing requests.");
   for(const item of r.outgoing||[]){const b=personButton(item.user,"Pending",()=>{});const pending=b.querySelector("button");pending.disabled=true;pending.setAttribute("aria-label","Friend request pending");outgoing.append(b);}
+  const blocked=$("blocked-list"); blocked.replaceChildren();
+  if(!(b.blocks||[]).length) empty(blocked,"No blocked players.");
+  for(const p of b.blocks||[]){blocked.append(personButton(p,"Unblock",async()=>{try{await api("blocks/"+encodeURIComponent(p.id),{method:"DELETE"});status("@"+p.username+" unblocked.","success");await loadFriends();}catch(e){status(e.message,"error");}}));}
 }
 async function openChat(p) {
   selected=p; $("chat-title").textContent=p.displayName||p.username; $("chat-subtitle").textContent="@"+p.username+" · private chat";
@@ -131,7 +136,7 @@ async function loadMessages() {
 $("search-form").addEventListener("submit",async e=>{e.preventDefault();const q=$("player-query").value.trim();if(q.length<2)return;const box=$("search-results");empty(box,"Searching…");try{const data=await api("players?q="+encodeURIComponent(q));box.replaceChildren();if(!data.players.length)empty(box,"No players found.");for(const p of data.players){const b=personButton(p,"Send friend request",async()=>{try{await api("friends/requests",{method:"POST",body:{username:p.username}});status("Friend request sent to @"+p.username+".","success");b.querySelector("button").disabled=true;}catch(err){status(err.message,"error");}});box.append(b);}}catch(err){status(err.message,"error");}});
 $("message-form").addEventListener("submit",async e=>{e.preventDefault();if(!selected)return;const content=$("message-input").value.trim();if(!content)return;$("send-message").disabled=true;try{await api("conversations/"+encodeURIComponent(selected.id)+"/messages",{method:"POST",body:{content}});$("message-input").value="";await loadMessages();status("Message sent.","success");}catch(err){status(err.message,"error");}finally{$("send-message").disabled=false;}});
 $("refresh-chat").addEventListener("click",loadMessages);
-$("block-player").addEventListener("click",async()=>{if(!selected||!confirm("Block @"+selected.username+"? They will no longer be able to message you."))return;try{await api("blocks/"+encodeURIComponent(selected.id),{method:"POST",body:{}});selected=null;$("chat-title").textContent="Private chat";$("chat-subtitle").textContent="Player blocked.";empty($("messages"),"This conversation is unavailable.");$("message-input").disabled=true;$("send-message").disabled=true;$("block-player").disabled=true;$("report-player").disabled=true;$("refresh-chat").disabled=true;status("Player blocked.","success");}catch(e){status(e.message,"error");}});
+$("block-player").addEventListener("click",async()=>{if(!selected||!confirm("Block @"+selected.username+"? They will no longer be able to message you."))return;try{await api("blocks/"+encodeURIComponent(selected.id),{method:"POST",body:{}});selected=null;$("chat-title").textContent="Private chat";$("chat-subtitle").textContent="Player blocked.";empty($("messages"),"This conversation is unavailable.");$("message-input").disabled=true;$("send-message").disabled=true;$("block-player").disabled=true;$("report-player").disabled=true;$("refresh-chat").disabled=true;status("Player blocked.","success");await loadFriends();}catch(e){status(e.message,"error");}});
 $("report-player").addEventListener("click",async()=>{if(!selected)return;const category=prompt("Report reason: harassment, spam, inappropriate, impersonation, or other","other");if(!category)return;const details=prompt("Optional details (do not include private information)","")||"";try{await api("reports",{method:"POST",body:{targetUserId:selected.id,category:category.trim().toLowerCase(),details}});status("Report submitted for moderator review.","success");}catch(e){status(e.message,"error");}});
 async function start(){try{const response=await fetch("/api/auth/me",{credentials:"same-origin",cache:"no-store"});const data=await response.json();if(!response.ok||!data.authenticated){status("Sign in to your VoidCraft website account to use Social Hub.");$("social-signin").hidden=false;return;}me=await api("me").then(result=>result.user);$("social-account").textContent="Signed in as @"+me.username;$("social-app").hidden=false;status("You're signed in. Find a friend to start chatting.","success");await loadFriends();}catch{status("Could not verify your website session. Refresh and try again.","error");}}
 start();
