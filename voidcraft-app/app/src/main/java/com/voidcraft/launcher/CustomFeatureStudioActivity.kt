@@ -144,6 +144,19 @@ class CustomFeatureStudioActivity : Activity() {
             actions.addView(actionText("EDIT", 11, fg, true) { showEditor(item) }.apply {
                 setPadding(dp(12), dp(10), dp(18), dp(10))
             })
+            actions.addView(actionText("SHARE", 11, accent, true) {
+                val export = JSONObject()
+                    .put("format", "voidcraft-feature-blueprint")
+                    .put("version", 1)
+                    .put("blueprint", JSONObject(item.toString()))
+                    .toString(2)
+                val intent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+                    type = "application/json"
+                    putExtra(android.content.Intent.EXTRA_SUBJECT, "VoidCraft feature blueprint: " + item.optString("name"))
+                    putExtra(android.content.Intent.EXTRA_TEXT, export)
+                }
+                startActivity(android.content.Intent.createChooser(intent, "Share blueprint"))
+            }.apply { setPadding(dp(12), dp(10), dp(18), dp(10)) })
             actions.addView(actionText("DELETE", 11, Color.rgb(255, 170, 170), true) {
                 AlertDialog.Builder(this).setTitle("Delete blueprint?")
                     .setMessage("This only deletes this saved design draft.")
