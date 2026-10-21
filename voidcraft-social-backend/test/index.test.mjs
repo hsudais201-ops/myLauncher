@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { execFileSync } from "node:child_process";
+import { DatabaseSync } from "node:sqlite";
 import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
 import worker from "../src/index.mjs";
@@ -184,4 +185,184 @@ test("website social example script parses and renders user text without HTML in
   assert.doesNotMatch(html, /\.innerHTML\s*=/);
   assert.match(html, /api\.me\(\)|VoidCraftSocialApi/);
   assert.match(html, /not for in-app private messages/);
+});
+
+
+
+function createRealD1Fixture(migration) {
+  const sqlite = new DatabaseSync(":memory:");
+  sqlite.exec("PRAGMA foreign_keys = ON");
+  sqlite.exec(migration);
+
+  function prepare(sql) {
+    let parameters = [];
+    return {
+      bind(...values) {
+        parameters = values;
+        return this;
+      },
+      async first() {
+        return sqlite.prepare(sql).get(...parameters) ?? null;
+      },
+      async all() {
+        return { results: sqlite.prepare(sql).all(...parameters) };
+      },
+      async run() {
+        const result = sqlite.prepare(sql).run(...parameters);
+        return {
+          success: true,
+          meta: {
+            changes: Number(result.changes),
+            last_row_id: Number(result.lastInsertRowid)
+          }
+        };
+      }
+    };
+  }
+
+  const env = {
+    APP_ORIGIN: "https://voidcraft-website.pages.dev",
+    VOIDCRAFT_PROXY_SECRET: "test-secret-with-at-least-32-characters-long",
+    DB: {
+      prepare,
+      async batch(statements) {
+        sqlite.exec("BEGIN");
+        try {
+          const results = [];
+          for (const statement of statements) results.push(await statement.run());
+          sqlite.exec("COMMIT");
+          return results;
+        } catch (error) {
+          sqlite.exec("ROLLBACK");
+          throw error;
+        }
+      }
+    }
+  };
+  return { env, sqlite };
+}
+
+test("website and launcher accounts share real friend requests, private messages, and blocks", async () => {
+  const migration = await readFile(resolve(here, "../migrations/0001_initial.sql"), "utf8");
+  const fixture = createRealD1Fixture(migration);
+  const env = fixture.env;
+  const secret = env.VOIDCRAFT_PROXY_SECRET;
+  const request = async (path, options = {}) => {
+    const headers = new Headers({ "X-VC-Proxy-Secret": secret });
+    if (options.origin !== false) headers.set("Origin", env.APP_ORIGIN);
+    if (options.cookie) headers.set("Cookie", options.cookie);
+    if (options.token) headers.set("Authorization", "Bearer " + options.token);
+    if (options.body !== undefined) headers.set("Content-Type", "application/json");
+    return worker.fetch(new Request("https://social.example/api" + path, {
+      method: options.method || "GET",
+      headers,
+      body: options.body === undefined ? undefined : JSON.stringify(options.body)
+    }), env);
+  };
+
+  try {
+    const registration = await request("/auth/register", {
+      method: "POST",
+      body: {
+        email: "mflegend@example.com",
+        username: "mflegend",
+        password: "a-long-unique-test-password"
+      }
+    });
+    assert.equal(registration.status, 201);
+    const firstCookie = registration.headers.get("set-cookie").split(";")[0];
+    const firstAccount = (await registration.json()).user;
+    assert.equal(firstAccount.username, "mflegend");
+    assert.equal(firstAccount.role, "member", "username alone must not grant owner status");
+
+    const stored = fixture.sqlite.prepare(
+      "SELECT password_hash, password_salt FROM users WHERE id = ?"
+    ).get(firstAccount.id);
+    assert.notEqual(stored.password_hash, "a-long-unique-test-password");
+    assert.ok(stored.password_salt.length > 10);
+
+    const secondRegistration = await request("/launcher/auth/register", {
+      method: "POST",
+      origin: false,
+      body: {
+        email: "friend@example.com",
+        username: "friend_test",
+        password: "another-long-test-password"
+      }
+    });
+    assert.equal(secondRegistration.status, 201);
+    const second = await secondRegistration.json();
+    const secondToken = second.accessToken;
+    const secondId = second.user.id;
+
+    const crossClientMe = await request("/auth/me", { token: secondToken });
+    assert.equal(crossClientMe.status, 200);
+    assert.equal((await crossClientMe.json()).user.username, "friend_test");
+
+    const sendRequest = await request("/friends/requests", {
+      method: "POST",
+      cookie: firstCookie,
+      body: { username: "friend_test" }
+    });
+    assert.equal(sendRequest.status, 201);
+    const pending = await request("/friends/requests", { token: secondToken });
+    const pendingJson = await pending.json();
+    assert.equal(pendingJson.requests.length, 1);
+    assert.equal(pendingJson.requests[0].direction, "incoming");
+    const requestId = pendingJson.requests[0].id;
+
+    const accepted = await request("/friends/requests/" + requestId + "/accept", {
+      method: "POST",
+      token: secondToken,
+      body: {}
+    });
+    assert.equal(accepted.status, 200);
+
+    const list = await request("/friends", { cookie: firstCookie });
+    const firstFriends = (await list.json()).friends;
+    assert.equal(firstFriends.length, 1);
+    assert.equal(firstFriends[0].username, "friend_test");
+
+    const sent = await request("/conversations/" + secondId + "/messages", {
+      method: "POST",
+      cookie: firstCookie,
+      body: { content: "Hello from VoidCraft website" }
+    });
+    assert.equal(sent.status, 201);
+    const loaded = await request("/conversations/" + firstAccount.id + "/messages", {
+      token: secondToken
+    });
+    assert.equal(loaded.status, 200);
+    const messages = (await loaded.json()).messages;
+    assert.equal(messages.length, 1);
+    assert.equal(messages[0].body, "Hello from VoidCraft website");
+    assert.equal(messages[0].senderUsername, "mflegend");
+
+    const recent = await request("/conversations", { token: secondToken });
+    assert.equal((await recent.json()).conversations.length, 1);
+
+    const blocked = await request("/blocks/" + firstAccount.id, {
+      method: "POST",
+      token: secondToken,
+      body: {}
+    });
+    assert.equal(blocked.status, 200);
+    const blockedMessage = await request("/conversations/" + secondId + "/messages", {
+      method: "POST",
+      cookie: firstCookie,
+      body: { content: "This must not be delivered" }
+    });
+    assert.equal(blockedMessage.status, 403);
+
+    const logout = await request("/auth/logout", {
+      method: "POST",
+      cookie: firstCookie,
+      body: {}
+    });
+    assert.equal(logout.status, 200);
+    const afterLogout = await request("/auth/me", { cookie: firstCookie });
+    assert.equal(afterLogout.status, 401);
+  } finally {
+    fixture.sqlite.close();
+  }
 });
