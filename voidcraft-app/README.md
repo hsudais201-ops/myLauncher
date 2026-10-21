@@ -59,3 +59,7 @@ Theme Studio offers five built-in accent palettes and a reset-to-default option.
 
 ### Custom Feature Studio
 The no-code studio saves up to 100 local design blueprints with bounded field lengths. Users can edit or delete drafts, share a versioned JSON envelope, or paste an exported envelope into Import. Import validates the format/version and size, checks field limits, previews the blueprint, and creates a new local ID while ignoring external IDs and status fields. A blueprint is descriptive data only: it cannot be executed, install itself, or access game files. Online submission and publishing are not enabled; community uploads stay review-required and non-installable until a secured backend and review process exist.
+
+## Social Hub
+
+The Android Social Hub provides a community landing page, the official VoidCraft Discord invite, and clearly separated Friends & Requests, Private Messages, and Player Profile entry points. Friends and direct messages are not live features in this build: they are explicitly marked unavailable rather than populated with fake online users or simulated conversations. Real social features require authenticated identity, server-side authorization, safe message storage, block/report controls, rate limits, and privacy/deletion handling. Opening the community links launches the supplied Discord invite; the launcher does not claim to provide in-app chat.
