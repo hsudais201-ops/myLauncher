@@ -10,7 +10,7 @@ ET.register_namespace("android", ANDROID[1:-1])
 ET.register_namespace("tools", TOOLS[1:-1])
 
 def main(root: Path) -> None:
-    app = root / "app_pojavlauncher"
+    app = root / "app_mojo" if (root / "app_mojo").is_dir() else root / "app_pojavlauncher"
     manifest = app / "src/main/AndroidManifest.xml"
     if not manifest.is_file():
         raise FileNotFoundError(f"Android manifest not found: {manifest}")
