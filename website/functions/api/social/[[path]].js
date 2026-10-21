@@ -129,12 +129,18 @@ export async function onRequest({ request, env }) {
       if (!friendship) return fail("You must be friends to view private messages.",403);
       if (await blockedEither(db,user.id,other)) return fail("Messaging is unavailable for this player.",403);
       const beforeParam=url.searchParams.get("before");
+      const beforeIdParam=url.searchParams.get("beforeId");
       const limitParam=url.searchParams.get("limit");
-      const before=beforeParam===null ? Number.MAX_SAFE_INTEGER : Number(beforeParam);
+      const before=beforeParam===null ? null : Number(beforeParam);
+      const beforeId=beforeIdParam===null ? "" : clean(beforeIdParam,64);
       const limit=limitParam===null ? 40 : Number(limitParam);
-      if (!Number.isSafeInteger(before) || before < 0) return fail("Invalid message pagination cursor.");
+      if (beforeParam!==null && (!Number.isSafeInteger(before) || before < 0 || !beforeId || beforeId.length>64)) return fail("Invalid message pagination cursor.");
+      if (beforeParam===null && beforeIdParam!==null) return fail("Invalid message pagination cursor.");
       if (!Number.isSafeInteger(limit) || limit < 1 || limit > 100) return fail("Message limit must be between 1 and 100.");
-      const rows=await db.prepare("SELECT id,sender_id,recipient_id,body,created_at FROM social_messages WHERE ((sender_id=? AND recipient_id=?) OR (sender_id=? AND recipient_id=?)) AND created_at<? ORDER BY created_at DESC LIMIT ?").bind(user.id,other,other,user.id,before,limit).all();
+      // Use a stable (timestamp, id) keyset cursor so messages created in the same
+      // millisecond are not skipped between pages. id is the tie-breaker in both
+      // the DESC query and the reversed chronological response.
+      const rows=await db.prepare("SELECT id,sender_id,recipient_id,body,created_at FROM social_messages WHERE ((sender_id=? AND recipient_id=?) OR (sender_id=? AND recipient_id=?)) AND (?=0 OR created_at<? OR (created_at=? AND id<?)) ORDER BY created_at DESC,id DESC LIMIT ?").bind(user.id,other,other,user.id,before===null?0:1,before??0,before??0,beforeId,limit).all();
       return json({messages:(rows.results||[]).reverse().map(m=>({id:m.id,senderId:m.sender_id,recipientId:m.recipient_id,content:m.body,createdAt:m.created_at}))});
     }
     if (match && method === "POST") {
