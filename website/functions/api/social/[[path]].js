@@ -186,6 +186,7 @@ export async function onRequest({ request, env }) {
     if (path === "moderation/reports" && method === "GET") {
       if (user.role!=="owner") return fail("Owner permission required.",403);
       const status=clean(url.searchParams.get("status")||"open",16);
+      if (!["open","reviewed","dismissed"].includes(status)) return fail("Invalid moderation status.");
       const rows=await db.prepare("SELECT r.id,r.category,r.details,r.status,r.created_at,reporter.username AS reporter,target.username AS target FROM social_reports r JOIN users reporter ON reporter.id=r.reporter_id JOIN users target ON target.id=r.target_user_id WHERE r.status=? ORDER BY r.created_at DESC LIMIT 50").bind(status).all();
       return json({reports:rows.results||[]});
     }
@@ -194,7 +195,8 @@ export async function onRequest({ request, env }) {
       if (user.role!=="owner") return fail("Owner permission required.",403);
       const body=await readJson(request), status=clean(body?.status,16);
       if (!["reviewed","dismissed"].includes(status)) return fail("Invalid moderation status.");
-      await db.prepare("UPDATE social_reports SET status=?,reviewed_by=?,reviewed_at=? WHERE id=?").bind(status,user.id,now(),match[1]).run();
+      const result=await db.prepare("UPDATE social_reports SET status=?,reviewed_by=?,reviewed_at=? WHERE id=?").bind(status,user.id,now(),match[1]).run();
+      if (Number(result?.meta?.changes || 0) < 1) return fail("Report not found.",404);
       return json({ok:true});
     }
 
