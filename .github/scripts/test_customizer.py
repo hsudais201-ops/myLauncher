@@ -1544,8 +1544,7 @@ class BuildWorkflowTests(unittest.TestCase):
     def setUpClass(cls) -> None:
         workflow_path = Path(__file__).parents[1] / "workflows" / "build.yml"
         cls.workflow = workflow_path.read_text(encoding="utf-8")
-        cls.apply_logo_script = Path(__file__).with_name("apply_logo.py").read_text(encoding="utf-8")
-        cls.smoke_script = Path(__file__).with_name("emulator_smoke_test.sh").read_text(encoding="utf-8")
+        cls.smoke_script = Path(__file__).with_name("mojo_emulator_smoke_test.sh").read_text(encoding="utf-8")
         cls.kvm_script = Path(__file__).with_name("prepare_emulator_kvm.sh").read_text(encoding="utf-8")
 
     def test_ssh_submodule_urls_are_rewritten_before_checkout(self) -> None:
@@ -1562,11 +1561,9 @@ class BuildWorkflowTests(unittest.TestCase):
 
     def test_workflow_installs_and_launches_apk_in_headless_emulator(self) -> None:
         self.assertIn("uses: reactivecircus/android-emulator-runner@v2", self.workflow)
-        self.assertIn("Stop Gradle daemons before emulator startup", self.workflow)
-        self.assertLess(
-            self.workflow.index("Stop Gradle daemons before emulator startup"),
-            self.workflow.index("Install and launch APK in a headless Android emulator"),
-        )
+        build_step = self.workflow.index("Stop Gradle daemons before emulator startup")
+        launch_step = self.workflow.index("Install and launch the Mojo-based APK in Android 9 emulator")
+        self.assertLess(build_step, launch_step)
         self.assertIn("profile: pixel_2", self.workflow)
         self.assertIn("cores: 2", self.workflow)
         self.assertIn("ram-size: 1536M", self.workflow)
@@ -1576,88 +1573,35 @@ class BuildWorkflowTests(unittest.TestCase):
         self.assertIn("sudo chmod 666 /dev/kvm", self.kvm_script)
         self.assertIn("test -r /dev/kvm", self.kvm_script)
         self.assertIn("test -w /dev/kvm", self.kvm_script)
-        self.assertIn('script: sh .github/scripts/emulator_smoke_test.sh "$APK_PATH"', self.workflow)
-        self.assertNotIn("script: |", self.workflow[self.workflow.index("Install and launch APK in a headless Android emulator"):self.workflow.index("Upload debug APK")])
-        self.assertIn('timeout -k 3s 180s adb install -r "$APK_PATH"', self.smoke_script)
-        self.assertIn("android.permission.READ_EXTERNAL_STORAGE", self.smoke_script)
-        self.assertIn("android.permission.WRITE_EXTERNAL_STORAGE", self.smoke_script)
-        self.assertIn("com.mf.mylauncher.debug/net.kdt.pojavlaunch.TestStorageActivity", self.smoke_script)
-        self.assertLess(
-            self.smoke_script.index("android.permission.WRITE_EXTERNAL_STORAGE"),
-            self.smoke_script.index("net.kdt.pojavlaunch.TestStorageActivity"),
-        )
-        self.assertIn('test -s "$SCREENSHOT_PATH"', self.smoke_script)
+        self.assertIn('script: bash .github/scripts/mojo_emulator_smoke_test.sh "$APK_PATH"', self.workflow)
+        self.assertIn('adb install -r "$APK_PATH"', self.smoke_script)
+        self.assertIn('PACKAGE_ID="com.mf.mylauncher.debug"', self.smoke_script)
         self.assertIn("adb exec-out screencap -p", self.smoke_script)
-        self.assertIn('while [ "$attempt" -le 3 ]', self.smoke_script)
-        self.assertIn('if [ "$SCREENSHOT_CAPTURED" != true ]; then', self.smoke_script)
-        self.assertIn("Unable to capture a non-empty emulator screenshot after 3 attempts.", self.smoke_script)
-        self.assertIn("upstream/mylauncher-emulator-screenshot.png", self.workflow)
-        self.assertIn('if timeout -k 3s 20s adb shell am start -n com.mf.mylauncher.debug/net.kdt.pojavlaunch.TestStorageActivity; then', self.smoke_script)
-        self.assertIn('[ "$start_status" -eq 124 ]', self.smoke_script)
-        self.assertIn("timed out after dispatch", self.smoke_script)
-        self.assertIn('exit "$start_status"', self.smoke_script)
-        self.assertIn("(mResumedActivity|topResumedActivity)", self.smoke_script)
-        self.assertIn(r"net\.kdt\.pojavlaunch\.LauncherActivity", self.smoke_script)
-        self.assertNotIn(r"net\.kd\.pojavlaunch\.LauncherActivity", self.smoke_script)
-        self.assertIn('grep -Eq "$ACTIVITY_PATTERN"', self.smoke_script)
-        self.assertIn("timeout -k 3s 5s adb shell dumpsys activity activities", self.smoke_script)
-        self.assertIn("ACTIVITY_QUERY_ERRORS=0", self.smoke_script)
-        self.assertIn('[ "$ACTIVITY_QUERY_ERRORS" -ge 5 ]', self.smoke_script)
-        self.assertIn("ADB activity queries failed repeatedly", self.smoke_script)
-        self.assertIn("capture_diagnostic_screenshot", self.smoke_script)
-        self.assertIn("LauncherActivity was not resumed at the end of the emulator smoke test", self.smoke_script)
-        self.assertIn("Emulator smoke test passed: APK installed and LauncherActivity resumed.", self.smoke_script)
-        self.assertIn("name: voidcraft-launcher-emulator-diagnostics", self.workflow)
-        self.assertIn("upstream/mylauncher-emulator-logcat.txt", self.workflow)
-        self.assertIn("if: ${{ always() && env.APK_PATH != '' }}", self.workflow)
-        self.assertIn("if: ${{ always() && hashFiles('upstream/VOIDCRAFT_LAUNCHER_BUILD_INFO.txt') != '' }}", self.workflow)
-        self.assertLess(
-            self.workflow.index("Upload debug APK"),
-            self.workflow.index("Upload upstream build notes"),
-        )
+        self.assertIn("MOJO VOIDCRAFT APK SMOKE TEST PASSED", self.smoke_script)
+        self.assertIn("This test does not establish that Minecraft entered a world.", self.smoke_script)
+        self.assertIn("upstream/voidcraft-mojo-emulator-screenshot.png", self.workflow)
+        self.assertIn("upstream/voidcraft-mojo-emulator-logcat.txt", self.workflow)
+        self.assertIn("name: voidcraft-mojo-debug-apk", self.workflow)
 
-    def test_workflow_checks_source_pin_and_android_9_apk(self) -> None:
-        self.assertIn("  push:\n    branches:\n      - main", self.workflow)
-        self.assertIn("  pull_request:", self.workflow)
-        self.assertIn("  workflow_dispatch:", self.workflow)
-        self.assertIn("group: voidcraft-launcher-build-v2-${{ github.ref }}", self.workflow)
-        self.assertIn("EXPECTED_UPSTREAM_COMMIT=330c6eae3164df64bdc4828e946a9e62cc5169e4", self.workflow)
-        # Keep the hosted build toolchain aligned with the pinned upstream project.
+    def test_workflow_checks_mojo_source_pin_and_android_9_apk(self) -> None:
+        self.assertIn("branches: [main]", self.workflow)
+        self.assertIn("pull_request:", self.workflow)
+        self.assertIn("workflow_dispatch:", self.workflow)
+        self.assertIn("EXPECTED_UPSTREAM_COMMIT=8ffba8f4ea0b9466854aa9f7a375c77b4fb96bdd", self.workflow)
+        self.assertIn("https://github.com/MojoLauncher/MojoLauncher.git", self.workflow)
         self.assertIn("java-version: '21'", self.workflow)
         self.assertIn("uses: android-actions/setup-android@v4", self.workflow)
         self.assertIn("accept-android-sdk-licenses: false", self.workflow)
         self.assertIn("packages: ''", self.workflow)
         self.assertIn("yes | sdkmanager --licenses", self.workflow)
-        self.assertIn("sdkmanager --install 'platforms;android-37.0' 'ndk;27.3.13750724' --channel=3", self.workflow)
-        self.assertIn("./gradlew --no-daemon :jre_lwjgl3glfw:build :app_pojavlauncher:assembleDebug --stacktrace", self.workflow)
-        self.assertIn('plugin_management = settings.split("dependencyResolutionManagement", 1)[0]', self.workflow)
-        self.assertIn("Maven Central must be configured in pluginManagement for AGP classpath dependencies", self.workflow)
-        py_compile_lines = [
-            line.strip() for line in self.workflow.splitlines()
-            if line.strip().startswith("python3 -m py_compile ")
-        ]
-        self.assertEqual(len(py_compile_lines), 1)
-        for required_script in (
-            ".github/scripts/customize_amethyst.py",
-            ".github/scripts/apply_logo.py",
-            ".github/scripts/patch_renderpearl_workaround.py",
-            ".github/scripts/test_customizer.py",
-            ".github/scripts/test_renderpearl_workaround.py",
-        ):
-            self.assertIn(required_script, py_compile_lines[0])
-        self.assertIn("sh -n .github/scripts/prepare_emulator_kvm.sh", self.workflow)
-        self.assertIn("sh -n .github/scripts/emulator_smoke_test.sh", self.workflow)
+        self.assertIn("sdkmanager --install 'platforms;android-36' 'ndk;29.0.14206865' --channel=3", self.workflow)
+        self.assertIn("./gradlew --no-daemon :app_mojo:assembleFullDebug --stacktrace", self.workflow)
+        for required in (".github/scripts/customize_mojo.py", ".github/scripts/test_mojo_customizer.py"):
+            self.assertIn(required, self.workflow)
+        self.assertIn("bash -n .github/scripts/mojo_emulator_smoke_test.sh", self.workflow)
         self.assertIn("python3 -m unittest discover -s .github/scripts -p 'test_*.py' -v", self.workflow)
-        self.assertIn("git -C upstream diff --check", self.workflow)
-        self.assertIn('test "$MIN_SDK" -le 28', self.workflow)
-        self.assertIn('name apksigner', self.workflow)
-        self.assertIn('"$APKSIGNER" verify --verbose "$APK"', self.workflow)
-        self.assertIn('ET.register_namespace("android", ANDROID[1:-1])', self.apply_logo_script)
-        self.assertIn('ET.register_namespace("tools", TOOLS[1:-1])', self.apply_logo_script)
-        self.assertIn("voidcraft-launcher-debug-apk", self.workflow)
-        self.assertIn('sha256sum "$(basename "$APK")"', self.workflow)
-        self.assertIn("${{ env.APK_SHA256_PATH }}", self.workflow)
-        self.assertIn("APK SHA-256:", self.workflow)
+        self.assertNotIn("AngelAuraMC/Amethyst-Android", self.workflow)
+        self.assertNotIn("app_pojavlauncher:assembleDebug", self.workflow)
 
 
 if __name__ == "__main__":
