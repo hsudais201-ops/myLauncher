@@ -97,6 +97,14 @@ internal class SocialApiClient(context: android.content.Context) {
         call("GET", "/auth/me").getAsJsonObject("user")
     )
 
+    fun updateProfile(displayName: String, bio: String): VoidCraftSocialUser {
+        val body = JsonObject().apply {
+            addProperty("displayName", displayName.trim())
+            addProperty("bio", bio.trim())
+        }
+        return parseUser(call("PATCH", "/profile", body).getAsJsonObject("user"))
+    }
+
     fun signOut() {
         try {
             if (tokenStore.read() != null) call("POST", "/auth/logout", JsonObject())
