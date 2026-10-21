@@ -4,7 +4,7 @@ CREATE TABLE IF NOT EXISTS social_friend_requests (
   id TEXT PRIMARY KEY,
   sender_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   recipient_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','accepted','rejected')),
+  status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','accepted','rejected','cancelled')),
   created_at INTEGER NOT NULL,
   CHECK (sender_id <> recipient_id)
 );
