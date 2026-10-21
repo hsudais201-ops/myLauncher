@@ -79,6 +79,7 @@ class SocialHubSchemaTests(unittest.TestCase):
             "social_requests_sender_rate_idx",
             "social_messages_sender_rate_idx",
             "social_pending_request_pair_idx",
+            "social_reports_reporter_rate_idx",
         }.issubset(names))
 
     def test_friendship_requires_canonical_user_order_and_is_unique(self):
@@ -115,6 +116,14 @@ class SocialHubSchemaTests(unittest.TestCase):
                 "VALUES('m4','u1','u2',?,4)",
                 ("x" * 2001,),
             )
+
+    def test_report_rate_limit_index_exists(self):
+        names = {
+            row[0] for row in self.db.execute(
+                "SELECT name FROM sqlite_master WHERE type='index'"
+            )
+        }
+        self.assertIn("social_reports_reporter_rate_idx", names)
 
     def test_reports_reject_self_target_and_unknown_category(self):
         with self.assertRaises(sqlite3.IntegrityError):
