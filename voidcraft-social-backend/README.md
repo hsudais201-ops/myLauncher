@@ -6,7 +6,7 @@ This folder contains a separate Cloudflare Worker + D1 API for **VoidCraft-owned
 
 This is an API implementation milestone, **not a deployed or public-launch-ready service**. It has API route/schema smoke tests, but still needs a real D1 instance, Pages website integration, end-to-end browser/Android testing, email verification and account recovery, and a security review before public registration is enabled. No Cloudflare account resources were created or changed by committing these source files.
 
-Messages are persisted and retrieved through REST endpoints. Clients should refresh an open conversation periodically (for example, every 3–5 seconds). This milestone does not implement WebSocket push, live-presence indicators, read receipts, image/file messages, or moderation tooling.
+Messages are persisted and retrieved through REST endpoints. Clients should refresh an open conversation periodically (for example, every 3–5 seconds). This milestone does not implement WebSocket push, live-presence indicators, read receipts, image/file messages, or report notifications.
 
 ## API overview
 
@@ -48,10 +48,12 @@ The launcher must send Authorization: Bearer accessToken on future requests, sto
 - POST /api/blocks/:userId
 - DELETE /api/blocks/:userId
 - POST /api/reports — targetUserId, category, and optional details
+- GET /api/moderation/reports?status=open&limit=50 — moderator/owner-only report queue (statuses: open, reviewing, resolved, dismissed)
+- PATCH /api/moderation/reports/:reportId — moderator/owner-only status update using {"status":"reviewing|resolved|dismissed|open"}
 
 Only accepted friends can exchange messages. Server-side checks block users, block message delivery when either user blocks the other, restrict friend requests, validate IDs and message sizes, and rate-limit account creation/login, friend requests, message sends, and reports. Messages are plain text: website clients must render body text as text, never insert it as HTML.
 
-Report submissions are stored for review, but this milestone has no moderation dashboard or report-notification workflow. Do not expose public registration until a responsible operator can review reports and respond to abuse.
+Report submissions are stored for review. A role-protected moderation API now lets verified server-side moderators/owners list reports, filter by status, and update review status. It is an API, not a finished moderation dashboard; report notifications and operator UI are still missing. Do not expose public registration until a responsible operator can review reports and respond to abuse.
 
 ## Data and security decisions
 
