@@ -14,7 +14,7 @@ object FeatureRegistry {
     const val PREFS_NAME = "voidcraft_installed_features"
     private const val KEY_INSTALLED_IDS = "installed_feature_ids"
     // Explicit allowlist: only built-in features with implemented, tested pages are enabled.
-    private val installableBuiltIns = setOf("startup-diagnostics", "instance-notes", "network-diagnostics")
+    private val installableBuiltIns = setOf("startup-diagnostics", "instance-notes", "network-diagnostics", "theme-studio")
 
     data class Definition(
         val id: String,
@@ -31,7 +31,8 @@ object FeatureRegistry {
             "theme-studio",
             "Theme Studio",
             "Customize the launcher appearance using built-in, reversible preferences.",
-            Status.PLANNED
+            Status.AVAILABLE,
+            listOf("launcher_preferences")
         ),
         Definition(
             "smart-performance-advisor",
