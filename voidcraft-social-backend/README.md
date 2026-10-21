@@ -53,7 +53,7 @@ The launcher must send Authorization: Bearer accessToken on future requests, sto
 
 Only accepted friends can exchange messages. Server-side checks block users, block message delivery when either user blocks the other, restrict friend requests, validate IDs and message sizes, and rate-limit account creation/login, friend requests, message sends, and reports. Messages are plain text: website clients must render body text as text, never insert it as HTML.
 
-Report submissions are stored for review. A role-protected moderation API now lets verified server-side moderators/owners list reports, filter by status, and update review status. It is an API, not a finished moderation dashboard; report notifications and operator UI are still missing. Do not expose public registration until a responsible operator can review reports and respond to abuse.
+Report submissions are stored for review. A role-protected moderation API now lets verified server-side moderators/owners list reports, filter by status, and update review status. The example website page now includes a role-gated moderation queue that can list, filter, and update reports through these endpoints. It is still an integration example, not deployed to the official website; report notifications and end-to-end operator testing are still missing. Do not expose public registration until a responsible operator can review reports and respond to abuse.
 
 ## Data and security decisions
 
