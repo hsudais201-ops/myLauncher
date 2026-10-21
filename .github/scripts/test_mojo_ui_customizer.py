@@ -17,9 +17,9 @@ class MojoUiCustomizerTests(unittest.TestCase):
         (app / "src/main/res/values").mkdir(parents=True)
         (app / "src/main/res/layout/fragment_launcher.xml").write_text('''<?xml version="1.0" encoding="utf-8"?>
 <androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android" xmlns:app="http://schemas.android.com/apk/res-auto">
-<com.kdt.mcgui.LauncherMenuButton android:id="@+id/news_button" app:layout_constraintTop_toTopOf="parent" />
+<com.kdt.mcgui.LauncherMenuButton\n android:id="@+id/news_button"\n app:layout_constraintTop_toTopOf="parent" />
 <View android:id="@+id/social_divider" app:layout_constraintTop_toTopOf="parent" />
-<com.kdt.mcgui.LauncherMenuButton android:id="@+id/social_media_button" app:layout_constraintTop_toTopOf="parent" />
+<com.kdt.mcgui.LauncherMenuButton\n android:id="@+id/social_media_button"\n app:layout_constraintTop_toTopOf="parent" />
 </androidx.constraintlayout.widget.ConstraintLayout>
 ''', encoding="utf-8")
         (app / "src/main/res/values/strings.xml").write_text("<resources></resources>\n", encoding="utf-8")
