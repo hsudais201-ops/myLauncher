@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
+import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
 import worker from "../src/index.mjs";
@@ -138,4 +139,19 @@ test("Pages proxy forwards path, query, origin and session headers without rewri
   } finally {
     globalThis.fetch = originalFetch;
   }
+});
+
+
+test("website social example script parses and renders user text without HTML injection", async () => {
+  const html = await readFile(resolve(here, "../website-integration/social-page.example.html"), "utf8");
+  const match = html.match(/<script type="module">([\s\S]*?)<\/script>/);
+  assert.ok(match, "example page should include a module script");
+  execFileSync(process.execPath, ["--input-type=module", "--check"], {
+    input: match[1],
+    stdio: ["pipe", "pipe", "pipe"]
+  });
+  assert.match(html, /textContent/);
+  assert.doesNotMatch(html, /\.innerHTML\s*=/);
+  assert.match(html, /voidcraft-website\.pages\.dev|\/api\/auth\/me/);
+  assert.match(html, /not used for private messages/);
 });
