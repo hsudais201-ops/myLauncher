@@ -45,6 +45,15 @@ internal data class VoidCraftSocialMessage(
     val createdAt: String
 )
 
+internal data class VoidCraftConversation(
+    val userId: Long,
+    val username: String,
+    val displayName: String,
+    val lastMessage: String,
+    val lastMessageAt: String
+)
+
+
 internal class SocialApiException(
     val statusCode: Int,
     message: String
@@ -133,6 +142,20 @@ internal class SocialApiClient(context: android.content.Context) {
     fun removeFriend(userId: Long) {
         call("DELETE", "/friends/" + userId)
     }
+
+    fun conversations(): List<VoidCraftConversation> =
+        call("GET", "/conversations").getAsJsonArray("conversations").mapObjects { item ->
+            val row = item.asJsonObject
+            VoidCraftConversation(
+                userId = row.get("user_id").asLong,
+                username = row.get("username").asString,
+                displayName = row.get("display_name")?.asString ?: row.get("username").asString,
+                lastMessage = row.get("last_message")?.asString ?: "",
+                lastMessageAt = row.get("last_message_at")?.asLong?.let {
+                    java.time.Instant.ofEpochMilli(it).toString()
+                } ?: ""
+            )
+        }
 
     fun messages(userId: Long, beforeId: Long? = null, limit: Int = 40): List<VoidCraftSocialMessage> {
         val cursor = beforeId?.let { "&before=" + it } ?: ""
