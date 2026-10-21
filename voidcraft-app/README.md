@@ -60,6 +60,17 @@ Theme Studio offers five built-in accent palettes and a reset-to-default option.
 ### Custom Feature Studio
 The no-code studio saves up to 100 local design blueprints with bounded field lengths. Users can edit or delete drafts, share a versioned JSON envelope, or paste an exported envelope into Import. Import validates the format/version and size, checks field limits, previews the blueprint, and creates a new local ID while ignoring external IDs and status fields. A blueprint is descriptive data only: it cannot be executed, install itself, or access game files. Online submission and publishing are not enabled; community uploads stay review-required and non-installable until a secured backend and review process exist.
 
-## Social Hub
+## VoidCraft accounts and private chat
 
-The Android Social Hub provides a community landing page, the official VoidCraft Discord invite, and clearly separated Friends & Requests, Private Messages, and Player Profile entry points. Friends and direct messages are not live features in this build: they are explicitly marked unavailable rather than populated with fake online users or simulated conversations. Real social features require authenticated identity, server-side authorization, safe message storage, block/report controls, rate limits, and privacy/deletion handling. Opening the community links launches the supplied Discord invite; the launcher does not claim to provide in-app chat.
+The Social Hub now has native account, friends, and private-chat screens built around a shared VoidCraft social API contract—not Discord DMs and not the local launcher display name.
+
+- Website and launcher registration use the same account records, username, email, and role from the shared backend.
+- Launcher bearer tokens are encrypted using Android Keystore (AES-GCM); only ciphertext/IV are stored in private preferences. Passwords are sent only over HTTPS and are not persisted or logged.
+- The Friends screen loads actual server responses, supports username search, sending/accepting/declining friend requests, and removing friends. It shows recent conversations and lets you open an existing thread.
+- Private chat sends and loads persisted text messages from the API, refreshes an open thread approximately every four seconds, and exposes block/report actions. The API permits messaging only between accepted friends and enforces blocking/rate limits on the server.
+- The account UI clearly separates VoidCraft community account sign-in from Microsoft/Minecraft authentication. The owner badge/role must come from the server; usernames alone never grant privileges.
+- The official Discord invite remains a separate community link for support and announcements. Private VoidCraft messages do not go through Discord.
+
+**Deployment status:** these Android screens and the new Worker/D1 API source are committed for development, but the API has not been deployed and the website repository integration has not been applied. The account screen checks the service health endpoint first and reports that the service is unconnected rather than faking a successful login. Until the D1 database, Worker, and same-origin Cloudflare Pages proxy are configured and the website sign-in pages call the API, real accounts/messages will remain unavailable. See [the backend integration README](../voidcraft-social-backend/README.md) and [website integration instructions](../voidcraft-social-backend/website-integration/README.md).
+
+The backend still needs email verification, password recovery, account data export/deletion, a working report-moderation process, production security review, and end-to-end tests against both clients before public registration is opened. These checks are not yet claimed as complete.
