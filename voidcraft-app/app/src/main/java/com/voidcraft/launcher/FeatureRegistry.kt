@@ -14,7 +14,7 @@ object FeatureRegistry {
     const val PREFS_NAME = "voidcraft_installed_features"
     private const val KEY_INSTALLED_IDS = "installed_feature_ids"
     // Explicit allowlist: only built-in features with implemented, tested pages are enabled.
-    private val installableBuiltIns = setOf("startup-diagnostics", "instance-notes")
+    private val installableBuiltIns = setOf("startup-diagnostics", "instance-notes", "network-diagnostics")
 
     data class Definition(
         val id: String,
@@ -148,8 +148,8 @@ object FeatureRegistry {
         Definition(
             "network-diagnostics",
             "Network Diagnostics",
-            "Check connectivity and latency to a user-selected server without changing network settings.",
-            Status.PLANNED,
+            "Test TCP reachability for a user-selected hostname and port without changing network settings.",
+            Status.AVAILABLE,
             listOf("network")
         ),
         Definition(
