@@ -286,9 +286,6 @@ internal class SocialApiClient(context: android.content.Context) {
         }
     }
 
-    private fun JsonArray.mapObjects(mapper: (com.google.gson.JsonElement) -> Any): List<Any> =
-        map { mapper(it) }
-
     private fun <T> JsonArray.mapObjects(mapper: (com.google.gson.JsonElement) -> T): List<T> =
         map { mapper(it) }
 
