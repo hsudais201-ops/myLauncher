@@ -28,6 +28,8 @@ Launcher endpoints use the same users and sessions tables but return a random be
 - POST /api/launcher/auth/register
 - POST /api/launcher/auth/login
 
+All requests must pass through the Pages proxy. The Worker rejects direct requests without the private VOIDCRAFT_PROXY_SECRET, so do not point clients directly at its workers.dev host.
+
 The launcher must send Authorization: Bearer accessToken on future requests, store it with Android's encrypted credential storage, and clear it on sign-out. Do not store passwords or tokens in plain shared preferences or logs. Use the account API's returned user.role to decide whether to show a server-granted owner/moderator marker; the username alone grants no privileges.
 
 ### Friends and messaging
@@ -70,9 +72,10 @@ Use a development Cloudflare account/environment first, not the live website:
 1. Install Node.js 22 and Wrangler (npx wrangler).
 2. From this folder, create the D1 database: npx wrangler d1 create voidcraft-social.
 3. Put the returned database ID in wrangler.toml, replacing REPLACE_WITH_D1_DATABASE_ID.
-4. Apply the schema to the development database: npx wrangler d1 migrations apply voidcraft-social --remote.
-5. Run npm run verify, then start a local worker with npx wrangler dev.
-6. After reviewing the environment and tests, deploy only to a development Worker with npx wrangler deploy.
+4. Generate a random proxy secret of at least 32 characters. Set it on the Worker as a secret with npx wrangler secret put VOIDCRAFT_PROXY_SECRET; set the exact same secret in the Pages project's secret/environment settings. Never commit this secret.
+5. Apply the schema to the development database: npx wrangler d1 migrations apply voidcraft-social --remote.
+6. Run npm run verify, then start a local worker with npx wrangler dev. For local development, put APP_ORIGIN and a non-production VOIDCRAFT_PROXY_SECRET in a local .dev.vars file and do not commit it.
+7. After reviewing the environment and tests, deploy only to a development Worker with npx wrangler deploy.
 
 Do not point a publicly advertised website at the API yet. For cookie-based browser sign-in, the API must be mounted under the same origin as the website (for example as a Cloudflare Pages Function under https://voidcraft-website.pages.dev/api/*); a standalone workers.dev host is a different site for browser-cookie purposes. The current website repository is not writable through the current GitHub connection, so the Pages Function/proxy and UI integration have not been installed into the live website. Keep APP_ORIGIN set to the exact production website origin and never use * with credentials.
 
