@@ -51,6 +51,9 @@ private val ModManagerSurface = androidx.compose.ui.graphics.Color(0xFF141824)
 private val ModManagerMuted = androidx.compose.ui.graphics.Color(0xFF9AA3B8)
 private const val MAX_MOD_BYTES = 100L * 1024L * 1024L
 
+private fun activeGameModsDirectory(context: Context): File =
+    File(resolveEngineStorageDirectory(context, "DIR_GAME_NEW", "minecraft"), "mods")
+
 private data class ManagedModFile(
     val file: File,
     val enabled: Boolean
@@ -67,11 +70,14 @@ fun AdvancedModManagerScreen() {
     var pendingExport by remember { mutableStateOf<File?>(null) }
 
     fun refresh() {
-        val root = File(context.filesDir, "advanced-mod-manager")
-        val enabled = File(root, "enabled").listFiles().orEmpty().filter { it.isFile && it.extension.equals("jar", true) }
-        val disabled = File(root, "disabled").listFiles().orEmpty().filter { it.isFile && it.extension.equals("jar", true) }
-        mods = (enabled.map { ManagedModFile(it, true) } + disabled.map { ManagedModFile(it, false) })
-            .sortedBy { it.file.name.lowercase() }
+        val root = activeGameModsDirectory(context)
+        if (!root.isDirectory) root.mkdirs()
+        val jars = root.listFiles().orEmpty().filter {
+            it.isFile && (it.name.endsWith(".jar", true) || it.name.endsWith(".jar.disabled", true))
+        }
+        mods = jars.map { file ->
+            ManagedModFile(file, enabled = !file.name.endsWith(".jar.disabled", true))
+        }.sortedBy { it.file.name.lowercase() }
     }
 
     val exportLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/java-archive")) { uri: Uri? ->
@@ -110,9 +116,8 @@ fun AdvancedModManagerScreen() {
                         ?.use { cursor -> if (cursor.moveToFirst()) cursor.getString(0) else null }
                         ?.takeIf { it.isNotBlank() } ?: "imported-mod.jar"
                     if (!displayName.endsWith(".jar", true)) error("Choose a .jar mod file.")
-                    val root = File(context.filesDir, "advanced-mod-manager")
-                    val enabledDir = File(root, "enabled").apply { mkdirs() }
-                    val temp = File(enabledDir, "import-${System.currentTimeMillis()}.part")
+                    val enabledDir = activeGameModsDirectory(context).apply { mkdirs() }
+                    val temp = File(enabledDir, "import-@@{System.currentTimeMillis()}.part")
                     context.contentResolver.openInputStream(uri)?.use { input ->
                         temp.outputStream().use { output ->
                             val buffer = ByteArray(8192)
@@ -170,7 +175,7 @@ fun AdvancedModManagerScreen() {
     Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
         Text("ADVANCED MOD MANAGER", fontSize = 12.sp, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold, letterSpacing = 1.2.sp)
         Text("Your mod library", fontSize = 28.sp, fontWeight = FontWeight.ExtraBold)
-        Text("Import, organize, enable, disable, export, or remove JAR files. Files stay in VoidCraft's private app storage.", color = ModManagerMuted, fontSize = 13.sp, lineHeight = 19.sp)
+        Text("Import, enable, disable, export, or remove JAR files in the active Minecraft mods folder. Mods require the matching Minecraft version and loader.", color = ModManagerMuted, fontSize = 13.sp, lineHeight = 19.sp)
         Card(shape = RoundedCornerShape(18.dp), colors = CardDefaults.cardColors(containerColor = ModManagerSurface)) {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -202,22 +207,21 @@ fun AdvancedModManagerScreen() {
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         Icon(Icons.Default.Extension, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
                         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                            Text(mod.file.name, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                            Text("${formatModBytes(mod.file.length())} · ${if (mod.enabled) "Enabled in library" else "Disabled"}", color = ModManagerMuted, fontSize = 11.sp)
+                            Text(mod.file.name.removeSuffix(".disabled"), fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                            Text("${formatModBytes(mod.file.length())} · ${if (mod.enabled) "Enabled in active mods folder" else "Disabled"}", color = ModManagerMuted, fontSize = 11.sp)
                         }
                     }
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         OutlinedButton(
                             onClick = {
-                                val destinationDir = File(File(context.filesDir, "advanced-mod-manager"), if (mod.enabled) "disabled" else "enabled")
-                                destinationDir.mkdirs()
-                                val destination = File(destinationDir, mod.file.name)
+                                val targetName = if (mod.enabled) "${mod.file.name}.disabled" else mod.file.name.removeSuffix(".disabled")
+                                val destination = File(mod.file.parentFile, targetName)
                                 if (destination.exists()) {
                                     status = "A file with that name already exists in the target folder."
                                     statusIsError = true
                                 } else if (mod.file.renameTo(destination)) {
                                     refresh()
-                                    status = "${destination.name} ${if (mod.enabled) "disabled" else "enabled"} in your library."
+                                    status = "${destination.name.removeSuffix(".disabled")} ${if (mod.enabled) "disabled" else "enabled"}. Restart Minecraft to apply the change."
                                     statusIsError = false
                                 } else {
                                     status = "Could not move the mod file."
@@ -230,14 +234,14 @@ fun AdvancedModManagerScreen() {
                             Icon(if (mod.enabled) Icons.Default.ToggleOff else Icons.Default.ToggleOn, contentDescription = null)
                             Text(if (mod.enabled) "  DISABLE" else "  ENABLE")
                         }
-                        OutlinedButton(onClick = { pendingExport = mod.file; exportLauncher.launch(mod.file.name) }, enabled = !busy) {
+                        OutlinedButton(onClick = { pendingExport = mod.file; exportLauncher.launch(mod.file.name.removeSuffix(".disabled")) }, enabled = !busy) {
                             Icon(Icons.Default.Download, contentDescription = "Export mod")
                         }
                         OutlinedButton(
                             onClick = {
                                 if (mod.file.delete()) {
                                     refresh()
-                                    status = "Removed ${mod.file.name} from the local library."
+                                    status = "Removed ${mod.file.name.removeSuffix(".disabled")} from the active mods folder."
                                     statusIsError = false
                                 } else {
                                     status = "Could not remove this file."
@@ -252,7 +256,7 @@ fun AdvancedModManagerScreen() {
         }
         Surface(color = androidx.compose.ui.graphics.Color(0xFF302719), shape = RoundedCornerShape(14.dp)) {
             Text(
-                "Compatibility note: the Minecraft Java runtime and game-profile folder are not integrated yet. Enable/disable currently organizes your local library; it does not load mods into a running game. Only install mods from sources you trust.",
+                "Compatibility note: only mods matching the selected Minecraft version and installed loader will work. Enable/disable changes the active mods folder, and changes take effect after restarting the game. Only install mods from sources you trust.",
                 modifier = Modifier.padding(14.dp),
                 color = androidx.compose.ui.graphics.Color(0xFFFFD99B),
                 fontSize = 11.sp,
