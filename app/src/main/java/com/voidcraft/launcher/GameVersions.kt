@@ -138,7 +138,7 @@ fun GameVersionsScreen(
                 runCatching { downloadAndVerifyMinecraftClientJar(context, details) }
             }
             result.onSuccess { file ->
-                downloadMessage = "Client JAR verified and saved privately: ${file.relativeTo(context.filesDir).invariantSeparatorsPath}"
+                downloadMessage = "Client JAR verified and saved in the configured game directory: ${file.absolutePath}"
             }.onFailure { error ->
                 downloadMessage = "Client JAR download failed: ${error.message ?: "unknown error"}"
             }
@@ -469,7 +469,7 @@ private fun fetchMinecraftVersionDetails(context: Context, entry: MinecraftVersi
         require(versionId == entry.id) { "Version JSON ID does not match the selected version" }
         val safeVersionId = versionId.takeIf { it.matches(Regex("^[A-Za-z0-9._-]{1,100}$")) }
             ?: error("Invalid version ID in Mojang metadata")
-        val versionDirectory = File(context.filesDir, "minecraft/versions/$safeVersionId")
+        val versionDirectory = File(resolveEngineStorageDirectory(context, "DIR_HOME_VERSION", "minecraft/versions"), safeVersionId)
         require(versionDirectory.isDirectory || versionDirectory.mkdirs()) { "Could not create version metadata folder" }
         val jsonFile = File(versionDirectory, "$safeVersionId.json")
         val jsonTemporary = File(versionDirectory, "$safeVersionId.json.part")
@@ -529,7 +529,7 @@ private fun downloadAndVerifyMinecraftClientJar(
     require(safeVersionId.isNotBlank() && safeVersionId != "." && safeVersionId != "..") {
         "Invalid version identifier"
     }
-    val versionDirectory = File(context.filesDir, "minecraft/versions/$safeVersionId")
+    val versionDirectory = File(resolveEngineStorageDirectory(context, "DIR_HOME_VERSION", "minecraft/versions"), safeVersionId)
     require(versionDirectory.isDirectory || versionDirectory.mkdirs()) { "Could not create the version folder" }
     val destination = File(versionDirectory, "$safeVersionId.jar")
     val temporary = File(versionDirectory, "$safeVersionId.jar.part")
