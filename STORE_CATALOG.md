@@ -1,28 +1,31 @@
-# Feature Store catalog
+# Voidcraft Feature Store
 
-The launcher reads the public catalog from:
+The Android launcher loads the bundled catalog from `app/src/main/assets/store/catalog.json` and tries to refresh it from:
 
 `https://raw.githubusercontent.com/hsudais201-ops/myLauncher/main/store/catalog.json`
 
-Only items explicitly listed in the `items` array are shown in the Store. No sample, legacy, or placeholder entries are automatically added. Removing an entry from the catalog removes it from the visible catalog after a successful refresh.
+Only entries explicitly listed in the `items` array are shown. No sample or legacy entries are added automatically. Optional features remain uninstalled until the user explicitly selects **Install**. The catalog supports built-in components and reviewed HTTPS package listings; downloadable packages are stored in private app storage and are not dynamically loaded as Android code.
+
+## Current catalog entries
+
+- **Social Hub:** local contacts/notes and a staging online beta for beta account sign-in, friend requests and direct messages. Online chat uses manual refresh; there is no email verification, password recovery, push notification or end-to-end encryption.
+- **Advanced Mod Manager:** local JAR library with validation and file operations. Mod toggles do not yet load mods into a running Minecraft profile.
+- **Server State:** local list of Java/Bedrock server addresses and on-demand status checks using the public mcsrvstat.us service. Each status check sends the selected address to that provider.
+- **Theme Studio:** persist a custom launcher accent and presets on the device.
+- **Cosmetic Store:** local launcher-profile effects with equip/unequip controls. These do not change Minecraft skins, game files or multiplayer appearance.
 
 ## Publishing a listing
 
 Add an object to the `items` array. Required fields: `id`, `name`, `kind`, `category`, and `availability`. Recommended fields include `tagline`, `description`, `version`, `compatibility`, `license`, and `packageUrl`.
 
-- Use a stable, unique `id` containing only letters, numbers, dots, underscores, or hyphens.
+- Use a stable unique `id` containing only letters, numbers, dots, underscores or hyphens.
 - `kind` should be `launcher` or `content`.
-- `availability` should be `available`, `preview`, or `coming_soon`.
-- Use `builtIn: true` only for a feature actually implemented in the launcher. A built-in feature does not require a package URL.
-- A downloadable package must use an HTTPS URL and be licensed for redistribution. Do not publish access tokens or private URLs.
-- A non-built-in listing without a package URL stays a preview and cannot be installed.
-- Catalog updates appear after the catalog is merged to `main` and the user refreshes the Store or opens it while online.
-- If the catalog is intentionally empty, the Store shows “No features added yet.”
+- `availability` should be `available`, `preview` or `coming_soon`.
+- Use `builtIn: true` only when the feature is actually implemented in the launcher.
+- Publish only HTTPS package URLs that are licensed for redistribution. Never publish access tokens or private URLs.
+- A non-built-in listing without a package URL remains a preview and cannot be installed.
+- After updating the catalog on `main`, users can refresh the Store to load the new catalog. If the online request fails, the last bundled catalog remains available.
 
-## Current catalog item: Social Hub
+## Runtime integration still needed
 
-Social Hub is an optional built-in feature with two modes. Local contacts and notes stay on the device. The online beta uses the staging backend documented in `backend/social-hub/README.md` and supports username/password beta accounts, friend requests, accepting requests, and direct messages between accepted friends. Online messages use manual refresh/polling in this first UI integration; push notifications and WebSockets are not included. The staging service does not yet have email verification or password recovery, so use only a unique test password and do not reuse credentials. This is not ready for production launch.
-
-## Other limitations
-
-The Store interface and catalog refresh are implemented in the bootstrap. Generic external packages can be downloaded to Voidcraft's private app storage; they are **not** installed into Minecraft profiles yet. Dynamic native Kotlin/Android code loading is not supported by this catalog design. A real game-content installer must validate package hashes/signatures, compatibility, safe archive paths, and destination folders before enabling Mods, Resource Packs, Shaders, or Worlds as installable.
+A complete game-content installer must verify package hashes/signatures, reject unsafe archive paths, check version compatibility and write only into the intended Minecraft profile folders. The launcher still needs a real Java runtime/bootstrapper, asset/library downloading, secure Microsoft authentication, profile-aware version installation and an actual game launch path before stored mods, resource packs, shaders, worlds or skins can be applied in-game.
