@@ -84,7 +84,7 @@ jobs:
           name: voidcraft-integrated-debug-apk
           if-no-files-found: error
           path: |
-            ${ env.APK_PATH }
+            engine/Amethyst-Android/app_pojavlauncher/build/outputs/apk/debug/*.apk
             voidcraft-apk-sha256.txt
             engine-build-provenance.txt
             engine-license-files.txt
