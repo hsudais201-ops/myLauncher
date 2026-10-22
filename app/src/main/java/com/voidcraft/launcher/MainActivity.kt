@@ -647,7 +647,7 @@ private fun VoidcraftApp() {
                             prefs.edit().putString("selected_game_version", version).apply()
                             scope.launch {
                                 snackbarHostState.showSnackbar(
-                                    "Selected Minecraft $version. Use INSPECT to download and verify its files; actual launching still needs the Android engine."
+                                    "Selected Minecraft $version. Use INSPECT to prepare and verify files, then open the integrated engine to complete installation and launch."
                                 )
                             }
                         }
