@@ -58,6 +58,7 @@ private data class MinecraftVersionEntry(
 private data class MinecraftVersionDetails(
     val id: String,
     val metadataUrl: String,
+    val metadataSha1: String,
     val javaComponent: String?,
     val javaMajorVersion: Int?,
     val clientJarUrl: String?,
@@ -152,7 +153,7 @@ fun GameVersionsScreen(
             downloadMessage = "Preparing library downloads…"
             val result = withContext(Dispatchers.IO) {
                 runCatching {
-                    downloadMinecraftLibraries(context, details.metadataUrl) { message ->
+                    downloadMinecraftLibraries(context, details.metadataUrl, details.metadataSha1) { message ->
                         Handler(Looper.getMainLooper()).post { downloadMessage = message }
                     }
                 }
@@ -169,7 +170,7 @@ fun GameVersionsScreen(
             downloadMessage = "Preparing asset index and downloads…"
             val result = withContext(Dispatchers.IO) {
                 runCatching {
-                    downloadMinecraftAssets(context, details.metadataUrl) { message ->
+                    downloadMinecraftAssets(context, details.metadataUrl, details.metadataSha1) { message ->
                         Handler(Looper.getMainLooper()).post { downloadMessage = message }
                     }
                 }
@@ -488,6 +489,7 @@ private fun fetchMinecraftVersionDetails(context: Context, entry: MinecraftVersi
         return MinecraftVersionDetails(
             id = versionId,
             metadataUrl = entry.metadataUrl,
+            metadataSha1 = entry.metadataSha1,
             javaComponent = javaVersion?.optString("component")?.takeIf { it.isNotBlank() },
             javaMajorVersion = javaVersion?.takeIf { it.has("majorVersion") && !it.isNull("majorVersion") }?.optInt("majorVersion"),
             clientJarUrl = client?.optString("url")?.takeIf { it.isNotBlank() },
