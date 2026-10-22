@@ -129,7 +129,7 @@ private fun SettingsOverviewScreen(
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 Text("What is still required", fontWeight = FontWeight.Bold)
                 Text(
-                    "The Minecraft Java runtime/bootstrapper, secure Microsoft authentication, game-library and asset downloads, version installation, and actual game launch are not part of this UI foundation yet. These tools do not bypass account authentication or directly change game files.",
+                    "The Java Runtime Manager can install and verify several Android Java versions. The Minecraft launch/bootstrap engine and rendering/native backend, secure Microsoft authentication, game-library and asset downloads, version installation, and actual game launch are still not integrated. These tools do not bypass account authentication or directly change game files.",
                     color = VoidMuted,
                     fontSize = 12.sp,
                     lineHeight = 18.sp
