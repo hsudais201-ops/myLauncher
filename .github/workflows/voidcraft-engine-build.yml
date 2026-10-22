@@ -42,6 +42,14 @@ jobs:
           submodules: recursive
           fetch-depth: 0
 
+      - name: Check out the pinned Java 8 runtime packager
+        uses: actions/checkout@v4
+        with:
+          repository: AngelAuraMC/angelauramc-openjdk-build
+          ref: f03a5a05d76394bc3e91317e9ff4b8c21e5cb802
+          path: runtime/angelauramc-openjdk-build
+          fetch-depth: 1
+
       - name: Record engine revision and license inventory
         shell: bash
         run: |
@@ -51,6 +59,7 @@ jobs:
           find . -type f \( -iname 'license' -o -iname 'license.*' -o -iname 'copying*' -o -iname 'notice*' \) \
             -not -path './.git/*' -not -path '*/build/*' | sort > ../../engine-license-files.txt
           cd ../..
+          echo "Pinned JRE8 packager commit: $(git -C runtime/angelauramc-openjdk-build rev-parse HEAD)" | tee -a engine-build-provenance.txt
           cat engine-build-provenance.txt
 
       - name: Install Java 8 toolchain for legacy modules
@@ -71,15 +80,55 @@ jobs:
           chmod +x scripts/languagelist_updater.sh
           bash scripts/languagelist_updater.sh
 
-      - name: Download the upstream Java 8 runtime bundle
-        uses: dawidd6/action-download-artifact@v9
-        with:
-          workflow: build.yml
-          path: engine/Amethyst-Android/app_pojavlauncher/src/main/assets/components/jre
-          workflow_conclusion: completed
-          repo: AngelAuraMC/angelauramc-openjdk-build
-          branch: buildjre8
-          name: jre8-pojav
+      - name: Download and verify pinned Java 8 runtime archives
+        shell: bash
+        run: |
+          set -euo pipefail
+          input="$RUNNER_TEMP/voidcraft-jre8-input"
+          mkdir -p "$input"
+          base="https://github.com/AngelAuraMC/angelauramc-openjdk-build/releases/download/download_jre8"
+          declare -A sizes=(
+            [arm]=27035664
+            [arm64]=28026736
+            [x86]=27473340
+            [x86_64]=29132884
+          )
+          declare -A digests=(
+            [arm]=9dbee3b09af5f170e2ed9dd596bc81d0e573c88f8bf760c59c8fadbb9073d1e7
+            [arm64]=9a59124d9791957d55c68be664ab76831f336cf2e1e1cd4414220c6fdbf0e06d
+            [x86]=b96ce49fab52b28688dccc1a7d85dfc6d0f4048636aac826e1967524b28f75af
+            [x86_64]=b1fbcef4965c17925894febe8216d089c6dd47b37950b5f945a89616443c1d0e
+          )
+          for arch in arm arm64 x86 x86_64; do
+            archive="$input/jre8-android-$arch-release.tar.xz"
+            curl --fail --location --silent --show-error --retry 3 --retry-all-errors --max-time 120 \
+              "$base/jre8-android-$arch.tar.xz" -o "$archive"
+            actual_size="$(stat -c '%s' "$archive")"
+            test "$actual_size" = "${sizes[$arch]}" || {
+              echo "Unexpected JRE8 $arch archive size: $actual_size" >&2
+              exit 1
+            }
+            printf '%s  %s\n' "${digests[$arch]}" "$archive" | sha256sum --check --strict
+          done
+
+      - name: Rebuild the engine's Java 8 component bundle
+        shell: bash
+        run: |
+          set -euo pipefail
+          input="$RUNNER_TEMP/voidcraft-jre8-input"
+          output="engine/Amethyst-Android/app_pojavlauncher/src/main/assets/components/jre"
+          mkdir -p "$output"
+          packager="runtime/angelauramc-openjdk-build/repackjre.sh"
+          chmod +x "$packager"
+          # Some releases omit optional JRE tools; stripping them should remain idempotent.
+          sed -i -E 's/^([[:space:]]*)rm (bin\/|lib\/)/\1rm -f \2/' "$packager"
+          export PATH="$JAVA_HOME_8_X64/bin:$PATH"
+          command -v pack200
+          GITHUB_SHA=f03a5a05d76394bc3e91317e9ff4b8c21e5cb802 bash "$packager" "$input" "$output"
+          for asset in universal.tar.xz bin-arm.tar.xz bin-arm64.tar.xz bin-x86.tar.xz bin-x86_64.tar.xz version; do
+            test -s "$output/$asset"
+          done
+          ls -lh "$output"
 
       - name: Overlay Voidcraft frontend onto the tested engine
         run: |
