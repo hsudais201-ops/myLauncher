@@ -230,8 +230,27 @@ fun JavaRuntimeManagerScreen(onBack: () -> Unit) {
                                     statusByVersion = statusByVersion + (asset.majorVersion to "Installed and verified successfully.")
                                     outputByVersion = outputByVersion + (asset.majorVersion to output)
                                 }.onFailure { error ->
-                                    installedVersions = installedVersions - asset.majorVersion
-                                    statusByVersion = statusByVersion + (asset.majorVersion to "Install failed: ${error.message ?: "unknown error"}")
+                                    val previousCheck = withContext(Dispatchers.IO) {
+                                        verifyInstalledRuntime(runtimeInstallDirectory(context, asset), context)
+                                    }
+                                    installedVersions = if (previousCheck.success) {
+                                        installedVersions + asset.majorVersion
+                                    } else {
+                                        installedVersions - asset.majorVersion
+                                    }
+                                    outputByVersion = if (previousCheck.success) {
+                                        outputByVersion + (asset.majorVersion to previousCheck.message)
+                                    } else {
+                                        outputByVersion - asset.majorVersion
+                                    }
+                                    val errorMessage = error.message ?: "unknown error"
+                                    statusByVersion = statusByVersion + (
+                                        asset.majorVersion to if (previousCheck.success) {
+                                            "Update failed, but the previous Java ${asset.majorVersion} runtime is still working. $errorMessage"
+                                        } else {
+                                            "Install failed: $errorMessage"
+                                        }
+                                    )
                                 }
                                 busyVersion = null
                             }
