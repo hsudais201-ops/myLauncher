@@ -163,9 +163,9 @@ fun GameVersionsScreen(
             colors = CardDefaults.cardColors(containerColor = VoidSurface)
         ) {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text("Runtime not connected yet", fontWeight = FontWeight.Bold)
+                Text("Java runtime manager added; game engine still pending", fontWeight = FontWeight.Bold)
                 Text(
-                    "Selecting a version saves your preference only. This build does not yet download the Minecraft libraries/assets, provision a compatible Java runtime, authenticate a Microsoft account, or launch the game.",
+                    "Selecting a version saves your preference only. Settings can install an experimental Android Java 17 runtime, but Voidcraft still does not download Minecraft libraries/assets, install a game version, authenticate a Microsoft account, or launch the game. Minecraft versions requiring Java 21 need a newer runtime.",
                     color = VoidMuted,
                     fontSize = 12.sp,
                     lineHeight = 18.sp
