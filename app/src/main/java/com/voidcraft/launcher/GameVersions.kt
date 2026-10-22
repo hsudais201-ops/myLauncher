@@ -379,7 +379,7 @@ fun GameVersionsScreen(
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 Text("Java runtimes available; game engine still pending", fontWeight = FontWeight.Bold)
                 Text(
-                    "Selecting a version saves your preference only. Settings can install SHA-256-verified Android Java 8, 17, 21, or 25 runtimes for supported CPU architectures, but Voidcraft still does not download Minecraft libraries/assets, install a game version, authenticate a Microsoft account, or launch the game. Choose a Java version compatible with the selected game and mods.",
+                    "Selecting a version saves your preference. This screen can download and verify the official client JAR, compatible library JAR artifacts, the asset index, and all referenced asset objects in private app storage. It still does not provide the Android LWJGL/native compatibility engine, Microsoft authentication, inherited/loader-specific version resolution, or an actual game launch. Choose a Java runtime compatible with the selected version.",
                     color = VoidMuted,
                     fontSize = 12.sp,
                     lineHeight = 18.sp
