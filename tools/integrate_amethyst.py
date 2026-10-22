@@ -8,7 +8,6 @@ produce a different app layout.
 from __future__ import annotations
 
 import argparse
-import re
 import shutil
 from pathlib import Path
 
@@ -109,6 +108,7 @@ def main() -> None:
     implementation 'androidx.compose.ui:ui-tooling-preview'
     implementation 'androidx.compose.material3:material3'
     implementation 'androidx.compose.material:material-icons-extended'
+    implementation files(criticalNativeStubJar).builtBy("packageCriticalNativeStub")
 
 }"""
     gradle = replace_once(gradle, dependency_anchor, dependency_block, "Compose/runtime dependencies")
