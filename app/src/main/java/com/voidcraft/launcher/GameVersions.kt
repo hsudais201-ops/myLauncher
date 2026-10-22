@@ -1,6 +1,8 @@
 package com.voidcraft.launcher
 
 import android.content.Context
+import android.os.Handler
+import android.os.Looper
 import android.os.StatFs
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -52,6 +54,7 @@ private data class MinecraftVersionEntry(
 
 private data class MinecraftVersionDetails(
     val id: String,
+    val metadataUrl: String,
     val javaComponent: String?,
     val javaMajorVersion: Int?,
     val clientJarUrl: String?,
@@ -139,6 +142,40 @@ fun GameVersionsScreen(
         }
     }
 
+    fun downloadLibraries(details: MinecraftVersionDetails) {
+        scope.launch {
+            downloadingVersion = details.id
+            downloadMessage = "Preparing library downloads…"
+            val result = withContext(Dispatchers.IO) {
+                runCatching {
+                    downloadMinecraftLibraries(context, details.metadataUrl) { message ->
+                        Handler(Looper.getMainLooper()).post { downloadMessage = message }
+                    }
+                }
+            }
+            result.onSuccess { count -> downloadMessage = "Verified $count library JAR files." }
+                .onFailure { error -> downloadMessage = "Library download failed: ${error.message ?: "unknown error"}" }
+            downloadingVersion = null
+        }
+    }
+
+    fun downloadAssets(details: MinecraftVersionDetails) {
+        scope.launch {
+            downloadingVersion = details.id
+            downloadMessage = "Preparing asset index and downloads…"
+            val result = withContext(Dispatchers.IO) {
+                runCatching {
+                    downloadMinecraftAssets(context, details.metadataUrl) { message ->
+                        Handler(Looper.getMainLooper()).post { downloadMessage = message }
+                    }
+                }
+            }
+            result.onSuccess { count -> downloadMessage = "Downloaded and verified $count game asset objects." }
+                .onFailure { error -> downloadMessage = "Asset download failed: ${error.message ?: "unknown error"}" }
+            downloadingVersion = null
+        }
+    }
+
     LaunchedEffect(Unit) {
         refresh()
     }
@@ -196,17 +233,27 @@ fun GameVersionsScreen(
                         Text("Client JAR SHA-1: $it", color = VoidMuted, fontSize = 11.sp, lineHeight = 15.sp)
                     }
                     Text("Asset index: ${details.assetIndexId ?: "not listed"}", color = VoidMuted, fontSize = 12.sp)
-                    Text("Libraries listed: ${details.libraryCount}", color = VoidMuted, fontSize = 12.sp)
+                    Text("Libraries listed: ${details.libraryCount} entries", color = VoidMuted, fontSize = 12.sp)
                     Text("Release time: ${details.releaseTime.ifBlank { "not listed" }}", color = VoidMuted, fontSize = 12.sp)
                     details.assetIndexUrl?.let {
                         Text("Asset index URL: $it", color = VoidMuted, fontSize = 10.sp, lineHeight = 14.sp)
                     }
                     Text(
-                        "The inspector only reads metadata. You can download the client JAR below; libraries, assets, authentication, and actual game launching are separate steps.",
+                        "The installer can fetch the client JAR, compatible library JARs, and every verified asset object. This still does not include Android LWJGL natives, Microsoft sign-in, or the game launch pipeline.",
                         color = VoidMuted,
                         fontSize = 11.sp,
                         lineHeight = 16.sp
                     )
+                    Button(
+                        onClick = { downloadLibraries(details) },
+                        enabled = downloadingVersion == null,
+                        modifier = Modifier.fillMaxWidth()
+                    ) { Text("DOWNLOAD & VERIFY LIBRARIES") }
+                    Button(
+                        onClick = { downloadAssets(details) },
+                        enabled = downloadingVersion == null && !details.assetIndexUrl.isNullOrBlank(),
+                        modifier = Modifier.fillMaxWidth()
+                    ) { Text("DOWNLOAD ALL GAME ASSETS") }
                     Button(
                         onClick = { downloadClientJar(details) },
                         enabled = downloadingVersion == null &&
@@ -386,6 +433,7 @@ private fun fetchMinecraftVersionDetails(entry: MinecraftVersionEntry): Minecraf
         val libraries = root.optJSONArray("libraries")
         return MinecraftVersionDetails(
             id = root.optString("id", entry.id).ifBlank { entry.id },
+            metadataUrl = entry.metadataUrl,
             javaComponent = javaVersion?.optString("component")?.takeIf { it.isNotBlank() },
             javaMajorVersion = javaVersion?.takeIf { it.has("majorVersion") && !it.isNull("majorVersion") }?.optInt("majorVersion"),
             clientJarUrl = client?.optString("url")?.takeIf { it.isNotBlank() },
