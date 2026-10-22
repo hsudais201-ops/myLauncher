@@ -222,30 +222,35 @@ fun JavaRuntimeManagerScreen(onBack: () -> Unit) {
                             statusByVersion = statusByVersion + (asset.majorVersion to "Downloading and verifying Java ${asset.majorVersion}… Keep Voidcraft open.")
                             outputByVersion = outputByVersion - asset.majorVersion
                             scope.launch {
-                                val result = withContext(Dispatchers.IO) {
-                                    runCatching { installJavaRuntime(context, asset) }
+                                val (result, previousCheck) = withContext(Dispatchers.IO) {
+                                    val attempt = runCatching { installJavaRuntime(context, asset) }
+                                    val previous = if (attempt.isFailure) {
+                                        verifyInstalledRuntime(runtimeInstallDirectory(context, asset), context)
+                                    } else {
+                                        null
+                                    }
+                                    Pair(attempt, previous)
                                 }
                                 result.onSuccess { output ->
                                     installedVersions = installedVersions + asset.majorVersion
                                     statusByVersion = statusByVersion + (asset.majorVersion to "Installed and verified successfully.")
                                     outputByVersion = outputByVersion + (asset.majorVersion to output)
                                 }.onFailure { error ->
-                                    val previousCheck = withContext(Dispatchers.IO) {
-                                        verifyInstalledRuntime(runtimeInstallDirectory(context, asset), context)
-                                    }
-                                    installedVersions = if (previousCheck.success) {
+                                    val previous = previousCheck
+                                        ?: JavaRuntimeCheck(false, "No previously installed runtime could be verified.")
+                                    installedVersions = if (previous.success) {
                                         installedVersions + asset.majorVersion
                                     } else {
                                         installedVersions - asset.majorVersion
                                     }
-                                    outputByVersion = if (previousCheck.success) {
-                                        outputByVersion + (asset.majorVersion to previousCheck.message)
+                                    outputByVersion = if (previous.success) {
+                                        outputByVersion + (asset.majorVersion to previous.message)
                                     } else {
                                         outputByVersion - asset.majorVersion
                                     }
                                     val errorMessage = error.message ?: "unknown error"
                                     statusByVersion = statusByVersion + (
-                                        asset.majorVersion to if (previousCheck.success) {
+                                        asset.majorVersion to if (previous.success) {
                                             "Update failed, but the previous Java ${asset.majorVersion} runtime is still working. $errorMessage"
                                         } else {
                                             "Install failed: $errorMessage"
