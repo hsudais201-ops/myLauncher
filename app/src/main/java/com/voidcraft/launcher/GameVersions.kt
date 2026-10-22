@@ -520,11 +520,6 @@ private fun downloadAndVerifyMinecraftClientJar(
         "Unexpected client JAR host; only official Mojang download hosts are accepted"
     }
 
-    val freeSpace = StatFs(context.filesDir.absolutePath).availableBytes
-    require(freeSpace >= expectedSize + MIN_DOWNLOAD_FREE_SPACE_BYTES) {
-        "Not enough free app storage for this client JAR"
-    }
-
     val safeVersionId = details.id.replace(Regex("[^A-Za-z0-9._-]"), "_")
     require(safeVersionId.isNotBlank() && safeVersionId != "." && safeVersionId != "..") {
         "Invalid version identifier"
@@ -538,6 +533,11 @@ private fun downloadAndVerifyMinecraftClientJar(
         sha1OfFile(destination).equals(expectedSha1, ignoreCase = true)
     ) {
         return destination
+    }
+
+    val freeSpace = StatFs(versionDirectory.absolutePath).availableBytes
+    require(freeSpace >= expectedSize + MIN_DOWNLOAD_FREE_SPACE_BYTES) {
+        "Not enough free storage in the configured game directory for this client JAR"
     }
 
     temporary.delete()
