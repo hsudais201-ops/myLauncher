@@ -112,11 +112,41 @@ def main() -> None:
 
 }"""
     gradle = replace_once(gradle, dependency_anchor, dependency_block, "Compose/runtime dependencies")
+    critical_native_tasks = """def criticalNativeStubSource = file("src/main/java/dalvik/annotation/optimization/CriticalNative.java")
+def criticalNativeStubClasses = file("$buildDir/generated/criticalNativeStub/classes")
+def criticalNativeStubJar = file("$buildDir/generated/criticalNativeStub/critical-native-stub.jar")
+
+tasks.register("compileCriticalNativeStub", Exec) {
+    inputs.file(criticalNativeStubSource)
+    outputs.dir(criticalNativeStubClasses)
+    doFirst {
+        if (!criticalNativeStubSource.isFile()) {
+            throw new GradleException("Pinned engine CriticalNative source is missing")
+        }
+        def java8Home = System.getenv("JAVA_HOME_8_X64")
+        if (!java8Home) {
+            throw new GradleException("Java 8 toolchain is required for CriticalNative")
+        }
+        delete criticalNativeStubClasses
+        criticalNativeStubClasses.mkdirs()
+        commandLine new File(java8Home, "bin/javac").absolutePath,
+            "-source", "8", "-target", "8", "-d", criticalNativeStubClasses.absolutePath,
+            criticalNativeStubSource.absolutePath
+    }
+}
+
+tasks.register("packageCriticalNativeStub", Jar) {
+    dependsOn("compileCriticalNativeStub")
+    archiveFileName = "critical-native-stub.jar"
+    destinationDirectory = file("$buildDir/generated/criticalNativeStub")
+    from(criticalNativeStubClasses)
+}
+"""
     gradle = replace_once(
         gradle,
         "\n}\n\ndependencies {",
-        "\n}\n\ntasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinJvmCompile).configureEach {\n    jvmTargetValidationMode = org.jetbrains.kotlin.gradle.dsl.jvm.JvmTargetValidationMode.IGNORE\n}\n\ndependencies {",
-        "project-level Kotlin JVM target validation"
+        "\n}\n\n" + critical_native_tasks + "\ndependencies {",
+        "Java 8 CriticalNative stub task and dependency ordering"
     )
     gradle = replace_once(
         gradle,
@@ -125,18 +155,24 @@ def main() -> None:
         targetCompatibility JavaVersion.VERSION_1_8
     }""",
         """    compileOptions {
-        sourceCompatibility JavaVersion.VERSION_1_8
-        targetCompatibility JavaVersion.VERSION_1_8
+        sourceCompatibility JavaVersion.VERSION_11
+        targetCompatibility JavaVersion.VERSION_11
+    }
+
+    sourceSets {
+        main {
+            java {
+                exclude "dalvik/annotation/optimization/CriticalNative.java"
+            }
+        }
     }
 
     kotlin {
         compilerOptions {
             jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_11
         }
-    }
-
-    """,
-        "Java 8 source target plus Kotlin 11 bytecode target"
+    }""",
+        "Java/Kotlin 11 targets with Java 8 CriticalNative stub"
     )
 
     # Give the integrated build Voidcraft's existing application identity and branded label.
@@ -188,14 +224,6 @@ def main() -> None:
         "android.builtInKotlin=true",
         "built-in Kotlin compiler switch"
     )
-    # Override the upstream target-validation property even if spaces surround the equals sign.
-    properties = re.sub(
-        r"(?m)^\s*kotlin\.jvm\.target\.validation\.mode\s*=.*$",
-        "kotlin.jvm.target.validation.mode=ignore",
-        properties
-    )
-    if not re.search(r"(?m)^\s*kotlin\.jvm\.target\.validation\.mode\s*=", properties):
-        properties = properties.rstrip() + "\nkotlin.jvm.target.validation.mode=ignore\n"
     properties_file.write_text(properties, encoding="utf-8")
 
     manifest = manifest_file.read_text(encoding="utf-8")
