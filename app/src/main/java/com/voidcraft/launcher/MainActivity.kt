@@ -2,6 +2,8 @@ package com.voidcraft.launcher
 
 import android.app.DownloadManager
 import android.content.Context
+import android.content.Intent
+import android.content.ActivityNotFoundException
 import android.net.Uri
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -620,11 +622,17 @@ private fun VoidcraftApp() {
                     LauncherTab.Home -> HomeScreen(
                         storeEnabled = storeEnabled,
                         onPlayClick = {
-                            selectedTab = 1
-                            scope.launch {
-                                snackbarHostState.showSnackbar(
-                                    "Prepare your version first: inspect it to download the verified client, libraries, and assets. The Android game engine is still being integrated."
+                            try {
+                                context.startActivity(
+                                    Intent().setClassName(context, "net.kdt.pojavlaunch.LauncherActivity")
                                 )
+                            } catch (_: ActivityNotFoundException) {
+                                selectedTab = 1
+                                scope.launch {
+                                    snackbarHostState.showSnackbar(
+                                        "The integrated game engine is not included in this build yet. Inspect your version here to prepare its files."
+                                    )
+                                }
                             }
                         },
                         onVersionsClick = { selectedTab = 1 },
