@@ -14,6 +14,8 @@ Voidcraft is a touch-first Android launcher prototype for Minecraft: Java Editio
 - **Settings tools:** local profile-name preference, device memory advisor, saved touch-control preferences, private file library, skin PNG validation/preview, GitHub release checker, and a Java Runtime Manager.
 - **Render Backend:** an Android OpenGL ES 2.0 diagnostic screen with a depth-tested rotating 3D cube, shader compilation/link checks, and GPU vendor/renderer/version/texture-limit/surface-size reporting.
 
+See [the render engine integration plan](docs/RENDER_ENGINE_INTEGRATION.md) for the next steps toward a real Minecraft-compatible renderer and launch pipeline.
+
 ## Build
 
 - Android application ID: `com.voidcraft.launcher`
