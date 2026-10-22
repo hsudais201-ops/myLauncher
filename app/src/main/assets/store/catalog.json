@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "updatedAt": "2026-10-21",
+  "updatedAt": "2026-10-22",
   "items": [
     {
       "id": "social-hub",
@@ -20,11 +20,11 @@
       "id": "advanced-mod-manager",
       "name": "Advanced Mod Manager",
       "tagline": "Import, organize, enable, disable, export, and remove JAR mods.",
-      "description": "Optional built-in manager for a private local library of Minecraft Java mod JAR files. It validates archive files, organizes enabled and disabled copies, exports files through Android's document picker, and lets you remove items. Minecraft runtime/profile integration is not connected yet, so library toggles do not load mods into a running game.",
+      "description": "Optional built-in manager for Minecraft Java mod JAR files. In the combined engine build it reads the active Minecraft mods directory, imports and exports JARs, toggles enabled files to .jar.disabled and back, and removes them from that folder. Changes require restarting the game. Mods must match the selected Minecraft version and installed loader. The standalone prototype uses a private fallback directory.",
       "kind": "launcher",
       "category": "Mods",
       "version": "1.0",
-      "compatibility": "VoidCraft Android beta; local JAR library only",
+      "compatibility": "Voidcraft combined Android beta; mods must match game version and loader",
       "license": "VoidCraft",
       "packageUrl": null,
       "availability": "available",
