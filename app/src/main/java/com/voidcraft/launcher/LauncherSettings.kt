@@ -172,6 +172,7 @@ private fun ProfileSettingsScreen(onBack: () -> Unit) {
     val prefs = remember { context.getSharedPreferences(SETTINGS_PREFS, Context.MODE_PRIVATE) }
     var playerName by remember { mutableStateOf(prefs.getString("offline_profile_name", "Player") ?: "Player") }
     var status by remember { mutableStateOf("This name is stored only on this device.") }
+    var engineAccountStatus by remember { mutableStateOf<String?>(null) }
     val valid = playerName.matches(Regex("^[A-Za-z0-9_]{3,16}$"))
 
     Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
@@ -199,6 +200,18 @@ private fun ProfileSettingsScreen(onBack: () -> Unit) {
             modifier = Modifier.fillMaxWidth()
         ) { Text("SAVE LOCAL PROFILE") }
         Text(status, color = VoidMuted, fontSize = 12.sp)
+        Button(
+            onClick = {
+                try {
+                    context.startActivity(Intent().setClassName(context, "net.kdt.pojavlaunch.LauncherActivity"))
+                    engineAccountStatus = "Opened the engine account/profile screen. Sign in through its official supported flow; this local name does not grant online access."
+                } catch (_: ActivityNotFoundException) {
+                    engineAccountStatus = "The account manager is available in the combined engine build, not in the standalone Voidcraft prototype."
+                }
+            },
+            modifier = Modifier.fillMaxWidth()
+        ) { Text("OPEN ENGINE ACCOUNT & PROFILE MANAGER") }
+        engineAccountStatus?.let { Text(it, color = VoidMuted, fontSize = 11.sp, lineHeight = 16.sp) }
         Card(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(16.dp),
@@ -207,7 +220,7 @@ private fun ProfileSettingsScreen(onBack: () -> Unit) {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 Text("Account safety", fontWeight = FontWeight.Bold)
                 Text(
-                    "This is only a local profile preference. It is not a Microsoft account sign-in, does not grant online access, and is not an authentication bypass. The Minecraft launch engine is not integrated yet.",
+                    "This name is a local preference only. Use the integrated engine's account/profile manager for official sign-in and supported offline profiles. Voidcraft does not bypass Microsoft authentication.",
                     color = VoidMuted,
                     fontSize = 12.sp,
                     lineHeight = 18.sp
@@ -269,8 +282,18 @@ private fun PerformanceSettingsScreen(onBack: () -> Unit) {
             modifier = Modifier.fillMaxWidth()
         ) { Text("SAVE MEMORY PREFERENCE") }
         if (saved) Text("Saved on this device.", color = VoidMuted, fontSize = 12.sp)
+        Button(
+            onClick = {
+                try {
+                    context.startActivity(Intent().setClassName(context, "net.kdt.pojavlaunch.LauncherActivity"))
+                } catch (_: ActivityNotFoundException) {
+                    saved = false
+                }
+            },
+            modifier = Modifier.fillMaxWidth()
+        ) { Text("OPEN ENGINE PERFORMANCE & GAME SETTINGS") }
         Text(
-            "The memory preference is ready for a future game engine. It does not change Android's system memory or allocate RAM to Minecraft while the runtime is absent.",
+            "The slider saves Voidcraft's suggested memory budget. The integrated engine's own settings control the actual Java runtime and game memory allocation.",
             color = VoidMuted,
             fontSize = 12.sp,
             lineHeight = 18.sp
