@@ -1,0 +1,49 @@
+# Voidcraft Android device smoke test
+
+This is an acceptance checklist for **debug/test artifacts**, not a public release sign-off. A successful CI build proves the APK compiled and passed the workflow's checks; it does not prove that Minecraft launches on a particular device.
+
+## 1. Get the combined test APK
+
+1. Open the [Voidcraft integrated Android engine workflow runs](https://github.com/hsudais201-ops/myLauncher/actions/workflows/voidcraft-engine-build.yml).
+2. Open the newest run with a green success result on `launcher/bootstrap`.
+3. Download the `voidcraft-integrated-debug-apk` artifact, then extract its ZIP with the phone's Files app. Do not install the separate `voidcraft-debug-apk` when you intend to test the integrated engine; that artifact is the standalone frontend build.
+4. Keep the included SHA-256 and build-provenance files with the test notes.
+
+Only install an artifact produced by the expected repository workflow. The app's minimum Android version is API 26 (Android 8.0).
+
+## 2. First launch and engine access
+
+- Install the extracted APK. If Android asks, grant the file manager permission to install apps, then revoke that permission after installation.
+- Open Voidcraft and complete the engine's first-run storage setup.
+- Tap **PLAY**. The integrated upstream launcher should open. If it does not, record the exact error and stop; do not assume the game engine is working.
+- Use only the engine's supported official account sign-in for an account you control. Never share passwords, session tokens, or unredacted logs.
+- In the engine, confirm a compatible Java runtime is available, install a vanilla Minecraft Java release, and start it from the engine's own launch control. Downloading metadata or files in the Voidcraft Versions screen alone is not a successful world-launch test.
+
+## 3. Test game launch and inputs
+
+Record pass/fail for each item:
+
+- [ ] Voidcraft home screen opens without crashing.
+- [ ] PLAY reaches the integrated engine launcher.
+- [ ] Official sign-in/profile setup works.
+- [ ] A compatible Java runtime is selectable and starts.
+- [ ] A vanilla release installs, including its assets and libraries.
+- [ ] Minecraft reaches the title screen.
+- [ ] A single-player world can be created/opened and played for at least five minutes.
+- [ ] Touch controls respond; keyboard/gamepad input is checked if available.
+- [ ] Audio and renderer behave without persistent errors.
+- [ ] Returning from Minecraft to Voidcraft does not crash the launcher.
+- [ ] The in-app OpenGL diagnostic screen reports the expected GPU/GL information.
+
+For Mods and Files, first confirm that the tools target the same active game directory shown by the engine. Only test a mod known to match that Minecraft version and mod loader. Do not treat a downloaded Feature Store package as an installed Minecraft mod: arbitrary third-party packages are stored but are not injected into the live game.
+
+## 4. Report a reproducible result
+
+Include the app artifact/run link and SHA-256, device model, Android version, CPU ABI, Minecraft version, Java version, renderer, and the failed checklist step. Attach a screenshot of the failure or game title screen. Redact account names, personal paths, passwords, tokens, and other private data from logs.
+
+## Release blockers
+
+- A physical-device test must verify sign-in, runtime selection, version installation, and successful world launch before calling the launcher playable.
+- Social Hub is a staging beta, not a production-ready community service.
+- Do not publicly distribute a combined APK until the exact bundled engine/native-component redistribution terms, required LGPL/GPL source and notices, and any ARR/unknown-license concerns have been resolved.
+- Public signing, safe update delivery, privacy/security review, and the website distribution path remain separate release gates.
