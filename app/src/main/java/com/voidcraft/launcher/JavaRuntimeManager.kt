@@ -447,6 +447,27 @@ private fun installJavaRuntime(context: Context, asset: JavaRuntimeAsset): Strin
             if (backedUpPreviousInstall) backupDirectory.renameTo(finalDirectory)
             error("Installed runtime failed its final check: ${finalCheck.message}")
         }
+        // Register the runtime with the integrated engine when its runtime manager is present.
+        // The standalone launcher remains usable without that optional engine class.
+        val engineRuntimeManager = runCatching {
+            Class.forName("net.kdt.pojavlaunch.multirt.MultiRTUtils")
+        }.getOrNull()
+        if (engineRuntimeManager != null) {
+            try {
+                engineRuntimeManager.getMethod("postPrepare", String::class.java)
+                    .invoke(null, finalDirectory.name)
+                engineRuntimeManager.getMethod("forceReread", String::class.java)
+                    .invoke(null, finalDirectory.name)
+            } catch (error: Throwable) {
+                finalDirectory.deleteRecursively()
+                if (backedUpPreviousInstall) backupDirectory.renameTo(finalDirectory)
+                throw IllegalStateException(
+                    "Java passed its standalone check but the integrated engine could not register it: " +
+                        (error.cause?.message ?: error.message ?: "unknown runtime registration error"),
+                    error
+                )
+            }
+        }
         if (backedUpPreviousInstall) backupDirectory.deleteRecursively()
         return finalCheck.message
     } finally {
