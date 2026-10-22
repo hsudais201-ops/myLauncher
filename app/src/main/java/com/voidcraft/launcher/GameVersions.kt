@@ -106,7 +106,7 @@ fun GameVersionsScreen(
             }
             result.onSuccess { inspectedDetails = it }
                 .onFailure { error ->
-                    inspectionError = "Could not inspect ${{entry.id}: ${{error.message ?: "metadata error"}."
+                    inspectionError = "Could not inspect ${entry.id}: ${error.message ?: "metadata error"}."
                 }
             inspectingId = null
         }
@@ -158,19 +158,19 @@ fun GameVersionsScreen(
                     Text("VERSION INSTALL PREFLIGHT", color = MaterialTheme.colorScheme.primary, fontSize = 11.sp, fontWeight = FontWeight.Bold)
                     Text(details.id, fontSize = 20.sp, fontWeight = FontWeight.ExtraBold)
                     Text(
-                        "Required Java: ${{details.javaMajorVersion?.toString() ?: "not specified"}${{details.javaComponent?.let { " ($it)" } ?: ""}",
+                        "Required Java: ${details.javaMajorVersion?.toString() ?: "not specified"}${details.javaComponent?.let { " ($it)" } ?: ""}",
                         fontWeight = FontWeight.SemiBold
                     )
-                    Text("Client JAR: ${{if (details.clientJarUrl.isNullOrBlank()) "not listed" else "available in metadata"}", color = VoidMuted, fontSize = 12.sp)
+                    Text("Client JAR: ${if (details.clientJarUrl.isNullOrBlank()) "not listed" else "available in metadata"}", color = VoidMuted, fontSize = 12.sp)
                     details.clientJarSizeBytes?.let {
                         Text("Client JAR size: %.2f MiB".format(it / (1024.0 * 1024.0)), color = VoidMuted, fontSize = 12.sp)
                     }
                     details.clientJarSha1?.let {
                         Text("Client JAR SHA-1: $it", color = VoidMuted, fontSize = 11.sp, lineHeight = 15.sp)
                     }
-                    Text("Asset index: ${{details.assetIndexId ?: "not listed"}", color = VoidMuted, fontSize = 12.sp)
-                    Text("Libraries listed: ${{details.libraryCount}", color = VoidMuted, fontSize = 12.sp)
-                    Text("Release time: ${{details.releaseTime.ifBlank { "not listed" }}", color = VoidMuted, fontSize = 12.sp)
+                    Text("Asset index: ${details.assetIndexId ?: "not listed"}", color = VoidMuted, fontSize = 12.sp)
+                    Text("Libraries listed: ${details.libraryCount}", color = VoidMuted, fontSize = 12.sp)
+                    Text("Release time: ${details.releaseTime.ifBlank { "not listed" }}", color = VoidMuted, fontSize = 12.sp)
                     details.assetIndexUrl?.let {
                         Text("Asset index URL: $it", color = VoidMuted, fontSize = 10.sp, lineHeight = 14.sp)
                     }
@@ -323,7 +323,7 @@ private fun fetchMinecraftVersionDetails(entry: MinecraftVersionEntry): Minecraf
     }
     try {
         if (connection.responseCode !in 200..299) {
-            error("Mojang returned HTTP ${{connection.responseCode}")
+            error("Mojang returned HTTP ${connection.responseCode}")
         }
         val body = connection.inputStream.bufferedReader().use { it.readText() }
         val root = JSONObject(body)
