@@ -17,6 +17,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Switch
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -86,6 +87,7 @@ fun GameVersionsScreen(
     var latestRelease by remember { mutableStateOf("") }
     var latestSnapshot by remember { mutableStateOf("") }
     var showSnapshots by remember { mutableStateOf(false) }
+    var searchQuery by remember { mutableStateOf("") }
     var loading by remember { mutableStateOf(false) }
     var inspectingId by remember { mutableStateOf<String?>(null) }
     var inspectedDetails by remember { mutableStateOf<MinecraftVersionDetails?>(null) }
@@ -297,10 +299,21 @@ fun GameVersionsScreen(
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             Column(Modifier.weight(1f)) {
-                Text("Include snapshots", fontWeight = FontWeight.SemiBold)
-                Text("Snapshots may be unstable.", color = VoidMuted, fontSize = 11.sp)
+                Text("Include snapshots & legacy versions", fontWeight = FontWeight.SemiBold)
+                Text("Snapshots and old alpha/beta builds may be unstable.", color = VoidMuted, fontSize = 11.sp)
             }
             Switch(checked = showSnapshots, onCheckedChange = { showSnapshots = it })
+        }
+
+        OutlinedTextField(
+            value = searchQuery,
+            onValueChange = { searchQuery = it.take(40) },
+            label = { Text("Search versions, e.g. 1.12.2 or 26.x") },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth()
+        )
+        if (searchQuery.isBlank() && versions.size > 25) {
+            Text("Showing the 25 newest matching versions. Search by exact version to find older releases.", color = VoidMuted, fontSize = 11.sp, lineHeight = 16.sp)
         }
 
         if (versions.isEmpty() && loading) {
@@ -308,7 +321,14 @@ fun GameVersionsScreen(
         } else if (versions.isEmpty()) {
             Text(status, color = VoidMuted, fontSize = 12.sp, lineHeight = 18.sp)
         } else {
-            val visibleVersions = versions.filter { showSnapshots || it.type == "release" }.take(25)
+            val matchingVersions = versions.filter {
+                (showSnapshots || it.type == "release") &&
+                    (searchQuery.isBlank() || it.id.contains(searchQuery.trim(), ignoreCase = true))
+            }
+            val visibleVersions = if (searchQuery.isBlank()) matchingVersions.take(25) else matchingVersions.take(100)
+            if (visibleVersions.isEmpty()) {
+                Text("No versions match this search and filter.", color = VoidMuted, fontSize = 12.sp)
+            }
             visibleVersions.forEach { entry ->
                 Card(
                     modifier = Modifier.fillMaxWidth(),
@@ -391,7 +411,7 @@ private fun fetchMinecraftVersions(): MinecraftVersionManifest {
                     val row = rows.optJSONObject(index) ?: continue
                     val id = row.optString("id").trim()
                     val type = row.optString("type").trim()
-                    if (id.isNotBlank() && type in setOf("release", "snapshot")) {
+                    if (id.isNotBlank() && type in setOf("release", "snapshot", "old_beta", "old_alpha")) {
                         add(MinecraftVersionEntry(id, type, row.optString("releaseTime"), row.optString("url"), row.optString("sha1")))
                     }
                 }
