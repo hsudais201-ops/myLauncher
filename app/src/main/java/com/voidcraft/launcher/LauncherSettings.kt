@@ -79,6 +79,7 @@ fun LauncherSettingsScreen(onOpenFeatureStore: () -> Unit) {
         "skin" -> LocalSkinStudioScreen(onBack = { page = "overview" })
         "updates" -> ReleaseCheckerScreen(onBack = { page = "overview" })
         "runtime" -> JavaRuntimeManagerScreen(onBack = { page = "overview" })
+        "render" -> RenderBackendScreen(onBack = { page = "overview" })
         else -> SettingsOverviewScreen(
             onProfile = { page = "profile" },
             onPerformance = { page = "performance" },
@@ -87,6 +88,7 @@ fun LauncherSettingsScreen(onOpenFeatureStore: () -> Unit) {
             onSkin = { page = "skin" },
             onUpdates = { page = "updates" },
             onRuntime = { page = "runtime" },
+            onRender = { page = "render" },
             onStore = onOpenFeatureStore
         )
     }
@@ -101,6 +103,7 @@ private fun SettingsOverviewScreen(
     onSkin: () -> Unit,
     onUpdates: () -> Unit,
     onRuntime: () -> Unit,
+    onRender: () -> Unit,
     onStore: () -> Unit
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -118,6 +121,7 @@ private fun SettingsOverviewScreen(
         SettingsTile("Skin Studio", "Import and validate a classic 64×64 or legacy 64×32 Minecraft skin PNG.", onSkin)
         SettingsTile("Check for updates", "Check the GitHub release feed and open published release notes.", onUpdates)
         SettingsTile("Java Runtime Manager", "Install and verify Android Java 8, 17, 21, and 25 runtimes where supported.", onRuntime)
+        SettingsTile("Render Backend", "Run an OpenGL ES 2.0 GPU surface and shader smoke test.", onRender)
         OutlinedButton(onClick = onStore, modifier = Modifier.fillMaxWidth()) {
             Text("OPEN FEATURE STORE")
         }
