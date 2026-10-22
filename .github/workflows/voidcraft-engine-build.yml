@@ -85,7 +85,7 @@ jobs:
         working-directory: engine/Amethyst-Android
         run: ./gradlew :app_pojavlauncher:assembleDebug --stacktrace
 
-      - name: Verify APK exists and report checksum
+      - name: Verify APK integrity, package identity, and Voidcraft entry point
         shell: bash
         run: |
           set -euo pipefail
@@ -94,6 +94,13 @@ jobs:
             APK="$(find engine/Amethyst-Android/app_pojavlauncher/build/outputs/apk/debug -type f -name '*.apk' -print -quit)"
           fi
           test -n "$APK" && test -s "$APK"
+          unzip -t "$APK" | tail -n 2
+          AAPT="$(find "$ANDROID_HOME/build-tools" -type f -name aapt -print | sort -V | tail -n 1)"
+          test -n "$AAPT"
+          BADGING="$("$AAPT" dump badging "$APK")"
+          printf '%s\n' "$BADGING" | grep -F "package: name='com.voidcraft.launcher'"
+          MANIFEST="$("$AAPT" dump xmltree "$APK" AndroidManifest.xml)"
+          printf '%s\n' "$MANIFEST" | grep -F 'com.voidcraft.launcher.MainActivity'
           echo "APK_PATH=$APK" >> "$GITHUB_ENV"
           sha256sum "$APK" | tee voidcraft-apk-sha256.txt
           ls -lh "$APK"
