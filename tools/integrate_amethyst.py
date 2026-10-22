@@ -179,6 +179,12 @@ def main() -> None:
         "android.builtInKotlin=true",
         "built-in Kotlin compiler switch"
     )
+    # The upstream Java sources must stay at Java 8 because they define Android-only
+    # dalvik.annotation classes. Voidcraft's Compose sources target JVM 11, as Compose's
+    # bytecode requires. Their class files are packaged together by D8, so warn rather
+    # than fail Gradle's source-task target consistency check.
+    if "kotlin.jvm.target.validation.mode=" not in properties:
+        properties = properties.rstrip() + "\nkotlin.jvm.target.validation.mode=warning\n"
     properties_file.write_text(properties, encoding="utf-8")
 
     manifest = manifest_file.read_text(encoding="utf-8")
