@@ -1,8 +1,10 @@
 package com.voidcraft.launcher
 
+import android.graphics.Color as AndroidColor
 import android.opengl.GLES20
 import android.opengl.GLSurfaceView
-import android.opengl.Matrix
+import android.os.Handler
+import android.os.Looper
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -20,6 +22,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -27,8 +30,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
-import android.view.View
-import android.graphics.Color as AndroidColor
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.nio.FloatBuffer
@@ -38,70 +39,98 @@ import javax.microedition.khronos.opengles.GL10
 @Composable
 fun RenderBackendScreen(onBack: () -> Unit) {
     val context = LocalContext.current
-    var renderCount by remember { mutableIntStateOf(0) }
+    val mainHandler = remember { Handler(Looper.getMainLooper()) }
+    var requestCount by remember { mutableIntStateOf(0) }
+    var renderedFrames by remember { mutableIntStateOf(0) }
+    var gpuInfo by remember { mutableStateOf("Waiting for OpenGL ES context…") }
+
+    val renderer = remember {
+        VoidcraftGlesRenderer { description, frameCount ->
+            mainHandler.post {
+                gpuInfo = description
+                renderedFrames = frameCount
+            }
+        }
+    }
     val glView = remember {
         GLSurfaceView(context).apply {
             setEGLContextClientVersion(2)
-            setRenderer(VoidcraftGlesRenderer())
+            setEGLConfigChooser(8, 8, 8, 8, 16, 0)
+            setPreserveEGLContextOnPause(true)
+            setRenderer(renderer)
             renderMode = GLSurfaceView.RENDERMODE_WHEN_DIRTY
             setBackgroundColor(AndroidColor.rgb(10, 12, 18))
         }
     }
 
     DisposableEffect(glView) {
-        onDispose {
-            glView.onPause()
-        }
+        onDispose { glView.onPause() }
     }
 
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             OutlinedButton(onClick = onBack) { Text("← BACK") }
             Column(Modifier.padding(top = 7.dp)) {
-                Text("Render Backend", fontSize = 25.sp, color = MaterialTheme.colorScheme.onBackground)
-                Text("OpenGL ES 2.0 • Android GPU test", fontSize = 12.sp, color = VoidMuted)
+                Text(
+                    "Render Backend",
+                    fontSize = 25.sp,
+                    color = MaterialTheme.colorScheme.onBackground
+                )
+                Text("OpenGL ES 2.0 • GPU diagnostics", fontSize = 12.sp, color = VoidMuted)
             }
         }
+
         Card(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(18.dp),
             colors = CardDefaults.cardColors(containerColor = VoidSurface)
         ) {
             Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("LIVE GPU SURFACE", color = MaterialTheme.colorScheme.primary, fontSize = 11.sp)
+                Text("3D GPU TEST", color = MaterialTheme.colorScheme.primary, fontSize = 11.sp)
                 AndroidView(
-                    factory = {
-                        glView.also { it.onResume() }
-                    },
+                    factory = { glView.also { it.onResume() } },
                     modifier = Modifier.fillMaxWidth().height(250.dp)
                 )
                 Text(
-                    "This test draws a shaded triangle directly through the device's OpenGL ES driver and changes its angle/color when you request another frame. It verifies a basic GPU surface only; it is not Minecraft rendering.",
+                    "A 3D cube rotates a little each time you request a frame. The renderer uses a vertex/fragment shader and a depth buffer. This verifies basic OpenGL ES rendering only; it is not the Minecraft renderer.",
                     color = VoidMuted,
                     fontSize = 12.sp,
                     lineHeight = 18.sp
                 )
-                Text("Render requests: $renderCount", color = VoidMuted, fontSize = 11.sp)
+                Text("Render requests: " + requestCount, color = VoidMuted, fontSize = 11.sp)
+                Text("Frames actually drawn: " + renderedFrames, color = VoidMuted, fontSize = 11.sp)
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Button(
                         onClick = {
-                            renderCount++
+                            requestCount++
                             glView.requestRender()
                         },
                         modifier = Modifier.weight(1f)
                     ) { Text("RENDER FRAME") }
                     OutlinedButton(
                         onClick = {
-                            renderCount = 0
+                            requestCount = 0
                             glView.requestRender()
                         },
                         modifier = Modifier.weight(1f)
-                    ) { Text("RESET COUNT") }
+                    ) { Text("RESET REQUESTS") }
                 }
             }
         }
+
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(containerColor = VoidSurface)
+        ) {
+            Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text("GPU / DRIVER", color = MaterialTheme.colorScheme.primary, fontSize = 11.sp)
+                Text(gpuInfo, color = VoidMuted, fontSize = 12.sp, lineHeight = 18.sp)
+            }
+        }
+
         Text(
-            "Next engine steps: integrate a compatible Minecraft renderer/native backend, EGL lifecycle handling, game framebuffer, input mapping, and device-specific validation.",
+            "Next: a compatible Minecraft bootstrap, native graphics libraries and OpenGL compatibility layer, game framebuffer, input mapping, and device testing.",
             color = VoidMuted,
             fontSize = 12.sp,
             lineHeight = 18.sp
@@ -109,82 +138,109 @@ fun RenderBackendScreen(onBack: () -> Unit) {
     }
 }
 
-private class VoidcraftGlesRenderer : GLSurfaceView.Renderer {
-    private val vertices: FloatBuffer = ByteBuffer.allocateDirect(
-        TRIANGLE_COORDINATES.size * 4
-    ).order(ByteOrder.nativeOrder()).asFloatBuffer().apply {
-        put(TRIANGLE_COORDINATES)
-        position(0)
-    }
+private class VoidcraftGlesRenderer(
+    private val onDiagnostics: (String, Int) -> Unit
+) : GLSurfaceView.Renderer {
+    private val vertices: FloatBuffer = ByteBuffer.allocateDirect(CUBE_VERTICES.size * 4)
+        .order(ByteOrder.nativeOrder())
+        .asFloatBuffer()
+        .apply {
+            put(CUBE_VERTICES)
+            position(0)
+        }
 
     private var program = 0
-    private var positionHandle = 0
-    private var angleHandle = 0
-    private var colorHandle = 0
+    private var positionHandle = -1
+    private var colorHandle = -1
+    private var angleHandle = -1
+    private var aspectHandle = -1
     private var frame = 0
+    private var aspectRatio = 1f
+    private var gpuDescription = "OpenGL context initializing"
+    private var shaderError: String? = null
 
     override fun onSurfaceCreated(gl: GL10?, config: EGLConfig?) {
         GLES20.glClearColor(0.035f, 0.045f, 0.075f, 1f)
-        GLES20.glDisable(GLES20.GL_DEPTH_TEST)
-        val vertexShader = compileShader(
-            GLES20.GL_VERTEX_SHADER,
-            """
-            attribute vec2 aPosition;
-            uniform float uAngle;
-            void main() {
-                float c = cos(uAngle);
-                float s = sin(uAngle);
-                vec2 rotated = vec2(
-                    aPosition.x * c - aPosition.y * s,
-                    aPosition.x * s + aPosition.y * c
-                );
-                gl_Position = vec4(rotated, 0.0, 1.0);
-            }
-            """.trimIndent()
-        )
-        val fragmentShader = compileShader(
-            GLES20.GL_FRAGMENT_SHADER,
-            """
-            precision mediump float;
-            uniform vec4 uColor;
-            void main() {
-                gl_FragColor = uColor;
-            }
-            """.trimIndent()
-        )
-        program = GLES20.glCreateProgram().also {
-            GLES20.glAttachShader(it, vertexShader)
-            GLES20.glAttachShader(it, fragmentShader)
-            GLES20.glLinkProgram(it)
+        GLES20.glEnable(GLES20.GL_DEPTH_TEST)
+        GLES20.glDepthFunc(GLES20.GL_LEQUAL)
+        GLES20.glDisable(GLES20.GL_CULL_FACE)
+
+        val vendor = GLES20.glGetString(GLES20.GL_VENDOR) ?: "Unknown vendor"
+        val renderer = GLES20.glGetString(GLES20.GL_RENDERER) ?: "Unknown renderer"
+        val version = GLES20.glGetString(GLES20.GL_VERSION) ?: "Unknown OpenGL version"
+        val maxTextureSize = IntArray(1)
+        GLES20.glGetIntegerv(GLES20.GL_MAX_TEXTURE_SIZE, maxTextureSize, 0)
+        gpuDescription = "Vendor: " + vendor +
+            "\nRenderer: " + renderer +
+            "\nOpenGL: " + version +
+            "\nMax texture size: " + maxTextureSize[0] + " px"
+
+        try {
+            val vertexShader = compileShader(GLES20.GL_VERTEX_SHADER, VERTEX_SHADER)
+            val fragmentShader = compileShader(GLES20.GL_FRAGMENT_SHADER, FRAGMENT_SHADER)
+            program = GLES20.glCreateProgram()
+            GLES20.glAttachShader(program, vertexShader)
+            GLES20.glAttachShader(program, fragmentShader)
+            GLES20.glLinkProgram(program)
             val status = IntArray(1)
-            GLES20.glGetProgramiv(it, GLES20.GL_LINK_STATUS, status, 0)
-            check(status[0] == GLES20.GL_TRUE) { "OpenGL ES shader program failed to link." }
+            GLES20.glGetProgramiv(program, GLES20.GL_LINK_STATUS, status, 0)
+            GLES20.glDeleteShader(vertexShader)
+            GLES20.glDeleteShader(fragmentShader)
+            check(status[0] == GLES20.GL_TRUE) {
+                "Shader program could not link: " + GLES20.glGetProgramInfoLog(program)
+            }
+
+            positionHandle = GLES20.glGetAttribLocation(program, "aPosition")
+            colorHandle = GLES20.glGetAttribLocation(program, "aColor")
+            angleHandle = GLES20.glGetUniformLocation(program, "uAngle")
+            aspectHandle = GLES20.glGetUniformLocation(program, "uAspect")
+            shaderError = null
+        } catch (error: Exception) {
+            if (program != 0) GLES20.glDeleteProgram(program)
+            program = 0
+            shaderError = error.message ?: "Unknown shader initialization error"
         }
-        GLES20.glDeleteShader(vertexShader)
-        GLES20.glDeleteShader(fragmentShader)
-        positionHandle = GLES20.glGetAttribLocation(program, "aPosition")
-        angleHandle = GLES20.glGetUniformLocation(program, "uAngle")
-        colorHandle = GLES20.glGetUniformLocation(program, "uColor")
+        publishDiagnostics()
     }
 
     override fun onSurfaceChanged(gl: GL10?, width: Int, height: Int) {
         GLES20.glViewport(0, 0, width, height)
+        aspectRatio = width.toFloat() / height.coerceAtLeast(1).toFloat()
+        publishDiagnostics()
     }
 
     override fun onDrawFrame(gl: GL10?) {
-        GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT)
-        if (program == 0) return
+        GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT or GLES20.GL_DEPTH_BUFFER_BIT)
+        if (program == 0) {
+            publishDiagnostics()
+            return
+        }
+
         GLES20.glUseProgram(program)
         vertices.position(0)
         GLES20.glEnableVertexAttribArray(positionHandle)
-        GLES20.glVertexAttribPointer(positionHandle, 2, GLES20.GL_FLOAT, false, 0, vertices)
-        GLES20.glUniform1f(angleHandle, frame * 0.035f)
-        val hue = (frame % 120) / 120f
-        GLES20.glUniform4f(colorHandle, 0.35f + hue * 0.35f, 0.45f, 0.95f - hue * 0.25f, 1f)
-        GLES20.glDrawArrays(GLES20.GL_TRIANGLES, 0, 3)
+        GLES20.glEnableVertexAttribArray(colorHandle)
+        val stride = 6 * 4
+        GLES20.glVertexAttribPointer(positionHandle, 3, GLES20.GL_FLOAT, false, stride, vertices)
+        vertices.position(3)
+        GLES20.glVertexAttribPointer(colorHandle, 3, GLES20.GL_FLOAT, false, stride, vertices)
+        GLES20.glUniform1f(angleHandle, frame * 0.055f)
+        GLES20.glUniform1f(aspectHandle, aspectRatio.coerceAtLeast(0.1f))
+        GLES20.glDrawArrays(GLES20.GL_TRIANGLES, 0, CUBE_VERTEX_COUNT)
         GLES20.glDisableVertexAttribArray(positionHandle)
+        GLES20.glDisableVertexAttribArray(colorHandle)
         frame++
+        publishDiagnostics()
     }
+
+    private fun publishDiagnostics() {
+        val sizeNote = "\nSurface: " + surfaceWidth + " × " + surfaceHeight + " px"
+        val errorNote = shaderError?.let { "\nShader error: " + it } ?: ""
+        onDiagnostics(gpuDescription + sizeNote + errorNote, frame)
+    }
+
+    private var surfaceWidth = 0
+    private var surfaceHeight = 0
 
     private fun compileShader(type: Int, source: String): Int {
         val shader = GLES20.glCreateShader(type)
@@ -193,18 +249,72 @@ private class VoidcraftGlesRenderer : GLSurfaceView.Renderer {
         val status = IntArray(1)
         GLES20.glGetShaderiv(shader, GLES20.GL_COMPILE_STATUS, status, 0)
         if (status[0] != GLES20.GL_TRUE) {
-            val message = GLES20.glGetShaderInfoLog(shader)
+            val message = GLES20.glGetShaderInfoLog(shader) ?: "No compiler details"
             GLES20.glDeleteShader(shader)
-            error("OpenGL ES shader compilation failed: $message")
+            error("Shader compilation failed: " + message)
         }
         return shader
     }
 
     companion object {
-        private val TRIANGLE_COORDINATES = floatArrayOf(
-            0.0f, 0.72f,
-            -0.62f, -0.42f,
-            0.62f, -0.42f
-        )
+        private const val CUBE_VERTEX_COUNT = 36
+
+        private val VERTEX_SHADER = """
+            attribute vec3 aPosition;
+            attribute vec3 aColor;
+            uniform float uAngle;
+            uniform float uAspect;
+            varying vec3 vColor;
+            void main() {
+                float cy = cos(uAngle);
+                float sy = sin(uAngle);
+                float cx = cos(uAngle * 0.73);
+                float sx = sin(uAngle * 0.73);
+                float x = aPosition.x * cy + aPosition.z * sy;
+                float z = -aPosition.x * sy + aPosition.z * cy;
+                float y = aPosition.y * cx - z * sx;
+                z = aPosition.y * sx + z * cx;
+                float depth = max(1.4, z + 2.2);
+                gl_Position = vec4(x * 1.65 / (depth * uAspect), y * 1.65 / depth, z * 0.45, 1.0);
+                vColor = aColor * (0.72 + max(0.0, z) * 0.20);
+            }
+        """.trimIndent()
+
+        private val FRAGMENT_SHADER = """
+            precision mediump float;
+            varying vec3 vColor;
+            void main() {
+                gl_FragColor = vec4(vColor, 1.0);
+            }
+        """.trimIndent()
+
+        private val CUBE_VERTICES: FloatArray = createCubeVertices()
+
+        private fun createCubeVertices(): FloatArray {
+            data class Face(val corners: FloatArray, val color: FloatArray)
+            val faces = arrayOf(
+                Face(floatArrayOf(-0.55f,-0.55f,0.55f, 0.55f,-0.55f,0.55f, 0.55f,0.55f,0.55f, -0.55f,0.55f,0.55f), floatArrayOf(0.22f,0.58f,1.0f)),
+                Face(floatArrayOf(0.55f,-0.55f,-0.55f, -0.55f,-0.55f,-0.55f, -0.55f,0.55f,-0.55f, 0.55f,0.55f,-0.55f), floatArrayOf(0.55f,0.32f,0.98f)),
+                Face(floatArrayOf(0.55f,-0.55f,0.55f, 0.55f,-0.55f,-0.55f, 0.55f,0.55f,-0.55f, 0.55f,0.55f,0.55f), floatArrayOf(0.15f,0.83f,0.82f)),
+                Face(floatArrayOf(-0.55f,-0.55f,-0.55f, -0.55f,-0.55f,0.55f, -0.55f,0.55f,0.55f, -0.55f,0.55f,-0.55f), floatArrayOf(0.27f,0.43f,0.95f)),
+                Face(floatArrayOf(-0.55f,0.55f,0.55f, 0.55f,0.55f,0.55f, 0.55f,0.55f,-0.55f, -0.55f,0.55f,-0.55f), floatArrayOf(0.96f,0.53f,0.26f)),
+                Face(floatArrayOf(-0.55f,-0.55f,-0.55f, 0.55f,-0.55f,-0.55f, 0.55f,-0.55f,0.55f, -0.55f,-0.55f,0.55f), floatArrayOf(0.35f,0.76f,0.35f))
+            )
+            val triangleOrder = intArrayOf(0, 1, 2, 0, 2, 3)
+            val result = FloatArray(CUBE_VERTEX_COUNT * 6)
+            var output = 0
+            for (face in faces) {
+                for (cornerIndex in triangleOrder) {
+                    val pointOffset = cornerIndex * 3
+                    result[output++] = face.corners[pointOffset]
+                    result[output++] = face.corners[pointOffset + 1]
+                    result[output++] = face.corners[pointOffset + 2]
+                    result[output++] = face.color[0]
+                    result[output++] = face.color[1]
+                    result[output++] = face.color[2]
+                }
+            }
+            return result
+        }
     }
 }
