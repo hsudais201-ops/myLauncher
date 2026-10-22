@@ -54,7 +54,9 @@ internal fun downloadMinecraftLibraries(
             if (!libraryAllowedOnAndroid(library)) continue
             val artifact = library.optJSONObject("downloads")?.optJSONObject("artifact") ?: continue
             val path = artifact.optString("path").trim()
-            if (path.substringAfterLast('/').contains("natives-")) continue
+            if (!path.endsWith(".jar", ignoreCase = true) ||
+                path.substringAfterLast('/').contains("natives-", ignoreCase = true)
+            ) continue
             val url = artifact.optString("url").trim()
             val sha1 = artifact.optString("sha1").trim().lowercase()
             val size = artifact.optLong("size", -1L)
