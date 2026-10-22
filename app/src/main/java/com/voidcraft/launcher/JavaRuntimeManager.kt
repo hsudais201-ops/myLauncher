@@ -500,7 +500,28 @@ private fun extractSafeRuntimeArchive(archive: File, destination: File) {
                         check(!output.exists()) { "Archive contains a duplicate path." }
                         Os.symlink(target, output.absolutePath)
                     }
-                    entry.isLink -> error("Runtime archive contains an unsupported hard link.")
+                    entry.isLink -> {
+                        val targetName = entry.linkName
+                        check(
+                            targetName.isNotBlank() &&
+                                !targetName.startsWith("/") &&
+                                !targetName.startsWith("\\\\") &&
+                                !Regex("^[A-Za-z]:").containsMatchIn(targetName) &&
+                                !targetName.contains('\\\\')
+                        ) { "Archive contains an unsafe hard-link target." }
+                        val target = File(root, targetName).canonicalFile
+                        check(target.path.startsWith(root.path + File.separator)) {
+                            "Archive hard link escapes the runtime directory."
+                        }
+                        check(target.isFile) {
+                            "Archive hard link target has not been extracted as a regular file."
+                        }
+                        check(output.parentFile?.let { it.mkdirs() || it.isDirectory } == true) {
+                            "Could not create hard-link parent directory."
+                        }
+                        check(!output.exists()) { "Archive contains a duplicate hard-link path." }
+                        Os.link(target.absolutePath, output.absolutePath)
+                    }
                     entry.isFile -> {
                         check(entry.size >= 0L && entry.size <= MAX_RUNTIME_EXTRACTED_BYTES) {
                             "Runtime archive contains an invalid file size."
