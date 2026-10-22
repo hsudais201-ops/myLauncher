@@ -3,6 +3,7 @@ package com.voidcraft.launcher
 import android.content.Context
 import java.io.File
 import java.net.URI
+import java.security.MessageDigest
 import javax.net.ssl.HttpsURLConnection
 
 private const val MAX_FEATURE_PACKAGE_BYTES = 500L * 1024L * 1024L
@@ -21,6 +22,11 @@ internal fun downloadFeaturePackage(context: Context, feature: StoreFeature): Fi
         ?.trim()
         ?.takeIf { it.startsWith("https://", ignoreCase = true) }
         ?: error("This listing has no verified HTTPS package URL.")
+    val expectedSha256 = feature.packageSha256
+        ?.trim()
+        ?.lowercase()
+        ?.takeIf { it.matches(Regex("[0-9a-f]{64}")) }
+        ?: error("This listing has no valid, pinned SHA-256 package digest.")
 
     var current = runCatching { URI(source) }
         .getOrElse { error("The package URL is invalid.") }
@@ -97,6 +103,7 @@ internal fun downloadFeaturePackage(context: Context, feature: StoreFeature): Fi
             val destination = File(directory, "$safeId.package")
             val temporary = File(directory, "$safeId.${System.nanoTime()}.part")
             var total = 0L
+            val digest = MessageDigest.getInstance("SHA-256")
 
             try {
                 connection.inputStream.use { input ->
@@ -109,6 +116,7 @@ internal fun downloadFeaturePackage(context: Context, feature: StoreFeature): Fi
                             if (total > MAX_FEATURE_PACKAGE_BYTES) {
                                 error("Package exceeded the 500 MiB safety limit while downloading.")
                             }
+                            digest.update(buffer, 0, count)
                             output.write(buffer, 0, count)
                         }
                     }
@@ -116,6 +124,12 @@ internal fun downloadFeaturePackage(context: Context, feature: StoreFeature): Fi
 
                 if (expectedLength >= 0 && total != expectedLength) {
                     error("Downloaded package size did not match the server response.")
+                }
+                val actualSha256 = digest.digest().joinToString("") { byte ->
+                    "%02x".format(byte.toInt() and 0xff)
+                }
+                if (actualSha256 != expectedSha256) {
+                    error("Downloaded package SHA-256 does not match the catalog digest.")
                 }
 
                 val backup = if (destination.exists()) {
