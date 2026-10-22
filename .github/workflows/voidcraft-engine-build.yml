@@ -61,6 +61,22 @@ jobs:
           distribution: temurin
           java-version: "17"
 
+      - name: Generate the upstream language list
+        working-directory: engine/Amethyst-Android
+        run: |
+          chmod +x scripts/languagelist_updater.sh
+          bash scripts/languagelist_updater.sh
+
+      - name: Download the upstream Java 8 runtime bundle
+        uses: dawidd6/action-download-artifact@v9
+        with:
+          workflow: build.yml
+          path: engine/Amethyst-Android/app_pojavlauncher/src/main/assets/components/jre
+          workflow_conclusion: completed
+          repo: AngelAuraMC/angelauramc-openjdk-build
+          branch: buildjre8
+          name: jre8-pojav
+
       - name: Overlay Voidcraft frontend onto the tested engine
         run: |
           python3 voidcraft/tools/integrate_amethyst.py engine/Amethyst-Android
