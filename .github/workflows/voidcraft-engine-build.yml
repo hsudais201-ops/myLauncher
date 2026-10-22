@@ -6,7 +6,11 @@ on:
     branches: ["launcher/bootstrap"]
     paths:
       - "app/src/main/java/com/voidcraft/launcher/**"
+      - "app/src/main/assets/store/**"
+      - "store/catalog.json"
       - "tools/integrate_amethyst.py"
+      - "tools/validate_feature_catalog.py"
+      - ".github/workflows/android-build.yml"
       - ".github/workflows/voidcraft-engine-build.yml"
   workflow_dispatch:
 
