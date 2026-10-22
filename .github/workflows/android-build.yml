@@ -26,6 +26,8 @@ jobs:
           java-version: "17"
       - name: Check Social Hub Worker syntax
         run: node --input-type=module --check < backend/social-hub/worker.js
+      - name: Test Feature Store package integrity policy
+        run: python3 -m unittest discover -s tools -p 'test_validate_feature_catalog.py'
       - name: Validate explicit Feature Store catalog
         run: python3 tools/validate_feature_catalog.py
       - name: Smoke test hosted Feature Store catalog
