@@ -1,0 +1,91 @@
+
+name: Voidcraft integrated Android engine build
+
+on:
+  push:
+    branches: ["launcher/bootstrap"]
+    paths:
+      - "app/src/main/java/com/voidcraft/launcher/**"
+      - "tools/integrate_amethyst.py"
+      - ".github/workflows/voidcraft-engine-build.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  integrated-debug-apk:
+    name: Build Voidcraft with Android Java/LWJGL engine
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - name: Check out Voidcraft sources
+        uses: actions/checkout@v4
+        with:
+          path: voidcraft
+          fetch-depth: 0
+
+      - name: Check out the tested Amethyst engine revision and submodules
+        uses: actions/checkout@v4
+        with:
+          repository: AngelAuraMC/Amethyst-Android
+          ref: 330c6eae3164df64bdc4828e946a9e62cc5169e4
+          path: engine/Amethyst-Android
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Record engine revision and license inventory
+        shell: bash
+        run: |
+          cd engine/Amethyst-Android
+          echo "Pinned engine commit: $(git rev-parse HEAD)" | tee ../../engine-build-provenance.txt
+          git submodule status --recursive | tee -a ../../engine-build-provenance.txt
+          find . -type f \( -iname 'license' -o -iname 'license.*' -o -iname 'copying*' -o -iname 'notice*' \) \
+            -not -path './.git/*' -not -path '*/build/*' | sort > ../../engine-license-files.txt
+          cd ../..
+          cat engine-build-provenance.txt
+
+      - name: Install Java 8 toolchain for legacy modules
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "8"
+
+      - name: Set up Java 17 for Gradle
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Overlay Voidcraft frontend onto the tested engine
+        run: |
+          python3 voidcraft/tools/integrate_amethyst.py engine/Amethyst-Android
+
+      - name: Build the combined Voidcraft debug APK
+        working-directory: engine/Amethyst-Android
+        run: ./gradlew :app_pojavlauncher:assembleDebug --stacktrace
+
+      - name: Verify APK exists and report checksum
+        shell: bash
+        run: |
+          set -euo pipefail
+          APK="engine/Amethyst-Android/app_pojavlauncher/build/outputs/apk/debug/app_pojavlauncher-debug.apk"
+          if [[ ! -s "$APK" ]]; then
+            APK="$(find engine/Amethyst-Android/app_pojavlauncher/build/outputs/apk/debug -type f -name '*.apk' -print -quit)"
+          fi
+          test -n "$APK" && test -s "$APK"
+          echo "APK_PATH=$APK" >> "$GITHUB_ENV"
+          sha256sum "$APK" | tee voidcraft-apk-sha256.txt
+          ls -lh "$APK"
+
+      - name: Upload integrated Voidcraft debug APK and build provenance
+        uses: actions/upload-artifact@v4
+        with:
+          name: voidcraft-integrated-debug-apk
+          if-no-files-found: error
+          path: |
+            ${ env.APK_PATH }
+            voidcraft-apk-sha256.txt
+            engine-build-provenance.txt
+            engine-license-files.txt
+            engine/Amethyst-Android/VOIDCRAFT_ENGINE_INTEGRATION.txt
