@@ -333,7 +333,7 @@ private fun extractSafeRuntimeArchive(archive: File, destination: File) {
                         check(targetFile.path == root.path || targetFile.path.startsWith(root.path + File.separator)) {
                             "Archive symbolic link escapes the runtime directory."
                         }
-                        check(output.parentFile?.mkdirs() != false) { "Could not create symbolic-link parent directory." }
+                        check(output.parentFile?.let { it.mkdirs() || it.isDirectory } == true) { "Could not create symbolic-link parent directory." }
                         check(!output.exists()) { "Archive contains a duplicate path." }
                         Os.symlink(target, output.absolutePath)
                     }
@@ -344,7 +344,7 @@ private fun extractSafeRuntimeArchive(archive: File, destination: File) {
                         }
                         extractedBytes += entry.size
                         check(extractedBytes <= MAX_RUNTIME_EXTRACTED_BYTES) { "Runtime archive expands beyond the safety limit." }
-                        check(output.parentFile?.mkdirs() != false) { "Could not create runtime file directory." }
+                        check(output.parentFile?.let { it.mkdirs() || it.isDirectory } == true) { "Could not create runtime file directory." }
                         check(!output.exists()) { "Archive contains a duplicate file path." }
                         FileOutputStream(output).use { fileOutput ->
                             val buffer = ByteArray(64 * 1024)
