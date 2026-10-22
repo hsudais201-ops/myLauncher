@@ -409,11 +409,17 @@ private fun installJavaRuntime(context: Context, asset: JavaRuntimeAsset): Strin
 
         check(stagingDirectory.mkdirs() || stagingDirectory.isDirectory) { "Could not create a temporary runtime folder." }
         extractSafeRuntimeArchive(archive, stagingDirectory)
-        val stagedJava = findJavaExecutable(stagingDirectory)
-            ?: error("Archive extracted, but bin/java was not found.")
+        // MultiRTUtils.read(name) expects release metadata and bin/java at the runtime root;
+        // a recursive search alone could accept a nested archive layout that the engine cannot use.
+        check(File(stagingDirectory, "release").isFile) {
+            "Runtime archive is missing its root-level release metadata."
+        }
+        val stagedJava = File(stagingDirectory, "bin/java")
+        check(stagedJava.isFile) {
+            "Runtime archive must contain bin/java at its root."
+        }
         stagedJava.setExecutable(true, false)
-        val stagedHome = stagedJava.parentFile?.parentFile
-            ?: error("Could not identify the Java runtime home.")
+        val stagedHome = stagingDirectory
         val stagedCheck = runJavaVersion(stagedJava, stagedHome, context)
         check(stagedCheck.success) { "The downloaded runtime could not start: ${stagedCheck.message}" }
 
@@ -434,14 +440,7 @@ private fun installJavaRuntime(context: Context, asset: JavaRuntimeAsset): Strin
             error("Could not move the verified runtime into place; previous runtime was restored when possible.")
         }
 
-        val finalJava = findJavaExecutable(finalDirectory)
-        val finalHome = finalJava?.parentFile?.parentFile
-        val finalCheck = if (finalJava != null && finalHome != null) {
-            finalJava.setExecutable(true, false)
-            runJavaVersion(finalJava, finalHome, context)
-        } else {
-            JavaRuntimeCheck(false, "Installed runtime is missing bin/java.")
-        }
+        val finalCheck = verifyInstalledRuntime(finalDirectory, context)
         if (!finalCheck.success) {
             finalDirectory.deleteRecursively()
             if (backedUpPreviousInstall) backupDirectory.renameTo(finalDirectory)
@@ -456,8 +455,15 @@ private fun installJavaRuntime(context: Context, asset: JavaRuntimeAsset): Strin
             try {
                 engineRuntimeManager.getMethod("postPrepare", String::class.java)
                     .invoke(null, finalDirectory.name)
-                engineRuntimeManager.getMethod("forceReread", String::class.java)
+                val registeredRuntime = engineRuntimeManager.getMethod("forceReread", String::class.java)
                     .invoke(null, finalDirectory.name)
+                    ?: error("The integrated engine returned no runtime registration.")
+                val registeredMajor = registeredRuntime.javaClass.getField("javaVersion").getInt(registeredRuntime)
+                val registeredVersion = registeredRuntime.javaClass.getField("versionString").get(registeredRuntime) as? String
+                check(registeredMajor == asset.majorVersion && !registeredVersion.isNullOrBlank()) {
+                    "The integrated engine could not read this runtime's root release metadata " +
+                        "(expected Java ${asset.majorVersion}, detected ${registeredVersion ?: "unknown"})."
+                }
             } catch (error: Throwable) {
                 finalDirectory.deleteRecursively()
                 if (backedUpPreviousInstall) backupDirectory.renameTo(finalDirectory)
@@ -599,12 +605,15 @@ private fun findJavaExecutable(root: File): File? =
 
 private fun verifyInstalledRuntime(directory: File, context: Context): JavaRuntimeCheck {
     if (!directory.isDirectory) return JavaRuntimeCheck(false, "Java runtime is not installed.")
-    val java = findJavaExecutable(directory)
-        ?: return JavaRuntimeCheck(false, "Java runtime files are incomplete. Reinstall this runtime.")
+    if (!File(directory, "release").isFile) {
+        return JavaRuntimeCheck(false, "Runtime release metadata is missing from the runtime root.")
+    }
+    val java = File(directory, "bin/java")
+    if (!java.isFile) {
+        return JavaRuntimeCheck(false, "Runtime bin/java is missing from the runtime root.")
+    }
     java.setExecutable(true, false)
-    val home = java.parentFile?.parentFile
-        ?: return JavaRuntimeCheck(false, "Could not determine Java home.")
-    return runJavaVersion(java, home, context)
+    return runJavaVersion(java, directory, context)
 }
 
 private fun runJavaVersion(java: File, javaHome: File, context: Context): JavaRuntimeCheck {
