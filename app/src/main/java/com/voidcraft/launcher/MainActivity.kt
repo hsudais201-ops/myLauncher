@@ -620,7 +620,12 @@ private fun VoidcraftApp() {
                     LauncherTab.Home -> HomeScreen(
                         storeEnabled = storeEnabled,
                         onPlayClick = {
-                            scope.launch { snackbarHostState.showSnackbar("Game engine integration is next. Nothing has launched yet.") }
+                            selectedTab = 1
+                            scope.launch {
+                                snackbarHostState.showSnackbar(
+                                    "Prepare your version first: inspect it to download the verified client, libraries, and assets. The Android game engine is still being integrated."
+                                )
+                            }
                         },
                         onVersionsClick = { selectedTab = 1 },
                         onSettingsClick = { selectedTab = 3 },
@@ -638,7 +643,9 @@ private fun VoidcraftApp() {
                             selectedGameVersion = version
                             prefs.edit().putString("selected_game_version", version).apply()
                             scope.launch {
-                                snackbarHostState.showSnackbar("Selected Minecraft $version. Game download and launch are not integrated yet.")
+                                snackbarHostState.showSnackbar(
+                                    "Selected Minecraft $version. Use INSPECT to download and verify its files; actual launching still needs the Android engine."
+                                )
                             }
                         }
                     )
