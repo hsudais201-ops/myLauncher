@@ -54,3 +54,9 @@ The current Amethyst-Android README documents a recursive clone (`git clone --re
 https://github.com/AngelAuraMC/Amethyst-Android/blob/v3_openjdk/README.md
 
 **Next engineering decision:** build the selected upstream in an isolated CI job first and capture its exact commit SHA, artifact provenance, and license inventory. Only after that succeeds should we choose between (a) integrating a clearly separated upstream launcher module or (b) adapting individual components with their license obligations. Do not download and bundle a random prebuilt APK as the engine: that would not provide a maintainable integration with Voidcraft's settings, version manager, Feature Store, or lifecycle.
+
+## Reproducible upstream probe
+
+The repository now includes a manual GitHub Actions workflow at `.github/workflows/upstream-engine-probe.yml`. Open **Actions → Upstream engine compatibility probe → Run workflow**, keep `v3_openjdk` as the default reference (or enter a reviewed tag/commit), and start the isolated build. The workflow checks out Amethyst with recursive submodules, records the resolved commit and license-file inventory, runs `:app_pojavlauncher:assembleDebug`, and uploads any APK plus the inventory as an artifact even if the build fails. This is an investigation artifact only; it does not merge upstream code into Voidcraft or make the Voidcraft app launch Minecraft.
+
+Before adopting the upstream APK or source, review the recorded commit, the full dependency/license inventory (including bundled native libraries and submodules), and whether the build relies on external or proprietary assets. Do not publish the probe APK as a Voidcraft release.
