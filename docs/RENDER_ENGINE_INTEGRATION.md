@@ -47,3 +47,10 @@ References:
 - No proprietary game assets or authentication secrets are bundled into public repository artifacts.
 
 Until these checks pass, describe Voidcraft as a launcher prototype with a GPU diagnostic, not a playable Minecraft Java launcher.
+
+## Upstream build feasibility note (reviewed 2026-10-22)
+
+The current Amethyst-Android README documents a recursive clone (`git clone --recursive https://github.com/AngelAuraMC/Amethyst-Android.git`) and a debug build target (`./gradlew :app_pojavlauncher:assembleDebug`). Its documented architecture includes custom OpenJDK mobile builds, a custom LWJGL/GLFW bridge, and native audio/graphics components. The upstream README also lists support for modern snapshots, but this is not a guarantee that every Minecraft version, Android device, mod, or ABI will work in Voidcraft. See the upstream build instructions and license/dependency inventory before choosing a pinned revision:
+https://github.com/AngelAuraMC/Amethyst-Android/blob/v3_openjdk/README.md
+
+**Next engineering decision:** build the selected upstream in an isolated CI job first and capture its exact commit SHA, artifact provenance, and license inventory. Only after that succeeds should we choose between (a) integrating a clearly separated upstream launcher module or (b) adapting individual components with their license obligations. Do not download and bundle a random prebuilt APK as the engine: that would not provide a maintainable integration with Voidcraft's settings, version manager, Feature Store, or lifecycle.
