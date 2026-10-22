@@ -130,6 +130,7 @@ def main() -> None:
         ('resValue "string", "app_short_name", "Amethyst (Debug)"', 'resValue "string", "app_short_name", "Voidcraft"'),
         ('resValue "string", "app_name", "Amethyst"', 'resValue "string", "app_name", "Voidcraft"'),
         ('resValue "string", "app_short_name", "Amethyst"', 'resValue "string", "app_short_name", "Voidcraft"'),
+        ("minSdkVersion 21", "minSdkVersion 26"),
         ("versionCode 10000000", "versionCode 1"),
         ("versionName getVersionName()", 'versionName "0.1.0"'),
     ]
