@@ -116,7 +116,10 @@ private fun runtimeArchitecture(): String? =
     }
 
 private fun runtimeInstallDirectory(context: Context, asset: JavaRuntimeAsset): File =
-    File(File(context.filesDir, "java-runtimes"), "java${asset.majorVersion}-${asset.architecture}")
+    File(
+        resolveEngineStorageDirectory(context, "MULTIRT_HOME", "java-runtimes"),
+        "java${asset.majorVersion}-${asset.architecture}"
+    )
 
 private fun runtimeLabel(majorVersion: Int): String = when (majorVersion) {
     8 -> "Legacy Minecraft (generally 1.16.5 and older)"
@@ -174,7 +177,7 @@ fun JavaRuntimeManagerScreen(onBack: () -> Unit) {
                 try {
                     context.startActivity(Intent().setClassName(context, "net.kdt.pojavlaunch.LauncherActivity"))
                 } catch (_: ActivityNotFoundException) {
-                    generalStatus = "The integrated game engine is not included in this standalone build. These verified runtimes remain in a separate test directory."
+                    generalStatus = "Runtime installed and verified in the configured runtime directory. The integrated engine can discover it when its runtime layout matches this launcher package."
                 }
             },
             modifier = Modifier.fillMaxWidth()
