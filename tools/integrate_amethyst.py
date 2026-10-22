@@ -170,6 +170,15 @@ def main() -> None:
     manifest_file.write_text(manifest, encoding="utf-8")
     gradle_file.write_text(gradle, encoding="utf-8")
 
+    # Ship the upstream project's top-level license inside the combined APK.
+    # The CI inventory remains a separate artifact because the dependency tree carries additional licenses.
+    upstream_license = engine_root / "LICENSE"
+    app_license_dir = module / "src" / "main" / "assets" / "licenses"
+    if not upstream_license.is_file():
+        raise SystemExit(f"Upstream LGPL license is missing: {upstream_license}")
+    app_license_dir.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(upstream_license, app_license_dir / "AMETHYST-LGPL-3.0.txt")
+
     # A short manifest makes the artifact traceable even after the workflow job has expired.
     metadata = engine_root / "VOIDCRAFT_ENGINE_INTEGRATION.txt"
     metadata.write_text(
