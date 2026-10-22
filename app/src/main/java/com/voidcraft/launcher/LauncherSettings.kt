@@ -78,6 +78,7 @@ fun LauncherSettingsScreen(onOpenFeatureStore: () -> Unit) {
         "files" -> LocalFileLibraryScreen(onBack = { page = "overview" })
         "skin" -> LocalSkinStudioScreen(onBack = { page = "overview" })
         "updates" -> ReleaseCheckerScreen(onBack = { page = "overview" })
+        "runtime" -> JavaRuntimeManagerScreen(onBack = { page = "overview" })
         else -> SettingsOverviewScreen(
             onProfile = { page = "profile" },
             onPerformance = { page = "performance" },
@@ -85,6 +86,7 @@ fun LauncherSettingsScreen(onOpenFeatureStore: () -> Unit) {
             onFiles = { page = "files" },
             onSkin = { page = "skin" },
             onUpdates = { page = "updates" },
+            onRuntime = { page = "runtime" },
             onStore = onOpenFeatureStore
         )
     }
@@ -98,6 +100,7 @@ private fun SettingsOverviewScreen(
     onFiles: () -> Unit,
     onSkin: () -> Unit,
     onUpdates: () -> Unit,
+    onRuntime: () -> Unit,
     onStore: () -> Unit
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -114,6 +117,7 @@ private fun SettingsOverviewScreen(
         SettingsTile("Local file library", "Import and organize local mod, resource-pack, shader, world, screenshot, and log files.", onFiles)
         SettingsTile("Skin Studio", "Import and validate a classic 64×64 or legacy 64×32 Minecraft skin PNG.", onSkin)
         SettingsTile("Check for updates", "Check the GitHub release feed and open published release notes.", onUpdates)
+        SettingsTile("Java Runtime Manager", "Install and verify an Android-compatible Java 17 runtime for this device.", onRuntime)
         OutlinedButton(onClick = onStore, modifier = Modifier.fillMaxWidth()) {
             Text("OPEN FEATURE STORE")
         }
