@@ -145,10 +145,24 @@ def main() -> None:
     test_storage = replace_once(
         test_storage,
         "Intent intent =  new Intent(this, LauncherActivity.class);",
-        "Intent intent = new Intent(this, com.voidcraft.launcher.MainActivity.class);",
+        'Intent intent = new Intent();\n        intent.setClassName(this, "com.voidcraft.launcher.MainActivity");',
         "post-storage-bootstrap destination"
     )
     test_storage_file.write_text(test_storage, encoding="utf-8")
+
+    # The upstream gradle.properties deliberately disables AGP 9 built-in Kotlin.
+    # Enable it for Voidcraft's Kotlin sources while keeping the upstream Java/native modules.
+    properties_file = engine_root / "gradle.properties"
+    if not properties_file.is_file():
+        raise SystemExit(f"Upstream Gradle properties are missing: {properties_file}")
+    properties = properties_file.read_text(encoding="utf-8")
+    properties = replace_once(
+        properties,
+        "android.builtInKotlin=false",
+        "android.builtInKotlin=true",
+        "built-in Kotlin compiler switch"
+    )
+    properties_file.write_text(properties, encoding="utf-8")
 
     manifest = manifest_file.read_text(encoding="utf-8")
     manifest = replace_once(manifest, '        android:allowBackup="true"', '        android:allowBackup="false"', "application privacy setting")
