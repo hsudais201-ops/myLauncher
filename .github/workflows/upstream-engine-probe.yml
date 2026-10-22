@@ -41,7 +41,13 @@ jobs:
           find . -type f \( -iname 'license' -o -iname 'license.*' -o -iname 'copying*' -o -iname 'notice*' \) \
             -not -path './.git/*' -not -path '*/build/*' | sort | tee ../../upstream-license-files.txt
 
-      - name: Set up Java
+      - name: Install Java 8 toolchain for legacy modules
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "8"
+
+      - name: Set up Java 17 for Gradle
         uses: actions/setup-java@v4
         with:
           distribution: temurin
