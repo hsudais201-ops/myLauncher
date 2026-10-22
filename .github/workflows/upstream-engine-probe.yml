@@ -1,0 +1,58 @@
+name: Upstream engine compatibility probe
+
+on:
+  workflow_dispatch:
+    inputs:
+      upstream_ref:
+        description: "Amethyst-Android branch, tag, or commit to test"
+        required: true
+        default: "v3_openjdk"
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  upstream-build:
+    name: Build upstream engine in isolation
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - name: Check out pinned upstream source and submodules
+        uses: actions/checkout@v4
+        with:
+          repository: AngelAuraMC/Amethyst-Android
+          ref: ${{ inputs.upstream_ref }}
+          path: upstream/Amethyst-Android
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Record upstream revision and license inventory
+        working-directory: upstream/Amethyst-Android
+        shell: bash
+        run: |
+          echo "Requested ref: ${{ inputs.upstream_ref }}"
+          echo "Resolved commit: $(git rev-parse HEAD)"
+          git submodule status --recursive
+          find . -type f \( -iname 'license' -o -iname 'license.*' -o -iname 'copying*' -o -iname 'notice*' \) \
+            -not -path './.git/*' -not -path '*/build/*' | sort | tee ../../upstream-license-files.txt
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Build upstream debug APK
+        working-directory: upstream/Amethyst-Android
+        run: ./gradlew :app_pojavlauncher:assembleDebug --stacktrace
+
+      - name: Upload upstream probe outputs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: voidcraft-upstream-engine-probe
+          if-no-files-found: warn
+          path: |
+            upstream/Amethyst-Android/app_pojavlauncher/build/outputs/apk/debug/*.apk
+            upstream-license-files.txt
