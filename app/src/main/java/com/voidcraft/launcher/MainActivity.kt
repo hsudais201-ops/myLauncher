@@ -1261,7 +1261,15 @@ private fun FeatureDetail(
         }
         when {
             installed -> {
-                Button(onClick = onOpen, modifier = Modifier.fillMaxWidth()) { Text(if (feature.builtIn) "OPEN FEATURE" else "VIEW PACKAGE DETAILS") }
+                if (feature.builtIn) {
+                    Button(onClick = onOpen, modifier = Modifier.fillMaxWidth()) { Text("OPEN FEATURE") }
+                } else {
+                    Button(
+                        onClick = {},
+                        enabled = false,
+                        modifier = Modifier.fillMaxWidth()
+                    ) { Text("PACKAGE STORED — NOT EXECUTABLE") }
+                }
                 OutlinedButton(onClick = onUninstall, modifier = Modifier.fillMaxWidth()) { Text("UNINSTALL") }
             }
             feature.availability == "available" && (feature.builtIn || !feature.packageUrl.isNullOrBlank()) -> {
