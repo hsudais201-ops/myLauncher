@@ -38,6 +38,20 @@ private const val MOJANG_VERSION_MANIFEST = "https://piston-meta.mojang.com/mc/g
 private data class MinecraftVersionEntry(
     val id: String,
     val type: String,
+    val releaseTime: String,
+    val metadataUrl: String
+)
+
+private data class MinecraftVersionDetails(
+    val id: String,
+    val javaComponent: String?,
+    val javaMajorVersion: Int?,
+    val clientJarUrl: String?,
+    val clientJarSha1: String?,
+    val clientJarSizeBytes: Long?,
+    val assetIndexId: String?,
+    val assetIndexUrl: String?,
+    val libraryCount: Int,
     val releaseTime: String
 )
 
@@ -57,6 +71,9 @@ fun GameVersionsScreen(
     var latestSnapshot by remember { mutableStateOf("") }
     var showSnapshots by remember { mutableStateOf(false) }
     var loading by remember { mutableStateOf(false) }
+    var inspectingId by remember { mutableStateOf<String?>(null) }
+    var inspectedDetails by remember { mutableStateOf<MinecraftVersionDetails?>(null) }
+    var inspectionError by remember { mutableStateOf<String?>(null) }
     var status by remember { mutableStateOf("Connect to the internet to load Mojang's official version manifest.") }
     val scope = rememberCoroutineScope()
 
@@ -76,6 +93,22 @@ fun GameVersionsScreen(
                 status = "Could not load versions: ${error.message ?: "network error"}. Check your connection and retry."
             }
             loading = false
+        }
+    }
+
+    fun inspect(entry: MinecraftVersionEntry) {
+        scope.launch {
+            inspectingId = entry.id
+            inspectedDetails = null
+            inspectionError = null
+            val result = withContext(Dispatchers.IO) {
+                runCatching { fetchMinecraftVersionDetails(entry) }
+            }
+            result.onSuccess { inspectedDetails = it }
+                .onFailure { error ->
+                    inspectionError = "Could not inspect ${{entry.id}: ${{error.message ?: "metadata error"}."
+                }
+            inspectingId = null
         }
     }
 
@@ -110,6 +143,51 @@ fun GameVersionsScreen(
                     else Text("REFRESH VERSION CATALOG")
                 }
             }
+        }
+
+        inspectedDetails?.let { details ->
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(18.dp),
+                colors = CardDefaults.cardColors(containerColor = VoidSurface)
+            ) {
+                Column(
+                    Modifier.fillMaxWidth().padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(7.dp)
+                ) {
+                    Text("VERSION INSTALL PREFLIGHT", color = MaterialTheme.colorScheme.primary, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                    Text(details.id, fontSize = 20.sp, fontWeight = FontWeight.ExtraBold)
+                    Text(
+                        "Required Java: ${{details.javaMajorVersion?.toString() ?: "not specified"}${{details.javaComponent?.let { " ($it)" } ?: ""}",
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Text("Client JAR: ${{if (details.clientJarUrl.isNullOrBlank()) "not listed" else "available in metadata"}", color = VoidMuted, fontSize = 12.sp)
+                    details.clientJarSizeBytes?.let {
+                        Text("Client JAR size: %.2f MiB".format(it / (1024.0 * 1024.0)), color = VoidMuted, fontSize = 12.sp)
+                    }
+                    details.clientJarSha1?.let {
+                        Text("Client JAR SHA-1: $it", color = VoidMuted, fontSize = 11.sp, lineHeight = 15.sp)
+                    }
+                    Text("Asset index: ${{details.assetIndexId ?: "not listed"}", color = VoidMuted, fontSize = 12.sp)
+                    Text("Libraries listed: ${{details.libraryCount}", color = VoidMuted, fontSize = 12.sp)
+                    Text("Release time: ${{details.releaseTime.ifBlank { "not listed" }}", color = VoidMuted, fontSize = 12.sp)
+                    details.assetIndexUrl?.let {
+                        Text("Asset index URL: $it", color = VoidMuted, fontSize = 10.sp, lineHeight = 14.sp)
+                    }
+                    Text(
+                        "Inspection only: no JARs, libraries, assets, or game files were downloaded or installed.",
+                        color = VoidMuted,
+                        fontSize = 11.sp,
+                        lineHeight = 16.sp
+                    )
+                    OutlinedButton(onClick = { inspectedDetails = null }, modifier = Modifier.fillMaxWidth()) {
+                        Text("CLOSE INSPECTOR")
+                    }
+                }
+            }
+        }
+        inspectionError?.let { message ->
+            Text(message, color = MaterialTheme.colorScheme.error, fontSize = 12.sp, lineHeight = 17.sp)
         }
 
         Row(
@@ -148,8 +226,23 @@ fun GameVersionsScreen(
                                 Text(entry.releaseTime.take(10), color = VoidMuted, fontSize = 11.sp)
                             }
                         }
-                        Button(onClick = { onSelectVersion(entry.id) }) {
-                            Text(if (selectedVersion == entry.id) "SELECTED" else "SELECT")
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Button(onClick = { onSelectVersion(entry.id) }) {
+                                Text(if (selectedVersion == entry.id) "SELECTED" else "SELECT")
+                            }
+                            OutlinedButton(
+                                onClick = { inspect(entry) },
+                                enabled = inspectingId == null
+                            ) {
+                                if (inspectingId == entry.id) {
+                                    CircularProgressIndicator(strokeWidth = 2.dp)
+                                } else {
+                                    Text("INSPECT")
+                                }
+                            }
                         }
                     }
                 }
@@ -198,7 +291,7 @@ private fun fetchMinecraftVersions(): MinecraftVersionManifest {
                     val id = row.optString("id").trim()
                     val type = row.optString("type").trim()
                     if (id.isNotBlank() && type in setOf("release", "snapshot")) {
-                        add(MinecraftVersionEntry(id, type, row.optString("releaseTime")))
+                        add(MinecraftVersionEntry(id, type, row.optString("releaseTime"), row.optString("url")))
                     }
                 }
             }
@@ -212,3 +305,47 @@ private fun fetchMinecraftVersions(): MinecraftVersionManifest {
         connection.disconnect()
     }
 }
+ 
+private fun fetchMinecraftVersionDetails(entry: MinecraftVersionEntry): MinecraftVersionDetails {
+    require(entry.metadataUrl.isNotBlank()) { "Mojang manifest did not provide a version metadata URL" }
+    val metadataUrl = URL(entry.metadataUrl)
+    require(
+        metadataUrl.protocol == "https" &&
+            metadataUrl.host.lowercase() in setOf("piston-meta.mojang.com", "launchermeta.mojang.com")
+    ) { "Unexpected metadata host; only Mojang version metadata is accepted" }
+
+    val connection = (metadataUrl.openConnection() as HttpURLConnection).apply {
+        connectTimeout = 8000
+        readTimeout = 15000
+        requestMethod = "GET"
+        setRequestProperty("Accept", "application/json")
+        setRequestProperty("User-Agent", "Voidcraft-Android-Launcher/0.1")
+    }
+    try {
+        if (connection.responseCode !in 200..299) {
+            error("Mojang returned HTTP ${{connection.responseCode}")
+        }
+        val body = connection.inputStream.bufferedReader().use { it.readText() }
+        val root = JSONObject(body)
+        val javaVersion = root.optJSONObject("javaVersion")
+        val downloads = root.optJSONObject("downloads")
+        val client = downloads?.optJSONObject("client")
+        val assetIndex = root.optJSONObject("assetIndex")
+        val libraries = root.optJSONArray("libraries")
+        return MinecraftVersionDetails(
+            id = root.optString("id", entry.id).ifBlank { entry.id },
+            javaComponent = javaVersion?.optString("component")?.takeIf { it.isNotBlank() },
+            javaMajorVersion = javaVersion?.takeIf { it.has("majorVersion") && !it.isNull("majorVersion") }?.optInt("majorVersion"),
+            clientJarUrl = client?.optString("url")?.takeIf { it.isNotBlank() },
+            clientJarSha1 = client?.optString("sha1")?.takeIf { it.isNotBlank() },
+            clientJarSizeBytes = client?.takeIf { it.has("size") && !it.isNull("size") }?.optLong("size"),
+            assetIndexId = assetIndex?.optString("id")?.takeIf { it.isNotBlank() },
+            assetIndexUrl = assetIndex?.optString("url")?.takeIf { it.isNotBlank() },
+            libraryCount = libraries?.length() ?: 0,
+            releaseTime = root.optString("releaseTime", entry.releaseTime)
+        )
+    } finally {
+        connection.disconnect()
+    }
+}
+
