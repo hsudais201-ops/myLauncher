@@ -274,10 +274,19 @@ private fun installJava17Runtime(context: Context, asset: JavaRuntimeAsset): Str
         check(stagedCheck.success) { "The downloaded runtime could not start: ${stagedCheck.message}" }
 
         val finalDirectory = File(baseDirectory, "java17-${asset.architecture}")
+        val backupDirectory = File(baseDirectory, ".backup-${asset.architecture}-${System.currentTimeMillis()}")
+        var backedUpPreviousInstall = false
         if (finalDirectory.exists()) {
-            check(finalDirectory.deleteRecursively()) { "Could not replace the previously installed runtime." }
+            check(finalDirectory.renameTo(backupDirectory)) {
+                "Could not safely move the previous runtime aside."
+            }
+            backedUpPreviousInstall = true
         }
-        check(stagingDirectory.renameTo(finalDirectory)) { "Could not move the verified runtime into place." }
+        if (!stagingDirectory.renameTo(finalDirectory)) {
+            if (backedUpPreviousInstall) backupDirectory.renameTo(finalDirectory)
+            error("Could not move the verified runtime into place; previous runtime was restored when possible.")
+        }
+        if (backedUpPreviousInstall) backupDirectory.deleteRecursively()
 
         val finalJava = findJavaExecutable(finalDirectory)
             ?: error("Installed runtime is missing bin/java.")
