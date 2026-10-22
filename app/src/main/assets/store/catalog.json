@@ -6,7 +6,7 @@
       "id": "social-hub",
       "name": "Social Hub",
       "tagline": "Keep your friends list and chat notes together.",
-      "description": "Social Hub is an optional built-in Voidcraft feature. It lets you add usernames to a local friends list and save local chat notes on this device. These are not real friend requests or messages: online accounts, cross-device sync, invites, notifications, and live chat require a server integration that is not included yet.",
+      "description": "Social Hub is an optional built-in Voidcraft feature. Local contacts and notes stay on your device. The online beta adds usernames, friend requests, accepted-friend chat, and blocking/reporting through the Voidcraft staging service. This is an early beta without email verification, account recovery, push notifications, or production support. Use a unique password that you do not use anywhere else.",
       "kind": "launcher",
       "category": "Community",
       "version": "1.0",
