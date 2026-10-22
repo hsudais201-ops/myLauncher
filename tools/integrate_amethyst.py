@@ -8,6 +8,7 @@ produce a different app layout.
 from __future__ import annotations
 
 import argparse
+import re
 import shutil
 from pathlib import Path
 
@@ -113,6 +114,12 @@ def main() -> None:
     gradle = replace_once(gradle, dependency_anchor, dependency_block, "Compose/runtime dependencies")
     gradle = replace_once(
         gradle,
+        "\\n}\\n\\ndependencies {",
+        "\\n}\\n\\ntasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinJvmCompile).configureEach {\\n    jvmTargetValidationMode = org.jetbrains.kotlin.gradle.dsl.jvm.JvmTargetValidationMode.IGNORE\\n}\\n\\ndependencies {",
+        "project-level Kotlin JVM target validation"
+    )
+    gradle = replace_once(
+        gradle,
         """    compileOptions {
         sourceCompatibility JavaVersion.VERSION_1_8
         targetCompatibility JavaVersion.VERSION_1_8
@@ -128,11 +135,6 @@ def main() -> None:
         }
     }
 
-    // The mixed upstream Java 8 and Compose/Kotlin 11 targets are intentional:
-    // Java 11 javac cannot compile upstream's dummy dalvik.annotation source.
-    // Make the scoped Kotlin task validation explicit for the AGP built-in Kotlin integration.
-    tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinJvmCompile).configureEach {
-        jvmTargetValidationMode = org.jetbrains.kotlin.gradle.dsl.jvm.JvmTargetValidationMode.IGNORE
     }""",
         "Java 8 source target plus Kotlin 11 bytecode target"
     )
@@ -186,11 +188,13 @@ def main() -> None:
         "android.builtInKotlin=true",
         "built-in Kotlin compiler switch"
     )
-    # The upstream Java sources must stay at Java 8 because they define Android-only
-    # dalvik.annotation classes. Voidcraft's Compose sources target JVM 11, as Compose's
-    # bytecode requires. Their class files are packaged together by D8, so warn rather
-    # than fail Gradle's source-task target consistency check.
-    if "kotlin.jvm.target.validation.mode=" not in properties:
+    # Override the upstream target-validation property even if spaces surround the equals sign.
+    properties = re.sub(
+        r"(?m)^\s*kotlin\.jvm\.target\.validation\.mode\s*=.*$",
+        "kotlin.jvm.target.validation.mode=ignore",
+        properties
+    )
+    if not re.search(r"(?m)^\s*kotlin\.jvm\.target\.validation\.mode\s*=", properties):
         properties = properties.rstrip() + "\nkotlin.jvm.target.validation.mode=ignore\n"
     properties_file.write_text(properties, encoding="utf-8")
 
