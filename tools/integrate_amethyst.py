@@ -144,7 +144,7 @@ def main() -> None:
     # Keep upstream's runtime/Java/renderer module intact but make Voidcraft the Android entry point.
     manifest = manifest_file.read_text(encoding="utf-8")
     manifest = replace_once(manifest, TEST_STORAGE_LAUNCHER_BLOCK, TEST_STORAGE_NO_LAUNCHER_BLOCK, "old launcher activity")
-    manifest = replace_once(manifest, '    <application\n', '    <application\n        android:allowBackup="false"\n', "application privacy setting")
+    manifest = replace_once(manifest, '        android:allowBackup="true"', '        android:allowBackup="false"', "application privacy setting")
     manifest = replace_once(manifest, '        <activity\n            android:name=".LauncherActivity"', VOIDCRAFT_ACTIVITY + '        <activity\n            android:name=".LauncherActivity"', "Voidcraft launcher Activity")
     manifest_file.write_text(manifest, encoding="utf-8")
     gradle_file.write_text(gradle, encoding="utf-8")
