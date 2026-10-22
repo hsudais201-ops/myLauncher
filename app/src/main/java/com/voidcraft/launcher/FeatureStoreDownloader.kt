@@ -21,7 +21,7 @@ internal fun maxFeaturePackageBytesForAvailableSpace(availableBytes: Long): Long
 /** A missing Content-Length is allowed, but the stream is still capped by available storage. */
 internal fun featurePackageContentLengthFits(contentLength: Long, maxAllowedBytes: Long): Boolean =
     maxAllowedBytes > 0L &&
-        (contentLength == -1L || (contentLength >= 0L && contentLength <= maxAllowedBytes))
+        (contentLength == -1L || (contentLength > 0L && contentLength <= maxAllowedBytes))
 
 /**
  * Downloads an optional Feature Store package without accepting insecure redirects
@@ -103,6 +103,9 @@ internal fun downloadFeaturePackage(context: Context, feature: StoreFeature): Fi
             }
 
             val expectedLength = connection.contentLengthLong
+            if (expectedLength == 0L) {
+                error("The package server reported an empty package.")
+            }
             if (expectedLength > MAX_FEATURE_PACKAGE_BYTES) {
                 error("Package exceeds the 500 MiB safety limit.")
             }
@@ -147,6 +150,9 @@ internal fun downloadFeaturePackage(context: Context, feature: StoreFeature): Fi
                     }
                 }
 
+                if (total == 0L) {
+                    error("The package server returned an empty file.")
+                }
                 if (expectedLength >= 0 && total != expectedLength) {
                     error("Downloaded package size did not match the server response.")
                 }

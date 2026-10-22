@@ -707,7 +707,9 @@ private suspend fun socialApiRequest(
         connectTimeout = 10000
         readTimeout = 15000
         requestMethod = method
+        instanceFollowRedirects = false
         setRequestProperty("Accept", "application/json")
+        setRequestProperty("Cache-Control", "no-store")
         if (token != null) setRequestProperty("Authorization", "Bearer $token")
         if (body != null) {
             setRequestProperty("Content-Type", "application/json; charset=utf-8")
@@ -719,6 +721,11 @@ private suspend fun socialApiRequest(
             connection.outputStream.use { it.write(body.toString().toByteArray(Charsets.UTF_8)) }
         }
         val status = connection.responseCode
+        if (mustRejectSocialApiRedirect(status)) {
+            throw IllegalStateException(
+                "Social Hub returned a redirect. Voidcraft refused to forward account or session data."
+            )
+        }
         val stream = if (status in 200..299) connection.inputStream else connection.errorStream
         val text = stream?.bufferedReader()?.use { it.readText() } ?: "{}"
         val response = runCatching { JSONObject(text) }.getOrElse { JSONObject() }

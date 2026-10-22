@@ -27,6 +27,7 @@ class FeatureStoreDownloadPolicyTest {
         assertFalse(featurePackageContentLengthFits(-1L, 0L))
         assertFalse(featurePackageContentLengthFits(-2L, 100L))
         assertTrue(featurePackageContentLengthFits(-1L, 100L))
+        assertFalse(featurePackageContentLengthFits(0L, 100L))
         assertTrue(featurePackageContentLengthFits(100L, 100L))
         assertFalse(featurePackageContentLengthFits(101L, 100L))
     }
