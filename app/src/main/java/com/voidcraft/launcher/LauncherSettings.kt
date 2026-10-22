@@ -3,6 +3,7 @@ package com.voidcraft.launcher
 import android.app.ActivityManager
 import android.content.Context
 import android.content.Intent
+import android.content.ActivityNotFoundException
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.net.Uri
@@ -286,6 +287,7 @@ private fun TouchControlsSettingsScreen(onBack: () -> Unit) {
     var opacity by remember { mutableFloatStateOf(prefs.getFloat("touch_controls_opacity", 0.85f).coerceIn(0.25f, 1f)) }
     var sensitivity by remember { mutableFloatStateOf(prefs.getFloat("touch_controls_sensitivity", 1f).coerceIn(0.5f, 2f)) }
     var saved by remember { mutableStateOf(false) }
+    var engineControlStatus by remember { mutableStateOf<String?>(null) }
 
     Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
         BackLine("Touch controls", onBack)
@@ -326,13 +328,25 @@ private fun TouchControlsSettingsScreen(onBack: () -> Unit) {
             modifier = Modifier.fillMaxWidth()
         ) { Text("SAVE CONTROL PREFERENCES") }
         if (saved) Text("Saved on this device.", color = VoidMuted, fontSize = 12.sp)
+        Button(
+            onClick = {
+                try {
+                    context.startActivity(Intent().setClassName(context, "net.kdt.pojavlaunch.CustomControlsActivity"))
+                    engineControlStatus = "Opened the engine's real control-layout editor. Changes there are separate from the saved preferences above."
+                } catch (_: ActivityNotFoundException) {
+                    engineControlStatus = "The engine control editor is available in the combined engine build, not in the standalone Voidcraft prototype."
+                }
+            },
+            modifier = Modifier.fillMaxWidth()
+        ) { Text("OPEN IN-GAME CONTROL EDITOR") }
+        engineControlStatus?.let { Text(it, color = VoidMuted, fontSize = 11.sp, lineHeight = 16.sp) }
         Card(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(16.dp),
             colors = CardDefaults.cardColors(containerColor = VoidSurface)
         ) {
             Text(
-                "These preferences are not active in-game until a compatible Minecraft runtime and touch overlay are integrated.",
+                "The switches and sliders above save Voidcraft preferences only. Use the engine control editor to configure actual in-game buttons and layout.",
                 modifier = Modifier.padding(16.dp),
                 color = VoidMuted,
                 fontSize = 12.sp,
