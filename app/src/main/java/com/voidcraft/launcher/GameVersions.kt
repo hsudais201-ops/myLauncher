@@ -1,5 +1,7 @@
 package com.voidcraft.launcher
 
+import android.content.Context
+import android.os.StatFs
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -30,10 +32,16 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
+import java.io.File
+import java.io.FileInputStream
+import java.io.FileOutputStream
 import java.net.HttpURLConnection
 import java.net.URL
+import java.security.MessageDigest
 
 private const val MOJANG_VERSION_MANIFEST = "https://piston-meta.mojang.com/mc/game/version_manifest_v2.json"
+private const val MAX_CLIENT_JAR_BYTES = 200L * 1024L * 1024L
+private const val MIN_DOWNLOAD_FREE_SPACE_BYTES = 16L * 1024L * 1024L
 
 private data class MinecraftVersionEntry(
     val id: String,
@@ -66,6 +74,9 @@ fun GameVersionsScreen(
     selectedVersion: String,
     onSelectVersion: (String) -> Unit
 ) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    var downloadingVersion by remember { mutableStateOf<String?>(null) }
+    var downloadMessage by remember { mutableStateOf<String?>(null) }
     var versions by remember { mutableStateOf<List<MinecraftVersionEntry>>(emptyList()) }
     var latestRelease by remember { mutableStateOf("") }
     var latestSnapshot by remember { mutableStateOf("") }
@@ -109,6 +120,22 @@ fun GameVersionsScreen(
                     inspectionError = "Could not inspect ${entry.id}: ${error.message ?: "metadata error"}."
                 }
             inspectingId = null
+        }
+    }
+
+    fun downloadClientJar(details: MinecraftVersionDetails) {
+        scope.launch {
+            downloadingVersion = details.id
+            downloadMessage = "Downloading and verifying ${details.id} client JAR…"
+            val result = withContext(Dispatchers.IO) {
+                runCatching { downloadAndVerifyMinecraftClientJar(context, details) }
+            }
+            result.onSuccess { file ->
+                downloadMessage = "Client JAR verified and saved privately: ${file.relativeTo(context.filesDir).invariantSeparatorsPath}"
+            }.onFailure { error ->
+                downloadMessage = "Client JAR download failed: ${error.message ?: "unknown error"}"
+            }
+            downloadingVersion = null
         }
     }
 
@@ -175,11 +202,36 @@ fun GameVersionsScreen(
                         Text("Asset index URL: $it", color = VoidMuted, fontSize = 10.sp, lineHeight = 14.sp)
                     }
                     Text(
-                        "Inspection only: no JARs, libraries, assets, or game files were downloaded or installed.",
+                        "The inspector only reads metadata. You can download the client JAR below; libraries, assets, authentication, and actual game launching are separate steps.",
                         color = VoidMuted,
                         fontSize = 11.sp,
                         lineHeight = 16.sp
                     )
+                    Button(
+                        onClick = { downloadClientJar(details) },
+                        enabled = downloadingVersion == null &&
+                            !details.clientJarUrl.isNullOrBlank() &&
+                            !details.clientJarSha1.isNullOrBlank() &&
+                            details.clientJarSizeBytes != null,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        if (downloadingVersion == details.id) {
+                            CircularProgressIndicator(strokeWidth = 2.dp)
+                        } else {
+                            Text("DOWNLOAD & VERIFY CLIENT JAR")
+                        }
+                    }
+                    if (downloadingVersion == details.id) {
+                        Text("Downloading to Voidcraft's private storage. Keep the app open until verification finishes.", color = VoidMuted, fontSize = 11.sp)
+                    }
+                    downloadMessage?.let { message ->
+                        Text(
+                            message,
+                            color = if (message.contains("failed", ignoreCase = true)) MaterialTheme.colorScheme.error else VoidMuted,
+                            fontSize = 11.sp,
+                            lineHeight = 16.sp
+                        )
+                    }
                     OutlinedButton(onClick = { inspectedDetails = null }, modifier = Modifier.fillMaxWidth()) {
                         Text("CLOSE INSPECTOR")
                     }
@@ -347,5 +399,116 @@ private fun fetchMinecraftVersionDetails(entry: MinecraftVersionEntry): Minecraf
     } finally {
         connection.disconnect()
     }
+}
+ 
+private fun downloadAndVerifyMinecraftClientJar(
+    context: Context,
+    details: MinecraftVersionDetails
+): File {
+    val clientUrlText = details.clientJarUrl ?: error("Mojang metadata does not list a client JAR URL")
+    val expectedSha1 = details.clientJarSha1?.trim()?.lowercase()
+        ?: error("Mojang metadata does not list a client JAR SHA-1")
+    require(expectedSha1.matches(Regex("^[0-9a-f]{40}$"))) { "Invalid client JAR SHA-1 in metadata" }
+    val expectedSize = details.clientJarSizeBytes ?: error("Mojang metadata does not list the client JAR size")
+    require(expectedSize in 1L..MAX_CLIENT_JAR_BYTES) { "Client JAR size is outside Voidcraft's safety limit" }
+
+    val allowedHosts = setOf("piston-data.mojang.com", "launcher.mojang.com")
+    val clientUrl = URL(clientUrlText)
+    require(clientUrl.protocol == "https" && clientUrl.host.lowercase() in allowedHosts) {
+        "Unexpected client JAR host; only official Mojang download hosts are accepted"
+    }
+
+    val freeSpace = StatFs(context.filesDir.absolutePath).availableBytes
+    require(freeSpace >= expectedSize + MIN_DOWNLOAD_FREE_SPACE_BYTES) {
+        "Not enough free app storage for this client JAR"
+    }
+
+    val safeVersionId = details.id.replace(Regex("[^A-Za-z0-9._-]"), "_")
+    require(safeVersionId.isNotBlank() && safeVersionId != "." && safeVersionId != "..") {
+        "Invalid version identifier"
+    }
+    val versionDirectory = File(context.filesDir, "minecraft/versions/$safeVersionId")
+    require(versionDirectory.isDirectory || versionDirectory.mkdirs()) { "Could not create the version folder" }
+    val destination = File(versionDirectory, "$safeVersionId.jar")
+    val temporary = File(versionDirectory, "$safeVersionId.jar.part")
+
+    if (destination.isFile && destination.length() == expectedSize &&
+        sha1OfFile(destination).equals(expectedSha1, ignoreCase = true)
+    ) {
+        return destination
+    }
+
+    temporary.delete()
+    val connection = (clientUrl.openConnection() as HttpURLConnection).apply {
+        connectTimeout = 10000
+        readTimeout = 30000
+        requestMethod = "GET"
+        instanceFollowRedirects = true
+        setRequestProperty("Accept", "application/java-archive, application/octet-stream, */*")
+        setRequestProperty("User-Agent", "Voidcraft-Android-Launcher/0.1")
+    }
+
+    try {
+        if (connection.responseCode !in 200..299) {
+            error("Mojang returned HTTP ${connection.responseCode}")
+        }
+        val finalUrl = connection.url
+        require(finalUrl.protocol == "https" && finalUrl.host.lowercase() in allowedHosts) {
+            "Client JAR download redirected to an untrusted host"
+        }
+        val contentLength = connection.getHeaderFieldLong("Content-Length", -1L)
+        if (contentLength >= 0L && contentLength != expectedSize) {
+            error("Download size does not match Mojang metadata")
+        }
+
+        val digest = MessageDigest.getInstance("SHA-1")
+        var totalBytes = 0L
+        connection.inputStream.use { input ->
+            FileOutputStream(temporary).use { output ->
+                val buffer = ByteArray(32 * 1024)
+                while (true) {
+                    val count = input.read(buffer)
+                    if (count < 0) break
+                    totalBytes += count
+                    require(totalBytes <= expectedSize && totalBytes <= MAX_CLIENT_JAR_BYTES) {
+                        "Downloaded file is larger than the expected client JAR"
+                    }
+                    digest.update(buffer, 0, count)
+                    output.write(buffer, 0, count)
+                }
+                output.fd.sync()
+            }
+        }
+
+        require(totalBytes == expectedSize) {
+            "Downloaded size ($totalBytes bytes) does not match expected size ($expectedSize bytes)"
+        }
+        val actualSha1 = digest.digest().joinToString("") { "%02x".format(it.toInt() and 0xff) }
+        require(actualSha1.equals(expectedSha1, ignoreCase = true)) {
+            "Client JAR SHA-1 verification failed; the incomplete file was rejected"
+        }
+
+        if (destination.exists()) require(destination.delete()) { "Could not replace an invalid cached JAR" }
+        require(temporary.renameTo(destination)) { "Could not finalize the verified client JAR" }
+        return destination
+    } catch (failure: Exception) {
+        temporary.delete()
+        throw failure
+    } finally {
+        connection.disconnect()
+    }
+}
+
+private fun sha1OfFile(file: File): String {
+    val digest = MessageDigest.getInstance("SHA-1")
+    FileInputStream(file).use { input ->
+        val buffer = ByteArray(32 * 1024)
+        while (true) {
+            val count = input.read(buffer)
+            if (count < 0) break
+            digest.update(buffer, 0, count)
+        }
+    }
+    return digest.digest().joinToString("") { "%02x".format(it.toInt() and 0xff) }
 }
 
