@@ -1,3 +1,5 @@
+import { normalizeUsername } from "./validation.mjs";
+
 const PASSWORD_ITERATIONS = 120000;
 const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 const MAX_JSON_BYTES = 16 * 1024;
@@ -95,8 +97,8 @@ function constantTimeEqual(left, right) {
 }
 
 function requireUsername(value) {
-  const username = cleanString(value, 24);
-  if (!USERNAME_RE.test(username)) fail(400, "Username must be 3–24 characters using letters, numbers, or underscore.");
+  const username = normalizeUsername(value);
+  if (!username) fail(400, "Username must be 3–24 characters using letters, numbers, or underscore.");
   return username;
 }
 
@@ -189,9 +191,9 @@ async function register(request, env) {
 async function login(request, env) {
   await limitByIp(env.DB, request, "login", 15 * 60 * 1000, 10);
   const body = await readJson(request);
-  const username = cleanString(body.username, 24);
+  const username = normalizeUsername(body.username);
   const password = typeof body.password === "string" ? body.password : "";
-  if (!USERNAME_RE.test(username) || password.length > 128 || password.length === 0) {
+  if (!username || password.length > 128 || password.length === 0) {
     fail(401, "Invalid username or password.");
   }
   const user = await env.DB.prepare(
