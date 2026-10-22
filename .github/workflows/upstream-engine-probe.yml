@@ -1,6 +1,10 @@
 name: Upstream engine compatibility probe
 
 on:
+  push:
+    branches: ["launcher/bootstrap"]
+    paths:
+      - ".github/workflows/upstream-engine-probe.yml"
   workflow_dispatch:
     inputs:
       upstream_ref:
