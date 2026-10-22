@@ -76,7 +76,7 @@ fun RenderBackendScreen(onBack: () -> Unit) {
                     modifier = Modifier.fillMaxWidth().height(250.dp)
                 )
                 Text(
-                    "This test draws a rotating, shaded triangle directly through the device's OpenGL ES driver. It verifies a basic GPU surface only; it is not Minecraft rendering.",
+                    "This test draws a shaded triangle directly through the device's OpenGL ES driver and changes its angle/color when you request another frame. It verifies a basic GPU surface only; it is not Minecraft rendering.",
                     color = VoidMuted,
                     fontSize = 12.sp,
                     lineHeight = 18.sp
