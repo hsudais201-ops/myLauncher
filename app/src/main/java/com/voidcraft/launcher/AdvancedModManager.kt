@@ -160,7 +160,7 @@ fun AdvancedModManagerScreen() {
             }
             result.onSuccess {
                 refresh()
-                status = "Imported ${it.name}. It is enabled in your local mod library."
+                status = "Imported ${it.name} into the active mods folder. Restart Minecraft to load it."
                 statusIsError = false
             }.onFailure {
                 status = it.message ?: "Could not import this file."
@@ -183,7 +183,7 @@ fun AdvancedModManagerScreen() {
                         Icon(Icons.Default.FolderOpen, contentDescription = null)
                         Text("  IMPORT JAR")
                     }
-                    OutlinedButton(onClick = { refresh(); status = "Mod library refreshed."; statusIsError = false }, enabled = !busy) {
+                    OutlinedButton(onClick = { refresh(); status = "Active mods folder refreshed."; statusIsError = false }, enabled = !busy) {
                         Text("REFRESH")
                     }
                 }
