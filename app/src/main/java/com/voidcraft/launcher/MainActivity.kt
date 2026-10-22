@@ -499,7 +499,11 @@ private fun VoidcraftApp() {
                                     prefs.edit().putString("active_theme", activeTheme).apply()
                                 }
                                 scope.launch { snackbarHostState.showSnackbar("${feature.name} enabled.") }
-                            } else if (feature.packageUrl.isNullOrBlank() || !feature.packageUrl.startsWith("https://")) {
+                            } else if (
+                                feature.packageUrl.isNullOrBlank() ||
+                                !feature.packageUrl.startsWith("https://") ||
+                                feature.packageSha256?.matches(Regex("[0-9a-fA-F]{64}")) != true
+                            ) {
                                 scope.launch { snackbarHostState.showSnackbar("This listing needs an HTTPS package URL and a pinned SHA-256 digest.") }
                             } else {
                                 scope.launch {
