@@ -158,6 +158,7 @@ private class VoidcraftGlesRenderer(
     private var aspectRatio = 1f
     private var gpuDescription = "OpenGL context initializing"
     private var shaderError: String? = null
+    private var lastGlError: String? = null
 
     override fun onSurfaceCreated(gl: GL10?, config: EGLConfig?) {
         GLES20.glClearColor(0.035f, 0.045f, 0.075f, 1f)
@@ -169,11 +170,14 @@ private class VoidcraftGlesRenderer(
         val renderer = GLES20.glGetString(GLES20.GL_RENDERER) ?: "Unknown renderer"
         val version = GLES20.glGetString(GLES20.GL_VERSION) ?: "Unknown OpenGL version"
         val maxTextureSize = IntArray(1)
+        val maxRenderbufferSize = IntArray(1)
         GLES20.glGetIntegerv(GLES20.GL_MAX_TEXTURE_SIZE, maxTextureSize, 0)
+        GLES20.glGetIntegerv(GLES20.GL_MAX_RENDERBUFFER_SIZE, maxRenderbufferSize, 0)
         gpuDescription = "Vendor: " + vendor +
             "\nRenderer: " + renderer +
             "\nOpenGL: " + version +
-            "\nMax texture size: " + maxTextureSize[0] + " px"
+            "\nMax texture size: " + maxTextureSize[0] + " px" +
+            "\nMax renderbuffer: " + maxRenderbufferSize[0] + " px"
 
         try {
             val vertexShader = compileShader(GLES20.GL_VERTEX_SHADER, VERTEX_SHADER)
@@ -231,14 +235,21 @@ private class VoidcraftGlesRenderer(
         GLES20.glDrawArrays(GLES20.GL_TRIANGLES, 0, CUBE_VERTEX_COUNT)
         GLES20.glDisableVertexAttribArray(positionHandle)
         GLES20.glDisableVertexAttribArray(colorHandle)
+        val glError = GLES20.glGetError()
+        lastGlError = if (glError == GLES20.GL_NO_ERROR) {
+            null
+        } else {
+            "OpenGL error 0x" + glError.toString(16).uppercase()
+        }
         frame++
         publishDiagnostics()
     }
 
     private fun publishDiagnostics() {
         val sizeNote = "\nSurface: " + surfaceWidth + " × " + surfaceHeight + " px"
-        val errorNote = shaderError?.let { "\nShader error: " + it } ?: ""
-        onDiagnostics(gpuDescription + sizeNote + errorNote, frame)
+        val shaderNote = shaderError?.let { "\nShader error: " + it } ?: ""
+        val glNote = lastGlError?.let { "\nGPU draw warning: " + it } ?: "\nLast draw: no GL errors"
+        onDiagnostics(gpuDescription + sizeNote + shaderNote + glNote, frame)
     }
 
     private var surfaceWidth = 0
