@@ -136,6 +136,7 @@ private fun VoidcraftApp() {
     var installedIds by remember { mutableStateOf(prefs.getStringSet(INSTALLED_IDS, emptySet())?.toSet() ?: emptySet()) }
     var activeTheme by remember { mutableStateOf(prefs.getString("active_theme", "default") ?: "default") }
     var studioAccent by remember { mutableIntStateOf(prefs.getInt("theme_studio_accent", 0xFF9C7BFF.toInt())) }
+    var selectedGameVersion by remember { mutableStateOf(prefs.getString("selected_game_version", "latest") ?: "latest") }
     var catalog by remember { mutableStateOf(loadBundledCatalog(context)) }
     var isRefreshing by remember { mutableStateOf(false) }
     var selectedFeature by remember { mutableStateOf<StoreFeature?>(null) }
@@ -631,10 +632,15 @@ private fun VoidcraftApp() {
                             storeOpen = true
                         }
                     )
-                    LauncherTab.Versions -> PlaceholderScreen(
-                        icon = Icons.Default.SportsEsports,
-                        title = "Game versions",
-                        description = "Choose and manage Minecraft Java versions here. Version installation is not connected yet."
+                    LauncherTab.Versions -> GameVersionsScreen(
+                        selectedVersion = selectedGameVersion,
+                        onSelectVersion = { version ->
+                            selectedGameVersion = version
+                            prefs.edit().putString("selected_game_version", version).apply()
+                            scope.launch {
+                                snackbarHostState.showSnackbar("Selected Minecraft $version. Game download and launch are not integrated yet.")
+                            }
+                        }
                     )
                     LauncherTab.Mods -> {
                         if ("advanced-mod-manager" in installedIds) {
@@ -661,23 +667,16 @@ private fun VoidcraftApp() {
                             }
                         }
                     }
-                    LauncherTab.Settings -> Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        PlaceholderScreen(
-                            icon = Icons.Default.Tune,
-                            title = "Launcher settings",
-                            description = "Account sign-in, memory allocation, Java runtime and controls will be configured here."
-                        )
-                        OutlinedButton(
-                            onClick = {
-                                storeOpen = true
-                                if (!storeEnabled) {
-                                    storeEnabled = true
-                                    prefs.edit().putBoolean(STORE_ENABLED, true).apply()
-                                }
-                            },
-                            modifier = Modifier.fillMaxWidth()
-                        ) { Text(if (storeEnabled) "OPEN FEATURE STORE" else "INSTALL FEATURE STORE") }
-                    }
+                    LauncherTab.Settings -> LauncherSettingsScreen(
+                        onOpenFeatureStore = {
+                            storeOpen = true
+                            selectedFeature = null
+                            if (!storeEnabled) {
+                                storeEnabled = true
+                                prefs.edit().putBoolean(STORE_ENABLED, true).apply()
+                            }
+                        }
+                    )
                 }
             }
             Spacer(Modifier.height(24.dp))
