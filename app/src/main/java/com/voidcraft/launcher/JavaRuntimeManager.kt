@@ -505,9 +505,9 @@ private fun extractSafeRuntimeArchive(archive: File, destination: File) {
                         check(
                             targetName.isNotBlank() &&
                                 !targetName.startsWith("/") &&
-                                !targetName.startsWith("\\\\") &&
+                                !targetName.startsWith("\\") &&
                                 !Regex("^[A-Za-z]:").containsMatchIn(targetName) &&
-                                !targetName.contains('\\\\')
+                                !targetName.contains('\\')
                         ) { "Archive contains an unsafe hard-link target." }
                         val target = File(root, targetName).canonicalFile
                         check(target.path.startsWith(root.path + File.separator)) {
