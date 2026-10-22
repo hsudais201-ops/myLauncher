@@ -37,6 +37,7 @@ import org.json.JSONObject
 import java.io.File
 import java.io.FileInputStream
 import java.io.FileOutputStream
+import java.io.ByteArrayOutputStream
 import java.net.HttpURLConnection
 import java.net.URL
 import java.security.MessageDigest
@@ -426,9 +427,18 @@ private fun fetchMinecraftVersionDetails(context: Context, entry: MinecraftVersi
             error("Mojang returned HTTP ${connection.responseCode}")
         }
         val bodyBytes = connection.inputStream.use { input ->
-            input.readNBytes(10 * 1024 * 1024 + 1)
+            val buffer = ByteArray(8192)
+            val output = ByteArrayOutputStream()
+            var total = 0
+            while (true) {
+                val count = input.read(buffer)
+                if (count < 0) break
+                total += count
+                require(total <= 10 * 1024 * 1024) { "Version metadata exceeds the 10 MiB safety limit" }
+                output.write(buffer, 0, count)
+            }
+            output.toByteArray()
         }
-        require(bodyBytes.size <= 10 * 1024 * 1024) { "Version metadata exceeds the 10 MiB safety limit" }
         val bodySha1 = sha1OfBytes(bodyBytes)
         if (entry.metadataSha1.matches(Regex("^[0-9a-fA-F]{40}$")) &&
             !bodySha1.equals(entry.metadataSha1, ignoreCase = true)
