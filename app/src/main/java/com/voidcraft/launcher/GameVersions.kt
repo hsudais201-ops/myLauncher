@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -19,6 +20,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Switch
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -93,6 +95,7 @@ fun GameVersionsScreen(
     var inspectingId by remember { mutableStateOf<String?>(null) }
     var inspectedDetails by remember { mutableStateOf<MinecraftVersionDetails?>(null) }
     var inspectionError by remember { mutableStateOf<String?>(null) }
+    var pendingAssetDetails by remember { mutableStateOf<MinecraftVersionDetails?>(null) }
     var status by remember { mutableStateOf("Connect to the internet to load Mojang's official version manifest.") }
     val scope = rememberCoroutineScope()
 
@@ -255,7 +258,7 @@ fun GameVersionsScreen(
                         modifier = Modifier.fillMaxWidth()
                     ) { Text("DOWNLOAD & VERIFY LIBRARIES") }
                     Button(
-                        onClick = { downloadAssets(details) },
+                        onClick = { pendingAssetDetails = details },
                         enabled = downloadingVersion == null && !details.assetIndexUrl.isNullOrBlank(),
                         modifier = Modifier.fillMaxWidth()
                     ) { Text("DOWNLOAD ALL GAME ASSETS") }
@@ -292,6 +295,30 @@ fun GameVersionsScreen(
         }
         inspectionError?.let { message ->
             Text(message, color = MaterialTheme.colorScheme.error, fontSize = 12.sp, lineHeight = 17.sp)
+        }
+        pendingAssetDetails?.let { pending ->
+            AlertDialog(
+                onDismissRequest = { pendingAssetDetails = null },
+                title = { Text("Download all game assets?") },
+                text = {
+                    Text(
+                        "This can download hundreds of megabytes or several gigabytes and use mobile data. " +
+                            "Voidcraft checks the official asset index, available storage, object sizes, and SHA-1 hashes. " +
+                            "Use Wi-Fi and enough free space. Nothing downloads until you confirm."
+                    )
+                },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            pendingAssetDetails = null
+                            downloadAssets(pending)
+                        }
+                    ) { Text("DOWNLOAD ASSETS") }
+                },
+                dismissButton = {
+                    TextButton(onClick = { pendingAssetDetails = null }) { Text("CANCEL") }
+                }
+            )
         }
 
         Row(
