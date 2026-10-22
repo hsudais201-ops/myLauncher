@@ -69,12 +69,11 @@ internal fun downloadMinecraftLibraries(
     require(artifacts.isNotEmpty()) { "No supported library JAR artifacts found in this version metadata" }
     val totalBytes = artifacts.sumOf { it.size }
     require(totalBytes <= MAX_LIBRARY_TOTAL_BYTES) { "Libraries exceed Voidcraft's 1 GiB safety limit" }
-    require(availableSpace(context.filesDir) >= totalBytes + MINIMUM_FREE_SPACE_BYTES) {
-        "Not enough free app storage for the libraries"
-    }
-
     val destinationRoot = resolveEngineStorageDirectory(context, "DIR_HOME_LIBRARY", "minecraft/libraries")
     require(destinationRoot.isDirectory || destinationRoot.mkdirs()) { "Could not create libraries folder" }
+    require(availableSpace(destinationRoot) >= totalBytes + MINIMUM_FREE_SPACE_BYTES) {
+        "Not enough free storage in the configured game directory for libraries"
+    }
     val canonicalRoot = destinationRoot.canonicalFile.path + File.separator
     var completed = 0
 
@@ -156,8 +155,9 @@ internal fun downloadMinecraftAssets(
     require(assets.isNotEmpty()) { "Asset index does not list any valid asset objects" }
     val totalBytes = assets.sumOf { it.size }
     require(totalBytes <= MAX_ASSET_TOTAL_BYTES) { "Assets exceed Voidcraft's 3 GiB safety limit" }
-    require(availableSpace(context.filesDir) >= totalBytes + MINIMUM_FREE_SPACE_BYTES) {
-        "Not enough free app storage for all game assets (about ${totalBytes / (1024L * 1024L)} MiB needed)"
+    require(assetsRoot.isDirectory || assetsRoot.mkdirs()) { "Could not create the configured assets directory" }
+    require(availableSpace(assetsRoot) >= totalBytes + indexSize + MINIMUM_FREE_SPACE_BYTES) {
+        "Not enough free storage in the configured game directory for all game assets (about ${totalBytes / (1024L * 1024L)} MiB needed)"
     }
 
     val objectRoot = File(assetsRoot, "objects")
