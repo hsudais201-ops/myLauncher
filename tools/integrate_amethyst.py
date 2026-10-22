@@ -17,7 +17,6 @@ UPSTREAM_PLUGIN_BLOCK = """plugins {
 
 VOIDCRAFT_PLUGIN_BLOCK = """plugins {
     id 'com.android.application' version '9.3.1'
-    id 'org.jetbrains.kotlin.android' version '2.4.20'
     id 'org.jetbrains.kotlin.plugin.compose' version '2.4.20'
 }"""
 
