@@ -10,11 +10,12 @@ The working branch overlays the Voidcraft Jetpack Compose frontend onto a pinned
 
 The intended combined-app flow is:
 
-1. Android opens the Voidcraft Compose home screen.
-2. **PLAY** opens the integrated upstream `net.kdt.pojavlaunch.LauncherActivity`.
-3. The upstream launcher handles its supported account sign-in, runtime selection, native renderers,
+1. The upstream storage-bootstrap Activity requests/validates storage access, initializes launcher preferences, and unpacks required native/components.
+2. After bootstrap, Android opens the Voidcraft Compose home screen.
+3. **PLAY** opens the integrated upstream `net.kdt.pojavlaunch.LauncherActivity`.
+4. The upstream launcher handles its supported account sign-in, runtime selection, native renderers,
    version installation, mod-loader integration, touch controls, and actual game launch.
-4. The Voidcraft version preparation tools use the upstream version/library/assets directories when
+5. The Voidcraft version preparation tools and mod/file manager use upstream game directories when
    those public engine directory fields are available; the standalone prototype falls back to app-private storage.
 
 This is an integration path, not a claim that the current artifact has been tested on a physical device.
