@@ -118,10 +118,16 @@ def main() -> None:
         targetCompatibility JavaVersion.VERSION_1_8
     }""",
         """    compileOptions {
-        sourceCompatibility JavaVersion.VERSION_11
-        targetCompatibility JavaVersion.VERSION_11
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+
+    kotlin {
+        compilerOptions {
+            jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_11
+        }
     }""",
-        "Java 11 bytecode target for Compose"
+        "Java 8 source target plus Kotlin 11 bytecode target"
     )
 
     # Give the integrated build Voidcraft's existing application identity and branded label.
