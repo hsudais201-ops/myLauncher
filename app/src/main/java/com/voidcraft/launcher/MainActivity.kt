@@ -93,7 +93,10 @@ private const val SOCIAL_MESSAGES = "social_messages"
 private const val SOCIAL_TOKEN = "social_online_token"
 private const val SOCIAL_USERNAME = "social_online_username"
 private const val SOCIAL_API_URL = "https://voidcraft-social-hub-staging.hsudais201.workers.dev"
-private const val CATALOG_URL = "https://raw.githubusercontent.com/hsudais201-ops/myLauncher/launcher/bootstrap/store/catalog.json"
+private val CATALOG_URLS = listOf(
+    "https://raw.githubusercontent.com/hsudais201-ops/myLauncher/main/store/catalog.json",
+    "https://raw.githubusercontent.com/hsudais201-ops/myLauncher/launcher/bootstrap/store/catalog.json"
+)
 
 data class SocialMessage(val sender: String, val text: String, val sentAt: Long)
 data class OnlineFriendRequest(val id: String, val username: String, val createdAt: Long)
@@ -110,6 +113,7 @@ data class StoreFeature(
     val compatibility: String,
     val license: String,
     val packageUrl: String?,
+    val packageSha256: String?,
     val availability: String,
     val builtIn: Boolean
 )
@@ -164,20 +168,24 @@ private fun VoidcraftApp() {
     suspend fun refreshCatalog() {
         isRefreshing = true
         val remote = withContext(Dispatchers.IO) {
-            runCatching {
-                val connection = (URL(CATALOG_URL).openConnection() as HttpURLConnection).apply {
-                    connectTimeout = 5000
-                    readTimeout = 7000
-                    requestMethod = "GET"
-                }
-                try {
-                    if (connection.responseCode !in 200..299) error("Catalog HTTP ${connection.responseCode}")
-                    val body = connection.inputStream.bufferedReader().use { it.readText() }
-                    parseCatalog(body)
-                } finally {
-                    connection.disconnect()
-                }
-            }.getOrNull()
+            CATALOG_URLS.firstNotNullOfOrNull { catalogUrl ->
+                runCatching {
+                    val connection = (URL(catalogUrl).openConnection() as HttpURLConnection).apply {
+                        connectTimeout = 5000
+                        readTimeout = 7000
+                        requestMethod = "GET"
+                    }
+                    try {
+                        if (connection.responseCode !in 200..299) error("Catalog HTTP ${connection.responseCode}")
+                        val body = connection.inputStream.bufferedReader().use { it.readText() }
+                        parseCatalog(body).also {
+                            require(it.isNotEmpty()) { "Catalog did not contain any explicit features." }
+                        }
+                    } finally {
+                        connection.disconnect()
+                    }
+                }.getOrNull()
+            }
         }
         if (remote != null) {
             catalog = remote.distinctBy { it.id }
@@ -492,7 +500,7 @@ private fun VoidcraftApp() {
                                 }
                                 scope.launch { snackbarHostState.showSnackbar("${feature.name} enabled.") }
                             } else if (feature.packageUrl.isNullOrBlank() || !feature.packageUrl.startsWith("https://")) {
-                                scope.launch { snackbarHostState.showSnackbar("This listing has no verified HTTPS package yet.") }
+                                scope.launch { snackbarHostState.showSnackbar("This listing needs an HTTPS package URL and a pinned SHA-256 digest.") }
                             } else {
                                 scope.launch {
                                     val result = withContext(Dispatchers.IO) {
@@ -1055,6 +1063,7 @@ private fun parseCatalog(body: String): List<StoreFeature> {
                     compatibility = item.optString("compatibility", "Not specified"),
                     license = item.optString("license", "Not specified"),
                     packageUrl = item.optString("packageUrl").takeIf { it.startsWith("https://") },
+                    packageSha256 = item.optString("sha256").trim().takeIf { it.isNotBlank() },
                     availability = item.optString("availability", "preview"),
                     builtIn = item.optBoolean("builtIn", false)
                 )
