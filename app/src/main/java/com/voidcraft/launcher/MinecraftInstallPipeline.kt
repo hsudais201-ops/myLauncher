@@ -73,7 +73,7 @@ internal fun downloadMinecraftLibraries(
         "Not enough free app storage for the libraries"
     }
 
-    val destinationRoot = File(context.filesDir, "minecraft/libraries")
+    val destinationRoot = resolveEngineStorageDirectory(context, "DIR_HOME_LIBRARY", "minecraft/libraries")
     require(destinationRoot.isDirectory || destinationRoot.mkdirs()) { "Could not create libraries folder" }
     val canonicalRoot = destinationRoot.canonicalFile.path + File.separator
     var completed = 0
@@ -128,7 +128,8 @@ internal fun downloadMinecraftAssets(
         "Asset index URL is not hosted on an approved Mojang metadata host"
     }
 
-    val indexesRoot = File(context.filesDir, "minecraft/assets/indexes")
+    val assetsRoot = resolveEngineStorageDirectory(context, "ASSETS_PATH", "minecraft/assets")
+    val indexesRoot = File(assetsRoot, "indexes")
     val indexFile = File(indexesRoot, "$indexId.json")
     val indexCached = indexFile.isFile && indexFile.length() == indexSize &&
         sha1OfFile(indexFile).equals(indexSha1, ignoreCase = true)
@@ -159,7 +160,7 @@ internal fun downloadMinecraftAssets(
         "Not enough free app storage for all game assets (about ${totalBytes / (1024L * 1024L)} MiB needed)"
     }
 
-    val objectRoot = File(context.filesDir, "minecraft/assets/objects")
+    val objectRoot = File(assetsRoot, "objects")
     require(objectRoot.isDirectory || objectRoot.mkdirs()) { "Could not create asset objects folder" }
     val canonicalRoot = objectRoot.canonicalFile.path + File.separator
     val nextIndex = AtomicInteger(0)
@@ -336,3 +337,25 @@ private fun sha1OfFile(file: File): String {
 
 private fun availableSpace(file: File): Long =
     runCatching { StatFs(file.absolutePath).availableBytes }.getOrDefault(0L)
+
+/**
+ * In the integrated build, write prepared game files into the same directories the Android
+ * engine uses. In the standalone prototype, use app-private fallback storage instead.
+ */
+internal fun resolveEngineStorageDirectory(
+    context: Context,
+    engineFieldName: String,
+    fallbackRelativePath: String
+): File {
+    val enginePath = runCatching {
+        val toolsClass = Class.forName("net.kdt.pojavlaunch.Tools")
+        toolsClass.getField(engineFieldName).get(null) as? String
+    }.getOrNull()?.trim()
+
+    if (!enginePath.isNullOrBlank() && enginePath != "null") {
+        val candidate = File(enginePath)
+        if (candidate.isAbsolute) return candidate
+    }
+    return File(context.filesDir, fallbackRelativePath)
+}
+
