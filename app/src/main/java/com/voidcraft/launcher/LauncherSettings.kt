@@ -133,7 +133,7 @@ private fun SettingsOverviewScreen(
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 Text("What is still required", fontWeight = FontWeight.Bold)
                 Text(
-                    "The Java Runtime Manager can install and verify several Android Java versions. The Minecraft launch/bootstrap engine and rendering/native backend, secure Microsoft authentication, game-library and asset downloads, version installation, and actual game launch are still not integrated. These tools do not bypass account authentication or directly change game files.",
+                    "The Java Runtime Manager can install and verify several Android Java versions. The Versions screen can download the official client JAR, Android-compatible library JAR artifacts, asset index, and referenced asset objects with SHA-1 checks. The Android LWJGL/native compatibility engine, secure Microsoft authentication, inherited/loader-specific version resolution, launch command, and game surface/input lifecycle are still not integrated. These tools do not bypass account authentication.",
                     color = VoidMuted,
                     fontSize = 12.sp,
                     lineHeight = 18.sp
