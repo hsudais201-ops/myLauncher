@@ -48,8 +48,10 @@ import java.net.URL
 import java.security.MessageDigest
 
 private const val MOJANG_VERSION_MANIFEST = "https://piston-meta.mojang.com/mc/game/version_manifest_v2.json"
+private const val MAX_VERSION_MANIFEST_BYTES = 10 * 1024 * 1024
 private const val MAX_CLIENT_JAR_BYTES = 200L * 1024L * 1024L
 private const val MIN_DOWNLOAD_FREE_SPACE_BYTES = 16L * 1024L * 1024L
+private val TRUSTED_VERSION_METADATA_HOSTS = setOf("piston-meta.mojang.com", "launchermeta.mojang.com")
 
 private data class MinecraftVersionEntry(
     val id: String,
@@ -453,7 +455,30 @@ private fun fetchMinecraftVersions(): MinecraftVersionManifest {
         if (connection.responseCode !in 200..299) {
             error("Mojang returned HTTP ${connection.responseCode}")
         }
-        val body = connection.inputStream.bufferedReader().use { it.readText() }
+        val finalUrl = connection.url
+        require(finalUrl.protocol == "https" && finalUrl.host.lowercase() == "piston-meta.mojang.com") {
+            "Version catalog redirected outside Mojang's approved HTTPS host"
+        }
+        val contentLength = connection.getHeaderFieldLong("Content-Length", -1L)
+        if (contentLength > MAX_VERSION_MANIFEST_BYTES) {
+            error("Mojang version catalog exceeds the 10 MiB safety limit")
+        }
+        val bodyBytes = connection.inputStream.use { input ->
+            val buffer = ByteArray(8192)
+            val output = ByteArrayOutputStream()
+            var total = 0
+            while (true) {
+                val count = input.read(buffer)
+                if (count < 0) break
+                total += count
+                require(total <= MAX_VERSION_MANIFEST_BYTES) {
+                    "Mojang version catalog exceeds the 10 MiB safety limit"
+                }
+                output.write(buffer, 0, count)
+            }
+            output.toByteArray()
+        }
+        val body = bodyBytes.toString(Charsets.UTF_8)
         val root = JSONObject(body)
         val latest = root.optJSONObject("latest") ?: JSONObject()
         val rows = root.optJSONArray("versions")
@@ -481,10 +506,13 @@ private fun fetchMinecraftVersions(): MinecraftVersionManifest {
  
 private fun fetchMinecraftVersionDetails(context: Context, entry: MinecraftVersionEntry): MinecraftVersionDetails {
     require(entry.metadataUrl.isNotBlank()) { "Mojang manifest did not provide a version metadata URL" }
+    require(entry.metadataSha1.matches(Regex("^[0-9a-fA-F]{40}$"))) {
+        "Mojang version catalog did not provide a valid version metadata SHA-1"
+    }
     val metadataUrl = URL(entry.metadataUrl)
     require(
         metadataUrl.protocol == "https" &&
-            metadataUrl.host.lowercase() in setOf("piston-meta.mojang.com", "launchermeta.mojang.com")
+            metadataUrl.host.lowercase() in TRUSTED_VERSION_METADATA_HOSTS
     ) { "Unexpected metadata host; only Mojang version metadata is accepted" }
 
     val connection = (metadataUrl.openConnection() as HttpURLConnection).apply {
@@ -497,6 +525,14 @@ private fun fetchMinecraftVersionDetails(context: Context, entry: MinecraftVersi
     try {
         if (connection.responseCode !in 200..299) {
             error("Mojang returned HTTP ${connection.responseCode}")
+        }
+        val finalUrl = connection.url
+        require(finalUrl.protocol == "https" && finalUrl.host.lowercase() in TRUSTED_VERSION_METADATA_HOSTS) {
+            "Version metadata redirected outside Mojang's approved HTTPS hosts"
+        }
+        val contentLength = connection.getHeaderFieldLong("Content-Length", -1L)
+        if (contentLength > 10L * 1024L * 1024L) {
+            error("Version metadata exceeds the 10 MiB safety limit")
         }
         val bodyBytes = connection.inputStream.use { input ->
             val buffer = ByteArray(8192)
@@ -512,9 +548,9 @@ private fun fetchMinecraftVersionDetails(context: Context, entry: MinecraftVersi
             output.toByteArray()
         }
         val bodySha1 = sha1OfBytes(bodyBytes)
-        if (entry.metadataSha1.matches(Regex("^[0-9a-fA-F]{40}$")) &&
-            !bodySha1.equals(entry.metadataSha1, ignoreCase = true)
-        ) error("Version JSON SHA-1 does not match Mojang's version manifest")
+        require(bodySha1.equals(entry.metadataSha1, ignoreCase = true)) {
+            "Version JSON SHA-1 does not match Mojang's version manifest"
+        }
         val body = bodyBytes.toString(Charsets.UTF_8)
         val root = JSONObject(body)
         val versionId = root.optString("id", entry.id).ifBlank { entry.id }
