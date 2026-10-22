@@ -45,12 +45,17 @@ def validate_items(catalog: dict) -> list[str]:
         if not isinstance(item.get("builtIn"), bool):
             raise SystemExit(f"Catalog item {feature_id} must explicitly set builtIn to true or false.")
         package_url = item.get("packageUrl")
+        package_digest = item.get("sha256")
         if package_url is not None:
             if not isinstance(package_url, str):
                 raise SystemExit(f"Catalog item {feature_id} has an invalid packageUrl.")
             parsed = urlparse(package_url)
             if parsed.scheme != "https" or not parsed.hostname or parsed.username or parsed.password:
                 raise SystemExit(f"Catalog item {feature_id} packageUrl must be HTTPS without embedded credentials.")
+            if not isinstance(package_digest, str) or not re.fullmatch(r"[0-9a-fA-F]{64}", package_digest):
+                raise SystemExit(f"Catalog item {feature_id} must pin a 64-character SHA-256 digest for its package.")
+        elif package_digest is not None:
+            raise SystemExit(f"Catalog item {feature_id} must not set sha256 without a packageUrl.")
     return ids
 
 
