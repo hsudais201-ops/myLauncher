@@ -93,7 +93,7 @@ private const val SOCIAL_MESSAGES = "social_messages"
 private const val SOCIAL_TOKEN = "social_online_token"
 private const val SOCIAL_USERNAME = "social_online_username"
 private const val SOCIAL_API_URL = "https://voidcraft-social-hub-staging.hsudais201.workers.dev"
-private const val CATALOG_URL = "https://raw.githubusercontent.com/hsudais201-ops/myLauncher/main/store/catalog.json"
+private const val CATALOG_URL = "https://raw.githubusercontent.com/hsudais201-ops/myLauncher/launcher/bootstrap/store/catalog.json"
 
 data class SocialMessage(val sender: String, val text: String, val sentAt: Long)
 data class OnlineFriendRequest(val id: String, val username: String, val createdAt: Long)
@@ -496,30 +496,13 @@ private fun VoidcraftApp() {
                             } else {
                                 scope.launch {
                                     val result = withContext(Dispatchers.IO) {
-                                        runCatching {
-                                            val connection = (URL(feature.packageUrl).openConnection() as HttpURLConnection).apply {
-                                                connectTimeout = 10000
-                                                readTimeout = 20000
-                                                instanceFollowRedirects = false
-                                            }
-                                            try {
-                                                if (connection.responseCode !in 200..299) error("Download failed: HTTP ${connection.responseCode}")
-                                                val length = connection.contentLengthLong
-                                                if (length > 500L * 1024 * 1024) error("Package exceeds the 500 MB safety limit")
-                                                val dir = File(context.filesDir, "feature-store").apply { mkdirs() }
-                                                val safeName = feature.id.replace(Regex("[^A-Za-z0-9._-]"), "_") + ".package"
-                                                val destination = File(dir, safeName)
-                                                val temp = File(dir, safeName + ".part")
-                                                connection.inputStream.use { input -> temp.outputStream().use { output -> input.copyTo(output) } }
-                                                if (length >= 0 && temp.length() != length) error("Downloaded package size did not match the server response")
-                                                if (!temp.renameTo(destination)) error("Could not finalize the downloaded package")
-                                                destination.absolutePath
-                                            } finally { connection.disconnect() }
-                                        }
+                                        runCatching { downloadFeaturePackage(context, feature) }
                                     }
                                     result.onSuccess {
                                         saveInstalled(installedIds + feature.id)
-                                        snackbarHostState.showSnackbar("${feature.name} downloaded to app storage. Game-folder integration is still required before Minecraft can load it.")
+                                        snackbarHostState.showSnackbar(
+                                            "${feature.name} downloaded safely to app storage. This package is not automatically loaded by Minecraft."
+                                        )
                                     }.onFailure {
                                         snackbarHostState.showSnackbar("Install failed: ${it.message ?: "download error"}")
                                     }
