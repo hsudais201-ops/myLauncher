@@ -23,8 +23,10 @@ Add an object to the `items` array. Required fields: `id`, `name`, `kind`, `cate
 - `availability` should be `available`, `preview` or `coming_soon`.
 - Use `builtIn: true` only when the feature is actually implemented in the launcher.
 - Publish only HTTPS package URLs that are licensed for redistribution. Never publish access tokens or private URLs.
-- A non-built-in listing without a package URL remains a preview and cannot be installed.
-- After updating the catalog on `main`, users can refresh the Store to load the new catalog. If the online request fails, the last bundled catalog remains available.
+- Every downloadable `packageUrl` must include a `sha256` field containing the exact 64-character hexadecimal SHA-256 digest of the downloaded bytes. The launcher rejects packages whose digest does not match.
+- A non-built-in listing without both a package URL and its SHA-256 digest remains a preview and cannot be installed.
+- Downloadable packages are saved in private app storage only. They are not executed as code or automatically loaded by Minecraft.
+- After updating the catalog on `main`, users can refresh the Store to load the new catalog. The app tries `main` first and the active development branch as a fallback; if both requests fail, the last bundled catalog remains available.
 
 ## Runtime integration still needed
 
