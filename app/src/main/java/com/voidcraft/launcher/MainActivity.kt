@@ -630,7 +630,7 @@ private fun VoidcraftApp() {
                                 selectedTab = 1
                                 scope.launch {
                                     snackbarHostState.showSnackbar(
-                                        "The integrated game engine is not included in this build yet. Inspect your version here to prepare its files."
+                                        "The integrated engine activity could not be opened in this build. Check version setup and try again."
                                     )
                                 }
                             }
@@ -1130,7 +1130,7 @@ private fun HomeScreen(
                 Spacer(Modifier.height(24.dp))
                 Text("Ready when you are.", fontSize = 23.sp, fontWeight = FontWeight.Bold)
                 Spacer(Modifier.height(8.dp))
-                Text("The interface is taking shape. The Minecraft runtime and sign-in flow are not connected yet.", color = VoidMuted, fontSize = 13.sp, lineHeight = 19.sp)
+                Text("PLAY opens the integrated Minecraft engine. Complete sign-in, Java runtime setup, and game version installation there before launching a world.", color = VoidMuted, fontSize = 13.sp, lineHeight = 19.sp)
                 Spacer(Modifier.height(22.dp))
                 Button(onClick = onPlayClick, modifier = Modifier.fillMaxWidth().height(54.dp), shape = RoundedCornerShape(16.dp), colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)) {
                     Icon(Icons.Default.SportsEsports, contentDescription = null)
