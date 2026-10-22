@@ -49,7 +49,8 @@ private data class MinecraftVersionEntry(
     val id: String,
     val type: String,
     val releaseTime: String,
-    val metadataUrl: String
+    val metadataUrl: String,
+    val metadataSha1: String
 )
 
 private data class MinecraftVersionDetails(
@@ -116,7 +117,7 @@ fun GameVersionsScreen(
             inspectedDetails = null
             inspectionError = null
             val result = withContext(Dispatchers.IO) {
-                runCatching { fetchMinecraftVersionDetails(entry) }
+                runCatching { fetchMinecraftVersionDetails(context, entry) }
             }
             result.onSuccess { inspectedDetails = it }
                 .onFailure { error ->
@@ -390,7 +391,7 @@ private fun fetchMinecraftVersions(): MinecraftVersionManifest {
                     val id = row.optString("id").trim()
                     val type = row.optString("type").trim()
                     if (id.isNotBlank() && type in setOf("release", "snapshot")) {
-                        add(MinecraftVersionEntry(id, type, row.optString("releaseTime"), row.optString("url")))
+                        add(MinecraftVersionEntry(id, type, row.optString("releaseTime"), row.optString("url"), row.optString("sha1")))
                     }
                 }
             }
@@ -405,7 +406,7 @@ private fun fetchMinecraftVersions(): MinecraftVersionManifest {
     }
 }
  
-private fun fetchMinecraftVersionDetails(entry: MinecraftVersionEntry): MinecraftVersionDetails {
+private fun fetchMinecraftVersionDetails(context: Context, entry: MinecraftVersionEntry): MinecraftVersionDetails {
     require(entry.metadataUrl.isNotBlank()) { "Mojang manifest did not provide a version metadata URL" }
     val metadataUrl = URL(entry.metadataUrl)
     require(
@@ -424,15 +425,38 @@ private fun fetchMinecraftVersionDetails(entry: MinecraftVersionEntry): Minecraf
         if (connection.responseCode !in 200..299) {
             error("Mojang returned HTTP ${connection.responseCode}")
         }
-        val body = connection.inputStream.bufferedReader().use { it.readText() }
+        val bodyBytes = connection.inputStream.use { input ->
+            input.readNBytes(10 * 1024 * 1024 + 1)
+        }
+        require(bodyBytes.size <= 10 * 1024 * 1024) { "Version metadata exceeds the 10 MiB safety limit" }
+        val bodySha1 = sha1OfBytes(bodyBytes)
+        if (entry.metadataSha1.matches(Regex("^[0-9a-fA-F]{40}$")) &&
+            !bodySha1.equals(entry.metadataSha1, ignoreCase = true)
+        ) error("Version JSON SHA-1 does not match Mojang's version manifest")
+        val body = bodyBytes.toString(Charsets.UTF_8)
         val root = JSONObject(body)
+        val versionId = root.optString("id", entry.id).ifBlank { entry.id }
+        require(versionId == entry.id) { "Version JSON ID does not match the selected version" }
+        val safeVersionId = versionId.takeIf { it.matches(Regex("^[A-Za-z0-9._-]{1,100}$")) }
+            ?: error("Invalid version ID in Mojang metadata")
+        val versionDirectory = File(context.filesDir, "minecraft/versions/$safeVersionId")
+        require(versionDirectory.isDirectory || versionDirectory.mkdirs()) { "Could not create version metadata folder" }
+        val jsonFile = File(versionDirectory, "$safeVersionId.json")
+        val jsonTemporary = File(versionDirectory, "$safeVersionId.json.part")
+        java.io.FileOutputStream(jsonTemporary).use { output ->
+            output.write(bodyBytes)
+            output.fd.sync()
+        }
+        if (jsonFile.exists()) require(jsonFile.delete()) { "Could not replace cached version metadata" }
+        require(jsonTemporary.renameTo(jsonFile)) { "Could not finalize verified version metadata" }
+
         val javaVersion = root.optJSONObject("javaVersion")
         val downloads = root.optJSONObject("downloads")
         val client = downloads?.optJSONObject("client")
         val assetIndex = root.optJSONObject("assetIndex")
         val libraries = root.optJSONArray("libraries")
         return MinecraftVersionDetails(
-            id = root.optString("id", entry.id).ifBlank { entry.id },
+            id = versionId,
             metadataUrl = entry.metadataUrl,
             javaComponent = javaVersion?.optString("component")?.takeIf { it.isNotBlank() },
             javaMajorVersion = javaVersion?.takeIf { it.has("majorVersion") && !it.isNull("majorVersion") }?.optInt("majorVersion"),
@@ -559,4 +583,8 @@ private fun sha1OfFile(file: File): String {
     }
     return digest.digest().joinToString("") { "%02x".format(it.toInt() and 0xff) }
 }
+
+private fun sha1OfBytes(bytes: ByteArray): String =
+    MessageDigest.getInstance("SHA-1").digest(bytes)
+        .joinToString("") { "%02x".format(it.toInt() and 0xff) }
 
