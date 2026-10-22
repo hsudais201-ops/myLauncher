@@ -26,6 +26,25 @@ jobs:
           java-version: "17"
       - name: Check Social Hub Worker syntax
         run: node --input-type=module --check < backend/social-hub/worker.js
+      - name: Validate explicit Feature Store catalog
+        run: python3 tools/validate_feature_catalog.py
+      - name: Smoke test hosted Feature Store catalog
+        run: |
+          curl --fail --location --silent --show-error --max-time 20 \
+            https://raw.githubusercontent.com/hsudais201-ops/myLauncher/launcher/bootstrap/store/catalog.json \
+            -o /tmp/voidcraft-store-catalog.json
+          python3 - <<'PY'
+          import json
+          with open("/tmp/voidcraft-store-catalog.json", encoding="utf-8") as source:
+              catalog = json.load(source)
+          items = catalog.get("items")
+          if catalog.get("schemaVersion") != 1 or not isinstance(items, list) or not items:
+              raise SystemExit("Hosted Feature Store catalog is invalid")
+          ids = [item.get("id") for item in items]
+          if any(not isinstance(value, str) or not value for value in ids) or len(ids) != len(set(ids)):
+              raise SystemExit("Hosted Feature Store catalog has missing or duplicate IDs")
+          print(f"Hosted Feature Store catalog OK: {len(ids)} features")
+          PY
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
