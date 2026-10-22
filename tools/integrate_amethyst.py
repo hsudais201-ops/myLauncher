@@ -114,8 +114,8 @@ def main() -> None:
     gradle = replace_once(gradle, dependency_anchor, dependency_block, "Compose/runtime dependencies")
     gradle = replace_once(
         gradle,
-        "\\n}\\n\\ndependencies {",
-        "\\n}\\n\\ntasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinJvmCompile).configureEach {\\n    jvmTargetValidationMode = org.jetbrains.kotlin.gradle.dsl.jvm.JvmTargetValidationMode.IGNORE\\n}\\n\\ndependencies {",
+        "\n}\n\ndependencies {",
+        "\n}\n\ntasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinJvmCompile).configureEach {\n    jvmTargetValidationMode = org.jetbrains.kotlin.gradle.dsl.jvm.JvmTargetValidationMode.IGNORE\n}\n\ndependencies {",
         "project-level Kotlin JVM target validation"
     )
     gradle = replace_once(
@@ -135,7 +135,7 @@ def main() -> None:
         }
     }
 
-    }""",
+    """,
         "Java 8 source target plus Kotlin 11 bytecode target"
     )
 
