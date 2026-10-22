@@ -204,6 +204,8 @@ private class VoidcraftGlesRenderer(
     }
 
     override fun onSurfaceChanged(gl: GL10?, width: Int, height: Int) {
+        surfaceWidth = width
+        surfaceHeight = height
         GLES20.glViewport(0, 0, width, height)
         aspectRatio = width.toFloat() / height.coerceAtLeast(1).toFloat()
         publishDiagnostics()
