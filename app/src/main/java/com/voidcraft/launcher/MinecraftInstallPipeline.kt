@@ -4,6 +4,7 @@ package com.voidcraft.launcher
 import android.content.Context
 import android.os.StatFs
 import org.json.JSONObject
+import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.FileInputStream
 import java.io.FileOutputStream
@@ -44,9 +45,10 @@ private val trustedAssetHosts = setOf("resources.download.minecraft.net")
 internal fun downloadMinecraftLibraries(
     context: Context,
     versionMetadataUrl: String,
+    expectedVersionMetadataSha1: String,
     onProgress: (String) -> Unit
 ): Int {
-    val version = fetchVersionMetadata(versionMetadataUrl)
+    val version = fetchVersionMetadata(versionMetadataUrl, expectedVersionMetadataSha1)
     val rows = version.optJSONArray("libraries") ?: error("Version JSON has no libraries list")
     val artifacts = buildList {
         for (index in 0 until rows.length()) {
@@ -112,9 +114,10 @@ internal fun downloadMinecraftLibraries(
 internal fun downloadMinecraftAssets(
     context: Context,
     versionMetadataUrl: String,
+    expectedVersionMetadataSha1: String,
     onProgress: (String) -> Unit
 ): Int {
-    val version = fetchVersionMetadata(versionMetadataUrl)
+    val version = fetchVersionMetadata(versionMetadataUrl, expectedVersionMetadataSha1)
     val assetIndex = version.optJSONObject("assetIndex")
         ?: error("Version JSON has no asset index metadata")
     val indexId = assetIndex.optString("id").trim()
@@ -216,7 +219,10 @@ internal fun downloadMinecraftAssets(
 private data class LibraryArtifact(val path: String, val url: String, val sha1: String, val size: Long)
 private data class AssetObject(val hash: String, val size: Long)
 
-private fun fetchVersionMetadata(urlText: String): JSONObject {
+private fun fetchVersionMetadata(urlText: String, expectedSha1: String): JSONObject {
+    require(expectedSha1.matches(Regex("^[0-9a-fA-F]{40}$"))) {
+        "Official version manifest did not provide a valid version JSON SHA-1"
+    }
     val url = URL(urlText)
     require(url.protocol == "https" && url.host.lowercase() in trustedMetadataHosts) {
         "Version metadata must come from Mojang's official HTTPS metadata hosts"
@@ -230,7 +236,25 @@ private fun fetchVersionMetadata(urlText: String): JSONObject {
     }
     try {
         if (connection.responseCode !in 200..299) error("Mojang returned HTTP ${connection.responseCode}")
-        return JSONObject(connection.inputStream.bufferedReader().use { it.readText() })
+        val bodyBytes = connection.inputStream.use { input ->
+            val buffer = ByteArray(8192)
+            val output = ByteArrayOutputStream()
+            var total = 0
+            while (true) {
+                val count = input.read(buffer)
+                if (count < 0) break
+                total += count
+                require(total <= 10 * 1024 * 1024) { "Version metadata exceeds the 10 MiB safety limit" }
+                output.write(buffer, 0, count)
+            }
+            output.toByteArray()
+        }
+        val actualSha1 = MessageDigest.getInstance("SHA-1").digest(bodyBytes)
+            .joinToString("") { "%02x".format(it.toInt() and 0xff) }
+        require(actualSha1.equals(expectedSha1, ignoreCase = true)) {
+            "Version JSON SHA-1 does not match Mojang's official manifest"
+        }
+        return JSONObject(bodyBytes.toString(Charsets.UTF_8))
     } finally {
         connection.disconnect()
     }
