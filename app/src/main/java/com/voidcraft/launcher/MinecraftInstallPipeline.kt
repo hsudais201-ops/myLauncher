@@ -10,6 +10,10 @@ import java.io.FileOutputStream
 import java.net.HttpURLConnection
 import java.net.URL
 import java.security.MessageDigest
+import java.util.concurrent.ExecutionException
+import java.util.concurrent.Executors
+import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.AtomicReference
 
 private const val PIPELINE_USER_AGENT = "Voidcraft-Android-Launcher/0.1"
 private const val MAX_LIBRARY_FILE_BYTES = 250L * 1024L * 1024L
@@ -50,6 +54,7 @@ internal fun downloadMinecraftLibraries(
             if (!libraryAllowedOnAndroid(library)) continue
             val artifact = library.optJSONObject("downloads")?.optJSONObject("artifact") ?: continue
             val path = artifact.optString("path").trim()
+            if (path.substringAfterLast('/').contains("natives-")) continue
             val url = artifact.optString("url").trim()
             val sha1 = artifact.optString("sha1").trim().lowercase()
             val size = artifact.optLong("size", -1L)
@@ -157,23 +162,52 @@ internal fun downloadMinecraftAssets(
     val objectRoot = File(context.filesDir, "minecraft/assets/objects")
     require(objectRoot.isDirectory || objectRoot.mkdirs()) { "Could not create asset objects folder" }
     val canonicalRoot = objectRoot.canonicalFile.path + File.separator
-    var completed = 0
-    assets.forEachIndexed { itemIndex, asset ->
-        val prefix = asset.hash.substring(0, 2)
-        val destination = File(objectRoot, "$prefix/${asset.hash}")
-        require(destination.canonicalPath.startsWith(canonicalRoot)) { "Asset path escapes private storage" }
-        val cached = destination.isFile && destination.length() == asset.size &&
-            sha1OfFile(destination).equals(asset.hash, ignoreCase = true)
-        if (!cached) {
-            onProgress("Downloading game asset ${itemIndex + 1}/${assets.size}…")
-            val url = "https://resources.download.minecraft.net/$prefix/${asset.hash}"
-            downloadVerified(url, destination, asset.hash, asset.size, MAX_LIBRARY_FILE_BYTES, trustedAssetHosts)
-        } else {
-            onProgress("Game asset ${itemIndex + 1}/${assets.size} already verified…")
+    val nextIndex = AtomicInteger(0)
+    val completed = AtomicInteger(0)
+    val firstFailure = AtomicReference<Throwable?>(null)
+    val workerCount = minOf(4, assets.size)
+    val executor = Executors.newFixedThreadPool(workerCount)
+    val futures = (0 until workerCount).map {
+        executor.submit {
+            while (firstFailure.get() == null) {
+                val itemIndex = nextIndex.getAndIncrement()
+                if (itemIndex >= assets.size) break
+                val asset = assets[itemIndex]
+                try {
+                    val prefix = asset.hash.substring(0, 2)
+                    val destination = File(objectRoot, "$prefix/${asset.hash}")
+                    require(destination.canonicalPath.startsWith(canonicalRoot)) { "Asset path escapes private storage" }
+                    val cached = destination.isFile && destination.length() == asset.size &&
+                        sha1OfFile(destination).equals(asset.hash, ignoreCase = true)
+                    if (!cached) {
+                        val url = "https://resources.download.minecraft.net/$prefix/${asset.hash}"
+                        downloadVerified(url, destination, asset.hash, asset.size, MAX_LIBRARY_FILE_BYTES, trustedAssetHosts)
+                    }
+                    val done = completed.incrementAndGet()
+                    if (done == assets.size || done % 10 == 0) {
+                        onProgress("Verified game assets: ${done}/${assets.size}")
+                    }
+                } catch (failure: Throwable) {
+                    firstFailure.compareAndSet(null, failure)
+                    throw failure
+                }
+            }
         }
-        completed++
     }
-    return completed
+    try {
+        futures.forEach { it.get() }
+    } catch (failure: ExecutionException) {
+        val cause = failure.cause ?: failure
+        if (cause is Exception) throw cause
+        throw RuntimeException(cause)
+    } finally {
+        executor.shutdownNow()
+    }
+    firstFailure.get()?.let { failure ->
+        if (failure is Exception) throw failure
+        throw RuntimeException(failure)
+    }
+    return completed.get()
 }
 
 private data class LibraryArtifact(val path: String, val url: String, val sha1: String, val size: Long)
