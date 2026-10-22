@@ -117,7 +117,7 @@ private fun SettingsOverviewScreen(
         SettingsTile("Local file library", "Import and organize local mod, resource-pack, shader, world, screenshot, and log files.", onFiles)
         SettingsTile("Skin Studio", "Import and validate a classic 64×64 or legacy 64×32 Minecraft skin PNG.", onSkin)
         SettingsTile("Check for updates", "Check the GitHub release feed and open published release notes.", onUpdates)
-        SettingsTile("Java Runtime Manager", "Install and verify an Android-compatible Java 17 runtime for this device.", onRuntime)
+        SettingsTile("Java Runtime Manager", "Install and verify Android Java 8, 17, 21, and 25 runtimes where supported.", onRuntime)
         OutlinedButton(onClick = onStore, modifier = Modifier.fillMaxWidth()) {
             Text("OPEN FEATURE STORE")
         }
