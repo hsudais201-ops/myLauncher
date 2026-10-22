@@ -346,12 +346,15 @@ private fun TouchControlsSettingsScreen(onBack: () -> Unit) {
 private fun LocalFileLibraryScreen(onBack: () -> Unit) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    val root = remember { File(context.filesDir, "voidcraft-library").apply { mkdirs() } }
+    val root = remember { resolveEngineStorageDirectory(context, "DIR_GAME_NEW", "minecraft").apply { mkdirs() } }
     var currentFolder by remember { mutableStateOf("mods") }
     var refreshKey by remember { mutableIntStateOf(0) }
-    var status by remember { mutableStateOf("Files imported here remain in Voidcraft's private app storage.") }
+    var status by remember { mutableStateOf("Imports target the active Minecraft game directory in the integrated build, with a private fallback in the standalone prototype.") }
     var deleteCandidate by remember { mutableStateOf<File?>(null) }
-    val currentDirectory = remember(root, currentFolder) { File(root, currentFolder).apply { mkdirs() } }
+    val currentDirectory = remember(root, currentFolder) {
+        val diskFolder = if (currentFolder == "worlds") "saves" else currentFolder
+        File(root, diskFolder).apply { mkdirs() }
+    }
     val entries = remember(currentDirectory, refreshKey) {
         currentDirectory.listFiles()?.filter { it.isFile }?.sortedBy { it.name.lowercase() } ?: emptyList()
     }
@@ -407,7 +410,7 @@ private fun LocalFileLibraryScreen(onBack: () -> Unit) {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         BackLine("Local file library", onBack)
         Text(
-            "Choose a folder and import a compatible file. Imports are private copies; this screen does not write to Minecraft's active game directory.",
+            "Choose a folder and import a compatible file. In the integrated build, mods, resource packs, shader packs, worlds, screenshots, and logs go to the active game directory.",
             color = VoidMuted,
             fontSize = 12.sp,
             lineHeight = 18.sp
