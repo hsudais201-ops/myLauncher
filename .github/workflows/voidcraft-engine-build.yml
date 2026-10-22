@@ -116,7 +116,7 @@ jobs:
         run: |
           set -euo pipefail
           input="$RUNNER_TEMP/voidcraft-jre8-input"
-          output="engine/Amethyst-Android/app_pojavlauncher/src/main/assets/components/jre"
+          output="$GITHUB_WORKSPACE/engine/Amethyst-Android/app_pojavlauncher/src/main/assets/components/jre"
           mkdir -p "$output"
           packager="runtime/angelauramc-openjdk-build/repackjre.sh"
           chmod +x "$packager"
