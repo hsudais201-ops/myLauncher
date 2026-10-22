@@ -1,14 +1,27 @@
 package com.voidcraft.launcher
 
 import android.content.Context
+import android.os.StatFs
 import java.io.File
 import java.net.URI
 import java.security.MessageDigest
 import javax.net.ssl.HttpsURLConnection
 
 private const val MAX_FEATURE_PACKAGE_BYTES = 500L * 1024L * 1024L
+private const val MIN_REMAINING_FEATURE_STORAGE_BYTES = 16L * 1024L * 1024L
 private const val FEATURE_DOWNLOAD_TIMEOUT_MS = 20_000
 private const val MAX_FEATURE_REDIRECTS = 5
+
+/** Keeps a small reserve so an optional package cannot consume all app storage. */
+internal fun maxFeaturePackageBytesForAvailableSpace(availableBytes: Long): Long =
+    (availableBytes - MIN_REMAINING_FEATURE_STORAGE_BYTES)
+        .coerceAtLeast(0L)
+        .coerceAtMost(MAX_FEATURE_PACKAGE_BYTES)
+
+/** A missing Content-Length is allowed, but the stream is still capped by available storage. */
+internal fun featurePackageContentLengthFits(contentLength: Long, maxAllowedBytes: Long): Boolean =
+    maxAllowedBytes > 0L &&
+        (contentLength == -1L || (contentLength >= 0L && contentLength <= maxAllowedBytes))
 
 /**
  * Downloads an optional Feature Store package without accepting insecure redirects
@@ -99,6 +112,18 @@ internal fun downloadFeaturePackage(context: Context, feature: StoreFeature): Fi
                 error("Could not create the Feature Store download directory.")
             }
 
+            val availableBytes = StatFs(directory.absolutePath).availableBytes
+            val maxAllowedBytes = maxFeaturePackageBytesForAvailableSpace(availableBytes)
+            if (!featurePackageContentLengthFits(expectedLength, maxAllowedBytes)) {
+                error(
+                    if (expectedLength >= 0L) {
+                        "Not enough free storage for this package while keeping a 16 MiB safety reserve."
+                    } else {
+                        "Not enough free storage to safely download a Feature Store package."
+                    }
+                )
+            }
+
             val safeId = feature.id.replace(Regex("[^A-Za-z0-9._-]"), "_")
             val destination = File(directory, "$safeId.package")
             val temporary = File(directory, "$safeId.${System.nanoTime()}.part")
@@ -113,8 +138,8 @@ internal fun downloadFeaturePackage(context: Context, feature: StoreFeature): Fi
                             val count = input.read(buffer)
                             if (count < 0) break
                             total += count
-                            if (total > MAX_FEATURE_PACKAGE_BYTES) {
-                                error("Package exceeded the 500 MiB safety limit while downloading.")
+                            if (total > maxAllowedBytes) {
+                                error("Package exceeded the available-storage limit while downloading; free some storage and retry.")
                             }
                             digest.update(buffer, 0, count)
                             output.write(buffer, 0, count)
