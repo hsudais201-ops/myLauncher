@@ -1,6 +1,8 @@
 package com.voidcraft.launcher
 
 import android.content.Context
+import android.content.ActivityNotFoundException
+import android.content.Intent
 import android.os.Build
 import android.system.Os
 import androidx.compose.foundation.layout.Arrangement
@@ -166,6 +168,17 @@ fun JavaRuntimeManagerScreen(onBack: () -> Unit) {
                 Text("Android OpenJDK • multiple versions", color = VoidMuted, fontSize = 12.sp)
             }
         }
+
+        Button(
+            onClick = {
+                try {
+                    context.startActivity(Intent().setClassName(context, "net.kdt.pojavlaunch.LauncherActivity"))
+                } catch (_: ActivityNotFoundException) {
+                    generalStatus = "The integrated game engine is not included in this standalone build. These verified runtimes remain in a separate test directory."
+                }
+            },
+            modifier = Modifier.fillMaxWidth()
+        ) { Text("OPEN GAME ENGINE & RUNTIME SETTINGS") }
 
         Card(
             modifier = Modifier.fillMaxWidth(),
