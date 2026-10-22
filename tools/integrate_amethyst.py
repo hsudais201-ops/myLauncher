@@ -108,10 +108,21 @@ def main() -> None:
     implementation 'androidx.compose.ui:ui-tooling-preview'
     implementation 'androidx.compose.material3:material3'
     implementation 'androidx.compose.material:material-icons-extended'
-    implementation 'org.apache.commons:commons-compress:1.27.1'
 
 }"""
     gradle = replace_once(gradle, dependency_anchor, dependency_block, "Compose/runtime dependencies")
+    gradle = replace_once(
+        gradle,
+        """    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }""",
+        """    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_11
+        targetCompatibility JavaVersion.VERSION_11
+    }""",
+        "Java 11 bytecode target for Compose"
+    )
 
     # Give the integrated build Voidcraft's existing application identity and branded label.
     replacements = [
