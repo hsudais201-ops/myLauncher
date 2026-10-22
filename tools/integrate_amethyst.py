@@ -126,6 +126,13 @@ def main() -> None:
         compilerOptions {
             jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_11
         }
+    }
+
+    // The mixed upstream Java 8 and Compose/Kotlin 11 targets are intentional:
+    // Java 11 javac cannot compile upstream's dummy dalvik.annotation source.
+    // Make the scoped Kotlin task validation explicit for the AGP built-in Kotlin integration.
+    tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinJvmCompile).configureEach {
+        jvmTargetValidationMode = org.jetbrains.kotlin.gradle.dsl.jvm.JvmTargetValidationMode.IGNORE
     }""",
         "Java 8 source target plus Kotlin 11 bytecode target"
     )
@@ -184,7 +191,7 @@ def main() -> None:
     # bytecode requires. Their class files are packaged together by D8, so warn rather
     # than fail Gradle's source-task target consistency check.
     if "kotlin.jvm.target.validation.mode=" not in properties:
-        properties = properties.rstrip() + "\nkotlin.jvm.target.validation.mode=warning\n"
+        properties = properties.rstrip() + "\nkotlin.jvm.target.validation.mode=ignore\n"
     properties_file.write_text(properties, encoding="utf-8")
 
     manifest = manifest_file.read_text(encoding="utf-8")
