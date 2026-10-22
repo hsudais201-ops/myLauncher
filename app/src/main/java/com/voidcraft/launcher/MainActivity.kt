@@ -570,7 +570,7 @@ private fun VoidcraftApp() {
                                 saveInstalled(installedIds + feature.id)
                                 scope.launch { snackbarHostState.showSnackbar("${feature.name} applied.") }
                             } else {
-                                scope.launch { snackbarHostState.showSnackbar("Opened ${feature.name} details. Full feature integration is not implemented yet.") }
+                                scope.launch { snackbarHostState.showSnackbar("${feature.name} was downloaded to private storage. Voidcraft does not execute arbitrary packages or load them into Minecraft.") }
                             }
                         }
                     )
@@ -1150,7 +1150,7 @@ private fun HomeScreen(
                 }
                 Button(onClick = onStoreClick, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(14.dp)) {
                     Icon(if (storeEnabled) Icons.Default.ShoppingBag else Icons.Default.Download, contentDescription = null)
-                    Text(if (storeEnabled) "  OPEN FEATURE STORE" else "  INSTALL FEATURE STORE")
+                    Text(if (storeEnabled) "  OPEN FEATURE STORE" else "  ENABLE FEATURE STORE")
                 }
                 Text("The Store stays disabled until you choose to open it. Preview listings are clearly marked and are not installed automatically.", color = VoidMuted, fontSize = 11.sp, lineHeight = 16.sp)
             }
@@ -1261,7 +1261,7 @@ private fun FeatureDetail(
         }
         when {
             installed -> {
-                Button(onClick = onOpen, modifier = Modifier.fillMaxWidth()) { Text("OPEN FEATURE") }
+                Button(onClick = onOpen, modifier = Modifier.fillMaxWidth()) { Text(if (feature.builtIn) "OPEN FEATURE" else "VIEW PACKAGE DETAILS") }
                 OutlinedButton(onClick = onUninstall, modifier = Modifier.fillMaxWidth()) { Text("UNINSTALL") }
             }
             feature.availability == "available" && (feature.builtIn || !feature.packageUrl.isNullOrBlank()) -> {
