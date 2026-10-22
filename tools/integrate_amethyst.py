@@ -40,15 +40,10 @@ TEST_STORAGE_NO_LAUNCHER_BLOCK = """        <activity
 
 VOIDCRAFT_ACTIVITY = """        <activity
             android:name="com.voidcraft.launcher.MainActivity"
-            android:exported="true"
+            android:exported="false"
             android:label="Voidcraft"
             android:theme="@style/AppTheme"
-            android:windowSoftInputMode="adjustResize">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-        </activity>
+            android:windowSoftInputMode="adjustResize" />
 """
 
 def replace_once(source: str, old: str, new: str, label: str) -> str:
@@ -142,11 +137,22 @@ def main() -> None:
     if "applicationIdSuffix '.debug'" in gradle:
         raise RuntimeError("Debug application suffix is still present")
 
-    # Keep upstream's runtime/Java/renderer module intact but make Voidcraft the Android entry point.
+    # Preserve the upstream first-run storage bootstrap, then show Voidcraft.
+    test_storage_file = java_root / "net" / "kdt" / "pojavlaunch" / "TestStorageActivity.java"
+    if not test_storage_file.is_file():
+        raise SystemExit(f"Upstream storage bootstrap is missing: {test_storage_file}")
+    test_storage = test_storage_file.read_text(encoding="utf-8")
+    test_storage = replace_once(
+        test_storage,
+        "Intent intent =  new Intent(this, LauncherActivity.class);",
+        "Intent intent = new Intent(this, com.voidcraft.launcher.MainActivity.class);",
+        "post-storage-bootstrap destination"
+    )
+    test_storage_file.write_text(test_storage, encoding="utf-8")
+
     manifest = manifest_file.read_text(encoding="utf-8")
-    manifest = replace_once(manifest, TEST_STORAGE_LAUNCHER_BLOCK, TEST_STORAGE_NO_LAUNCHER_BLOCK, "old launcher activity")
     manifest = replace_once(manifest, '        android:allowBackup="true"', '        android:allowBackup="false"', "application privacy setting")
-    manifest = replace_once(manifest, '        <activity\n            android:name=".LauncherActivity"', VOIDCRAFT_ACTIVITY + '        <activity\n            android:name=".LauncherActivity"', "Voidcraft launcher Activity")
+    manifest = replace_once(manifest, '        <activity\n            android:name=".LauncherActivity"', VOIDCRAFT_ACTIVITY + '        <activity\n            android:name=".LauncherActivity"', "Voidcraft Activity")
     manifest_file.write_text(manifest, encoding="utf-8")
     gradle_file.write_text(gradle, encoding="utf-8")
 
@@ -156,12 +162,12 @@ def main() -> None:
         "Voidcraft integrated Android build\\n"
         "Engine: AngelAuraMC/Amethyst-Android\\n"
         "Upstream ref: 330c6eae3164df64bdc4828e946a9e62cc5169e4\\n"
-        "Integration: Compose frontend is overlaid at build time; upstream launcher/runtime/renderers remain backend.\\n"
+        "Integration: upstream storage/native bootstrap runs first, then Voidcraft Compose opens; PLAY opens the upstream launcher/runtime/renderers.\\n"
         "Build target: :app_pojavlauncher:assembleDebug\\n"
         "This debug artifact is a test build, not a verified public release.\\n",
         encoding="utf-8"
     )
-    print("Integrated Voidcraft as the home Activity and connected Play to net.kdt.pojavlaunch.LauncherActivity.")
+    print("Preserved upstream storage bootstrap, then opened Voidcraft; PLAY opens net.kdt.pojavlaunch.LauncherActivity.")
 
 if __name__ == "__main__":
     main()
