@@ -51,7 +51,6 @@ private const val MOJANG_VERSION_MANIFEST = "https://piston-meta.mojang.com/mc/g
 private const val MAX_VERSION_MANIFEST_BYTES = 10 * 1024 * 1024
 private const val MAX_CLIENT_JAR_BYTES = 200L * 1024L * 1024L
 private const val MIN_DOWNLOAD_FREE_SPACE_BYTES = 16L * 1024L * 1024L
-private val TRUSTED_VERSION_METADATA_HOSTS = setOf("piston-meta.mojang.com", "launchermeta.mojang.com")
 
 private data class MinecraftVersionEntry(
     val id: String,
@@ -456,7 +455,7 @@ private fun fetchMinecraftVersions(): MinecraftVersionManifest {
             error("Mojang returned HTTP ${connection.responseCode}")
         }
         val finalUrl = connection.url
-        require(finalUrl.protocol == "https" && finalUrl.host.lowercase() == "piston-meta.mojang.com") {
+        require(isApprovedMinecraftVersionManifestUrl(finalUrl)) {
             "Version catalog redirected outside Mojang's approved HTTPS host"
         }
         val contentLength = connection.getHeaderFieldLong("Content-Length", -1L)
@@ -506,14 +505,13 @@ private fun fetchMinecraftVersions(): MinecraftVersionManifest {
  
 private fun fetchMinecraftVersionDetails(context: Context, entry: MinecraftVersionEntry): MinecraftVersionDetails {
     require(entry.metadataUrl.isNotBlank()) { "Mojang manifest did not provide a version metadata URL" }
-    require(entry.metadataSha1.matches(Regex("^[0-9a-fA-F]{40}$"))) {
+    require(isValidMinecraftSha1(entry.metadataSha1)) {
         "Mojang version catalog did not provide a valid version metadata SHA-1"
     }
     val metadataUrl = URL(entry.metadataUrl)
-    require(
-        metadataUrl.protocol == "https" &&
-            metadataUrl.host.lowercase() in TRUSTED_VERSION_METADATA_HOSTS
-    ) { "Unexpected metadata host; only Mojang version metadata is accepted" }
+    require(isApprovedMinecraftVersionMetadataUrl(metadataUrl)) {
+        "Unexpected metadata host; only Mojang version metadata is accepted"
+    }
 
     val connection = (metadataUrl.openConnection() as HttpURLConnection).apply {
         connectTimeout = 8000
@@ -527,7 +525,7 @@ private fun fetchMinecraftVersionDetails(context: Context, entry: MinecraftVersi
             error("Mojang returned HTTP ${connection.responseCode}")
         }
         val finalUrl = connection.url
-        require(finalUrl.protocol == "https" && finalUrl.host.lowercase() in TRUSTED_VERSION_METADATA_HOSTS) {
+        require(isApprovedMinecraftVersionMetadataUrl(finalUrl)) {
             "Version metadata redirected outside Mojang's approved HTTPS hosts"
         }
         val contentLength = connection.getHeaderFieldLong("Content-Length", -1L)
@@ -599,7 +597,7 @@ private fun downloadAndVerifyMinecraftClientJar(
     val clientUrlText = details.clientJarUrl ?: error("Mojang metadata does not list a client JAR URL")
     val expectedSha1 = details.clientJarSha1?.trim()?.lowercase()
         ?: error("Mojang metadata does not list a client JAR SHA-1")
-    require(expectedSha1.matches(Regex("^[0-9a-f]{40}$"))) { "Invalid client JAR SHA-1 in metadata" }
+    require(isValidMinecraftSha1(expectedSha1)) { "Invalid client JAR SHA-1 in metadata" }
     val expectedSize = details.clientJarSizeBytes ?: error("Mojang metadata does not list the client JAR size")
     require(expectedSize in 1L..MAX_CLIENT_JAR_BYTES) { "Client JAR size is outside Voidcraft's safety limit" }
 
