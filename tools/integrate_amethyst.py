@@ -135,11 +135,21 @@ tasks.register("compileCriticalNativeStub", Exec) {
     }
 }
 
-tasks.register("packageCriticalNativeStub", Jar) {
+tasks.register("packageCriticalNativeStub", Exec) {
     dependsOn("compileCriticalNativeStub")
-    archiveFileName = "critical-native-stub.jar"
-    destinationDirectory = file("$buildDir/generated/criticalNativeStub")
-    from(criticalNativeStubClasses)
+    inputs.dir(criticalNativeStubClasses)
+    outputs.file(criticalNativeStubJar)
+    doFirst {
+        criticalNativeStubJar.parentFile.mkdirs()
+        criticalNativeStubJar.delete()
+        def java8Home = System.getenv("JAVA_HOME_8_X64")
+        if (!java8Home) {
+            throw new GradleException("Java 8 toolchain is required for CriticalNative")
+        }
+        commandLine new File(java8Home, "bin/jar").absolutePath,
+            "cf", criticalNativeStubJar.absolutePath,
+            "-C", criticalNativeStubClasses.absolutePath, "."
+    }
 }
 """
     gradle = replace_once(
