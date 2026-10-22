@@ -13,6 +13,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: voidcraft-engine-build-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   integrated-debug-apk:
     name: Build Voidcraft with Android Java/LWJGL engine
