@@ -1,6 +1,8 @@
 package com.voidcraft.launcher
 
+import android.content.ActivityNotFoundException
 import android.content.Context
+import android.content.Intent
 import android.os.Handler
 import android.os.Looper
 import android.os.StatFs
@@ -97,7 +99,17 @@ fun GameVersionsScreen(
     var inspectionError by remember { mutableStateOf<String?>(null) }
     var pendingAssetDetails by remember { mutableStateOf<MinecraftVersionDetails?>(null) }
     var status by remember { mutableStateOf("Connect to the internet to load Mojang's official version manifest.") }
+    var engineLaunchStatus by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
+
+    fun openEngineLauncher() {
+        try {
+            context.startActivity(Intent().setClassName(context, "net.kdt.pojavlaunch.LauncherActivity"))
+            engineLaunchStatus = "Opened the integrated engine launcher. Complete its official sign-in, Java/runtime setup, version installation, and launch there."
+        } catch (_: ActivityNotFoundException) {
+            engineLaunchStatus = "The full game installer is included only in the combined engine APK. This standalone Voidcraft build can inspect/download metadata but cannot launch Minecraft."
+        }
+    }
 
     fun refresh() {
         scope.launch {
@@ -214,6 +226,18 @@ fun GameVersionsScreen(
                     if (loading) CircularProgressIndicator(strokeWidth = 2.dp)
                     else Text("REFRESH VERSION CATALOG")
                 }
+                Button(onClick = { openEngineLauncher() }, modifier = Modifier.fillMaxWidth()) {
+                    Text("OPEN FULL ENGINE INSTALLER & PLAY")
+                }
+                engineLaunchStatus?.let {
+                    Text(it, color = VoidMuted, fontSize = 11.sp, lineHeight = 16.sp)
+                }
+                Text(
+                    "The integrated engine is responsible for the full install, account authentication, Java registration, native renderer setup, and game launch. The actions below prepare files only.",
+                    color = VoidMuted,
+                    fontSize = 11.sp,
+                    lineHeight = 16.sp
+                )
             }
         }
 
