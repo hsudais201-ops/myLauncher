@@ -496,14 +496,14 @@ def patch_upstream(upstream: Path) -> None:
         )
         for button_id, button_drawable, button_label, anchor_id in integrated_menu_buttons:
             button_pattern = re.compile(
-                r'<com\\.kdt\\.mcgui\\.LauncherMenuButton\\s+android:id="@\\+id/'
+                r'<com\.kdt\.mcgui\.LauncherMenuButton\s+android:id="@\+id/'
                 + re.escape(button_id)
                 + r'".*?/>',
                 flags=re.DOTALL,
             )
             if not button_pattern.search(layout_text):
                 anchor_pattern = re.compile(
-                    r'<com\\.kdt\\.mcgui\\.LauncherMenuButton\\s+android:id="@\\+id/'
+                    r'<com\.kdt\.mcgui\.LauncherMenuButton\s+android:id="@\+id/'
                     + re.escape(anchor_id)
                     + r'".*?/>',
                     flags=re.DOTALL,
@@ -512,15 +512,15 @@ def patch_upstream(upstream: Path) -> None:
                 if not anchor_match:
                     raise ValueError(f"Could not find {anchor_id} to add {button_id} in {layout_path}")
                 button_block = (
-                    '            <com.kdt.mcgui.LauncherMenuButton\\n'
-                    + f'                android:id="@+id/{button_id}"\\n'
-                    + '                style="@style/LauncherMenuButton.Universal"\\n'
-                    + '                android:layout_width="match_parent"\\n'
-                    + f'                android:drawableStart="{button_drawable}"\\n'
-                    + f'                android:text="{button_label}"\\n'
-                    + f'                app:layout_constraintTop_toBottomOf="@id/{anchor_id}" />\\n'
+                    '            <com.kdt.mcgui.LauncherMenuButton\n'
+                    + f'                android:id="@+id/{button_id}"\n'
+                    + '                style="@style/LauncherMenuButton.Universal"\n'
+                    + '                android:layout_width="match_parent"\n'
+                    + f'                android:drawableStart="{button_drawable}"\n'
+                    + f'                android:text="{button_label}"\n'
+                    + f'                app:layout_constraintTop_toBottomOf="@id/{anchor_id}" />\n'
                 )
-                layout_text = layout_text[:anchor_match.end()] + "\\n\\n" + button_block + layout_text[anchor_match.end():]
+                layout_text = layout_text[:anchor_match.end()] + "\n\n" + button_block + layout_text[anchor_match.end():]
             current_button = button_pattern.search(layout_text)
             if (
                 not current_button
@@ -700,7 +700,7 @@ def patch_upstream(upstream: Path) -> None:
     settings_binding = "Button mMyLauncherSettingsButton = view.findViewById(R.id.mylauncher_launcher_settings_button);"
     for new_binding in (instances_binding, runtime_binding, settings_binding):
         if new_binding not in main_menu_text:
-            main_menu_text = main_menu_text.replace(graphics_binding, graphics_binding + "\\n        " + new_binding, 1)
+            main_menu_text = main_menu_text.replace(graphics_binding, graphics_binding + "\n        " + new_binding, 1)
         if main_menu_text.count(new_binding) != 1:
             raise ValueError(f"Integrated launcher menu binding {new_binding} is missing or duplicated")
     if graphics_binding not in main_menu_text:
@@ -749,7 +749,7 @@ def patch_upstream(upstream: Path) -> None:
         if new_listener not in main_menu_text:
             if insertion_anchor not in main_menu_text:
                 raise ValueError("Could not find the integrated launcher navigation insertion point")
-            main_menu_text = main_menu_text.replace(insertion_anchor, insertion_anchor + "\\n        " + new_listener, 1)
+            main_menu_text = main_menu_text.replace(insertion_anchor, insertion_anchor + "\n        " + new_listener, 1)
 
     if (
         main_menu_text.count(instances_binding) != 1
