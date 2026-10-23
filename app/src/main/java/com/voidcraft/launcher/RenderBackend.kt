@@ -154,7 +154,7 @@ fun RenderBackendScreen(onBack: () -> Unit) {
                     Card(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(14.dp),
-                        colors = CardDefaults.cardColors(containerColor = VoidBackground)
+                        colors = CardDefaults.cardColors(containerColor = androidx.compose.ui.graphics.Color(0xFF0A0C12))
                     ) {
                         Column(
                             Modifier.padding(12.dp),

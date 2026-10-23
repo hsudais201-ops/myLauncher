@@ -152,9 +152,7 @@ jobs:
 
       - name: Overlay Voidcraft frontend onto the tested engine
         run: |
-          python3 voidcraft/tools/integrate_amethyst.py engine/Amethyst-Android \\
-            --gl4es-root runtime/PojavLauncher \\
-            --gl4es-license-root runtime/gl4es-114-extra
+          python3 voidcraft/tools/integrate_amethyst.py engine/Amethyst-Android --gl4es-root runtime/PojavLauncher --gl4es-license-root runtime/gl4es-114-extra
 
       - name: Verify selected-version handoff wiring
         shell: bash
