@@ -885,6 +885,11 @@ def patch_upstream(upstream: Path) -> None:
         if text_import not in search_text:
             raise ValueError("Could not add Toast import to SearchModFragment")
         search_text = search_text.replace(text_import, text_import + "\nimport android.widget.Toast;", 1)
+    if "import net.kdt.pojavlaunch.Tools;" not in search_text:
+        resource_import = "import net.kdt.pojavlaunch.R;"
+        if resource_import not in search_text:
+            raise ValueError("Could not add Tools import to SearchModFragment")
+        search_text = search_text.replace(resource_import, resource_import + "\nimport net.kdt.pojavlaunch.Tools;", 1)
 
     if "public static final String ARG_IS_MODPACK" not in search_text:
         search_text = replace_idempotently(
