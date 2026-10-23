@@ -112,6 +112,7 @@ def patch_upstream(upstream: Path) -> None:
         '<string name="mylauncher_version_download_unavailable">That version is not in the official version list. Select a release, snapshot, or older version.</string>',
         '<string name="mylauncher_modrinth_curseforge">Modrinth &amp; CurseForge</string>',
         '<string name="mylauncher_install_mod">Install mod</string>',
+        '<string name="mylauncher_mod_install_success">Mod installed in the selected profile.</string>',
         '<string name="mylauncher_download_mod_progress">Downloading mod file (%.2f MB / %.2f MB)</string>',
         '<string name="mylauncher_search_mode_mods">Mods</string>',
         '<string name="mylauncher_search_mode_modpacks">Modpacks</string>',
