@@ -13,3 +13,4 @@ fi
 
 javac -Xlint:all -Werror -d "$BUILD_DIR/classes" @"$BUILD_DIR/sources.txt"
 java -ea -cp "$BUILD_DIR/classes" com.mf.mylauncher.core.CoreTests
+java -ea -cp "$BUILD_DIR/classes" com.mf.mylauncher.core.RuntimeCatalogTests
