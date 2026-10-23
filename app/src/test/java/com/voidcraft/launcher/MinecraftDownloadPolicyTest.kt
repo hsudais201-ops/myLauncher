@@ -107,16 +107,16 @@ class MinecraftDownloadPolicyTest {
         val hosts = setOf("libraries.minecraft.net", "release-assets.githubusercontent.com")
         val original = URL("https://libraries.minecraft.net/com/example.jar")
         assertEquals(
-            URL("https://libraries.minecraft.net/com/next.jar"),
-            resolveTrustedDownloadRedirect(original, "next.jar", hosts)
+            "https://libraries.minecraft.net/com/next.jar",
+            resolveTrustedDownloadRedirect(original, "next.jar", hosts).toExternalForm()
         )
         assertEquals(
-            URL("https://release-assets.githubusercontent.com/download/file?token=sample"),
+            "https://release-assets.githubusercontent.com/download/file?token=sample",
             resolveTrustedDownloadRedirect(
                 original,
                 "https://release-assets.githubusercontent.com/download/file?token=sample",
                 hosts
-            )
+            ).toExternalForm()
         )
     }
 
