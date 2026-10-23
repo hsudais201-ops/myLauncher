@@ -112,7 +112,16 @@ def patch_upstream(upstream: Path) -> None:
         '<string name="mylauncher_version_download_unavailable">That version is not in the official version list. Select a release, snapshot, or older version.</string>',
         '<string name="mylauncher_version_list_loading">Loading Minecraft version list…</string>',
         '<string name="mylauncher_version_list_failed">Could not load the Minecraft version list. Check internet and tap Choose Minecraft version to retry.</string>',
-        '<string name="mylauncher_modrinth_curseforge">Modrinth &amp; CurseForge</string>',
+        '<string name="mylauncher_modrinth_curseforge">Browse Mods &amp; Modpacks</string>',
+        '<string name="mylauncher_feature_store">Feature Store</string>',
+        '<string name="mylauncher_browse_modrinth">Browse Modrinth</string>',
+        '<string name="mylauncher_browse_curseforge">Browse CurseForge</string>',
+        '<string name="mylauncher_feature_store_add">Add feature</string>',
+        '<string name="mylauncher_feature_store_name_hint">Feature name</string>',
+        '<string name="mylauncher_feature_store_url_hint">Feature page URL (https://…)</string>',
+        '<string name="mylauncher_feature_store_open">Open</string>',
+        '<string name="mylauncher_feature_store_remove">Remove</string>',
+        '<string name="mylauncher_feature_store_empty">Your Feature Store is empty. Add only the features you want to keep here.</string>',
         '<string name="mylauncher_install_mod">Install mod</string>',
         '<string name="mylauncher_mod_install_success">Mod installed in the selected profile.</string>',
         '<string name="mylauncher_download_mod_progress">Downloading mod file (%.2f MB / %.2f MB)</string>',
@@ -535,6 +544,24 @@ def patch_upstream(upstream: Path) -> None:
                 "@string/mylauncher_modrinth_curseforge",
                 "mylauncher_download_versions_button",
             ),
+            (
+                "mylauncher_feature_store_button",
+                "@android:drawable/ic_menu_save",
+                "@string/mylauncher_feature_store",
+                "mylauncher_mods_button",
+            ),
+            (
+                "mylauncher_browse_modrinth_button",
+                "@android:drawable/ic_menu_search",
+                "@string/mylauncher_browse_modrinth",
+                "mylauncher_feature_store_button",
+            ),
+            (
+                "mylauncher_browse_curseforge_button",
+                "@android:drawable/ic_menu_search",
+                "@string/mylauncher_browse_curseforge",
+                "mylauncher_browse_modrinth_button",
+            ),
         )
         for button_id, button_drawable, button_label, anchor_id in integrated_menu_buttons:
             button_pattern = re.compile(
@@ -623,6 +650,9 @@ def patch_upstream(upstream: Path) -> None:
             or layout_text.count('android:id="@+id/mylauncher_graphics_button"') != 1
             or layout_text.count('android:id="@+id/mylauncher_download_versions_button"') != 1
             or layout_text.count('android:id="@+id/mylauncher_mods_button"') != 1
+            or layout_text.count('android:id="@+id/mylauncher_feature_store_button"') != 1
+            or layout_text.count('android:id="@+id/mylauncher_browse_modrinth_button"') != 1
+            or layout_text.count('android:id="@+id/mylauncher_browse_curseforge_button"') != 1
             or layout_text.count('android:id="@+id/news_button"') != 1
             or layout_text.count('android:id="@+id/discord_button"') != 1
             or layout_text.count('android:id="@+id/social_divider"') != 1
@@ -697,6 +727,8 @@ def patch_upstream(upstream: Path) -> None:
         "import net.kdt.pojavlaunch.prefs.screens.LauncherPreferenceVideoFragment;",
         "import net.kdt.pojavlaunch.prefs.screens.LauncherPreferenceControlFragment;",
         "import net.kdt.pojavlaunch.fragments.VersionDownloadFragment;",
+        "import net.kdt.pojavlaunch.fragments.SearchModFragment;",
+        "import net.kdt.pojavlaunch.fragments.FeatureStoreFragment;",
         "import net.kdt.pojavlaunch.prefs.screens.LauncherPreferenceJavaFragment;",
         "import net.kdt.pojavlaunch.prefs.screens.LauncherPreferenceFragment;",
     )
@@ -763,7 +795,10 @@ def patch_upstream(upstream: Path) -> None:
     settings_binding = "Button mMyLauncherSettingsButton = view.findViewById(R.id.mylauncher_launcher_settings_button);"
     versions_binding = "Button mMyLauncherVersionsButton = view.findViewById(R.id.mylauncher_download_versions_button);"
     mods_binding = "Button mMyLauncherModsButton = view.findViewById(R.id.mylauncher_mods_button);"
-    for new_binding in (instances_binding, runtime_binding, settings_binding, versions_binding, mods_binding):
+    feature_store_binding = "Button mMyLauncherFeatureStoreButton = view.findViewById(R.id.mylauncher_feature_store_button);"
+    browse_modrinth_binding = "Button mMyLauncherBrowseModrinthButton = view.findViewById(R.id.mylauncher_browse_modrinth_button);"
+    browse_curseforge_binding = "Button mMyLauncherBrowseCurseForgeButton = view.findViewById(R.id.mylauncher_browse_curseforge_button);"
+    for new_binding in (instances_binding, runtime_binding, settings_binding, versions_binding, mods_binding, feature_store_binding, browse_modrinth_binding, browse_curseforge_binding):
         if new_binding not in main_menu_text:
             main_menu_text = main_menu_text.replace(graphics_binding, graphics_binding + "\n        " + new_binding, 1)
         if main_menu_text.count(new_binding) != 1:
@@ -809,12 +844,29 @@ def patch_upstream(upstream: Path) -> None:
             searchArgs.putBoolean(SearchModFragment.ARG_IS_MODPACK, false);
             Tools.swapFragment(requireActivity(), SearchModFragment.class, SearchModFragment.TAG, searchArgs);
         });"""
+    feature_store_listener = """mMyLauncherFeatureStoreButton.setOnClickListener(v -> Tools.swapFragment(
+            requireActivity(), FeatureStoreFragment.class, FeatureStoreFragment.TAG, null));"""
+    browse_modrinth_listener = """mMyLauncherBrowseModrinthButton.setOnClickListener(v -> {
+            Bundle searchArgs = new Bundle();
+            searchArgs.putBoolean(SearchModFragment.ARG_IS_MODPACK, false);
+            searchArgs.putString(SearchModFragment.ARG_PROVIDER, "modrinth");
+            Tools.swapFragment(requireActivity(), SearchModFragment.class, SearchModFragment.TAG, searchArgs);
+        });"""
+    browse_curseforge_listener = """mMyLauncherBrowseCurseForgeButton.setOnClickListener(v -> {
+            Bundle searchArgs = new Bundle();
+            searchArgs.putBoolean(SearchModFragment.ARG_IS_MODPACK, false);
+            searchArgs.putString(SearchModFragment.ARG_PROVIDER, "curseforge");
+            Tools.swapFragment(requireActivity(), SearchModFragment.class, SearchModFragment.TAG, searchArgs);
+        });"""
     for new_listener, insertion_anchor in (
         (instances_listener, control_settings_listener),
         (runtime_listener, instances_listener),
         (settings_listener, runtime_listener),
         (versions_listener, settings_listener),
         (mods_listener, versions_listener),
+        (feature_store_listener, mods_listener),
+        (browse_modrinth_listener, feature_store_listener),
+        (browse_curseforge_listener, browse_modrinth_listener),
     ):
         if new_listener not in main_menu_text:
             if insertion_anchor not in main_menu_text:
@@ -827,6 +879,12 @@ def patch_upstream(upstream: Path) -> None:
         or main_menu_text.count(settings_binding) != 1
         or main_menu_text.count(versions_binding) != 1
         or main_menu_text.count(mods_binding) != 1
+        or main_menu_text.count(feature_store_binding) != 1
+        or main_menu_text.count(browse_modrinth_binding) != 1
+        or main_menu_text.count(browse_curseforge_binding) != 1
+        or main_menu_text.count(feature_store_listener) != 1
+        or main_menu_text.count(browse_modrinth_listener) != 1
+        or main_menu_text.count(browse_curseforge_listener) != 1
         or main_menu_text.count(instances_listener) != 1
         or main_menu_text.count(runtime_listener) != 1
         or main_menu_text.count(settings_listener) != 1
@@ -837,9 +895,12 @@ def patch_upstream(upstream: Path) -> None:
         or "ProfileTypeSelectFragment.class" not in main_menu_text
         or "VersionDownloadFragment.class" not in main_menu_text
         or "SearchModFragment.ARG_IS_MODPACK, false" not in main_menu_text
+        or 'SearchModFragment.ARG_PROVIDER, "modrinth"' not in main_menu_text
+        or 'SearchModFragment.ARG_PROVIDER, "curseforge"' not in main_menu_text
         or "SearchModFragment.class" not in main_menu_text
+        or "FeatureStoreFragment.class" not in main_menu_text
     ):
-        raise ValueError("Integrated launcher instance, versions, mods, Java/runtime, or settings navigation is incomplete")
+        raise ValueError("Integrated launcher instance, versions, separate provider browsers, Feature Store, Java/runtime, or settings navigation is incomplete")
 
     if (
         main_menu_text.count(account_binding) != 1
