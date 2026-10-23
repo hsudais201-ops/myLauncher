@@ -695,6 +695,13 @@ def patch_upstream(upstream: Path) -> None:
         )
 
     graphics_binding = "Button mMyLauncherGraphicsButton = view.findViewById(R.id.mylauncher_graphics_button);"
+    if graphics_binding not in main_menu_text:
+        if account_binding not in main_menu_text:
+            raise ValueError("Could not find the account binding insertion point for graphics settings")
+        main_menu_text = main_menu_text.replace(
+            account_binding, account_binding + "\n        " + graphics_binding, 1
+        )
+
     instances_binding = "Button mMyLauncherInstancesButton = view.findViewById(R.id.mylauncher_instances_button);"
     runtime_binding = "Button mMyLauncherRuntimeButton = view.findViewById(R.id.mylauncher_java_runtime_button);"
     settings_binding = "Button mMyLauncherSettingsButton = view.findViewById(R.id.mylauncher_launcher_settings_button);"
@@ -703,12 +710,6 @@ def patch_upstream(upstream: Path) -> None:
             main_menu_text = main_menu_text.replace(graphics_binding, graphics_binding + "\n        " + new_binding, 1)
         if main_menu_text.count(new_binding) != 1:
             raise ValueError(f"Integrated launcher menu binding {new_binding} is missing or duplicated")
-    if graphics_binding not in main_menu_text:
-        if account_binding not in main_menu_text:
-            raise ValueError("Could not find the account binding insertion point for graphics settings")
-        main_menu_text = main_menu_text.replace(
-            account_binding, account_binding + "\n        " + graphics_binding, 1
-        )
     graphics_listener = (
         "mMyLauncherGraphicsButton.setOnClickListener(v -> Tools.swapFragment(requireActivity(), "
         "LauncherPreferenceVideoFragment.class, LauncherActivity.SETTING_FRAGMENT_TAG, null));"
