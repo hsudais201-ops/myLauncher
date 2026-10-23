@@ -1388,6 +1388,31 @@ public final class VersionDownloadFragment extends Fragment {
         )
     adapter_java.write_text(adapter_text, encoding="utf-8")
 
+    # Direct mod downloads finish without returning the ModLoader object used for
+    # modpack profile creation, so surface an explicit success message for users.
+    modpack_api = api_dir / "ModpackApi.java"
+    modpack_api_text = modpack_api.read_text(encoding="utf-8")
+    if "import android.widget.Toast;" not in modpack_api_text:
+        import_anchor = "import android.content.Context;"
+        modpack_api_text = replace_idempotently(
+            modpack_api_text, import_anchor,
+            import_anchor + "\\nimport android.widget.Toast;", str(modpack_api)
+        )
+    direct_install_old = """                ModLoader loaderInfo = installMod(modDetail, selectedVersion);
+                if (loaderInfo == null) return;"""
+    direct_install_new = """                ModLoader loaderInfo = installMod(modDetail, selectedVersion);
+                if (loaderInfo == null) {
+                    if (modDetail != null && !modDetail.isModpack) {
+                        Tools.runOnUiThread(() -> Toast.makeText(context,
+                                R.string.mylauncher_mod_install_success, Toast.LENGTH_LONG).show());
+                    }
+                    return;
+                }"""
+    modpack_api_text = replace_idempotently(
+        modpack_api_text, direct_install_old, direct_install_new, str(modpack_api)
+    )
+    modpack_api.write_text(modpack_api_text, encoding="utf-8")
+
     mod_file_installer = api_dir / "ModFileInstaller.java"
     mod_file_installer_source = """package net.kdt.pojavlaunch.modloaders.modpacks.api;
 
