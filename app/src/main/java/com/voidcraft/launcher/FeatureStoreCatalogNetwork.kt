@@ -23,7 +23,7 @@ internal fun featureCatalogContentLengthAllowed(contentLength: Long): Boolean =
 /** Only GitHub catalog hosts over ordinary HTTPS are accepted, including on every redirect hop. */
 internal fun isApprovedFeatureCatalogUri(uri: URI): Boolean =
     uri.scheme.equals("https", ignoreCase = true) &&
-        uri.host?.lowercase() in approvedFeatureCatalogHosts &&
+        uri.host?.lowercase()?.let { it in approvedFeatureCatalogHosts } == true &&
         (uri.port == -1 || uri.port == 443) &&
         uri.rawUserInfo == null
 
