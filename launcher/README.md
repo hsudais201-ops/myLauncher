@@ -26,4 +26,16 @@ From repository root, with a JDK:
     cd launcher/android-app
     gradle :app:assembleDebug
 
-The actual Android launcher is built by `.github/workflows/build.yml`, which fetches a pinned Amethyst-Android commit and runs the customizer from `.github/scripts/`. The playable APK uses the upstream engine's managed runtime/renderer/input flow; the isolated core's runtime catalog is for safe inspection and exact-major selection and does not download JRE archives or replace upstream Android native integration. Keep that boundary explicit until a tested integration is implemented.
+The actual playable Android launcher is built by `.github/workflows/build.yml`, which fetches a pinned Amethyst-Android commit and runs the customizer from `.github/scripts/`.
+
+## Unified playable-launcher home
+
+The customizer connects the Voidcraft shortcuts directly to screens in the playable Amethyst engine:
+
+- **Accounts** opens the existing authentication chooser for Microsoft sign-in or local/offline username sign-in.
+- **Create Instance / Profile** opens the engine's profile-type workflow. The existing Minecraft profile/version selector and edit-profile action remain available on the home screen for selecting and editing installed profiles.
+- **Java & Runtime** opens the engine's Java/multi-runtime preferences. This keeps Android-compatible runtime configuration with the engine that actually launches Minecraft.
+- **Launcher Settings** opens the existing launcher preferences; **Graphics & Renderer**, **Controls & Touch Settings**, and **Customize Controls** open the real engine screens.
+- **Performance Overlay** is optional and disabled by default; in-game it can be toggled and dragged, with FPS and process-memory readouts independently configurable.
+
+The separate `launcher/android-app/` development shell and its isolated runtime catalog are still test tools, not the playable UI. The isolated catalog probes ordinary Java executable folders but does not download or provision Android JRE archives and does not replace Amethyst's Android-native runtime installer. The playable APK uses the engine-managed runtime, renderer, input, account, and profile flows.
