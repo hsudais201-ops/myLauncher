@@ -1174,7 +1174,7 @@ public final class PerformanceOverlayView extends TextView {
     on_resume_anchor = "        super.onResume();"
     on_resume_replacement = on_resume_anchor + "\n        if (mPerformanceOverlayView != null) mPerformanceOverlayView.startUpdates();"
     if on_resume_replacement not in main_activity_text:
-        resume_method = re.search(r"public void onResume\\(\\)\\s*\\{(?P<body>.*?)\\n    \\}", main_activity_text, flags=re.DOTALL)
+        resume_method = re.search(r"public void onResume\(\)\s*\{(?P<body>.*?)\n    \}", main_activity_text, flags=re.DOTALL)
         if not resume_method or on_resume_anchor not in resume_method.group(0):
             raise ValueError("Could not connect performance overlay lifecycle to MainActivity.onResume")
         main_activity_text = main_activity_text[:resume_method.start()] + resume_method.group(0).replace(on_resume_anchor, on_resume_replacement, 1) + main_activity_text[resume_method.end():]
@@ -1227,6 +1227,8 @@ public final class PerformanceOverlayView extends TextView {
         login_layout,
         upstream / "app_pojavlauncher" / "src" / "main" / "res" / "layout" / "fragment_launcher.xml",
         upstream / "app_pojavlauncher" / "src" / "main" / "res" / "layout-land" / "fragment_launcher.xml",
+        pref_control,
+        menu_arrays,
         manifest,
         icon,
     ))
