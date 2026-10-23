@@ -9,6 +9,7 @@ This directory contains the product-owned launcher core, separated from CI autom
 - Deterministic client/library/asset installation plans, asset-index verification and legacy virtual/resources materialization.
 - Rule-based modern game/JVM argument parsing, legacy `minecraftArguments` tokenization, and argv building without shell concatenation.
 - Verified classpath resolution and launch preflight; runtime-major probe and private-runtime lookup; launch coordinator validates install paths/index/classpath/runtime, then supervises a Java child process.
+- App-private multi-runtime discovery for conventional Java 8/17/21/25 slots and additional runtime IDs, actual `java -version` probing, visible missing/broken slots, and exact-major selection without silently substituting an incompatible runtime.
 - Explicit-target native classifier planning; checksum-verified native downloads; cancellation-aware single/multi-archive extraction with exclusions, traversal/symlink rejection, size caps, duplicate-file rejection and staged publication.
 - A dependency-free core regression suite; an earlier baseline passed 371 assertions under JDK 21. This review branch adds new 26.1+ metadata, native-classifier, logging-argument, symlink-path, and large-progress regressions; the latest branch still needs a fresh CI run.
 
@@ -25,4 +26,4 @@ From repository root, with a JDK:
     cd launcher/android-app
     gradle :app:assembleDebug
 
-The actual Android launcher is built by `.github/workflows/build.yml`, which fetches a pinned Amethyst-Android commit and runs the customizer from `.github/scripts/`. This isolated core is not yet connected to Amethyst's production launch screen. Keep that boundary explicit until a tested integration is implemented.
+The actual Android launcher is built by `.github/workflows/build.yml`, which fetches a pinned Amethyst-Android commit and runs the customizer from `.github/scripts/`. The playable APK uses the upstream engine's managed runtime/renderer/input flow; the isolated core's runtime catalog is for safe inspection and exact-major selection and does not download JRE archives or replace upstream Android native integration. Keep that boundary explicit until a tested integration is implemented.
