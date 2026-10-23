@@ -1152,10 +1152,10 @@ public final class PerformanceOverlayView extends TextView {
     old_menu_case = "case 4: openCustomControls(); break;"
     new_menu_case = """case 4: openCustomControls(); break;
                     case 5: togglePerformanceOverlay(); break;"""
-    if old_menu_case in main_activity_text:
+    if new_menu_case not in main_activity_text:
+        if old_menu_case not in main_activity_text:
+            raise ValueError("Could not add the in-game Performance Overlay on/off menu action")
         main_activity_text = main_activity_text.replace(old_menu_case, new_menu_case, 1)
-    elif new_menu_case not in main_activity_text:
-        raise ValueError("Could not add the in-game Performance Overlay on/off menu action")
 
     attach_anchor = "            loadControls();"
     attach_replacement = "            loadControls();\n            ensurePerformanceOverlay();"
