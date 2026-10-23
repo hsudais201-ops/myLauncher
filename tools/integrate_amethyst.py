@@ -46,11 +46,76 @@ VOIDCRAFT_ACTIVITY = """        <activity
             android:windowSoftInputMode="adjustResize" />
 """
 
+VERSION_HANDOFF_METHOD = """    private void applyVoidcraftSelectedVersion() {
+        String requestedVersion = getIntent() == null ? null :
+                getIntent().getStringExtra("voidcraft.selected_version");
+        if (requestedVersion == null || requestedVersion.isEmpty() ||
+                "latest".equalsIgnoreCase(requestedVersion)) return;
+        if (!requestedVersion.matches("^[A-Za-z0-9._-]{1,100}$")) {
+            Toast.makeText(this, "Voidcraft passed an invalid Minecraft version ID.", Toast.LENGTH_LONG).show();
+            return;
+        }
+        if (Tools.DIR_HOME_VERSION == null || Tools.DIR_HOME_VERSION.isEmpty()) return;
+
+        File versionDirectory = new File(Tools.DIR_HOME_VERSION, requestedVersion);
+        File metadata = new File(versionDirectory, requestedVersion + ".json");
+        File clientJar = new File(versionDirectory, requestedVersion + ".jar");
+        if (!metadata.isFile() || metadata.length() == 0L ||
+                !clientJar.isFile() || clientJar.length() == 0L) {
+            Toast.makeText(this,
+                    "Minecraft " + requestedVersion +
+                            " is not prepared yet. Prepare it in Voidcraft or install it in the engine first.",
+                    Toast.LENGTH_LONG).show();
+            return;
+        }
+
+        try {
+            LauncherProfiles.load();
+            String profileId = LauncherPreferences.DEFAULT_PREF.getString(
+                    LauncherPreferences.PREF_KEY_CURRENT_PROFILE, "");
+            if (profileId == null || profileId.isEmpty()) {
+                Toast.makeText(this, "Choose a launcher profile before applying the Voidcraft version.",
+                        Toast.LENGTH_LONG).show();
+                return;
+            }
+            MinecraftProfile profile = LauncherProfiles.mainProfileJson.profiles.get(profileId);
+            if (profile == null) {
+                Toast.makeText(this, "The current launcher profile could not be loaded.",
+                        Toast.LENGTH_LONG).show();
+                return;
+            }
+            profile.lastVersionId = requestedVersion;
+            LauncherProfiles.mainProfileJson.profiles.put(profileId, profile);
+            LauncherProfiles.write();
+            Toast.makeText(this, "Selected Minecraft " + requestedVersion + " from Voidcraft.",
+                    Toast.LENGTH_SHORT).show();
+        } catch (RuntimeException exception) {
+            Toast.makeText(this, "Could not apply Voidcraft's selected version. Choose it in the engine profile menu.",
+                    Toast.LENGTH_LONG).show();
+        }
+    }
+
+"""
+
 def replace_once(source: str, old: str, new: str, label: str) -> str:
     count = source.count(old)
     if count != 1:
         raise RuntimeError(f"Expected exactly one upstream anchor for {label}; found {count}. The engine source likely changed.")
     return source.replace(old, new, 1)
+
+def patch_launcher_activity(source: str) -> str:
+    source = replace_once(
+        source,
+        "        bindViews();\\n        checkNotificationPermission();",
+        "        bindViews();\\n        applyVoidcraftSelectedVersion();\\n        checkNotificationPermission();",
+        "Voidcraft selected-version handoff call"
+    )
+    return replace_once(
+        source,
+        "    @Override\\n    protected void onResume() {",
+        VERSION_HANDOFF_METHOD + "    @Override\\n    protected void onResume() {",
+        "Voidcraft selected-version handoff method"
+    )
 
 def main() -> None:
     parser = argparse.ArgumentParser()
@@ -222,6 +287,15 @@ tasks.register("packageCriticalNativeStub", Exec) {
     )
     test_storage_file.write_text(test_storage, encoding="utf-8")
 
+    # Hand off a version chosen in Voidcraft to the engine's active profile when its
+    # integrity-checked client files have already been prepared in engine storage.
+    launcher_activity_file = java_root / "net" / "kdt" / "pojavlaunch" / "LauncherActivity.java"
+    if not launcher_activity_file.is_file():
+        raise SystemExit(f"Upstream launcher activity is missing: {launcher_activity_file}")
+    launcher_activity = launcher_activity_file.read_text(encoding="utf-8")
+    launcher_activity = patch_launcher_activity(launcher_activity)
+    launcher_activity_file.write_text(launcher_activity, encoding="utf-8")
+
     # The upstream gradle.properties deliberately disables AGP 9 built-in Kotlin.
     # Enable it for Voidcraft's Kotlin sources while keeping the upstream Java/native modules.
     properties_file = engine_root / "gradle.properties"
@@ -257,12 +331,12 @@ tasks.register("packageCriticalNativeStub", Exec) {
         "Voidcraft integrated Android build\\n"
         "Engine: AngelAuraMC/Amethyst-Android\\n"
         "Upstream ref: 330c6eae3164df64bdc4828e946a9e62cc5169e4\\n"
-        "Integration: upstream storage/native bootstrap runs first, then Voidcraft Compose opens; PLAY opens the upstream launcher/runtime/renderers.\\n"
+        "Integration: upstream storage/native bootstrap runs first, then Voidcraft Compose opens; PLAY hands off a prepared Minecraft version to the engine profile and opens the upstream launcher/runtime/renderers.\\n"
         "Build target: :app_pojavlauncher:assembleDebug\\n"
         "This debug artifact is a test build, not a verified public release.\\n",
         encoding="utf-8"
     )
-    print("Preserved upstream storage bootstrap, then opened Voidcraft; PLAY opens net.kdt.pojavlaunch.LauncherActivity.")
+    print("Preserved upstream storage bootstrap; PLAY hands off a prepared version and opens net.kdt.pojavlaunch.LauncherActivity.")
 
 if __name__ == "__main__":
     main()
