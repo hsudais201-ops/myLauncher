@@ -1,0 +1,246 @@
+
+name: Voidcraft integrated Android engine build
+
+on:
+  push:
+    branches: ["launcher/bootstrap"]
+    paths:
+      - "app/src/main/java/com/voidcraft/launcher/**"
+      - "app/src/main/assets/store/**"
+      - "store/catalog.json"
+      - "tools/integrate_amethyst.py"
+      - "tools/emulator_smoke_test.sh"
+      - "tools/validate_feature_catalog.py"
+      - ".github/workflows/android-build.yml"
+      - ".github/workflows/voidcraft-engine-build.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: voidcraft-engine-build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  integrated-debug-apk:
+    name: Build Voidcraft with Android Java/LWJGL engine
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - name: Check out Voidcraft sources
+        uses: actions/checkout@v4
+        with:
+          path: voidcraft
+          fetch-depth: 0
+
+      - name: Check out the tested Amethyst engine revision and submodules
+        uses: actions/checkout@v4
+        with:
+          repository: AngelAuraMC/Amethyst-Android
+          ref: 330c6eae3164df64bdc4828e946a9e62cc5169e4
+          path: engine/Amethyst-Android
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Check out pinned Holy GL4ES native libraries
+        uses: actions/checkout@v4
+        with:
+          repository: PojavLauncherTeam/PojavLauncher
+          ref: b12ad048157b3aa255d078c235dd4571e1900309
+          path: runtime/PojavLauncher
+          fetch-depth: 1
+
+      - name: Check out pinned GL4ES MIT license source
+        uses: actions/checkout@v4
+        with:
+          repository: PojavLauncherTeam/gl4es-114-extra
+          ref: 144d0dc79855b392e5256dd15fb2dbdedb17141a
+          path: runtime/gl4es-114-extra
+          fetch-depth: 1
+
+      - name: Check out the pinned Java 8 runtime packager
+        uses: actions/checkout@v4
+        with:
+          repository: AngelAuraMC/angelauramc-openjdk-build
+          ref: f03a5a05d76394bc3e91317e9ff4b8c21e5cb802
+          path: runtime/angelauramc-openjdk-build
+          fetch-depth: 1
+
+      - name: Record engine revision and license inventory
+        shell: bash
+        run: |
+          cd engine/Amethyst-Android
+          echo "Pinned engine commit: $(git rev-parse HEAD)" | tee ../../engine-build-provenance.txt
+          git submodule status --recursive | tee -a ../../engine-build-provenance.txt
+          find . -type f \( -iname 'license' -o -iname 'license.*' -o -iname 'copying*' -o -iname 'notice*' \) \
+            -not -path './.git/*' -not -path '*/build/*' | sort > ../../engine-license-files.txt
+          cd ../..
+          echo "Pinned JRE8 packager commit: $(git -C runtime/angelauramc-openjdk-build rev-parse HEAD)" | tee -a engine-build-provenance.txt
+          echo "Pinned Holy GL4ES binary source commit: $(git -C runtime/PojavLauncher rev-parse HEAD)" | tee -a engine-build-provenance.txt
+          echo "Pinned GL4ES MIT license source commit: $(git -C runtime/gl4es-114-extra rev-parse HEAD)" | tee -a engine-build-provenance.txt
+          echo "GL4ES MIT license: bundled into the APK at assets/licenses/GL4ES-MIT-LICENSE.txt" | tee -a engine-build-provenance.txt
+          echo "runtime/gl4es-114-extra/LICENSE (MIT)" >> engine-license-files.txt
+          cat engine-build-provenance.txt
+
+      - name: Install Java 8 toolchain for legacy modules
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "8"
+
+      - name: Set up Java 17 for Gradle
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Generate the upstream language list
+        working-directory: engine/Amethyst-Android
+        run: |
+          chmod +x scripts/languagelist_updater.sh
+          bash scripts/languagelist_updater.sh
+
+      - name: Download and verify pinned Java 8 runtime archives
+        shell: bash
+        run: |
+          set -euo pipefail
+          input="$RUNNER_TEMP/voidcraft-jre8-input"
+          mkdir -p "$input"
+          base="https://github.com/AngelAuraMC/angelauramc-openjdk-build/releases/download/download_jre8"
+          declare -A sizes=(
+            [arm]=27035664
+            [arm64]=28026736
+            [x86]=27473340
+            [x86_64]=29132884
+          )
+          declare -A digests=(
+            [arm]=9dbee3b09af5f170e2ed9dd596bc81d0e573c88f8bf760c59c8fadbb9073d1e7
+            [arm64]=9a59124d9791957d55c68be664ab76831f336cf2e1e1cd4414220c6fdbf0e06d
+            [x86]=b96ce49fab52b28688dccc1a7d85dfc6d0f4048636aac826e1967524b28f75af
+            [x86_64]=b1fbcef4965c17925894febe8216d089c6dd47b37950b5f945a89616443c1d0e
+          )
+          for arch in arm arm64 x86 x86_64; do
+            archive="$input/jre8-android-$arch-release.tar.xz"
+            curl --fail --location --silent --show-error --retry 3 --retry-all-errors --max-time 120 \
+              "$base/jre8-android-$arch.tar.xz" -o "$archive"
+            actual_size="$(stat -c '%s' "$archive")"
+            test "$actual_size" = "${sizes[$arch]}" || {
+              echo "Unexpected JRE8 $arch archive size: $actual_size" >&2
+              exit 1
+            }
+            printf '%s  %s\n' "${digests[$arch]}" "$archive" | sha256sum --check --strict
+          done
+
+      - name: Rebuild the engine's Java 8 component bundle
+        shell: bash
+        run: |
+          set -euo pipefail
+          input="$RUNNER_TEMP/voidcraft-jre8-input"
+          output="$GITHUB_WORKSPACE/engine/Amethyst-Android/app_pojavlauncher/src/main/assets/components/jre"
+          mkdir -p "$output"
+          packager="runtime/angelauramc-openjdk-build/repackjre.sh"
+          chmod +x "$packager"
+          # Some releases omit optional JRE tools; stripping them should remain idempotent.
+          sed -i -E 's/^([[:space:]]*)rm (bin\/|lib\/)/\1rm -f \2/' "$packager"
+          export PATH="$JAVA_HOME_8_X64/bin:$PATH"
+          command -v pack200
+          GITHUB_SHA=f03a5a05d76394bc3e91317e9ff4b8c21e5cb802 bash "$packager" "$input" "$output"
+          for asset in universal.tar.xz bin-arm.tar.xz bin-arm64.tar.xz bin-x86.tar.xz bin-x86_64.tar.xz version; do
+            test -s "$output/$asset"
+          done
+          ls -lh "$output"
+
+      - name: Overlay Voidcraft frontend onto the tested engine
+        run: |
+          python3 voidcraft/tools/integrate_amethyst.py engine/Amethyst-Android --gl4es-root runtime/PojavLauncher --gl4es-license-root runtime/gl4es-114-extra
+
+      - name: Verify selected-version handoff wiring
+        shell: bash
+        run: |
+          set -euo pipefail
+          ENGINE_ACTIVITY="engine/Amethyst-Android/app_pojavlauncher/src/main/java/net/kdt/pojavlaunch/LauncherActivity.java"
+          VOIDCRAFT_MAIN="voidcraft/app/src/main/java/com/voidcraft/launcher/MainActivity.kt"
+          grep -Fq 'voidcraft.selected_version' "$ENGINE_ACTIVITY"
+          grep -Fq 'applyVoidcraftSelectedVersion();' "$ENGINE_ACTIVITY"
+          grep -Fq 'clientJar.length() != expectedSize' "$ENGINE_ACTIVITY"
+          grep -Fq 'MessageDigest.getInstance("SHA-1")' "$ENGINE_ACTIVITY"
+          grep -Fq 'voidcraft.selected_version' "$VOIDCRAFT_MAIN"
+          grep -Fq 'profiles.containsKey(profileId)' "$ENGINE_ACTIVITY"
+          grep -Fq 'voidcraft.renderer' "$ENGINE_ACTIVITY"
+          grep -Fq 'applyVoidcraftSelectedRenderer();' "$ENGINE_ACTIVITY"
+          grep -Fq 'pojavRendererName = requestedRenderer' "$ENGINE_ACTIVITY"
+          grep -Fq 'voidcraft.renderer' "$VOIDCRAFT_MAIN"
+          ENGINE_JRE_UTILS="engine/Amethyst-Android/app_pojavlauncher/src/main/java/net/kdt/pojavlaunch/utils/JREUtils.java"
+          ENGINE_TOOLS="engine/Amethyst-Android/app_pojavlauncher/src/main/java/net/kdt/pojavlaunch/Tools.java"
+          ENGINE_RENDERERS="engine/Amethyst-Android/app_pojavlauncher/src/main/res/values/headings_array.xml"
+          ENGINE_GL4ES_LICENSE="engine/Amethyst-Android/app_pojavlauncher/src/main/assets/licenses/GL4ES-MIT-LICENSE.txt"
+          grep -Fq 'opengles2_holy' "$ENGINE_JRE_UTILS"
+          grep -Fq 'libgl4es_114.so' "$ENGINE_JRE_UTILS"
+          grep -Fq 'appHasHolyGl4es' "$ENGINE_TOOLS"
+          grep -Fq 'mcl_setting_renderer_holy_gl4es' "$ENGINE_RENDERERS"
+          grep -Fq 'Permission is hereby granted, free of charge' "$ENGINE_GL4ES_LICENSE"
+          for abi in arm64-v8a armeabi-v7a x86 x86_64; do
+            test -s "engine/Amethyst-Android/app_pojavlauncher/src/main/jniLibs/$abi/libgl4es_114.so"
+          done
+          echo "Version handoff, GL4ES/Vulkan/LTW renderer wiring, per-ABI Holy GL4ES binaries and MIT notice are verified."
+
+      - name: Build the combined Voidcraft debug APK
+        working-directory: engine/Amethyst-Android
+        run: ./gradlew :app_pojavlauncher:assembleDebug --stacktrace
+
+      - name: Verify APK integrity, package identity, and Voidcraft entry point
+        shell: bash
+        run: |
+          set -euo pipefail
+          APK="engine/Amethyst-Android/app_pojavlauncher/build/outputs/apk/debug/app_pojavlauncher-debug.apk"
+          if [[ ! -s "$APK" ]]; then
+            APK="$(find engine/Amethyst-Android/app_pojavlauncher/build/outputs/apk/debug -type f -name '*.apk' -print -quit)"
+          fi
+          test -n "$APK" && test -s "$APK"
+          unzip -t "$APK" | tail -n 2
+          unzip -l "$APK" | grep -F 'assets/licenses/GL4ES-MIT-LICENSE.txt'
+          AAPT="$(find "$ANDROID_HOME/build-tools" -type f -name aapt -print | sort -V | tail -n 1)"
+          test -n "$AAPT"
+          BADGING="$("$AAPT" dump badging "$APK")"
+          printf '%s\n' "$BADGING" | grep -F "package: name='com.voidcraft.launcher'"
+          MANIFEST="$("$AAPT" dump xmltree "$APK" AndroidManifest.xml)"
+          printf '%s\n' "$MANIFEST" | grep -F 'com.voidcraft.launcher.MainActivity'
+          echo "APK_PATH=$APK" >> "$GITHUB_ENV"
+          sha256sum "$APK" | tee voidcraft-apk-sha256.txt
+          ls -lh "$APK"
+
+      - name: Enable KVM for Android emulator
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Smoke test integrated APK in Android emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 30
+          target: google_apis
+          arch: x86_64
+          profile: pixel_2
+          cores: 2
+          ram-size: 4096M
+          heap-size: 1024M
+          disk-size: 8G
+          emulator-boot-timeout: 600
+          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -camera-back none
+          script: bash voidcraft/tools/emulator_smoke_test.sh "$APK_PATH" "$GITHUB_WORKSPACE/voidcraft-emulator-smoke"
+
+      - name: Upload integrated Voidcraft debug APK and build provenance
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: voidcraft-integrated-debug-apk
+          if-no-files-found: error
+          path: |
+            engine/Amethyst-Android/app_pojavlauncher/build/outputs/apk/debug/*.apk
+            voidcraft-apk-sha256.txt
+            engine-build-provenance.txt
+            engine-license-files.txt
+            engine/Amethyst-Android/VOIDCRAFT_ENGINE_INTEGRATION.txt
+            voidcraft-emulator-smoke/**

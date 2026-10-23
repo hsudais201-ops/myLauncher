@@ -1,0 +1,71 @@
+name: Android build
+
+on:
+  push:
+    branches: [main, "launcher/**"]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: android-build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - name: Check Social Hub Worker syntax
+        run: node --input-type=module --check < backend/social-hub/worker.js
+      - name: Test Social Hub username validation
+        run: node --test backend/social-hub/validation.test.mjs
+      - name: Test Feature Store package integrity policy
+        run: python3 -m unittest discover -s tools -p 'test_*.py'
+      - name: Validate explicit Feature Store catalog
+        run: python3 tools/validate_feature_catalog.py
+      - name: Smoke test hosted Feature Store catalog
+        run: |
+          curl --fail --location --silent --show-error --max-time 20 \
+            https://raw.githubusercontent.com/hsudais201-ops/myLauncher/launcher/bootstrap/store/catalog.json \
+            -o /tmp/voidcraft-store-catalog.json
+          python3 - <<'PY'
+          import json
+          with open("/tmp/voidcraft-store-catalog.json", encoding="utf-8") as source:
+              catalog = json.load(source)
+          items = catalog.get("items")
+          if catalog.get("schemaVersion") != 1 or not isinstance(items, list) or not items:
+              raise SystemExit("Hosted Feature Store catalog is invalid")
+          ids = [item.get("id") for item in items]
+          if any(not isinstance(value, str) or not value for value in ids) or len(ids) != len(set(ids)):
+              raise SystemExit("Hosted Feature Store catalog has missing or duplicate IDs")
+          print(f"Hosted Feature Store catalog OK: {len(ids)} features")
+          PY
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.9"
+      - name: Run Kotlin unit tests
+        run: gradle testDebugUnitTest
+
+      - name: Build debug APK
+        run: gradle assembleDebug
+      - name: Smoke test Social Hub staging API
+        run: |
+          curl --fail --silent --show-error --retry 3 --retry-all-errors --retry-delay 2 --max-time 15 \
+            https://voidcraft-social-hub-staging.hsudais201.workers.dev/api/health \
+            | tee /tmp/social-hub-health.json
+          grep -q '"status":"ok"' /tmp/social-hub-health.json
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: voidcraft-debug-apk
+          path: app/build/outputs/apk/debug/app-debug.apk
