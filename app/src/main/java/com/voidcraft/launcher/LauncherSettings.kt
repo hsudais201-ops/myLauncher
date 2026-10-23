@@ -125,7 +125,7 @@ private fun SettingsOverviewScreen(
         SettingsTile("Skin Studio", "Import and validate a classic 64×64 or legacy 64×32 Minecraft skin PNG.", onSkin)
         SettingsTile("Check for updates", "Check the GitHub release feed and open published release notes.", onUpdates)
         SettingsTile("Java Runtime Manager", "Install and verify Android Java 8, 17, 21, and 25 runtimes where supported.", onRuntime)
-        SettingsTile("Render Backend", "Run an OpenGL ES 2.0 GPU surface and shader smoke test.", onRender)
+        SettingsTile("Render Backend", "Choose a Minecraft renderer request (Zink/Vulkan, LTW, or the bundled GL4ES-family wrapper) and run a separate GPU test.", onRender)
         SettingsTile("Device diagnostics", "Check engine/runtime folders, game files, storage and memory; export a privacy-conscious report.", onDiagnostics)
         OutlinedButton(onClick = onStore, modifier = Modifier.fillMaxWidth()) {
             Text("OPEN FEATURE STORE")

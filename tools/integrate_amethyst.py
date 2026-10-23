@@ -139,6 +139,54 @@ VERSION_HANDOFF_METHOD = """    private void applyVoidcraftSelectedVersion() {
 
 """
 
+RENDERER_HANDOFF_METHOD = """    private void applyVoidcraftSelectedRenderer() {
+        String requestedRenderer = getIntent() == null ? null :
+                getIntent().getStringExtra("voidcraft.renderer");
+        if (requestedRenderer == null || requestedRenderer.isEmpty()) return;
+
+        if (!java.util.Arrays.asList(
+                "opengles2",
+                "opengles_mobileglues",
+                "vulkan_zink",
+                "opengles3_ltw"
+        ).contains(requestedRenderer)) {
+            Toast.makeText(this, "Voidcraft requested an unsupported renderer.", Toast.LENGTH_LONG).show();
+            return;
+        }
+
+        try {
+            LauncherProfiles.load();
+            java.util.Map<String, MinecraftProfile> profiles = LauncherProfiles.mainProfileJson.profiles;
+            String profileId = LauncherPreferences.DEFAULT_PREF.getString(
+                    LauncherPreferences.PREF_KEY_CURRENT_PROFILE, "");
+            if (profileId == null || !profiles.containsKey(profileId)) {
+                if (profiles.isEmpty()) {
+                    throw new IllegalStateException("No Minecraft profile is available.");
+                }
+                profileId = profiles.keySet().iterator().next();
+                LauncherPreferences.DEFAULT_PREF.edit()
+                        .putString(LauncherPreferences.PREF_KEY_CURRENT_PROFILE, profileId).apply();
+            }
+
+            MinecraftProfile profile = profiles.get(profileId);
+            if (profile == null) {
+                throw new IllegalStateException("The selected Minecraft profile could not be loaded.");
+            }
+            profile.pojavRendererName = requestedRenderer;
+            profiles.put(profileId, profile);
+            LauncherProfiles.write();
+            Toast.makeText(this,
+                    "Renderer request saved. The engine will check device/library compatibility and may fall back.",
+                    Toast.LENGTH_LONG).show();
+        } catch (Exception exception) {
+            Toast.makeText(this,
+                    "Could not save the renderer request. Choose a compatible renderer in engine settings.",
+                    Toast.LENGTH_LONG).show();
+        }
+    }
+
+"""
+
 def replace_once(source: str, old: str, new: str, label: str) -> str:
     count = source.count(old)
     if count != 1:
@@ -149,13 +197,13 @@ def patch_launcher_activity(source: str) -> str:
     source = replace_once(
         source,
         "        bindViews();\n        checkNotificationPermission();",
-        "        bindViews();\n        applyVoidcraftSelectedVersion();\n        checkNotificationPermission();",
+        "        bindViews();\n        applyVoidcraftSelectedVersion();\n        applyVoidcraftSelectedRenderer();\n        checkNotificationPermission();",
         "Voidcraft selected-version handoff call"
     )
     return replace_once(
         source,
         "    @Override\n    protected void onResume() {",
-        VERSION_HANDOFF_METHOD + "    @Override\n    protected void onResume() {",
+        VERSION_HANDOFF_METHOD + RENDERER_HANDOFF_METHOD + "    @Override\n    protected void onResume() {",
         "Voidcraft selected-version handoff method"
     )
 

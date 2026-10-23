@@ -11,6 +11,7 @@ Voidcraft is a touch-first Android launcher frontend for Minecraft: Java Edition
 - **Active game folders in the integrated build:** version preparation targets the engine's version/library/assets folders; the file library and Advanced Mod Manager target its configured game folder and mods directory. Mods need the right game version and mod loader, and changes require a game restart.
 - **Settings links:** profile/account, runtime/game settings, performance and touch-control pages can open the actual engine's account/runtime/game settings or control-layout editor in the combined build. Standalone preferences remain local preferences and should not be confused with engine settings.
 - **Local utility tools:** local player-name preference, memory advisor, touch preference storage, file import/export, skin PNG validation/preview and GitHub release checker.
+- **Renderer selection handoff:** Voidcraft can request the integrated engine's bundled Krypton Wrapper (GL4ES-family), Zink/Vulkan, LTW, or MobileGlues backend for the selected Minecraft profile. The engine checks device/native-library compatibility and may fall back. The original Holy GL4ES component is not bundled by the pinned engine revision, so its option is visibly marked unavailable rather than falsely advertised as working.
 - **Render diagnostics:** the original standalone OpenGL ES 2.0 diagnostic cube reports GPU details and shader/draw errors. In the combined build, actual Minecraft rendering is supplied by the upstream Android engine, not by this cube.
 
 ## Builds

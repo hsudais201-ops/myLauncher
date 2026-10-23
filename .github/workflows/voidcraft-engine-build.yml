@@ -146,7 +146,11 @@ jobs:
           grep -Fq 'MessageDigest.getInstance("SHA-1")' "$ENGINE_ACTIVITY"
           grep -Fq 'voidcraft.selected_version' "$VOIDCRAFT_MAIN"
           grep -Fq 'profiles.containsKey(profileId)' "$ENGINE_ACTIVITY"
-          echo "Selected-version handoff, client size/hash validation, and profile fallback are wired."
+          grep -Fq 'voidcraft.renderer' "$ENGINE_ACTIVITY"
+          grep -Fq 'applyVoidcraftSelectedRenderer();' "$ENGINE_ACTIVITY"
+          grep -Fq 'pojavRendererName = requestedRenderer' "$ENGINE_ACTIVITY"
+          grep -Fq 'voidcraft.renderer' "$VOIDCRAFT_MAIN"
+          echo "Selected-version and renderer handoffs, client size/hash validation, and profile fallback are wired."
 
       - name: Build the combined Voidcraft debug APK
         working-directory: engine/Amethyst-Android

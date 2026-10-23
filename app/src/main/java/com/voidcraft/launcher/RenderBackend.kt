@@ -1,5 +1,7 @@
 package com.voidcraft.launcher
 
+import android.content.ActivityNotFoundException
+import android.content.Intent
 import android.graphics.Color as AndroidColor
 import android.opengl.GLES20
 import android.opengl.GLSurfaceView
@@ -36,9 +38,58 @@ import java.nio.FloatBuffer
 import javax.microedition.khronos.egl.EGLConfig
 import javax.microedition.khronos.opengles.GL10
 
+private data class RendererChoice(
+    val title: String,
+    val rendererId: String?,
+    val subtitle: String,
+    val description: String
+)
+
+private val rendererChoices = listOf(
+    RendererChoice(
+        "Original Holy GL4ES",
+        null,
+        "Unavailable in this engine bundle",
+        "The pinned Amethyst engine revision replaced the original Holy GL4ES backend with Krypton Wrapper. This option stays disabled until the actual Holy GL4ES native component is bundled."
+    ),
+    RendererChoice(
+        "Krypton Wrapper (GL4ES family)",
+        "opengles2",
+        "OpenGL ES • broad compatibility",
+        "The bundled GL4ES-family backend in this engine revision. It is not the original Holy GL4ES renderer."
+    ),
+    RendererChoice(
+        "Zink (Vulkan)",
+        "vulkan_zink",
+        "Vulkan • device and native-library dependent",
+        "Uses the engine's Zink/Vulkan path. The engine checks Vulkan support and whether the required native library is present, and may fall back if this option is unavailable."
+    ),
+    RendererChoice(
+        "LTW",
+        "opengles3_ltw",
+        "OpenGL ES 3 • Minecraft 1.17+",
+        "Requires OpenGL ES 3 support and the optional LTW native library. If the engine build or device does not provide them, it may select a compatible fallback."
+    ),
+    RendererChoice(
+        "MobileGlues",
+        "opengles_mobileglues",
+        "OpenGL ES • compatibility fallback",
+        "The current engine's default/fallback backend. Keep this selected if another backend fails to start."
+    )
+)
+
 @Composable
 fun RenderBackendScreen(onBack: () -> Unit) {
     val context = LocalContext.current
+    val rendererPrefs = remember {
+        context.getSharedPreferences("voidcraft_preferences", android.content.Context.MODE_PRIVATE)
+    }
+    var selectedRendererId by remember {
+        mutableStateOf(rendererPrefs.getString("selected_renderer_id", null))
+    }
+    var rendererStatus by remember {
+        mutableStateOf("Renderer requests apply to the selected Minecraft profile on the next launch.")
+    }
     val mainHandler = remember { Handler(Looper.getMainLooper()) }
     var requestCount by remember { mutableIntStateOf(0) }
     var renderedFrames by remember { mutableIntStateOf(0) }
@@ -77,6 +128,91 @@ fun RenderBackendScreen(onBack: () -> Unit) {
                     color = MaterialTheme.colorScheme.onBackground
                 )
                 Text("OpenGL ES 2.0 • GPU diagnostics", fontSize = 12.sp, color = VoidMuted)
+            }
+        }
+
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(18.dp),
+            colors = CardDefaults.cardColors(containerColor = VoidSurface)
+        ) {
+            Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text("MINECRAFT RENDERER", color = MaterialTheme.colorScheme.primary, fontSize = 11.sp)
+                Text(
+                    "Current request: " + (rendererChoices.firstOrNull { it.rendererId == selectedRendererId }?.title
+                        ?: "Use the engine's current profile setting"),
+                    color = VoidMuted,
+                    fontSize = 12.sp
+                )
+                Text(
+                    "Choose a backend for the next launch. Availability depends on GPU support and native libraries included in the integrated APK; the engine may fall back automatically.",
+                    color = VoidMuted,
+                    fontSize = 12.sp,
+                    lineHeight = 18.sp
+                )
+                rendererChoices.forEach { choice ->
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(14.dp),
+                        colors = CardDefaults.cardColors(containerColor = VoidBackground)
+                    ) {
+                        Column(
+                            Modifier.padding(12.dp),
+                            verticalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Text(choice.title, fontSize = 15.sp, color = MaterialTheme.colorScheme.onBackground)
+                            Text(choice.subtitle, fontSize = 11.sp, color = MaterialTheme.colorScheme.primary)
+                            Text(choice.description, fontSize = 12.sp, color = VoidMuted, lineHeight = 17.sp)
+                            if (choice.rendererId == null) {
+                                OutlinedButton(
+                                    onClick = {},
+                                    enabled = false,
+                                    modifier = Modifier.fillMaxWidth()
+                                ) { Text("NOT INCLUDED IN THIS BUILD") }
+                            } else {
+                                Button(
+                                    onClick = {
+                                        val id = choice.rendererId
+                                        if (id != null) {
+                                            rendererPrefs.edit()
+                                                .putString("selected_renderer_id", id)
+                                                .apply()
+                                            selectedRendererId = id
+                                            rendererStatus = choice.title +
+                                                " saved for the next launch. Device/library compatibility will be checked by the engine."
+                                        }
+                                    },
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Text(
+                                        if (selectedRendererId == choice.rendererId) "SELECTED"
+                                        else "USE FOR NEXT LAUNCH"
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+                Text(rendererStatus, color = VoidMuted, fontSize = 11.sp, lineHeight = 16.sp)
+                OutlinedButton(
+                    onClick = {
+                        try {
+                            val intent = Intent().setClassName(context, "net.kdt.pojavlaunch.LauncherActivity")
+                            selectedRendererId?.let { intent.putExtra("voidcraft.renderer", it) }
+                            context.startActivity(intent)
+                            rendererStatus = "Opened the integrated engine launcher."
+                        } catch (_: ActivityNotFoundException) {
+                            rendererStatus = "The integrated renderer controls require the combined engine build; this standalone prototype cannot change Minecraft's actual renderer."
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                ) { Text("OPEN INTEGRATED ENGINE") }
+                Text(
+                    "Vulkan here means the Zink/Vulkan backend, not the separate VulkanMod Minecraft mod. Original Holy GL4ES is not included in the pinned engine revision; Krypton Wrapper is the bundled GL4ES-family alternative.",
+                    color = VoidMuted,
+                    fontSize = 11.sp,
+                    lineHeight = 16.sp
+                )
             }
         }
 

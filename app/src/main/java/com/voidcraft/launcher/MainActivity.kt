@@ -645,6 +645,16 @@ private fun VoidcraftApp() {
                                 selectedGameVersion
                                     .takeIf { it != "latest" && it.matches(Regex("^[A-Za-z0-9._-]{1,100}$")) }
                                     ?.let { engineIntent.putExtra("voidcraft.selected_version", it) }
+                                prefs.getString("selected_renderer_id", null)
+                                    ?.takeIf {
+                                        it in setOf(
+                                            "opengles2",
+                                            "opengles_mobileglues",
+                                            "vulkan_zink",
+                                            "opengles3_ltw"
+                                        )
+                                    }
+                                    ?.let { engineIntent.putExtra("voidcraft.renderer", it) }
                                 context.startActivity(engineIntent)
                             } catch (_: ActivityNotFoundException) {
                                 selectedTab = 1
