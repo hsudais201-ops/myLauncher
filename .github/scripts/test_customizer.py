@@ -504,6 +504,9 @@ EXTERNAL_API void pojavSwapBuffers() {
             self.assertNotIn("Amethyst", strings)
             self.assertIn("myLauncher crashed", strings)
             self.assertIn('<string name="mylauncher_graphics_renderer">Graphics &amp; Renderer</string>', strings)
+            self.assertIn('<string name="mylauncher_download_versions">Download Minecraft Versions</string>', strings)
+            self.assertIn('<string name="mylauncher_version_download_title">Minecraft Version Downloads</string>', strings)
+            self.assertIn('<string name="mylauncher_version_download_button">Download selected version</string>', strings)
             self.assertIn('<string name="mylauncher_customize_controls">Customize Controls</string>', strings)
             self.assertIn('<string name="mylauncher_control_settings">Controls &amp; Touch Settings</string>', strings)
             tools_java = (root / "app_pojavlauncher/src/main/java/net/kdt/pojavlaunch/Tools.java").read_text(encoding="utf-8")
@@ -579,7 +582,9 @@ EXTERNAL_API void pojavSwapBuffers() {
             self.assertIn("Button mMyLauncherSettingsButton = view.findViewById(R.id.mylauncher_launcher_settings_button);", main_menu)
             self.assertIn("mMyLauncherSettingsButton.setOnClickListener", main_menu)
             self.assertIn("LauncherPreferenceFragment.class", main_menu)
+            self.assertIn("VersionDownloadFragment.class", main_menu)
             self.assertIn("Button mMyLauncherVersionsButton = view.findViewById(R.id.mylauncher_download_versions_button);", main_menu)
+            self.assertIn("import net.kdt.pojavlaunch.fragments.VersionDownloadFragment;", main_menu)
             self.assertIn("mMyLauncherVersionsButton.setOnClickListener", main_menu)
             self.assertIn("ProfileTypeSelectFragment.class", main_menu)
             self.assertIn("Button mMyLauncherModsButton = view.findViewById(R.id.mylauncher_mods_button);", main_menu)
@@ -635,6 +640,8 @@ EXTERNAL_API void pojavSwapBuffers() {
             for xml_path in (
                 root / "app_pojavlauncher/src/main/res/layout/fragment_launcher.xml",
                 root / "app_pojavlauncher/src/main/res/layout-land/fragment_launcher.xml",
+                root / "app_pojavlauncher/src/main/res/layout/fragment_mod_search.xml",
+                root / "app_pojavlauncher/src/main/res/layout/fragment_version_download.xml",
                 root / "app_pojavlauncher/src/main/res/layout/fragment_local_login.xml",
                 root / "app_pojavlauncher/src/main/AndroidManifest.xml",
                 root / "app_pojavlauncher/src/main/res/drawable/mylauncher_icon.xml",
@@ -675,6 +682,18 @@ EXTERNAL_API void pojavSwapBuffers() {
             search_layout_text = search_layout.read_text(encoding="utf-8")
             self.assertIn('android:id="@+id/search_mod_type_toggle"', search_layout_text)
             self.assertIn('android:id="@+id/search_mod_curseforge_key"', search_layout_text)
+            version_fragment = (root / "app_pojavlauncher/src/main/java/net/kdt/pojavlaunch/fragments/VersionDownloadFragment.java").read_text(encoding="utf-8")
+            self.assertIn("VersionSelectorDialog.open", version_fragment)
+            self.assertIn("AsyncMinecraftDownloader.getListedVersion(normalizedVersion)", version_fragment)
+            self.assertIn("new MinecraftDownloader().start(requireActivity(), listedVersion, normalizedVersion", version_fragment)
+            self.assertIn("R.string.mylauncher_version_download_in_progress", version_fragment)
+            self.assertIn("R.string.mylauncher_version_download_done", version_fragment)
+            self.assertIn("new AsyncMinecraftDownloader.DoneListener()", version_fragment)
+            version_layout = root / "app_pojavlauncher/src/main/res/layout/fragment_version_download.xml"
+            ET.parse(version_layout)
+            version_layout_text = version_layout.read_text(encoding="utf-8")
+            self.assertIn('android:id="@+id/mylauncher_select_version_button"', version_layout_text)
+            self.assertIn('android:id="@+id/mylauncher_download_version_button"', version_layout_text)
             auth_selector = (root / "app_pojavlauncher/src/main/java/net/kdt/pojavlaunch/fragments/SelectAuthFragment.java").read_text(encoding="utf-8")
             self.assertNotIn("hasNoOnlineProfileDialog", auth_selector)
             self.assertIn("mLocalButton.setOnClickListener(v -> Tools.swapFragment", auth_selector)
