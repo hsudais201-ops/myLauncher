@@ -649,6 +649,7 @@ private fun VoidcraftApp() {
                                     ?.takeIf {
                                         it in setOf(
                                             "opengles2",
+                                            "opengles2_holy",
                                             "opengles_mobileglues",
                                             "vulkan_zink",
                                             "opengles3_ltw"

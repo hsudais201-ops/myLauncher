@@ -48,9 +48,17 @@ separate terms. The upstream repository's own credits currently identify concern
 - OpenJDK and OpenAL-Soft: listed as GPLv2.
 - Other components use separate licenses such as LGPL-2.1, MIT, BSD-3-Clause, Apache-2.0, or other terms.
 
-These names are a review checklist based on the pinned upstream README, not a complete legal audit.
-The workflow records a revision/submodule manifest and inventories license-like files, but a file
-inventory alone does not establish that every binary/native component can be redistributed.
+The integrated build now additionally includes original Holy GL4ES 1.1.4 native libraries from
+[PojavLauncherTeam/PojavLauncher](https://github.com/PojavLauncherTeam/PojavLauncher/tree/b12ad048157b3aa255d078c235dd4571e1900309),
+for arm64-v8a, armeabi-v7a, x86, and x86_64. The integration verifies each binary against its pinned
+Git blob SHA and byte size and packages the upstream GL4ES MIT license notice inside the APK at
+`assets/licenses/GL4ES-MIT-LICENSE.txt`. The source license is from
+[PojavLauncherTeam/gl4es-114-extra](https://github.com/PojavLauncherTeam/gl4es-114-extra/tree/144d0dc79855b392e5256dd15fb2dbdedb17141a).
+
+These names are a review checklist based on the pinned upstream README and renderer component sources,
+not a complete legal audit. The workflow records revisions/submodule manifests and inventories
+license-like files, but a file inventory alone does not establish that every binary/native component
+can be redistributed.
 
 **Do not publish the combined APK publicly until the component licenses and permissions are checked.**
 In particular, obtain clarification/permission or select a legally distributable alternative for

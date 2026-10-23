@@ -146,6 +146,7 @@ RENDERER_HANDOFF_METHOD = """    private void applyVoidcraftSelectedRenderer() {
 
         if (!java.util.Arrays.asList(
                 "opengles2",
+                "opengles2_holy",
                 "opengles_mobileglues",
                 "vulkan_zink",
                 "opengles3_ltw"
@@ -207,13 +208,165 @@ def patch_launcher_activity(source: str) -> str:
         "Voidcraft selected-version handoff method"
     )
 
+GL4ES_PINNED_SOURCE_COMMIT = "b12ad048157b3aa255d078c235dd4571e1900309"
+GL4ES_LICENSE_COMMIT = "144d0dc79855b392e5256dd15fb2dbdedb17141a"
+GL4ES_GIT_BLOB_SHAS = {
+    "arm64-v8a": ("53e795282115fec813628d3d19cbe54b2a69cb02", 2649480),
+    "armeabi-v7a": ("fc706fa556852e0a6b87e4b8001809e90f176b40", 1713044),
+    "x86": ("12f910e571346e03ed2ac457a98202b7b9d82318", 2808944),
+    "x86_64": ("b21f9355d121d636495cfe72049d46ebc3ac2227", 2760568),
+}
+
+
+def git_blob_sha1(path: Path) -> str:
+    data = path.read_bytes()
+    header = f"blob {len(data)}\\0".encode("ascii")
+    import hashlib
+    return hashlib.sha1(header + data).hexdigest()
+
+
+def install_holy_gl4es(engine_root: Path, gl4es_root: Path, license_root: Path) -> None:
+    source_root = gl4es_root / "app_pojavlauncher" / "src" / "main" / "jniLibs"
+    destination_root = engine_root / "app_pojavlauncher" / "src" / "main" / "jniLibs"
+    for abi, (expected_sha, expected_size) in GL4ES_GIT_BLOB_SHAS.items():
+        source = source_root / abi / "libgl4es_114.so"
+        if not source.is_file():
+            raise SystemExit(f"Pinned Holy GL4ES library is missing: {source}")
+        actual_size = source.stat().st_size
+        actual_sha = git_blob_sha1(source)
+        if actual_size != expected_size or actual_sha != expected_sha:
+            raise SystemExit(
+                f"Unexpected Holy GL4ES binary for {abi}: size={actual_size}, git-blob={actual_sha}"
+            )
+        destination = destination_root / abi / "libgl4es_114.so"
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(source, destination)
+        if destination.stat().st_size != expected_size or git_blob_sha1(destination) != expected_sha:
+            raise SystemExit(f"Copied Holy GL4ES library failed integrity check: {destination}")
+        print(f"Verified and packaged Holy GL4ES {abi}: {actual_size} bytes")
+
+    license_file = license_root / "LICENSE"
+    if not license_file.is_file():
+        raise SystemExit(f"GL4ES MIT license is missing: {license_file}")
+    license_text = license_file.read_text(encoding="utf-8")
+    if "Permission is hereby granted, free of charge" not in license_text or "THE SOFTWARE IS PROVIDED" not in license_text:
+        raise SystemExit("The checked-out GL4ES license did not match the expected MIT license text.")
+    bundled_license = (
+        engine_root / "app_pojavlauncher" / "src" / "main" / "assets"
+        / "licenses" / "GL4ES-MIT-LICENSE.txt"
+    )
+    bundled_license.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(license_file, bundled_license)
+    print(f"Bundled GL4ES MIT license: {bundled_license}")
+
+
+def patch_holy_gl4es_renderer(engine_root: Path) -> None:
+    module = engine_root / "app_pojavlauncher"
+    java_root = module / "src" / "main" / "java" / "net" / "kdt" / "pojavlaunch"
+    jre_utils_file = java_root / "utils" / "JREUtils.java"
+    tools_file = java_root / "Tools.java"
+    renderer_arrays_file = module / "src" / "main" / "res" / "values" / "headings_array.xml"
+    strings_file = module / "src" / "main" / "res" / "values" / "strings.xml"
+    for path in (jre_utils_file, tools_file, renderer_arrays_file, strings_file):
+        if not path.is_file():
+            raise SystemExit(f"Required renderer integration source is missing: {path}")
+
+    jre_utils = jre_utils_file.read_text(encoding="utf-8")
+    jre_utils = replace_once(
+        jre_utils,
+        '            case "opengles2":\\n            case "opengles2_5":\\n            case "opengles3":\\n                renderLibrary = "libng_gl4es.so"; break;',
+        '            case "opengles2_holy": renderLibrary = "libgl4es_114.so"; break;\\n'
+        '            case "opengles2":\\n            case "opengles2_5":\\n            case "opengles3":\\n                renderLibrary = "libng_gl4es.so"; break;',
+        "Holy GL4ES library loading case"
+    )
+    jre_utils = replace_once(
+        jre_utils,
+        '            if(LOCAL_RENDERER.equals("opengles2")){',
+        '            if(LOCAL_RENDERER.equals("opengles2") || LOCAL_RENDERER.equals("opengles2_holy")){',
+        "Holy GL4ES GLES2 environment"
+    )
+    jre_utils = replace_once(
+        jre_utils,
+        'envMap.put("LIBGL_ES", "2"); // Krypton Wrapper crashes with 1',
+        'envMap.put("LIBGL_ES", "2"); // GL4ES-family GLES2 backends require GLES 2.',
+        "GLES2 renderer comment"
+    )
+    jre_utils_file.write_text(jre_utils, encoding="utf-8")
+
+    tools = tools_file.read_text(encoding="utf-8")
+    tools = replace_once(
+        tools,
+        '        boolean appHasKw = new File(Tools.NATIVE_LIB_DIR, "libng_gl4es.so").exists();',
+        '        boolean appHasKw = new File(Tools.NATIVE_LIB_DIR, "libng_gl4es.so").exists();\\n'
+        '        boolean appHasHolyGl4es = new File(Tools.NATIVE_LIB_DIR, "libgl4es_114.so").isFile();',
+        "Holy GL4ES availability check"
+    )
+    tools = replace_once(
+        tools,
+        '            if(rendererId.contains("opengles2") && (!deviceHasOpenGLES3 || !appHasKw)) continue;',
+        '            if(rendererId.equals("opengles2") && (!deviceHasOpenGLES3 || !appHasKw)) continue;\\n'
+        '            if(rendererId.equals("opengles2_holy") && !appHasHolyGl4es) continue;',
+        "Holy GL4ES compatible renderer gate"
+    )
+    tools_file.write_text(tools, encoding="utf-8")
+
+    headings = renderer_arrays_file.read_text(encoding="utf-8")
+    old_names = '''    <string-array name="renderer">
+        <item name="0">@string/mcl_setting_renderer_ng_gl4es</item>
+        <item name="1">@string/mcl_setting_renderer_mobileglues</item>
+        <item name="2">@string/mcl_setting_renderer_vulkan_kopper_zink</item>
+        <item name="3">@string/mcl_setting_renderer_vulkan_zink</item>
+        <item name="4">@string/mcl_setting_renderer_ltw</item>
+    </string-array>'''
+    new_names = '''    <string-array name="renderer">
+        <item name="0">@string/mcl_setting_renderer_ng_gl4es</item>
+        <item name="1">@string/mcl_setting_renderer_holy_gl4es</item>
+        <item name="2">@string/mcl_setting_renderer_mobileglues</item>
+        <item name="3">@string/mcl_setting_renderer_vulkan_kopper_zink</item>
+        <item name="4">@string/mcl_setting_renderer_vulkan_zink</item>
+        <item name="5">@string/mcl_setting_renderer_ltw</item>
+    </string-array>'''
+    headings = replace_once(headings, old_names, new_names, "Holy GL4ES renderer label array")
+    old_values = '''    <string-array name="renderer_values">
+        <item>opengles2</item> <!-- BZLZHH/NG-GL4ES (Krypton Wrapper) -->
+        <item>opengles_mobileglues</item>
+        <item>opengles3_desktopgl_zink_kopper</item> <!-- Swung's Kopper Zink backport to 23.0.4 -->
+        <item>vulkan_zink</item> <!-- osmesa 23.0.4 -->
+        <item>opengles3_ltw</item>
+    </string-array>'''
+    new_values = '''    <string-array name="renderer_values">
+        <item>opengles2</item> <!-- BZLZHH/NG-GL4ES (Krypton Wrapper) -->
+        <item>opengles2_holy</item> <!-- Original Holy GL4ES 1.1.4 -->
+        <item>opengles_mobileglues</item>
+        <item>opengles3_desktopgl_zink_kopper</item> <!-- Swung's Kopper Zink backport to 23.0.4 -->
+        <item>vulkan_zink</item> <!-- osmesa 23.0.4 -->
+        <item>opengles3_ltw</item>
+    </string-array>'''
+    headings = replace_once(headings, old_values, new_values, "Holy GL4ES renderer ID array")
+    renderer_arrays_file.write_text(headings, encoding="utf-8")
+
+    strings = strings_file.read_text(encoding="utf-8")
+    strings = replace_once(
+        strings,
+        '    <string name="mcl_setting_renderer_ng_gl4es">Krypton Wrapper - (all versions, fast)</string>',
+        '    <string name="mcl_setting_renderer_ng_gl4es">Krypton Wrapper - (all versions, fast)</string>\\n'
+        '    <string name="mcl_setting_renderer_holy_gl4es">Holy GL4ES - (all versions, fast)</string>',
+        "Holy GL4ES renderer display string"
+    )
+    strings_file.write_text(strings, encoding="utf-8")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("engine_root", type=Path, help="Path to a checked-out Amethyst-Android source tree")
+    parser.add_argument("--gl4es-root", type=Path, required=True, help="Pinned PojavLauncher checkout with GL4ES native libraries")
+    parser.add_argument("--gl4es-license-root", type=Path, required=True, help="Pinned GL4ES source checkout with the MIT LICENSE file")
     args = parser.parse_args()
 
     repo_root = Path(__file__).resolve().parents[1]
     engine_root = args.engine_root.resolve()
+    gl4es_root = args.gl4es_root.resolve()
+    gl4es_license_root = args.gl4es_license_root.resolve()
     module = engine_root / "app_pojavlauncher"
     java_root = module / "src" / "main" / "java"
     gradle_file = module / "build.gradle"
@@ -235,6 +388,9 @@ def main() -> None:
     destination.parent.mkdir(parents=True, exist_ok=True)
     shutil.copytree(voidcraft_sources, destination)
     print(f"Overlaid {len(list(destination.glob('*.kt')))} Voidcraft Kotlin source files into {destination}")
+
+    install_holy_gl4es(engine_root, gl4es_root, gl4es_license_root)
+    patch_holy_gl4es_renderer(engine_root)
 
     gradle = gradle_file.read_text(encoding="utf-8")
     gradle = replace_once(gradle, UPSTREAM_PLUGIN_BLOCK, VOIDCRAFT_PLUGIN_BLOCK, "application Kotlin/Compose plugins")
@@ -421,7 +577,9 @@ tasks.register("packageCriticalNativeStub", Exec) {
         "Voidcraft integrated Android build\\n"
         "Engine: AngelAuraMC/Amethyst-Android\\n"
         "Upstream ref: 330c6eae3164df64bdc4828e946a9e62cc5169e4\\n"
-        "Integration: upstream storage/native bootstrap runs first, then Voidcraft Compose opens; PLAY hands off a prepared Minecraft version to the engine profile and opens the upstream launcher/runtime/renderers.\\n"
+        "Holy GL4ES binaries: PojavLauncherTeam/PojavLauncher@" + GL4ES_PINNED_SOURCE_COMMIT + "\\n"
+        "Holy GL4ES MIT license source: PojavLauncherTeam/gl4es-114-extra@" + GL4ES_LICENSE_COMMIT + "\\n"
+        "Integration: upstream storage/native bootstrap runs first, then Voidcraft Compose opens; PLAY hands off a prepared Minecraft version and renderer to the engine profile and opens the upstream launcher/runtime/renderers.\\n"
         "Build target: :app_pojavlauncher:assembleDebug\\n"
         "This debug artifact is a test build, not a verified public release.\\n",
         encoding="utf-8"

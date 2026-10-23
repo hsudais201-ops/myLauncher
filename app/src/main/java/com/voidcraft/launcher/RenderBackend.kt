@@ -47,10 +47,10 @@ private data class RendererChoice(
 
 private val rendererChoices = listOf(
     RendererChoice(
-        "Original Holy GL4ES",
-        null,
-        "Unavailable in this engine bundle",
-        "The pinned Amethyst engine revision replaced the original Holy GL4ES backend with Krypton Wrapper. This option stays disabled until the actual Holy GL4ES native component is bundled."
+        "Holy GL4ES (original)",
+        "opengles2_holy",
+        "OpenGL ES 2 • fast, broad vanilla-version support",
+        "Uses the original Pojav GL4ES 1.1.4 native library. Shader and advanced-mod compatibility is more limited than LTW or Zink; device testing is still required."
     ),
     RendererChoice(
         "Krypton Wrapper (GL4ES family)",
@@ -208,7 +208,7 @@ fun RenderBackendScreen(onBack: () -> Unit) {
                     modifier = Modifier.fillMaxWidth()
                 ) { Text("OPEN INTEGRATED ENGINE") }
                 Text(
-                    "Vulkan here means the Zink/Vulkan backend, not the separate VulkanMod Minecraft mod. Original Holy GL4ES is not included in the pinned engine revision; Krypton Wrapper is the bundled GL4ES-family alternative.",
+                    "Vulkan here means the engine's Zink/Vulkan backend, not the separate VulkanMod Minecraft mod. Holy GL4ES and Krypton Wrapper are separate GL4ES-family options.",
                     color = VoidMuted,
                     fontSize = 11.sp,
                     lineHeight = 16.sp

@@ -42,6 +42,22 @@ jobs:
           submodules: recursive
           fetch-depth: 0
 
+      - name: Check out pinned Holy GL4ES native libraries
+        uses: actions/checkout@v4
+        with:
+          repository: PojavLauncherTeam/PojavLauncher
+          ref: b12ad048157b3aa255d078c235dd4571e1900309
+          path: runtime/PojavLauncher
+          fetch-depth: 1
+
+      - name: Check out pinned GL4ES MIT license source
+        uses: actions/checkout@v4
+        with:
+          repository: PojavLauncherTeam/gl4es-114-extra
+          ref: 144d0dc79855b392e5256dd15fb2dbdedb17141a
+          path: runtime/gl4es-114-extra
+          fetch-depth: 1
+
       - name: Check out the pinned Java 8 runtime packager
         uses: actions/checkout@v4
         with:
@@ -60,6 +76,10 @@ jobs:
             -not -path './.git/*' -not -path '*/build/*' | sort > ../../engine-license-files.txt
           cd ../..
           echo "Pinned JRE8 packager commit: $(git -C runtime/angelauramc-openjdk-build rev-parse HEAD)" | tee -a engine-build-provenance.txt
+          echo "Pinned Holy GL4ES binary source commit: $(git -C runtime/PojavLauncher rev-parse HEAD)" | tee -a engine-build-provenance.txt
+          echo "Pinned GL4ES MIT license source commit: $(git -C runtime/gl4es-114-extra rev-parse HEAD)" | tee -a engine-build-provenance.txt
+          echo "GL4ES MIT license: bundled into the APK at assets/licenses/GL4ES-MIT-LICENSE.txt" | tee -a engine-build-provenance.txt
+          echo "runtime/gl4es-114-extra/LICENSE (MIT)" >> engine-license-files.txt
           cat engine-build-provenance.txt
 
       - name: Install Java 8 toolchain for legacy modules
@@ -132,7 +152,9 @@ jobs:
 
       - name: Overlay Voidcraft frontend onto the tested engine
         run: |
-          python3 voidcraft/tools/integrate_amethyst.py engine/Amethyst-Android
+          python3 voidcraft/tools/integrate_amethyst.py engine/Amethyst-Android \\
+            --gl4es-root runtime/PojavLauncher \\
+            --gl4es-license-root runtime/gl4es-114-extra
 
       - name: Verify selected-version handoff wiring
         shell: bash
@@ -150,7 +172,19 @@ jobs:
           grep -Fq 'applyVoidcraftSelectedRenderer();' "$ENGINE_ACTIVITY"
           grep -Fq 'pojavRendererName = requestedRenderer' "$ENGINE_ACTIVITY"
           grep -Fq 'voidcraft.renderer' "$VOIDCRAFT_MAIN"
-          echo "Selected-version and renderer handoffs, client size/hash validation, and profile fallback are wired."
+          ENGINE_JRE_UTILS="engine/Amethyst-Android/app_pojavlauncher/src/main/java/net/kdt/pojavlaunch/utils/JREUtils.java"
+          ENGINE_TOOLS="engine/Amethyst-Android/app_pojavlauncher/src/main/java/net/kdt/pojavlaunch/Tools.java"
+          ENGINE_RENDERERS="engine/Amethyst-Android/app_pojavlauncher/src/main/res/values/headings_array.xml"
+          ENGINE_GL4ES_LICENSE="engine/Amethyst-Android/app_pojavlauncher/src/main/assets/licenses/GL4ES-MIT-LICENSE.txt"
+          grep -Fq 'opengles2_holy' "$ENGINE_JRE_UTILS"
+          grep -Fq 'libgl4es_114.so' "$ENGINE_JRE_UTILS"
+          grep -Fq 'appHasHolyGl4es' "$ENGINE_TOOLS"
+          grep -Fq 'mcl_setting_renderer_holy_gl4es' "$ENGINE_RENDERERS"
+          grep -Fq 'Permission is hereby granted, free of charge' "$ENGINE_GL4ES_LICENSE"
+          for abi in arm64-v8a armeabi-v7a x86 x86_64; do
+            test -s "engine/Amethyst-Android/app_pojavlauncher/src/main/jniLibs/$abi/libgl4es_114.so"
+          done
+          echo "Version handoff, GL4ES/Vulkan/LTW renderer wiring, per-ABI Holy GL4ES binaries and MIT notice are verified."
 
       - name: Build the combined Voidcraft debug APK
         working-directory: engine/Amethyst-Android
@@ -166,6 +200,7 @@ jobs:
           fi
           test -n "$APK" && test -s "$APK"
           unzip -t "$APK" | tail -n 2
+          unzip -l "$APK" | grep -F 'assets/licenses/GL4ES-MIT-LICENSE.txt'
           AAPT="$(find "$ANDROID_HOME/build-tools" -type f -name aapt -print | sort -V | tail -n 1)"
           test -n "$AAPT"
           BADGING="$("$AAPT" dump badging "$APK")"
