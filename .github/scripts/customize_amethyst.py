@@ -99,6 +99,19 @@ def patch_upstream(upstream: Path) -> None:
         '<string name="mylauncher_instances">Create Instance / Profile</string>',
         '<string name="mylauncher_java_runtime">Java &amp; Runtime</string>',
         '<string name="mylauncher_launcher_settings">Launcher Settings</string>',
+        '<string name="mylauncher_download_versions">Minecraft Versions &amp; Loaders</string>',
+        '<string name="mylauncher_modrinth_curseforge">Modrinth &amp; CurseForge</string>',
+        '<string name="mylauncher_install_mod">Install mod</string>',
+        '<string name="mylauncher_download_mod_progress">Downloading mod file (%.2f MB / %.2f MB)</string>',
+        '<string name="mylauncher_search_mode_mods">Mods</string>',
+        '<string name="mylauncher_search_mode_modpacks">Modpacks</string>',
+        '<string name="mylauncher_search_mods_no_result">No mods found</string>',
+        '<string name="mylauncher_search_mods_error">Failed to find mods</string>',
+        '<string name="mylauncher_search_hint">Search Modrinth or CurseForge</string>',
+        '<string name="mylauncher_curseforge_key_title">CurseForge API key</string>',
+        '<string name="mylauncher_curseforge_key_message">CurseForge needs an approved API key. Modrinth works without one. Add your key from the CurseForge developer console. The key is stored on this device only; never commit it to GitHub.</string>',
+        '<string name="mylauncher_curseforge_get_key">Get API key</string>',
+        '<string name="mylauncher_curseforge_key_saved">CurseForge API key saved on this device</string>',
         '<string name="mylauncher_customize_controls">Customize Controls</string>',
         '<string name="mylauncher_control_settings">Controls &amp; Touch Settings</string>',
         '<string name="mylauncher_performance_overlay_category">Performance Overlay</string>',
@@ -113,6 +126,10 @@ def patch_upstream(upstream: Path) -> None:
         '<string name="mylauncher_performance_overlay_disabled_toast">Performance overlay disabled</string>',
         '<string name="mylauncher_performance_overlay_fps_prefix">FPS</string>',
         '<string name="mylauncher_performance_overlay_memory_prefix">RAM</string>',
+    )
+    strings_text = strings_text.replace(
+        '<string name="hint_search_modpack">Search for modpacks</string>',
+        '<string name="hint_search_modpack">Search Modrinth or CurseForge</string>',
     )
     for control_label in control_labels:
         control_key = re.search(r'<string\s+name="([^"]+)"', control_label).group(1)
@@ -493,6 +510,18 @@ def patch_upstream(upstream: Path) -> None:
                 "@string/mylauncher_launcher_settings",
                 "mylauncher_java_runtime_button",
             ),
+            (
+                "mylauncher_download_versions_button",
+                "@android:drawable/ic_menu_agenda",
+                "@string/mylauncher_download_versions",
+                "mylauncher_launcher_settings_button",
+            ),
+            (
+                "mylauncher_mods_button",
+                "@android:drawable/ic_menu_search",
+                "@string/mylauncher_modrinth_curseforge",
+                "mylauncher_download_versions_button",
+            ),
         )
         for button_id, button_drawable, button_label, anchor_id in integrated_menu_buttons:
             button_pattern = re.compile(
@@ -579,6 +608,8 @@ def patch_upstream(upstream: Path) -> None:
             or layout_text.count('android:id="@+id/mylauncher_control_settings_button"') != 1
             or layout_text.count('android:id="@+id/mylauncher_account_button"') != 1
             or layout_text.count('android:id="@+id/mylauncher_graphics_button"') != 1
+            or layout_text.count('android:id="@+id/mylauncher_download_versions_button"') != 1
+            or layout_text.count('android:id="@+id/mylauncher_mods_button"') != 1
             or layout_text.count('android:id="@+id/news_button"') != 1
             or layout_text.count('android:id="@+id/discord_button"') != 1
             or layout_text.count('android:id="@+id/social_divider"') != 1
@@ -705,7 +736,9 @@ def patch_upstream(upstream: Path) -> None:
     instances_binding = "Button mMyLauncherInstancesButton = view.findViewById(R.id.mylauncher_instances_button);"
     runtime_binding = "Button mMyLauncherRuntimeButton = view.findViewById(R.id.mylauncher_java_runtime_button);"
     settings_binding = "Button mMyLauncherSettingsButton = view.findViewById(R.id.mylauncher_launcher_settings_button);"
-    for new_binding in (instances_binding, runtime_binding, settings_binding):
+    versions_binding = "Button mMyLauncherVersionsButton = view.findViewById(R.id.mylauncher_download_versions_button);"
+    mods_binding = "Button mMyLauncherModsButton = view.findViewById(R.id.mylauncher_mods_button);"
+    for new_binding in (instances_binding, runtime_binding, settings_binding, versions_binding, mods_binding):
         if new_binding not in main_menu_text:
             main_menu_text = main_menu_text.replace(graphics_binding, graphics_binding + "\n        " + new_binding, 1)
         if main_menu_text.count(new_binding) != 1:
@@ -742,10 +775,21 @@ def patch_upstream(upstream: Path) -> None:
         "mMyLauncherSettingsButton.setOnClickListener(v -> Tools.swapFragment(requireActivity(), "
         "LauncherPreferenceFragment.class, LauncherActivity.SETTING_FRAGMENT_TAG, null));"
     )
+    versions_listener = (
+        "mMyLauncherVersionsButton.setOnClickListener(v -> Tools.swapFragment(requireActivity(), "
+        "ProfileTypeSelectFragment.class, ProfileTypeSelectFragment.TAG, null));"
+    )
+    mods_listener = """mMyLauncherModsButton.setOnClickListener(v -> {
+            Bundle searchArgs = new Bundle();
+            searchArgs.putBoolean(SearchModFragment.ARG_IS_MODPACK, false);
+            Tools.swapFragment(requireActivity(), SearchModFragment.class, SearchModFragment.TAG, searchArgs);
+        });"""
     for new_listener, insertion_anchor in (
         (instances_listener, control_settings_listener),
         (runtime_listener, instances_listener),
         (settings_listener, runtime_listener),
+        (versions_listener, settings_listener),
+        (mods_listener, versions_listener),
     ):
         if new_listener not in main_menu_text:
             if insertion_anchor not in main_menu_text:
@@ -756,14 +800,20 @@ def patch_upstream(upstream: Path) -> None:
         main_menu_text.count(instances_binding) != 1
         or main_menu_text.count(runtime_binding) != 1
         or main_menu_text.count(settings_binding) != 1
+        or main_menu_text.count(versions_binding) != 1
+        or main_menu_text.count(mods_binding) != 1
         or main_menu_text.count(instances_listener) != 1
         or main_menu_text.count(runtime_listener) != 1
         or main_menu_text.count(settings_listener) != 1
+        or main_menu_text.count(versions_listener) != 1
+        or main_menu_text.count(mods_listener) != 1
         or "LauncherPreferenceJavaFragment.class" not in main_menu_text
         or "LauncherPreferenceFragment.class" not in main_menu_text
         or "ProfileTypeSelectFragment.class" not in main_menu_text
+        or "SearchModFragment.ARG_IS_MODPACK, false" not in main_menu_text
+        or "SearchModFragment.class" not in main_menu_text
     ):
-        raise ValueError("Integrated launcher instance, Java/runtime, or settings navigation is incomplete")
+        raise ValueError("Integrated launcher instance, versions, mods, Java/runtime, or settings navigation is incomplete")
 
     if (
         main_menu_text.count(account_binding) != 1
