@@ -1289,13 +1289,24 @@ public final class VersionDownloadFragment extends Fragment {
         mModpackApis = new ModpackApi[]{mModrinthApi, mCurseforgeApi};
     }"""
     common_new = """    public CommonApi(String curseforgeApiKey) {
+        this(curseforgeApiKey, "all");
+    }
+
+    public CommonApi(String curseforgeApiKey, String provider) {
         String key = curseforgeApiKey == null ? "" : curseforgeApiKey.trim();
         mCurseforgeApi = key.isEmpty() || "DUMMY".equalsIgnoreCase(key)
                 ? null : new CurseforgeApi(key);
         mModrinthApi = new ModrinthApi();
-        mModpackApis = mCurseforgeApi == null
-                ? new ModpackApi[]{mModrinthApi}
-                : new ModpackApi[]{mModrinthApi, mCurseforgeApi};
+        if ("modrinth".equalsIgnoreCase(provider)) {
+            mModpackApis = new ModpackApi[]{mModrinthApi};
+        } else if ("curseforge".equalsIgnoreCase(provider)) {
+            mModpackApis = mCurseforgeApi == null
+                    ? new ModpackApi[0] : new ModpackApi[]{mCurseforgeApi};
+        } else {
+            mModpackApis = mCurseforgeApi == null
+                    ? new ModpackApi[]{mModrinthApi}
+                    : new ModpackApi[]{mModrinthApi, mCurseforgeApi};
+        }
     }"""
     common_text = replace_idempotently(common_text, common_old, common_new, str(common_api))
     common_old_import = "            if (isCurseforge) return mCurseforgeApi;"
@@ -1331,6 +1342,20 @@ public final class VersionDownloadFragment extends Fragment {
             '    public static final String TAG = "SearchModFragment";\n    public static final String ARG_IS_MODPACK = "mylauncher_is_modpack";',
             str(search_java),
         )
+    if "public static final String ARG_PROVIDER" not in search_text:
+        search_text = replace_idempotently(
+            search_text,
+            '    public static final String ARG_IS_MODPACK = "mylauncher_is_modpack";',
+            '    public static final String ARG_IS_MODPACK = "mylauncher_is_modpack";\n    public static final String ARG_PROVIDER = "mylauncher_mod_provider";',
+            str(search_java),
+        )
+    if "private String mProvider = \"all\";" not in search_text:
+        search_text = replace_idempotently(
+            search_text,
+            "    private ModpackApi modpackApi;",
+            '    private ModpackApi modpackApi;\n    private String mProvider = "all";',
+            str(search_java),
+        )
     field_anchor = "    private ImageButton mFilterButton;"
     fields_new = field_anchor + "\n    private Button mTypeToggleButton;\n    private Button mCurseForgeKeyButton;"
     if "private Button mTypeToggleButton;" not in search_text:
@@ -1339,10 +1364,14 @@ public final class VersionDownloadFragment extends Fragment {
     search_text = replace_idempotently(
         search_text,
         "        modpackApi = new CommonApi(context.getString(R.string.curseforge_api_key));",
-        """        String defaultKey = context.getString(R.string.curseforge_api_key);
+        """        Bundle searchArguments = getArguments();
+        if (searchArguments != null) {
+            mProvider = searchArguments.getString(ARG_PROVIDER, "all");
+        }
+        String defaultKey = context.getString(R.string.curseforge_api_key);
         String savedKey = context.getSharedPreferences("mylauncher_mod_sources", Context.MODE_PRIVATE)
                 .getString("curseforge_api_key", defaultKey);
-        modpackApi = new CommonApi(savedKey);""",
+        modpackApi = new CommonApi(savedKey, mProvider);""",
         str(search_java),
     )
     view_anchor = "    public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {"
@@ -1382,7 +1411,7 @@ public final class VersionDownloadFragment extends Fragment {
             search_text,
             "        searchMods(null);",
             """        searchMods(null);
-        if (isCurseForgeKeyMissing(getConfiguredCurseForgeKey())) {
+        if ("curseforge".equalsIgnoreCase(mProvider) && isCurseForgeKeyMissing(getConfiguredCurseForgeKey())) {
             view.post(() -> {
                 if (isAdded()) showCurseForgeKeyDialog();
             });
@@ -1444,7 +1473,7 @@ public final class VersionDownloadFragment extends Fragment {
             }
             requireContext().getSharedPreferences("mylauncher_mod_sources", Context.MODE_PRIVATE)
                     .edit().putString("curseforge_api_key", key).apply();
-            modpackApi = new CommonApi(key);
+            modpackApi = new CommonApi(key, mProvider);
             if (mModItemAdapter != null && mRecyclerview != null) {
                 ProgressKeeper.removeTaskCountListener(mModItemAdapter);
                 mModItemAdapter = new ModItemAdapter(getResources(), modpackApi, this);
@@ -1469,7 +1498,9 @@ public final class VersionDownloadFragment extends Fragment {
         or search_text.count("private void showCurseForgeKeyDialog()") != 1
         or "mSearchFilters.isModpack = !mSearchFilters.isModpack;" not in search_text
         or 'putString("curseforge_api_key", key)' not in search_text
-        or "new CommonApi(savedKey)" not in search_text
+        or "new CommonApi(savedKey, mProvider)" not in search_text
+        or "ARG_PROVIDER" not in search_text
+        or 'SearchModFragment.ARG_PROVIDER' not in search_text
         or "mylauncher_search_mods_error" not in search_text
     ):
         raise ValueError("Modrinth/CurseForge search mode or local API-key handling is incomplete")
