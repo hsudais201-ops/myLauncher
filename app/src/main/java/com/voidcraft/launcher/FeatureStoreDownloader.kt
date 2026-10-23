@@ -24,6 +24,29 @@ internal fun featurePackageContentLengthFits(contentLength: Long, maxAllowedByte
         (contentLength == -1L || (contentLength > 0L && contentLength <= maxAllowedBytes))
 
 /**
+ * Removes a selected feature's package and leftover update/partial files.
+ * Returns false only when its primary package still exists and could not be deleted.
+ */
+internal fun removeFeaturePackageFiles(directory: File, featureId: String): Boolean {
+    val safeId = featureId.replace(Regex("[^A-Za-z0-9._-]"), "_")
+    if (safeId.isBlank()) return false
+    if (!directory.exists()) return true
+    if (!directory.isDirectory) return false
+
+    val packageFile = File(directory, "$safeId.package")
+    if (packageFile.exists() && !packageFile.delete()) return false
+
+    val leftovers = directory.listFiles() ?: return true
+    leftovers.asSequence()
+        .filter { file ->
+            file.name == "$safeId.previous" ||
+                (file.name.startsWith("$safeId.") && file.name.endsWith(".part"))
+        }
+        .forEach { file -> file.delete() }
+    return true
+}
+
+/**
  * Downloads an optional Feature Store package without accepting insecure redirects
  * or allowing an unbounded response to fill the device's storage.
  *
