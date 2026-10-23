@@ -3,6 +3,7 @@ package com.voidcraft.launcher
 import android.app.DownloadManager
 import android.content.Context
 import android.content.Intent
+import android.content.SharedPreferences
 import android.content.ActivityNotFoundException
 import android.net.Uri
 import android.os.Bundle
@@ -137,6 +138,7 @@ private enum class LauncherTab(val label: String, val icon: ImageVector) {
 private fun VoidcraftApp() {
     val context = androidx.compose.ui.platform.LocalContext.current
     val prefs = remember { context.getSharedPreferences(PREFS, Context.MODE_PRIVATE) }
+    val socialSessionStore = remember { SocialSessionStore(context) }
     var selectedTab by remember { mutableIntStateOf(0) }
     var storeOpen by remember { mutableStateOf(false) }
     var storeEnabled by remember { mutableStateOf(prefs.getBoolean(STORE_ENABLED, false)) }
@@ -156,7 +158,7 @@ private fun VoidcraftApp() {
     var activeConversation by remember { mutableStateOf<String?>(null) }
     var socialFriends by remember { mutableStateOf<List<String>>(prefs.getStringSet(SOCIAL_FRIENDS, emptySet<String>())?.toList()?.sorted() ?: emptyList<String>()) }
     var socialMessages by remember { mutableStateOf(loadSocialMessages(prefs.getString(SOCIAL_MESSAGES, "{}") ?: "{}")) }
-    var onlineToken by remember { mutableStateOf(prefs.getString(SOCIAL_TOKEN, null)) }
+    var onlineToken by remember { mutableStateOf(loadOrMigrateSocialSessionToken(prefs, socialSessionStore)) }
     var onlineUsername by remember { mutableStateOf(prefs.getString(SOCIAL_USERNAME, null)) }
     var onlineFriends by remember { mutableStateOf<List<String>>(emptyList()) }
     var onlineIncoming by remember { mutableStateOf<List<OnlineFriendRequest>>(emptyList()) }
@@ -343,11 +345,13 @@ private fun VoidcraftApp() {
                                         )
                                         val token = response.optString("token")
                                         if (token.isBlank()) error("The server did not return a session.")
+                                        // Persist encrypted token first; only then expose the authenticated state.
+                                        socialSessionStore.writeToken(token)
                                         val user = response.optJSONObject("user")
                                         onlineToken = token
                                         onlineUsername = user?.optString("username")?.takeIf { it.isNotBlank() } ?: username
                                         prefs.edit()
-                                            .putString(SOCIAL_TOKEN, token)
+                                            .remove(SOCIAL_TOKEN)
                                             .putString(SOCIAL_USERNAME, onlineUsername)
                                             .apply()
                                         onlineStatus = "Signed in as $onlineUsername."
@@ -364,6 +368,7 @@ private fun VoidcraftApp() {
                                     try {
                                         if (token != null) socialApiRequest("POST", "/api/logout", token)
                                     } catch (_: Exception) { }
+                                    val secureClear = runCatching { socialSessionStore.clear() }
                                     onlineToken = null
                                     onlineUsername = null
                                     onlineFriends = emptyList()
@@ -371,7 +376,11 @@ private fun VoidcraftApp() {
                                     onlineOutgoing = emptyList()
                                     onlineMessages = emptyMap()
                                     prefs.edit().remove(SOCIAL_TOKEN).remove(SOCIAL_USERNAME).apply()
-                                    onlineStatus = "Signed out."
+                                    onlineStatus = if (secureClear.isSuccess) {
+                                        "Signed out."
+                                    } else {
+                                        "Signed out locally, but encrypted session storage could not be fully cleared."
+                                    }
                                 }
                             },
                             onRefreshOnline = { scope.launch { refreshOnlineData() } },
@@ -707,6 +716,33 @@ private fun VoidcraftApp() {
 }
 
 
+
+private fun loadOrMigrateSocialSessionToken(
+    preferences: SharedPreferences,
+    secureStore: SocialSessionStore
+): String? {
+    val encryptedToken = secureStore.readToken()
+    if (!encryptedToken.isNullOrBlank()) {
+        // Remove an older plaintext token if a protected token already exists.
+        preferences.edit().remove(SOCIAL_TOKEN).apply()
+        return encryptedToken
+    }
+
+    val legacyToken = preferences.getString(SOCIAL_TOKEN, null)?.takeIf { it.isNotBlank() }
+        ?: return null
+    return try {
+        secureStore.writeToken(legacyToken)
+        check(preferences.edit().remove(SOCIAL_TOKEN).commit()) {
+            "Could not finish protecting the previous Social Hub session."
+        }
+        legacyToken
+    } catch (_: Exception) {
+        // Fail closed. Do not keep a legacy plaintext bearer token if encryption fails.
+        preferences.edit().remove(SOCIAL_TOKEN).apply()
+        runCatching { secureStore.clear() }
+        null
+    }
+}
 
 private suspend fun socialApiRequest(
     method: String,
