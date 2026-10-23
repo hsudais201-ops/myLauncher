@@ -106,8 +106,16 @@ fun GameVersionsScreen(
 
     fun openEngineLauncher() {
         try {
-            context.startActivity(Intent().setClassName(context, "net.kdt.pojavlaunch.LauncherActivity"))
-            engineLaunchStatus = "Opened the integrated engine launcher. Complete its official sign-in, Java/runtime setup, version installation, and launch there."
+            val engineIntent = Intent().setClassName(context, "net.kdt.pojavlaunch.LauncherActivity")
+            selectedVersion
+                .takeIf { it != "latest" && it.matches(Regex("^[A-Za-z0-9._-]{1,100}$")) }
+                ?.let { engineIntent.putExtra("voidcraft.selected_version", it) }
+            context.startActivity(engineIntent)
+            engineLaunchStatus = if (selectedVersion != "latest") {
+                "Opened the integrated engine and handed off Minecraft $selectedVersion when its verified client files are present. Complete sign-in, runtime/profile setup, and launch there."
+            } else {
+                "Opened the integrated engine launcher. Complete its official sign-in, Java/runtime setup, version installation, and launch there."
+            }
         } catch (_: ActivityNotFoundException) {
             engineLaunchStatus = "The full game installer is included only in the combined engine APK. This standalone Voidcraft build can inspect/download metadata but cannot launch Minecraft."
         }
