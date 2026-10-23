@@ -223,7 +223,7 @@ class MainMenuFragment {
     }
     private ModpackApi getModpackApi(File modpackFile) {
         boolean isCurseforge = true;
-        if (isCurseforge) return mCurseforgeApi;
+            if (isCurseforge) return mCurseforgeApi;
         return mModrinthApi;
     }
 }
