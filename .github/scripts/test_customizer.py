@@ -209,6 +209,152 @@ class MainMenuFragment {
             encoding="utf-8",
         )
 
+        api_dir = app / "src/main/java/net/kdt/pojavlaunch/modloaders/modpacks/api"
+        api_dir.mkdir(parents=True, exist_ok=True)
+        (api_dir / "CommonApi.java").write_text(
+            """class CommonApi {
+    private final ModpackApi mCurseforgeApi;
+    private final ModpackApi mModrinthApi;
+    private final ModpackApi[] mModpackApis;
+    public CommonApi(String curseforgeApiKey) {
+        mCurseforgeApi = new CurseforgeApi(curseforgeApiKey);
+        mModrinthApi = new ModrinthApi();
+        mModpackApis = new ModpackApi[]{mModrinthApi, mCurseforgeApi};
+    }
+    private ModpackApi getModpackApi(File modpackFile) {
+        boolean isCurseforge = true;
+        if (isCurseforge) return mCurseforgeApi;
+        return mModrinthApi;
+    }
+}
+""",
+            encoding="utf-8",
+        )
+        (api_dir / "ModrinthApi.java").write_text(
+            """class ModrinthApi {
+    public ModLoader installMod(ModDetail modDetail, int selectedVersion) throws IOException{
+        //TODO considering only modpacks for now
+        return ModpackInstaller.installModpack(modDetail, selectedVersion, this::installMrpack);
+    }
+}
+""",
+            encoding="utf-8",
+        )
+        (api_dir / "CurseforgeApi.java").write_text(
+            """class CurseforgeApi {
+    public ModLoader installMod(ModDetail modDetail, int selectedVersion) throws IOException{
+        //TODO considering only modpacks for now
+        return ModpackInstaller.installModpack(modDetail, selectedVersion, this::installCurseforgeZip);
+    }
+}
+""",
+            encoding="utf-8",
+        )
+        (api_dir / "ModItemAdapter.java").write_text(
+            """class ModItemAdapter {
+        private void setDetailedStateDefault() {
+            setInstallEnabled(false);
+            mExtendedSpinner.setAdapter(mLoadingAdapter);
+        }
+}
+""",
+            encoding="utf-8",
+        )
+
+        search_java = app / "src/main/java/net/kdt/pojavlaunch/fragments/SearchModFragment.java"
+        search_java.parent.mkdir(parents=True, exist_ok=True)
+        search_java.write_text(
+            """package net.kdt.pojavlaunch.fragments;
+import android.content.Context;
+import android.content.res.ColorStateList;
+import android.os.Bundle;
+import android.view.View;
+import android.widget.Button;
+import android.widget.EditText;
+import android.widget.ImageButton;
+import android.widget.ProgressBar;
+import android.widget.TextView;
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+import androidx.appcompat.app.AlertDialog;
+import androidx.fragment.app.Fragment;
+import net.kdt.pojavlaunch.R;
+import net.kdt.pojavlaunch.Tools;
+import net.kdt.pojavlaunch.modloaders.modpacks.ModItemAdapter;
+import net.kdt.pojavlaunch.modloaders.modpacks.api.CommonApi;
+import net.kdt.pojavlaunch.modloaders.modpacks.api.ModpackApi;
+import net.kdt.pojavlaunch.modloaders.modpacks.models.SearchFilters;
+import net.kdt.pojavlaunch.progresskeeper.ProgressKeeper;
+class SearchModFragment extends Fragment {
+    public static final String TAG = "SearchModFragment";
+    private EditText mSearchEditText;
+    private ImageButton mFilterButton;
+    private androidx.recyclerview.widget.RecyclerView mRecyclerview;
+    private ModItemAdapter mModItemAdapter;
+    private ProgressBar mSearchProgressBar;
+    private TextView mStatusTextView;
+    private ColorStateList mDefaultTextColor;
+    private ModpackApi modpackApi;
+    private final SearchFilters mSearchFilters = new SearchFilters();
+    public SearchModFragment() { mSearchFilters.isModpack = true; }
+    public void onAttach(@NonNull Context context) {
+        modpackApi = new CommonApi(context.getString(R.string.curseforge_api_key));
+    }
+    public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
+        super.onViewCreated(view, savedInstanceState);
+        mModItemAdapter = new ModItemAdapter(getResources(), modpackApi, this);
+        ProgressKeeper.addTaskCountListener(mModItemAdapter);
+        mSearchEditText = view.findViewById(R.id.search_mod_edittext);
+        mRecyclerview = view.findViewById(R.id.search_mod_list);
+        mStatusTextView = view.findViewById(R.id.search_mod_status_text);
+        mFilterButton = view.findViewById(R.id.search_mod_filter);
+        mRecyclerview.setAdapter(mModItemAdapter);
+        mFilterButton.setOnClickListener(v -> displayFilterDialog());
+        searchMods(null);
+    }
+    public void onSearchError(int error) {
+        switch (error) {
+            case ERROR_INTERNAL:
+                mStatusTextView.setText(R.string.search_modpack_error);
+                break;
+            case ERROR_NO_RESULTS:
+                mStatusTextView.setText(R.string.search_modpack_no_result);
+                break;
+        }
+    }
+    private void searchMods(String name) {
+        mSearchFilters.name = name == null ? "" : name;
+    }
+    private void displayFilterDialog() {
+    }
+}
+""",
+            encoding="utf-8",
+        )
+        search_layout = app / "src/main/res/layout/fragment_mod_search.xml"
+        search_layout.parent.mkdir(parents=True, exist_ok=True)
+        search_layout.write_text(
+            """<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools">
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/search_mod_overlay">
+        <EditText
+            android:id="@+id/search_mod_edittext"
+            app:layout_constraintEnd_toStartOf="@id/search_mod_filter" />
+        <ImageButton android:id="@+id/search_mod_filter" />
+        <ProgressBar
+            android:id="@+id/search_mod_progressbar"
+            app:layout_constraintTop_toBottomOf="@+id/search_mod_edittext"
+            tools:layout_editor_absoluteX="13dp" />
+    </androidx.constraintlayout.widget.ConstraintLayout>
+</androidx.constraintlayout.widget.ConstraintLayout>
+""",
+            encoding="utf-8",
+        )
+
         auth_selector = app / "src/main/java/net/kdt/pojavlaunch/fragments/SelectAuthFragment.java"
         auth_selector.write_text(
             """import static net.kdt.pojavlaunch.Tools.hasNoOnlineProfileDialog;
