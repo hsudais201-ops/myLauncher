@@ -832,6 +832,430 @@ def patch_upstream(upstream: Path) -> None:
         raise ValueError("The account, graphics, or controls shortcut binding, handler, or imports are incomplete")
     main_menu.write_text(main_menu_text, encoding="utf-8")
 
+
+    # Expose the pinned engine's existing Minecraft-version profile flow and add
+    # a real Mods / Modpacks search mode. Keep this patch idempotent and fail closed
+    # when upstream APIs/layouts change unexpectedly.
+    api_dir = upstream / "app_pojavlauncher" / "src" / "main" / "java" / "net" / "kdt" / "pojavlaunch" / "modloaders" / "modpacks" / "api"
+    search_java = upstream / "app_pojavlauncher" / "src" / "main" / "java" / "net" / "kdt" / "pojavlaunch" / "fragments" / "SearchModFragment.java"
+    search_layout = upstream / "app_pojavlauncher" / "src" / "main" / "res" / "layout" / "fragment_mod_search.xml"
+    common_api = api_dir / "CommonApi.java"
+    modrinth_api = api_dir / "ModrinthApi.java"
+    curseforge_api = api_dir / "CurseforgeApi.java"
+    adapter_java = upstream / "app_pojavlauncher" / "src" / "main" / "java" / "net" / "kdt" / "pojavlaunch" / "modloaders" / "modpacks" / "ModItemAdapter.java"
+    for required_path in (api_dir, search_java, search_layout, common_api, modrinth_api, curseforge_api, adapter_java):
+        if not required_path.exists():
+            raise FileNotFoundError(f"Expected mod/version-download source is missing: {required_path}")
+
+    # The public app has no safe, built-in CurseForge API credential. Start with
+    # Modrinth, and let the user enter their approved CurseForge key locally.
+    common_text = common_api.read_text(encoding="utf-8")
+    common_old = """    public CommonApi(String curseforgeApiKey) {
+        mCurseforgeApi = new CurseforgeApi(curseforgeApiKey);
+        mModrinthApi = new ModrinthApi();
+        mModpackApis = new ModpackApi[]{mModrinthApi, mCurseforgeApi};
+    }"""
+    common_new = """    public CommonApi(String curseforgeApiKey) {
+        String key = curseforgeApiKey == null ? "" : curseforgeApiKey.trim();
+        mCurseforgeApi = key.isEmpty() || "DUMMY".equalsIgnoreCase(key)
+                ? null : new CurseforgeApi(key);
+        mModrinthApi = new ModrinthApi();
+        mModpackApis = mCurseforgeApi == null
+                ? new ModpackApi[]{mModrinthApi}
+                : new ModpackApi[]{mModrinthApi, mCurseforgeApi};
+    }"""
+    common_text = replace_idempotently(common_text, common_old, common_new, str(common_api))
+    common_old_import = "            if (isCurseforge) return mCurseforgeApi;"
+    common_new_import = """            if (isCurseforge) {
+                if (mCurseforgeApi == null) throw new IOException("CurseForge modpack import requires an approved API key.");
+                return mCurseforgeApi;
+            }"""
+    common_text = replace_idempotently(common_text, common_old_import, common_new_import, str(common_api))
+    common_api.write_text(common_text, encoding="utf-8")
+
+    # Add the user-controlled Mods/Modpacks selector and local-only API-key setup.
+    search_text = search_java.read_text(encoding="utf-8")
+    search_import_anchor = "import android.content.res.ColorStateList;"
+    if search_import_anchor not in search_text:
+        raise ValueError("Could not find SearchModFragment import insertion point")
+    if "import android.text.InputType;" not in search_text:
+        search_text = search_text.replace(search_import_anchor, search_import_anchor + "\nimport android.text.InputType;", 1)
+    if "import android.widget.Toast;" not in search_text:
+        text_import = "import android.widget.TextView;"
+        if text_import not in search_text:
+            raise ValueError("Could not add Toast import to SearchModFragment")
+        search_text = search_text.replace(text_import, text_import + "\nimport android.widget.Toast;", 1)
+
+    search_text = replace_idempotently(
+        search_text,
+        '    public static final String TAG = "SearchModFragment";',
+        '    public static final String TAG = "SearchModFragment";\n    public static final String ARG_IS_MODPACK = "mylauncher_is_modpack";',
+        str(search_java),
+    )
+    field_anchor = "    private ImageButton mFilterButton;"
+    fields_new = field_anchor + "\n    private Button mTypeToggleButton;\n    private Button mCurseForgeKeyButton;"
+    search_text = replace_idempotently(search_text, field_anchor, fields_new, str(search_java))
+
+    search_text = replace_idempotently(
+        search_text,
+        "        modpackApi = new CommonApi(context.getString(R.string.curseforge_api_key));",
+        """        String defaultKey = context.getString(R.string.curseforge_api_key);
+        String savedKey = context.getSharedPreferences("mylauncher_mod_sources", Context.MODE_PRIVATE)
+                .getString("curseforge_api_key", defaultKey);
+        modpackApi = new CommonApi(savedKey);""",
+        str(search_java),
+    )
+    view_anchor = "        super.onViewCreated(view, savedInstanceState);"
+    view_replacement = view_anchor + """
+        Bundle searchArguments = getArguments();
+        if (searchArguments != null && searchArguments.containsKey(ARG_IS_MODPACK)) {
+            mSearchFilters.isModpack = searchArguments.getBoolean(ARG_IS_MODPACK, true);
+        }"""
+    search_text = replace_idempotently(search_text, view_anchor, view_replacement, str(search_java))
+
+    search_text = replace_idempotently(
+        search_text,
+        "        mFilterButton = view.findViewById(R.id.search_mod_filter);",
+        """        mFilterButton = view.findViewById(R.id.search_mod_filter);
+        mTypeToggleButton = view.findViewById(R.id.search_mod_type_toggle);
+        mCurseForgeKeyButton = view.findViewById(R.id.search_mod_curseforge_key);""",
+        str(search_java),
+    )
+    search_text = replace_idempotently(
+        search_text,
+        "        mFilterButton.setOnClickListener(v -> displayFilterDialog());",
+        """        updateSearchModeLabel();
+        mTypeToggleButton.setOnClickListener(v -> {
+            mSearchFilters.isModpack = !mSearchFilters.isModpack;
+            updateSearchModeLabel();
+            searchMods(mSearchEditText.getText().toString());
+        });
+        mCurseForgeKeyButton.setOnClickListener(v -> showCurseForgeKeyDialog());
+        mFilterButton.setOnClickListener(v -> displayFilterDialog());""",
+        str(search_java),
+    )
+    search_text = replace_idempotently(
+        search_text,
+        "        searchMods(null);",
+        """        searchMods(null);
+        if (isCurseForgeKeyMissing(getConfiguredCurseForgeKey())) {
+            view.post(() -> {
+                if (isAdded()) showCurseForgeKeyDialog();
+            });
+        }""",
+        str(search_java),
+    )
+
+    search_text = replace_idempotently(
+        search_text,
+        "                mStatusTextView.setText(R.string.search_modpack_error);",
+        """                mStatusTextView.setText(mSearchFilters.isModpack
+                        ? R.string.search_modpack_error : R.string.mylauncher_search_mods_error);""",
+        str(search_java),
+    )
+    search_text = replace_idempotently(
+        search_text,
+        "                mStatusTextView.setText(R.string.search_modpack_no_result);",
+        """                mStatusTextView.setText(mSearchFilters.isModpack
+                        ? R.string.search_modpack_no_result : R.string.mylauncher_search_mods_no_result);""",
+        str(search_java),
+    )
+
+    search_methods_anchor = "    private void displayFilterDialog() {"
+    search_methods = """    private void updateSearchModeLabel() {
+        mTypeToggleButton.setText(mSearchFilters.isModpack
+                ? R.string.mylauncher_search_mode_modpacks : R.string.mylauncher_search_mode_mods);
+    }
+
+    private String getConfiguredCurseForgeKey() {
+        String fallback = getString(R.string.curseforge_api_key);
+        return requireContext().getSharedPreferences("mylauncher_mod_sources", Context.MODE_PRIVATE)
+                .getString("curseforge_api_key", fallback).trim();
+    }
+
+    private boolean isCurseForgeKeyMissing(String key) {
+        return key == null || key.trim().isEmpty() || "DUMMY".equalsIgnoreCase(key.trim());
+    }
+
+    private void showCurseForgeKeyDialog() {
+        EditText keyInput = new EditText(requireContext());
+        keyInput.setSingleLine(true);
+        keyInput.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD);
+        String currentKey = getConfiguredCurseForgeKey();
+        if (!isCurseForgeKeyMissing(currentKey)) keyInput.setText(currentKey);
+        AlertDialog dialog = new AlertDialog.Builder(requireContext())
+                .setTitle(R.string.mylauncher_curseforge_key_title)
+                .setMessage(R.string.mylauncher_curseforge_key_message)
+                .setView(keyInput)
+                .setPositiveButton(android.R.string.ok, null)
+                .setNeutralButton(R.string.mylauncher_curseforge_get_key,
+                        (d, which) -> Tools.openURL(requireActivity(), "https://console.curseforge.com/"))
+                .setNegativeButton(android.R.string.cancel, null)
+                .create();
+        dialog.setOnShowListener(ignored -> dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v -> {
+            String key = keyInput.getText().toString().trim();
+            if (isCurseForgeKeyMissing(key)) {
+                Toast.makeText(requireContext(), R.string.mylauncher_curseforge_key_message, Toast.LENGTH_LONG).show();
+                return;
+            }
+            requireContext().getSharedPreferences("mylauncher_mod_sources", Context.MODE_PRIVATE)
+                    .edit().putString("curseforge_api_key", key).apply();
+            modpackApi = new CommonApi(key);
+            if (mModItemAdapter != null && mRecyclerview != null) {
+                ProgressKeeper.removeTaskCountListener(mModItemAdapter);
+                mModItemAdapter = new ModItemAdapter(getResources(), modpackApi, this);
+                ProgressKeeper.addTaskCountListener(mModItemAdapter);
+                mRecyclerview.setAdapter(mModItemAdapter);
+                searchMods(mSearchEditText.getText().toString());
+            }
+            Toast.makeText(requireContext(), R.string.mylauncher_curseforge_key_saved, Toast.LENGTH_SHORT).show();
+            dialog.dismiss();
+        }));
+        dialog.show();
+    }
+
+"""
+    if search_methods_anchor not in search_text:
+        raise ValueError("Could not find SearchModFragment method insertion point")
+    if "private void updateSearchModeLabel()" not in search_text:
+        search_text = search_text.replace(search_methods_anchor, search_methods + search_methods_anchor, 1)
+    if (
+        search_text.count("public static final String ARG_IS_MODPACK") != 1
+        or search_text.count("private void updateSearchModeLabel()") != 1
+        or search_text.count("private void showCurseForgeKeyDialog()") != 1
+        or "mSearchFilters.isModpack = !mSearchFilters.isModpack;" not in search_text
+        or 'putString("curseforge_api_key", key)' not in search_text
+        or "new CommonApi(savedKey)" not in search_text
+        or "mylauncher_search_mods_error" not in search_text
+    ):
+        raise ValueError("Modrinth/CurseForge search mode or local API-key handling is incomplete")
+    search_java.write_text(search_text, encoding="utf-8")
+
+    # Add the second toolbar row with source setup and a toggle between mods and modpacks.
+    layout_text = search_layout.read_text(encoding="utf-8")
+    layout_text = replace_idempotently(
+        layout_text,
+        'app:layout_constraintEnd_toStartOf="@id/search_mod_filter"',
+        'app:layout_constraintEnd_toStartOf="@id/search_mod_filter"',
+        str(search_layout),
+    )
+    search_layout_buttons = """        <Button
+            android:id="@+id/search_mod_type_toggle"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:text="@string/mylauncher_search_mode_modpacks"
+            android:textAllCaps="false"
+            android:textSize="12sp"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toStartOf="@id/search_mod_curseforge_key"
+            app:layout_constraintTop_toBottomOf="@id/search_mod_edittext" />
+
+        <Button
+            android:id="@+id/search_mod_curseforge_key"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:text="@string/mylauncher_curseforge_key_title"
+            android:textAllCaps="false"
+            android:textSize="12sp"
+            app:layout_constraintStart_toEndOf="@id/search_mod_type_toggle"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/search_mod_edittext" />
+
+"""
+    if 'android:id="@+id/search_mod_type_toggle"' not in layout_text:
+        layout_anchor = '        <ProgressBar\n            android:id="@+id/search_mod_progressbar"'
+        if layout_anchor not in layout_text:
+            raise ValueError("Could not find mod search layout insertion point for source controls")
+        layout_text = layout_text.replace(layout_anchor, search_layout_buttons + layout_anchor, 1)
+    layout_text = replace_idempotently(
+        layout_text,
+        'app:layout_constraintTop_toBottomOf="@+id/search_mod_edittext"\n            tools:layout_editor_absoluteX="13dp" />',
+        'app:layout_constraintTop_toBottomOf="@id/search_mod_type_toggle"\n            tools:layout_editor_absoluteX="13dp" />',
+        str(search_layout),
+    )
+    if (
+        layout_text.count('android:id="@+id/search_mod_type_toggle"') != 1
+        or layout_text.count('android:id="@+id/search_mod_curseforge_key"') != 1
+        or 'app:layout_constraintTop_toBottomOf="@id/search_mod_type_toggle"' not in layout_text
+    ):
+        raise ValueError("Mods/Modpacks toggle or CurseForge API-key button is incomplete")
+    search_layout.write_text(layout_text, encoding="utf-8")
+
+    # The old browser only installed whole modpacks. Add a verified, per-profile
+    # JAR install path for individual Modrinth/CurseForge mods.
+    modrinth_text = modrinth_api.read_text(encoding="utf-8")
+    modrinth_text = replace_idempotently(
+        modrinth_text,
+        """        //TODO considering only modpacks for now
+        return ModpackInstaller.installModpack(modDetail, selectedVersion, this::installMrpack);""",
+        """        if (!modDetail.isModpack) {
+            ModFileInstaller.install(modDetail, selectedVersion);
+            return null;
+        }
+        return ModpackInstaller.installModpack(modDetail, selectedVersion, this::installMrpack);""",
+        str(modrinth_api),
+    )
+    modrinth_api.write_text(modrinth_text, encoding="utf-8")
+
+    curseforge_text = curseforge_api.read_text(encoding="utf-8")
+    curseforge_text = replace_idempotently(
+        curseforge_text,
+        """        //TODO considering only modpacks for now
+        return ModpackInstaller.installModpack(modDetail, selectedVersion, this::installCurseforgeZip);""",
+        """        if (!modDetail.isModpack) {
+            ModFileInstaller.install(modDetail, selectedVersion);
+            return null;
+        }
+        return ModpackInstaller.installModpack(modDetail, selectedVersion, this::installCurseforgeZip);""",
+        str(curseforge_api),
+    )
+    curseforge_api.write_text(curseforge_text, encoding="utf-8")
+
+    adapter_text = adapter_java.read_text(encoding="utf-8")
+    adapter_text = replace_idempotently(
+        adapter_text,
+        """        private void setDetailedStateDefault() {
+            setInstallEnabled(false);
+            mExtendedSpinner.setAdapter(mLoadingAdapter);""",
+        """        private void setDetailedStateDefault() {
+            setInstallEnabled(false);
+            mExtendedButton.setText(mModItem.isModpack
+                    ? R.string.modpack_install_button : R.string.mylauncher_install_mod);
+            mExtendedSpinner.setAdapter(mLoadingAdapter);""",
+        str(adapter_java),
+    )
+    adapter_java.write_text(adapter_text, encoding="utf-8")
+
+    mod_file_installer = api_dir / "ModFileInstaller.java"
+    mod_file_installer_source = """package net.kdt.pojavlaunch.modloaders.modpacks.api;
+
+import android.net.Uri;
+
+import com.kdt.mcgui.ProgressLayout;
+
+import net.kdt.pojavlaunch.R;
+import net.kdt.pojavlaunch.Tools;
+import net.kdt.pojavlaunch.modloaders.modpacks.models.ModDetail;
+import net.kdt.pojavlaunch.prefs.LauncherPreferences;
+import net.kdt.pojavlaunch.progresskeeper.DownloaderProgressWrapper;
+import net.kdt.pojavlaunch.utils.DownloadUtils;
+import net.kdt.pojavlaunch.value.launcherprofiles.LauncherProfiles;
+import net.kdt.pojavlaunch.value.launcherprofiles.MinecraftProfile;
+
+import java.io.File;
+import java.io.IOException;
+import java.util.Locale;
+import java.util.concurrent.Callable;
+import java.util.zip.ZipFile;
+
+/** Installs one compatible mod JAR into the currently selected profile. */
+public final class ModFileInstaller {
+    private ModFileInstaller() {}
+
+    public static void install(ModDetail detail, int selectedVersion) throws IOException {
+        if (detail == null || detail.isModpack || detail.versionUrls == null
+                || selectedVersion < 0 || selectedVersion >= detail.versionUrls.length) {
+            throw new IOException("The selected mod version is not available.");
+        }
+        String url = detail.versionUrls[selectedVersion];
+        String sha1 = detail.versionHashes != null && selectedVersion < detail.versionHashes.length
+                ? detail.versionHashes[selectedVersion] : null;
+        String fileName = validateModUrlAndGetFilename(url);
+
+        LauncherProfiles.load();
+        if (LauncherProfiles.mainProfileJson == null || LauncherProfiles.mainProfileJson.profiles == null) {
+            throw new IOException("No launcher profiles are available yet.");
+        }
+        String selectedProfile = LauncherPreferences.DEFAULT_PREF.getString(
+                LauncherPreferences.PREF_KEY_CURRENT_PROFILE, null);
+        MinecraftProfile profile = LauncherProfiles.mainProfileJson.profiles.get(selectedProfile);
+        if (profile == null) {
+            throw new IOException("Select or create a Minecraft profile before installing a mod.");
+        }
+
+        File gameDirectory = Tools.getGameDirPath(profile);
+        File modsDirectory = new File(gameDirectory, "mods");
+        if (!modsDirectory.isDirectory() && !modsDirectory.mkdirs()) {
+            throw new IOException("Could not create the selected profile's mods folder: " + modsDirectory);
+        }
+        if (!modsDirectory.isDirectory()) {
+            throw new IOException("The selected profile's mods path is not a directory: " + modsDirectory);
+        }
+
+        File temporary = new File(modsDirectory, fileName + ".download");
+        File destination = new File(modsDirectory, fileName);
+        File backup = new File(modsDirectory, fileName + ".previous");
+        ProgressLayout.setProgress(ProgressLayout.INSTALL_MODPACK, 0, R.string.global_waiting);
+        try {
+            if (temporary.exists() && !temporary.delete()) {
+                throw new IOException("Could not clear an earlier partial mod download.");
+            }
+            byte[] buffer = new byte[8192];
+            DownloaderProgressWrapper feedback = new DownloaderProgressWrapper(
+                    R.string.mylauncher_download_mod_progress, ProgressLayout.INSTALL_MODPACK);
+            if (sha1 != null && !sha1.trim().isEmpty()) {
+                DownloadUtils.ensureSha1(temporary, sha1, (Callable<Void>) () -> {
+                    DownloadUtils.downloadFileMonitored(url, temporary, buffer, feedback);
+                    return null;
+                });
+            } else {
+                DownloadUtils.downloadFileMonitored(url, temporary, buffer, feedback);
+            }
+
+            if (!temporary.isFile() || temporary.length() == 0) {
+                throw new IOException("The mod download returned an empty file.");
+            }
+            try (ZipFile jar = new ZipFile(temporary)) {
+                if (jar.size() == 0) throw new IOException("The downloaded mod JAR is empty.");
+            }
+
+            if (backup.exists() && !backup.delete()) {
+                throw new IOException("Could not clear the temporary backup before replacing a mod.");
+            }
+            boolean hadPreviousFile = destination.exists();
+            if (hadPreviousFile && !destination.renameTo(backup)) {
+                throw new IOException("Could not safely replace the existing mod file.");
+            }
+            if (!temporary.renameTo(destination)) {
+                if (hadPreviousFile) backup.renameTo(destination);
+                throw new IOException("Could not move the verified mod into the mods folder.");
+            }
+            if (hadPreviousFile) backup.delete();
+        } finally {
+            temporary.delete();
+            ProgressLayout.clearProgress(ProgressLayout.INSTALL_MODPACK);
+        }
+    }
+
+    private static String validateModUrlAndGetFilename(String url) throws IOException {
+        if (url == null || url.trim().isEmpty()) throw new IOException("No download URL was provided.");
+        Uri uri = Uri.parse(url);
+        String host = uri.getHost();
+        boolean trustedHost = host != null && (
+                "cdn.modrinth.com".equalsIgnoreCase(host)
+                || host.toLowerCase(Locale.ROOT).endsWith(".modrinth.com")
+                || host.toLowerCase(Locale.ROOT).endsWith(".forgecdn.net")
+                || host.toLowerCase(Locale.ROOT).endsWith(".cursecdn.com"));
+        if (!"https".equalsIgnoreCase(uri.getScheme()) || !trustedHost) {
+            throw new IOException("The mod download URL is not from a supported HTTPS mod provider.");
+        }
+        String fileName = uri.getLastPathSegment();
+        if (fileName == null || fileName.isEmpty() || !new File(fileName).getName().equals(fileName)
+                || ".".equals(fileName) || "..".equals(fileName)
+                || !fileName.toLowerCase(Locale.ROOT).endsWith(".jar")) {
+            throw new IOException("The provider did not supply a valid .jar mod file.");
+        }
+        return fileName;
+    }
+}
+"""
+    if mod_file_installer.exists():
+        if mod_file_installer.read_text(encoding="utf-8") != mod_file_installer_source:
+            raise ValueError("ModFileInstaller.java already exists with unexpected content; refusing to overwrite it")
+    else:
+        mod_file_installer.write_text(mod_file_installer_source, encoding="utf-8")
+
+
     # Replace the upstream launcher artwork with a small vector mark that scales cleanly.
     manifest = upstream / "app_pojavlauncher" / "src" / "main" / "AndroidManifest.xml"
     if not manifest.is_file():
@@ -1387,6 +1811,7 @@ public final class PerformanceOverlayView extends TextView {
         login_layout,
         upstream / "app_pojavlauncher" / "src" / "main" / "res" / "layout" / "fragment_launcher.xml",
         upstream / "app_pojavlauncher" / "src" / "main" / "res" / "layout-land" / "fragment_launcher.xml",
+        upstream / "app_pojavlauncher" / "src" / "main" / "res" / "layout" / "fragment_mod_search.xml",
         pref_control,
         menu_arrays,
         manifest,
