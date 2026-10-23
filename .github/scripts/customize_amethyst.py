@@ -907,7 +907,7 @@ def patch_upstream(upstream: Path) -> None:
         modpackApi = new CommonApi(savedKey);""",
         str(search_java),
     )
-    view_anchor = "        super.onViewCreated(view, savedInstanceState);"
+    view_anchor = "    public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {"
     view_replacement = view_anchor + """
         Bundle searchArguments = getArguments();
         if (searchArguments != null && searchArguments.containsKey(ARG_IS_MODPACK)) {
