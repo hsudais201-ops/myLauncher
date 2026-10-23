@@ -134,6 +134,20 @@ jobs:
         run: |
           python3 voidcraft/tools/integrate_amethyst.py engine/Amethyst-Android
 
+      - name: Verify selected-version handoff wiring
+        shell: bash
+        run: |
+          set -euo pipefail
+          ENGINE_ACTIVITY="engine/Amethyst-Android/app_pojavlauncher/src/main/java/net/kdt/pojavlaunch/LauncherActivity.java"
+          VOIDCRAFT_MAIN="voidcraft/app/src/main/java/com/voidcraft/launcher/MainActivity.kt"
+          grep -Fq 'voidcraft.selected_version' "$ENGINE_ACTIVITY"
+          grep -Fq 'applyVoidcraftSelectedVersion();' "$ENGINE_ACTIVITY"
+          grep -Fq 'clientJar.length() != expectedSize' "$ENGINE_ACTIVITY"
+          grep -Fq 'MessageDigest.getInstance("SHA-1")' "$ENGINE_ACTIVITY"
+          grep -Fq 'voidcraft.selected_version' "$VOIDCRAFT_MAIN"
+          grep -Fq 'profiles.containsKey(profileId)' "$ENGINE_ACTIVITY"
+          echo "Selected-version handoff, client size/hash validation, and profile fallback are wired."
+
       - name: Build the combined Voidcraft debug APK
         working-directory: engine/Amethyst-Android
         run: ./gradlew :app_pojavlauncher:assembleDebug --stacktrace
