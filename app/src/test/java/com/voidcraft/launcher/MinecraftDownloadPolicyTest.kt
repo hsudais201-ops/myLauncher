@@ -1,6 +1,7 @@
 package com.voidcraft.launcher
 
 import java.net.URL
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -98,6 +99,51 @@ class MinecraftDownloadPolicyTest {
             isApprovedMinecraftVersionManifestUrl(
                 URL("https://piston-meta.mojang.com:8443/mc/game/version_manifest_v2.json")
             )
+        )
+    }
+
+    @Test
+    fun resolvesRelativeRedirectsOnlyWithinApprovedHttpsHosts() {
+        val hosts = setOf("libraries.minecraft.net", "release-assets.githubusercontent.com")
+        val original = URL("https://libraries.minecraft.net/com/example.jar")
+        assertEquals(
+            URL("https://libraries.minecraft.net/com/next.jar"),
+            resolveTrustedDownloadRedirect(original, "next.jar", hosts)
+        )
+        assertEquals(
+            URL("https://release-assets.githubusercontent.com/download/file?token=sample"),
+            resolveTrustedDownloadRedirect(
+                original,
+                "https://release-assets.githubusercontent.com/download/file?token=sample",
+                hosts
+            )
+        )
+    }
+
+    @Test(expected = IllegalArgumentException::class)
+    fun rejectsRedirectToPlainHttp() {
+        resolveTrustedDownloadRedirect(
+            URL("https://libraries.minecraft.net/example.jar"),
+            "http://libraries.minecraft.net/redirected.jar",
+            setOf("libraries.minecraft.net")
+        )
+    }
+
+    @Test(expected = IllegalArgumentException::class)
+    fun rejectsRedirectToUntrustedHost() {
+        resolveTrustedDownloadRedirect(
+            URL("https://libraries.minecraft.net/example.jar"),
+            "https://attacker.example/redirected.jar",
+            setOf("libraries.minecraft.net")
+        )
+    }
+
+    @Test(expected = IllegalArgumentException::class)
+    fun rejectsRedirectWithEmbeddedCredentialsOrCustomPort() {
+        resolveTrustedDownloadRedirect(
+            URL("https://libraries.minecraft.net/example.jar"),
+            "https://user@libraries.minecraft.net:8443/redirected.jar",
+            setOf("libraries.minecraft.net")
         )
     }
 }
