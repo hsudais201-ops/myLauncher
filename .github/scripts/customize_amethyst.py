@@ -110,6 +110,8 @@ def patch_upstream(upstream: Path) -> None:
         '<string name="mylauncher_version_download_failed">Could not download this Minecraft version.</string>',
         '<string name="mylauncher_version_download_no_selection">Choose a version first.</string>',
         '<string name="mylauncher_version_download_unavailable">That version is not in the official version list. Select a release, snapshot, or older version.</string>',
+        '<string name="mylauncher_version_list_loading">Loading Minecraft version list…</string>',
+        '<string name="mylauncher_version_list_failed">Could not load the Minecraft version list. Check internet and tap Choose Minecraft version to retry.</string>',
         '<string name="mylauncher_modrinth_curseforge">Modrinth &amp; CurseForge</string>',
         '<string name="mylauncher_install_mod">Install mod</string>',
         '<string name="mylauncher_mod_install_success">Mod installed in the selected profile.</string>',
@@ -642,6 +644,17 @@ def patch_upstream(upstream: Path) -> None:
     if not launcher_activity.is_file():
         raise FileNotFoundError(f"Expected launcher activity is missing: {launcher_activity}")
     activity_text = launcher_activity.read_text(encoding="utf-8")
+    activity_text = replace_idempotently(
+        activity_text,
+        '                ModLoader loaderInfo = new CommonApi(getString(R.string.curseforge_api_key)).importModpack(modpackFile);',
+        '''                String curseForgeApiKey = getSharedPreferences("mylauncher_mod_sources", MODE_PRIVATE)
+                        .getString("curseforge_api_key", getString(R.string.curseforge_api_key));
+                ModLoader loaderInfo = new CommonApi(curseForgeApiKey).importModpack(modpackFile);''',
+        str(launcher_activity),
+    )
+    if "new CommonApi(curseForgeApiKey).importModpack(modpackFile)" not in activity_text:
+        raise ValueError("CurseForge modpack import does not reuse the device-local API key")
+    launcher_activity.write_text(activity_text, encoding="utf-8")
     if (
         "ExtraCore.addExtraListener(ExtraConstants.SELECT_AUTH_METHOD, mSelectAuthMethod);" not in activity_text
         or "Tools.swapFragment(this, SelectAuthFragment.class, SelectAuthFragment.TAG, null);" not in activity_text
@@ -869,8 +882,11 @@ import com.kdt.mcgui.ProgressLayout;
 import net.kdt.pojavlaunch.JMinecraftVersionList;
 import net.kdt.pojavlaunch.R;
 import net.kdt.pojavlaunch.Tools;
+import net.kdt.pojavlaunch.extra.ExtraConstants;
+import net.kdt.pojavlaunch.extra.ExtraCore;
 import net.kdt.pojavlaunch.profiles.VersionSelectorDialog;
 import net.kdt.pojavlaunch.tasks.AsyncMinecraftDownloader;
+import net.kdt.pojavlaunch.tasks.AsyncVersionList;
 import net.kdt.pojavlaunch.tasks.MinecraftDownloader;
 import net.kdt.pojavlaunch.value.launcherprofiles.MinecraftProfile;
 
@@ -901,12 +917,57 @@ public final class VersionDownloadFragment extends Fragment {
         updateSelectedVersionText();
         mStatusText.setText(R.string.mylauncher_version_download_hint);
 
-        mSelectVersionButton.setOnClickListener(v -> VersionSelectorDialog.open(
-                v.getContext(), true, (id, snapshot) -> {
-                    mSelectedVersionId = AsyncMinecraftDownloader.normalizeVersionId(id);
-                    updateSelectedVersionText();
-                }));
+        mSelectVersionButton.setOnClickListener(v -> {
+            JMinecraftVersionList versions = (JMinecraftVersionList) ExtraCore.getValue(ExtraConstants.RELEASE_TABLE);
+            if (versions == null || versions.versions == null || versions.versions.length == 0) {
+                ensureVersionListAvailable();
+                return;
+            }
+            VersionSelectorDialog.open(v.getContext(), true, (id, snapshot) -> {
+                mSelectedVersionId = AsyncMinecraftDownloader.normalizeVersionId(id);
+                updateSelectedVersionText();
+            });
+        });
         mDownloadButton.setOnClickListener(v -> startVersionDownload());
+        ensureVersionListAvailable();
+    }
+
+    private void ensureVersionListAvailable() {
+        JMinecraftVersionList current = (JMinecraftVersionList) ExtraCore.getValue(ExtraConstants.RELEASE_TABLE);
+        if (current != null && current.versions != null && current.versions.length > 0) {
+            mSelectedVersionId = AsyncMinecraftDownloader.normalizeVersionId(MinecraftProfile.LATEST_RELEASE);
+            updateSelectedVersionText();
+            mSelectVersionButton.setEnabled(true);
+            mDownloadButton.setEnabled(true);
+            mDownloadProgress.setVisibility(View.GONE);
+            mStatusText.setText(R.string.mylauncher_version_download_hint);
+            return;
+        }
+
+        mSelectVersionButton.setEnabled(false);
+        mDownloadButton.setEnabled(false);
+        mDownloadProgress.setVisibility(View.VISIBLE);
+        mStatusText.setText(R.string.mylauncher_version_list_loading);
+        new AsyncVersionList().getVersionList(versions -> {
+            if (versions != null && versions.versions != null && versions.versions.length > 0) {
+                ExtraCore.setValue(ExtraConstants.RELEASE_TABLE, versions);
+            }
+            Tools.runOnUiThread(() -> {
+                if (!isAdded() || getView() == null) return;
+                JMinecraftVersionList loaded = (JMinecraftVersionList) ExtraCore.getValue(ExtraConstants.RELEASE_TABLE);
+                boolean available = loaded != null && loaded.versions != null && loaded.versions.length > 0;
+                mDownloadProgress.setVisibility(View.GONE);
+                mSelectVersionButton.setEnabled(true);
+                mDownloadButton.setEnabled(available);
+                if (available) {
+                    mSelectedVersionId = AsyncMinecraftDownloader.normalizeVersionId(MinecraftProfile.LATEST_RELEASE);
+                    updateSelectedVersionText();
+                    mStatusText.setText(R.string.mylauncher_version_download_hint);
+                } else {
+                    mStatusText.setText(R.string.mylauncher_version_list_failed);
+                }
+            });
+        }, false);
     }
 
     private void updateSelectedVersionText() {
