@@ -954,10 +954,15 @@ class BuildWorkflowTests(unittest.TestCase):
         self.assertIn('sha256sum "$(basename "$APK")"', self.workflow)
         self.assertIn("${{ env.APK_SHA256_PATH }}", self.workflow)
         self.assertIn("APK SHA-256:", self.workflow)
-        self.assertIn("adb shell pm grant com.mf.mylauncher.debug android.permission.POST_NOTIFICATIONS", self.workflow)
-        self.assertIn("adb shell dumpsys window windows > upstream/mylauncher-windows.txt", self.workflow)
-        self.assertIn("mCurrentFocus=.*com[.]mf[.]mylauncher[.]debug/net[.]kdt[.]pojavlaunch[.]LauncherActivity", self.workflow)
-        self.assertIn("upstream/mylauncher-windows.txt", self.workflow)
+        self.assertIn('bash .github/scripts/emulator_smoke_test.sh "$APK_PATH"', self.workflow)
+        smoke_test = (Path(__file__).parent / "emulator_smoke_test.sh").read_text(encoding="utf-8")
+        self.assertIn("adb shell pm grant com.mf.mylauncher.debug android.permission.POST_NOTIFICATIONS", smoke_test)
+        self.assertIn("adb shell dumpsys activity activities > upstream/mylauncher-activities.txt", smoke_test)
+        self.assertIn("adb shell dumpsys window windows > upstream/mylauncher-windows.txt", smoke_test)
+        self.assertIn("ResumedActivity:.*com[.]mf[.]mylauncher[.]debug/net[.]kdt[.]pojavlaunch[.]LauncherActivity", smoke_test)
+        self.assertIn("! grep -Fq 'Splash Screen com.mf.mylauncher.debug' upstream/mylauncher-windows.txt", smoke_test)
+        self.assertIn("adb shell run-as com.mf.mylauncher.debug kill -3", smoke_test)
+        self.assertNotIn("mCurrentFocus=.*com[.]mf[.]mylauncher[.]debug/net[.]kdt[.]pojavlaunch[.]LauncherActivity", self.workflow)
 
 
 if __name__ == "__main__":
