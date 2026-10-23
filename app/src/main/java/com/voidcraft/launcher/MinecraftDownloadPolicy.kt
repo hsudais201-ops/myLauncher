@@ -32,6 +32,23 @@ internal fun isApprovedHttpsDownloadUrl(url: URL, allowedHosts: Set<String>): Bo
         hasNoEmbeddedCredentials(url) &&
         usesStandardHttpsPort(url)
 
+/**
+ * Resolves a Location header and validates it before the caller opens the destination connection.
+ */
+internal fun resolveTrustedDownloadRedirect(
+    currentUrl: URL,
+    location: String,
+    allowedHosts: Set<String>
+): URL {
+    require(location.isNotBlank()) { "Download redirect has no destination" }
+    val next = runCatching { URL(currentUrl, location) }
+        .getOrElse { error("Download server returned an invalid redirect URL") }
+    require(isApprovedHttpsDownloadUrl(next, allowedHosts)) {
+        "Blocked a redirect outside the trusted HTTPS host allowlist"
+    }
+    return next
+}
+
 private fun usesStandardHttpsPort(url: URL): Boolean =
     url.port == -1 || url.port == 443
 
