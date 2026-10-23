@@ -26,6 +26,8 @@ public class LauncherActivity {
         self.assertIn('getIntent().getStringExtra("voidcraft.selected_version")', patched)
         self.assertIn("LauncherProfiles.write();", patched)
         self.assertIn('new File(Tools.DIR_HOME_VERSION, requestedVersion)', patched)
+        self.assertIn('profiles.containsKey(profileId)', patched)
+        self.assertIn('PREF_KEY_CURRENT_PROFILE, profileId).apply()', patched)
         self.assertIn('versionJson.optString("id", "")', patched)
         self.assertIn('client.optString("sha1", "")', patched)
         self.assertIn('clientJar.length() != expectedSize', patched)
