@@ -51,6 +51,12 @@ private const val MAX_RUNTIME_ARCHIVE_ENTRIES = 250_000
 private const val RUNTIME_DOWNLOAD_BASE =
     "https://github.com/AngelAuraMC/angelauramc-openjdk-build/releases/download"
 
+private val trustedRuntimeDownloadHosts = setOf(
+    "github.com",
+    "release-assets.githubusercontent.com",
+    "objects.githubusercontent.com"
+)
+
 private data class JavaRuntimeAsset(
     val majorVersion: Int,
     val architecture: String,
@@ -359,14 +365,17 @@ fun JavaRuntimeManagerScreen(onBack: () -> Unit) {
 }
 
 private fun installJavaRuntime(context: Context, asset: JavaRuntimeAsset): String {
-    val connection = (URL(asset.downloadUrl).openConnection() as HttpURLConnection).apply {
-        connectTimeout = 15_000
-        readTimeout = 30_000
-        requestMethod = "GET"
-        instanceFollowRedirects = true
-        setRequestProperty("User-Agent", "Voidcraft-Android-Launcher/0.1")
-        setRequestProperty("Accept", "application/octet-stream")
+    val runtimeUrl = URL(asset.downloadUrl)
+    check(isApprovedHttpsDownloadUrl(runtimeUrl, trustedRuntimeDownloadHosts)) {
+        "The Java runtime URL is not from the approved GitHub release hosts."
     }
+    val connection = openTrustedGetConnection(
+        runtimeUrl,
+        trustedRuntimeDownloadHosts,
+        15_000,
+        30_000,
+        "application/octet-stream"
+    )
     val archive = File(context.cacheDir, asset.fileName)
     val baseDirectory = File(context.filesDir, "java-runtimes").apply {
         check(mkdirs() || isDirectory) { "Could not create the Java runtime folder." }
