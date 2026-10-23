@@ -254,6 +254,88 @@ class SelectAuthFragment {
             encoding="utf-8",
         )
 
+        (app / "src/main/res/values/headings_array.xml").write_text(
+            """<resources>
+    <string-array name="menu_ingame">
+        <item>@string/control_forceclose</item>
+        <item>@string/control_viewout</item>
+        <item>@string/control_customkey</item>
+        <item>@string/quick_setting_title</item>
+        <item>@string/mcl_option_customcontrol</item>
+    </string-array>
+</resources>
+""",
+            encoding="utf-8",
+        )
+        pref_control = app / "src/main/res/xml/pref_control.xml"
+        pref_control.parent.mkdir(parents=True, exist_ok=True)
+        pref_control.write_text(
+            '<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android" '
+            'xmlns:app2="http://schemas.android.com/apk/res-auto"></PreferenceScreen>\n',
+            encoding="utf-8",
+        )
+
+        main_activity = app / "src/main/java/net/kdt/pojavlaunch/MainActivity.java"
+        main_activity.write_text(
+            """package net.kdt.pojavlaunch;
+import android.widget.FrameLayout;
+class MainActivity {
+    private FrameLayout contentFrame;
+    private ControlLayout mControlLayout;
+    private GyroControl mGyroControl;
+    private void bindMenu() {
+        switch(position) {
+            case 4: openCustomControls(); break;
+        }
+    }
+    private void loadControls() {
+        mControlLayout.toggleControlVisible();
+    }
+    public void onAttachedToWindow() {
+        mControlLayout.post(() -> {
+            Tools.getDisplayMetrics(this);
+            loadControls();
+        });
+    }
+    public void onResume() {
+        super.onResume();
+    }
+    protected void onPause() {
+        mGyroControl.disable();
+    }
+    private void openCustomControls() {
+    }
+}
+""",
+            encoding="utf-8",
+        )
+
+        jre_utils = app / "src/main/java/net/kdt/pojavlaunch/utils/JREUtils.java"
+        jre_utils.parent.mkdir(parents=True, exist_ok=True)
+        jre_utils.write_text(
+            """package net.kdt.pojavlaunch.utils;
+class JREUtils {
+    public static native int[] renderAWTScreenFrame(/* Object canvas, int width, int height */);
+}
+""",
+            encoding="utf-8",
+        )
+
+        egl_bridge = app / "src/main/jni/egl_bridge.c"
+        egl_bridge.parent.mkdir(parents=True, exist_ok=True)
+        egl_bridge.write_text(
+            """#include <jni.h>
+#include <stdint.h>
+#define EXTERNAL_API __attribute__((used))
+#define ABI_COMPAT __attribute__((unused))
+void br_swap_buffers(void) {}
+EXTERNAL_API void pojavSwapBuffers() {
+    br_swap_buffers();
+}
+""",
+            encoding="utf-8",
+        )
+
     def test_patches_branding_and_ids(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
@@ -304,6 +386,33 @@ class SelectAuthFragment {
             self.assertIn("LauncherPreferenceControlFragment.class", main_menu)
             self.assertIn("LauncherActivity.SETTING_FRAGMENT_TAG", main_menu)
             self.assertIn("import net.kdt.pojavlaunch.prefs.screens.LauncherPreferenceControlFragment;", main_menu)
+            main_activity = (root / "app_pojavlauncher/src/main/java/net/kdt/pojavlaunch/MainActivity.java").read_text(encoding="utf-8")
+            self.assertIn("private PerformanceOverlayView mPerformanceOverlayView;", main_activity)
+            self.assertIn("case 5: togglePerformanceOverlay(); break;", main_activity)
+            self.assertIn("mPerformanceOverlayView.attachTo(mControlLayout);", main_activity)
+            self.assertIn("mPerformanceOverlayView.bringToFront();", main_activity)
+            self.assertIn("mPerformanceOverlayView.startUpdates();", main_activity)
+            self.assertIn("mPerformanceOverlayView.stopUpdates();", main_activity)
+            overlay = (root / "app_pojavlauncher/src/main/java/net/kdt/pojavlaunch/PerformanceOverlayView.java").read_text(encoding="utf-8")
+            self.assertIn("JREUtils.nativeGetRenderFrameCount()", overlay)
+            self.assertIn("Debug.getMemoryInfo(memoryInfo)", overlay)
+            self.assertIn("MotionEvent.ACTION_MOVE", overlay)
+            self.assertIn("PREF_X_DP", overlay)
+            self.assertIn("PREF_Y_DP", overlay)
+            self.assertIn("mylauncher_performance_overlay_enabled", overlay)
+            self.assertIn("mylauncher_performance_overlay_fps", overlay)
+            self.assertIn("mylauncher_performance_overlay_memory", overlay)
+            pref_control = (root / "app_pojavlauncher/src/main/res/xml/pref_control.xml").read_text(encoding="utf-8")
+            self.assertIn('android:key="mylauncher_performance_overlay_enabled"', pref_control)
+            self.assertIn('android:key="mylauncher_performance_overlay_fps"', pref_control)
+            self.assertIn('android:key="mylauncher_performance_overlay_memory"', pref_control)
+            arrays = (root / "app_pojavlauncher/src/main/res/values/headings_array.xml").read_text(encoding="utf-8")
+            self.assertIn("<item>@string/mylauncher_toggle_performance_overlay</item>", arrays)
+            jre_utils = (root / "app_pojavlauncher/src/main/java/net/kdt/pojavlaunch/utils/JREUtils.java").read_text(encoding="utf-8")
+            self.assertIn("nativeGetRenderFrameCount", jre_utils)
+            egl_bridge = (root / "app_pojavlauncher/src/main/jni/egl_bridge.c").read_text(encoding="utf-8")
+            self.assertIn("Java_net_kdt_pojavlaunch_utils_JREUtils_nativeGetRenderFrameCount", egl_bridge)
+            self.assertIn("__atomic_add_fetch(&mylauncher_render_frame_count, 1, __ATOMIC_RELAXED);", egl_bridge)
             self.assertIn("Button mMyLauncherAccountButton = view.findViewById(R.id.mylauncher_account_button);", main_menu)
             self.assertIn("mMyLauncherAccountButton.setOnClickListener", main_menu)
             self.assertIn("Button mMyLauncherGraphicsButton = view.findViewById(R.id.mylauncher_graphics_button);", main_menu)
@@ -349,6 +458,8 @@ class SelectAuthFragment {
                 root / "app_pojavlauncher/src/main/res/drawable/mylauncher_icon.xml",
                 root / "app_pojavlauncher/src/main/res/values/strings.xml",
                 root / "app_pojavlauncher/src/main/res/values/colors.xml",
+                root / "app_pojavlauncher/src/main/res/values/headings_array.xml",
+                root / "app_pojavlauncher/src/main/res/xml/pref_control.xml",
             ):
                 with self.subTest(xml=str(xml_path.relative_to(root))):
                     ET.parse(xml_path)
