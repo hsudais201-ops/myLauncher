@@ -902,6 +902,7 @@ import android.widget.TextView;
 
 import androidx.preference.PreferenceManager;
 
+import net.kdt.pojavlaunch.customcontrols.ControlLayout;
 import net.kdt.pojavlaunch.prefs.LauncherPreferences;
 import net.kdt.pojavlaunch.utils.JREUtils;
 
