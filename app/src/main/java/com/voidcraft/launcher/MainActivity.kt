@@ -167,30 +167,22 @@ private fun VoidcraftApp() {
 
     suspend fun refreshCatalog() {
         isRefreshing = true
-        val remote = withContext(Dispatchers.IO) {
-            CATALOG_URLS.firstNotNullOfOrNull { catalogUrl ->
-                runCatching {
-                    val connection = (URL(catalogUrl).openConnection() as HttpURLConnection).apply {
-                        connectTimeout = 5000
-                        readTimeout = 7000
-                        requestMethod = "GET"
-                    }
-                    try {
-                        if (connection.responseCode !in 200..299) error("Catalog HTTP ${connection.responseCode}")
-                        val body = connection.inputStream.bufferedReader().use { it.readText() }
-                        parseCatalog(body).also {
+        try {
+            val remote = withContext(Dispatchers.IO) {
+                CATALOG_URLS.firstNotNullOfOrNull { catalogUrl ->
+                    runCatching {
+                        parseCatalog(fetchFeatureCatalogJson(catalogUrl)).also {
                             require(it.isNotEmpty()) { "Catalog did not contain any explicit features." }
                         }
-                    } finally {
-                        connection.disconnect()
-                    }
-                }.getOrNull()
+                    }.getOrNull()
+                }
             }
+            if (remote != null) {
+                catalog = remote.distinctBy { it.id }
+            }
+        } finally {
+            isRefreshing = false
         }
-        if (remote != null) {
-            catalog = remote.distinctBy { it.id }
-        }
-        isRefreshing = false
     }
 
     LaunchedEffect(storeOpen) {
