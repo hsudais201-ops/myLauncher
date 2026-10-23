@@ -65,7 +65,8 @@ public final class JavaRuntimeCatalog {
                 for (Path child : children) {
                     checkCancelled(cancellation);
                     String id = child.getFileName().toString();
-                    if (RUNTIME_ID.matcher(id).matches() && !id.contains("..")) ids.add(id);
+                    if ((Files.isDirectory(child, LinkOption.NOFOLLOW_LINKS) || Files.isSymbolicLink(child))
+                            && RUNTIME_ID.matcher(id).matches() && !id.contains("..")) ids.add(id);
                 }
             }
         }
