@@ -220,7 +220,7 @@ GL4ES_GIT_BLOB_SHAS = {
 
 def git_blob_sha1(path: Path) -> str:
     data = path.read_bytes()
-    header = f"blob {len(data)}\\0".encode("ascii")
+    header = f"blob {len(data)}\0".encode("ascii")
     import hashlib
     return hashlib.sha1(header + data).hexdigest()
 
@@ -274,9 +274,9 @@ def patch_holy_gl4es_renderer(engine_root: Path) -> None:
     jre_utils = jre_utils_file.read_text(encoding="utf-8")
     jre_utils = replace_once(
         jre_utils,
-        '            case "opengles2":\\n            case "opengles2_5":\\n            case "opengles3":\\n                renderLibrary = "libng_gl4es.so"; break;',
-        '            case "opengles2_holy": renderLibrary = "libgl4es_114.so"; break;\\n'
-        '            case "opengles2":\\n            case "opengles2_5":\\n            case "opengles3":\\n                renderLibrary = "libng_gl4es.so"; break;',
+        '            case "opengles2":\n            case "opengles2_5":\n            case "opengles3":\n                renderLibrary = "libng_gl4es.so"; break;',
+        '            case "opengles2_holy": renderLibrary = "libgl4es_114.so"; break;\n'
+        '            case "opengles2":\n            case "opengles2_5":\n            case "opengles3":\n                renderLibrary = "libng_gl4es.so"; break;',
         "Holy GL4ES library loading case"
     )
     jre_utils = replace_once(
@@ -297,14 +297,14 @@ def patch_holy_gl4es_renderer(engine_root: Path) -> None:
     tools = replace_once(
         tools,
         '        boolean appHasKw = new File(Tools.NATIVE_LIB_DIR, "libng_gl4es.so").exists();',
-        '        boolean appHasKw = new File(Tools.NATIVE_LIB_DIR, "libng_gl4es.so").exists();\\n'
+        '        boolean appHasKw = new File(Tools.NATIVE_LIB_DIR, "libng_gl4es.so").exists();\n'
         '        boolean appHasHolyGl4es = new File(Tools.NATIVE_LIB_DIR, "libgl4es_114.so").isFile();',
         "Holy GL4ES availability check"
     )
     tools = replace_once(
         tools,
         '            if(rendererId.contains("opengles2") && (!deviceHasOpenGLES3 || !appHasKw)) continue;',
-        '            if(rendererId.equals("opengles2") && (!deviceHasOpenGLES3 || !appHasKw)) continue;\\n'
+        '            if(rendererId.equals("opengles2") && (!deviceHasOpenGLES3 || !appHasKw)) continue;\n'
         '            if(rendererId.equals("opengles2_holy") && !appHasHolyGl4es) continue;',
         "Holy GL4ES compatible renderer gate"
     )
@@ -349,7 +349,7 @@ def patch_holy_gl4es_renderer(engine_root: Path) -> None:
     strings = replace_once(
         strings,
         '    <string name="mcl_setting_renderer_ng_gl4es">Krypton Wrapper - (all versions, fast)</string>',
-        '    <string name="mcl_setting_renderer_ng_gl4es">Krypton Wrapper - (all versions, fast)</string>\\n'
+        '    <string name="mcl_setting_renderer_ng_gl4es">Krypton Wrapper - (all versions, fast)</string>\n'
         '    <string name="mcl_setting_renderer_holy_gl4es">Holy GL4ES - (all versions, fast)</string>',
         "Holy GL4ES renderer display string"
     )
