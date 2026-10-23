@@ -1750,18 +1750,30 @@ public final class CoreTests {
             Path linkedWorkingParent = temporary.resolve("linked-working-parent");
             try {
                 Files.createSymbolicLink(linkedWorkingParent, temporary);
-                io(() -> runner.run(javaExecutable, linkedWorkingParent.resolve("work"),
-                        java.util.Collections.singletonList("-version"), CancellationToken.NONE, 15_000, null),
-                        "symlinked ancestor of Java working directory rejected");
+                io(() -> {
+                    try {
+                        runner.run(javaExecutable, linkedWorkingParent.resolve("work"),
+                                java.util.Collections.singletonList("-version"), CancellationToken.NONE, 15_000, null);
+                    } catch (InterruptedException exception) {
+                        Thread.currentThread().interrupt();
+                        throw new IOException("Unexpected interruption while testing symlink rejection", exception);
+                    }
+                }, "symlinked ancestor of Java working directory rejected");
             } catch (UnsupportedOperationException | SecurityException | java.nio.file.FileSystemException exception) {
                 // Some filesystems disable symbolic links for ordinary users.
             }
             Path linkedExecutable = temporary.resolve("linked-java");
             try {
                 Files.createSymbolicLink(linkedExecutable, javaExecutable);
-                io(() -> runner.run(linkedExecutable, working, java.util.Collections.singletonList("-version"),
-                        CancellationToken.NONE, 15_000, null),
-                        "symlinked Java executable rejected before process start");
+                io(() -> {
+                    try {
+                        runner.run(linkedExecutable, working, java.util.Collections.singletonList("-version"),
+                                CancellationToken.NONE, 15_000, null);
+                    } catch (InterruptedException exception) {
+                        Thread.currentThread().interrupt();
+                        throw new IOException("Unexpected interruption while testing executable symlink rejection", exception);
+                    }
+                }, "symlinked Java executable rejected before process start");
             } catch (UnsupportedOperationException | SecurityException
                      | java.nio.file.FileSystemException exception) {
                 // Some filesystems disable symlink creation for ordinary users.
