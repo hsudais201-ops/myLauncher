@@ -148,11 +148,14 @@ jobs:
             adb shell am force-stop com.mf.mylauncher.debug
             adb shell monkey -p com.mf.mylauncher.debug -c android.intent.category.LAUNCHER 1
             sleep 15
-            adb shell pidof com.mf.mylauncher.debug
+            # Amethyst may run its game/launcher process under the explicit
+            # ':launcher' process suffix, so pidof(package) alone is too strict.
+            adb shell ps -A > upstream/mylauncher-processes.txt
             adb shell dumpsys activity activities > upstream/mylauncher-activities.txt
-            grep -F 'com.mf.mylauncher.debug' upstream/mylauncher-activities.txt
             adb logcat -d > upstream/mylauncher-emulator-logcat.txt
-            if grep -E 'FATAL EXCEPTION|Process: com.mf.mylauncher.debug' upstream/mylauncher-emulator-logcat.txt; then
+            grep -E 'com\\.mf\\.mylauncher\\.debug(:launcher)?([[:space:]]|$)' upstream/mylauncher-processes.txt
+            grep -F 'com.mf.mylauncher.debug' upstream/mylauncher-activities.txt
+            if grep -E 'FATAL EXCEPTION|Process: com\\.mf\\.mylauncher\\.debug(:launcher)?' upstream/mylauncher-emulator-logcat.txt; then
               echo "Detected an Android runtime crash during launcher smoke test." >&2
               exit 1
             fi
@@ -185,5 +188,6 @@ jobs:
           path: |
             upstream/mylauncher-emulator-logcat.txt
             upstream/mylauncher-activities.txt
+            upstream/mylauncher-processes.txt
           if-no-files-found: ignore
           retention-days: 7
