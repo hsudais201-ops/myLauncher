@@ -503,7 +503,7 @@ EXTERNAL_API void pojavSwapBuffers() {
                 self.assertIn('android:text="@string/mylauncher_customize_controls"', launcher_layout)
                 self.assertIn('android:text="myLauncher"', launcher_layout)
                 self.assertIn('android:text="Minecraft Java Edition · built for lightweight devices"', launcher_layout)
-                self.assertIn('android:text="@string/main_add_account"', launcher_layout)
+                self.assertIn('android:text="@string/mylauncher_accounts"', launcher_layout)
                 self.assertIn('android:drawableStart="@android:drawable/ic_menu_myplaces"', launcher_layout)
                 self.assertIn('app:layout_constraintTop_toBottomOf="@id/open_files_button"', launcher_layout)
                 self.assertIn('app:layout_constraintTop_toTopOf="@id/news_button"', launcher_layout)
