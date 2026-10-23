@@ -118,44 +118,41 @@ fun AdvancedModManagerScreen() {
                     if (!displayName.endsWith(".jar", true)) error("Choose a .jar mod file.")
                     val enabledDir = activeGameModsDirectory(context).apply { mkdirs() }
                     val temp = File(enabledDir, "import-${System.currentTimeMillis()}.part")
-                    context.contentResolver.openInputStream(uri)?.use { input ->
-                        temp.outputStream().use { output ->
-                            val buffer = ByteArray(8192)
-                            var total = 0L
-                            while (true) {
-                                val read = input.read(buffer)
-                                if (read < 0) break
-                                total += read
-                                if (total > MAX_MOD_BYTES) error("Mod files must be 100 MB or smaller.")
-                                output.write(buffer, 0, read)
+                    try {
+                        context.contentResolver.openInputStream(uri)?.use { input ->
+                            copyModArchiveToTemporaryFile(input, temp, MAX_MOD_BYTES)
+                        } ?: error("Could not read the selected file.")
+
+                        try {
+                            ZipFile(temp).use { archive ->
+                                if (archive.entries().asSequence().none()) {
+                                    error("The selected JAR archive is empty or invalid.")
+                                }
+                            }
+                        } catch (e: Exception) {
+                            throw IllegalArgumentException("This file is not a valid JAR/ZIP archive.", e)
+                        }
+
+                        val clean = displayName.replace(Regex("[^A-Za-z0-9._ -]"), "_").take(100).ifBlank { "mod.jar" }
+                        val baseName = clean.removeSuffix(".jar").removeSuffix(".JAR").ifBlank { "mod" }
+                        var destination = File(enabledDir, "$baseName.jar")
+                        var suffix = 2
+                        while (destination.exists()) {
+                            destination = File(enabledDir, "$baseName-$suffix.jar")
+                            suffix++
+                        }
+                        if (!temp.renameTo(destination)) {
+                            try {
+                                temp.copyTo(destination, overwrite = false)
+                            } finally {
+                                temp.delete()
                             }
                         }
-                    } ?: error("Could not read the selected file.")
-                    if (temp.length() == 0L) {
+                        destination
+                    } catch (failure: Throwable) {
                         temp.delete()
-                        error("The selected file is empty.")
+                        throw failure
                     }
-                    try {
-                        ZipFile(temp).use { archive ->
-                            if (archive.entries().asSequence().none()) error("The selected JAR archive is empty or invalid.")
-                        }
-                    } catch (e: Exception) {
-                        temp.delete()
-                        throw IllegalArgumentException("This file is not a valid JAR/ZIP archive.")
-                    }
-                    val clean = displayName.replace(Regex("[^A-Za-z0-9._ -]"), "_").take(100).ifBlank { "mod.jar" }
-                    val baseName = clean.removeSuffix(".jar").removeSuffix(".JAR").ifBlank { "mod" }
-                    var destination = File(enabledDir, "$baseName.jar")
-                    var suffix = 2
-                    while (destination.exists()) {
-                        destination = File(enabledDir, "$baseName-$suffix.jar")
-                        suffix++
-                    }
-                    if (!temp.renameTo(destination)) {
-                        temp.copyTo(destination, overwrite = false)
-                        temp.delete()
-                    }
-                    destination
                 }
             }
             result.onSuccess {
