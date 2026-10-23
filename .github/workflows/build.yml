@@ -155,10 +155,7 @@ jobs:
             adb logcat -d > upstream/mylauncher-emulator-logcat.txt
             grep -E 'com[.]mf[.]mylauncher[.]debug(:launcher)?([[:space:]]|$)' upstream/mylauncher-processes.txt
             grep -F 'com.mf.mylauncher.debug' upstream/mylauncher-activities.txt
-            if grep -E 'FATAL EXCEPTION|Process: com[.]mf[.]mylauncher[.]debug(:launcher)?' upstream/mylauncher-emulator-logcat.txt; then
-              echo "Detected an Android runtime crash during launcher smoke test." >&2
-              exit 1
-            fi
+            if grep -E 'FATAL EXCEPTION|Process: com[.]mf[.]mylauncher[.]debug(:launcher)?' upstream/mylauncher-emulator-logcat.txt; then echo "Detected an Android runtime crash during launcher smoke test." >&2; exit 1; fi
 
       - name: Upload debug APK
         if: ${{ always() && env.APK_PATH != '' }}
