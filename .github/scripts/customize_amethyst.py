@@ -79,6 +79,21 @@ def patch_upstream(upstream: Path) -> None:
         raise ValueError("An upstream application authority remains in strings.xml")
     if not re.search(r'<string\s+name="main_add_account"', strings_text):
         raise ValueError("Required main_add_account string is missing from strings.xml")
+    graphics_label = '<string name="mylauncher_graphics_renderer">Graphics &amp; Renderer</string>'
+    if not re.search(r'<string\s+name="mylauncher_graphics_renderer"', strings_text):
+        account_label = re.search(
+            r'<string\s+name="main_add_account"[^>]*>.*?</string>',
+            strings_text,
+            flags=re.DOTALL,
+        )
+        if not account_label:
+            raise ValueError("Could not find main_add_account to insert the graphics shortcut label")
+        strings_text = strings_text[:account_label.end()] + "\n    " + graphics_label + strings_text[account_label.end():]
+    if (
+        len(re.findall(r'<string\s+name="mylauncher_graphics_renderer"', strings_text)) != 1
+        or graphics_label not in strings_text
+    ):
+        raise ValueError("The Graphics & Renderer launcher label is missing or duplicated")
     strings.write_text(strings_text, encoding="utf-8")
 
     colors_text = colors.read_text(encoding="utf-8")
@@ -323,6 +338,41 @@ def patch_upstream(upstream: Path) -> None:
             or open_files_index > account_match.start()
         ):
             raise ValueError(f"myLauncher account shortcut is incomplete in {layout_path}")
+
+        if 'android:id="@+id/mylauncher_graphics_button"' not in layout_text:
+            graphics_button = """            <com.kdt.mcgui.LauncherMenuButton
+                android:id="@+id/mylauncher_graphics_button"
+                style="@style/LauncherMenuButton.Universal"
+                android:layout_width="match_parent"
+                android:drawableStart="@drawable/ic_setting_video"
+                android:text="@string/mylauncher_graphics_renderer"
+                app:layout_constraintTop_toBottomOf="@id/mylauncher_account_button" />
+"""
+            layout_text = layout_text[:account_match.end()] + "\n\n" + graphics_button + layout_text[account_match.end():]
+
+        account_match = re.search(
+            r'<com\\.kdt\\.mcgui\\.LauncherMenuButton\\s+android:id="@\\+id/mylauncher_account_button".*?/>',
+            layout_text,
+            flags=re.DOTALL,
+        )
+        graphics_match = re.search(
+            r'<com\\.kdt\\.mcgui\\.LauncherMenuButton\\s+android:id="@\\+id/mylauncher_graphics_button".*?/>',
+            layout_text,
+            flags=re.DOTALL,
+        )
+        if (
+            layout_text.count('android:id="@+id/mylauncher_graphics_button"') != 1
+            or not graphics_match
+            or 'style="@style/LauncherMenuButton.Universal"' not in graphics_match.group(0)
+            or 'android:layout_width="match_parent"' not in graphics_match.group(0)
+            or 'android:drawableStart="@drawable/ic_setting_video"' not in graphics_match.group(0)
+            or 'android:text="@string/mylauncher_graphics_renderer"' not in graphics_match.group(0)
+            or 'app:layout_constraintTop_toBottomOf="@id/mylauncher_account_button"' not in graphics_match.group(0)
+            or not account_match
+            or account_match.start() > graphics_match.start()
+        ):
+            raise ValueError(f"myLauncher Graphics & Renderer shortcut is incomplete in {layout_path}")
+
         title_match = re.search(
             r'<TextView\s+android:id="@\+id/mylauncher_hero_title".*?/>',
             layout_text,
@@ -337,6 +387,7 @@ def patch_upstream(upstream: Path) -> None:
             layout_text.count('android:id="@+id/mylauncher_hero_title"') != 1
             or layout_text.count('android:id="@+id/mylauncher_hero_subtitle"') != 1
             or layout_text.count('android:id="@+id/mylauncher_account_button"') != 1
+            or layout_text.count('android:id="@+id/mylauncher_graphics_button"') != 1
             or layout_text.count('android:id="@+id/news_button"') != 1
             or layout_text.count('android:id="@+id/discord_button"') != 1
             or layout_text.count('android:id="@+id/social_divider"') != 1
@@ -395,6 +446,17 @@ def patch_upstream(upstream: Path) -> None:
     if not main_menu.is_file():
         raise FileNotFoundError(f"Expected main menu fragment is missing: {main_menu}")
     main_menu_text = main_menu.read_text(encoding="utf-8")
+    graphics_imports = (
+        "import net.kdt.pojavlaunch.LauncherActivity;",
+        "import net.kdt.pojavlaunch.prefs.screens.LauncherPreferenceVideoFragment;",
+    )
+    import_anchor = "import net.kdt.pojavlaunch.extra.ExtraCore;"
+    if import_anchor not in main_menu_text:
+        raise ValueError("Could not find imports needed for Graphics & Renderer navigation")
+    for graphics_import in graphics_imports:
+        if graphics_import not in main_menu_text:
+            main_menu_text = main_menu_text.replace(import_anchor, import_anchor + "\n" + graphics_import, 1)
+            import_anchor = graphics_import
     # The game-directory browser is local file access and should also work for local profiles.
     # Preserve the demo-profile warning, but remove the unrelated online-account gate.
     directory_gate = """            } else if (!hasOnlineProfile()) { // Otherwise display the generic pop-up to log in
@@ -430,14 +492,35 @@ def patch_upstream(upstream: Path) -> None:
         if listener_anchor not in main_menu_text:
             raise ValueError("Could not find the main menu listener insertion point")
         main_menu_text = main_menu_text.replace(listener_anchor, listener_anchor + "\n        " + account_listener, 1)
+    graphics_binding = "Button mMyLauncherGraphicsButton = view.findViewById(R.id.mylauncher_graphics_button);"
+    if graphics_binding not in main_menu_text:
+        if account_binding not in main_menu_text:
+            raise ValueError("Could not find the account binding insertion point for graphics settings")
+        main_menu_text = main_menu_text.replace(
+            account_binding, account_binding + "\\n        " + graphics_binding, 1
+        )
+    graphics_listener = (
+        "mMyLauncherGraphicsButton.setOnClickListener(v -> Tools.swapFragment(requireActivity(), "
+        "LauncherPreferenceVideoFragment.class, LauncherActivity.SETTING_FRAGMENT_TAG, null));"
+    )
+    if graphics_listener not in main_menu_text:
+        if account_listener not in main_menu_text:
+            raise ValueError("Could not find the account listener insertion point for graphics settings")
+        main_menu_text = main_menu_text.replace(
+            account_listener, account_listener + "\\n        " + graphics_listener, 1
+        )
     if (
         main_menu_text.count(account_binding) != 1
         or main_menu_text.count(account_listener) != 1
+        or main_menu_text.count(graphics_binding) != 1
+        or main_menu_text.count(graphics_listener) != 1
         or "import android.widget.Button;" not in main_menu_text
         or "import net.kdt.pojavlaunch.extra.ExtraConstants;" not in main_menu_text
         or "import net.kdt.pojavlaunch.extra.ExtraCore;" not in main_menu_text
+        or "import net.kdt.pojavlaunch.LauncherActivity;" not in main_menu_text
+        or "import net.kdt.pojavlaunch.prefs.screens.LauncherPreferenceVideoFragment;" not in main_menu_text
     ):
-        raise ValueError("The account shortcut binding, handler, or required Java imports are incomplete")
+        raise ValueError("The account or Graphics & Renderer shortcut binding, handler, or imports are incomplete")
     main_menu.write_text(main_menu_text, encoding="utf-8")
 
     # Replace the upstream launcher artwork with a small vector mark that scales cleanly.
