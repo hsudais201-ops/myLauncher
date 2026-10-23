@@ -1358,11 +1358,11 @@ public final class CoreTests {
         eq(1, modernInstallPlan.count(DownloadTask.Kind.LIBRARY),
                 "compatible ARM64 classifier remains on the launch classpath");
         yes(modernInstallPlan.getTasks().stream().anyMatch(task ->
-                task.getRelativePath().equals(epollArm64.getPath())),
+                task.getRelativePath().equals("libraries/" + epollArm64.getPath())),
                 "compatible ARM64 classifier is retained in installation plan");
         yes(modernInstallPlan.getTasks().stream().noneMatch(task ->
-                task.getRelativePath().equals(epollX64.getPath())
-                        || task.getRelativePath().equals(lwjglDesktop.getPath())),
+                task.getRelativePath().equals("libraries/" + epollX64.getPath())
+                        || task.getRelativePath().equals("libraries/" + lwjglDesktop.getPath())),
                 "incompatible desktop native classifiers are not downloaded for Android ARM64");
 
         DownloadArtifact windowsArm64Native = new DownloadArtifact(
