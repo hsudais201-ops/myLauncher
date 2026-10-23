@@ -750,6 +750,10 @@ private suspend fun socialApiRequest(
     token: String?,
     body: JSONObject? = null
 ): JSONObject = withContext(Dispatchers.IO) {
+    val requestBytes = body?.toString()?.toByteArray(Charsets.UTF_8)
+    if (requestBytes != null && !isSocialApiRequestSizeAllowed(requestBytes.size)) {
+        error("Social Hub request exceeds the 64 KiB safety limit.")
+    }
     val connection = (URL(SOCIAL_API_URL + path).openConnection() as HttpURLConnection).apply {
         connectTimeout = 10000
         readTimeout = 15000
@@ -758,14 +762,15 @@ private suspend fun socialApiRequest(
         setRequestProperty("Accept", "application/json")
         setRequestProperty("Cache-Control", "no-store")
         if (token != null) setRequestProperty("Authorization", "Bearer $token")
-        if (body != null) {
+        if (requestBytes != null) {
             setRequestProperty("Content-Type", "application/json; charset=utf-8")
             doOutput = true
+            setFixedLengthStreamingMode(requestBytes.size)
         }
     }
     try {
-        if (body != null) {
-            connection.outputStream.use { it.write(body.toString().toByteArray(Charsets.UTF_8)) }
+        if (requestBytes != null) {
+            connection.outputStream.use { it.write(requestBytes) }
         }
         val status = connection.responseCode
         if (mustRejectSocialApiRedirect(status)) {
@@ -774,7 +779,12 @@ private suspend fun socialApiRequest(
             )
         }
         val stream = if (status in 200..299) connection.inputStream else connection.errorStream
-        val text = stream?.bufferedReader()?.use { it.readText() } ?: "{}"
+        val text = stream?.use { input ->
+            readBoundedSocialApiResponse(
+                input = input,
+                declaredLength = connection.getHeaderFieldLong("Content-Length", -1L)
+            )
+        } ?: "{}"
         val response = runCatching { JSONObject(text) }.getOrElse { JSONObject() }
         if (status !in 200..299) {
             throw IllegalStateException(response.optString("error").takeIf { it.isNotBlank() } ?: "Online request failed (HTTP $status).")
