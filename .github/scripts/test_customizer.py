@@ -382,6 +382,24 @@ class SearchModFragment extends Fragment {
             encoding="utf-8",
         )
 
+        downloader_java = app / "src/main/java/net/kdt/pojavlaunch/tasks/MinecraftDownloader.java"
+        downloader_java.parent.mkdir(parents=True, exist_ok=True)
+        downloader_java.write_text(
+            """class MinecraftDownloader {
+    private boolean isLocalProfile;
+    private boolean isOnline;
+    public void start(@Nullable Activity activity, @Nullable JMinecraftVersionList.Version version,
+                      @NonNull String realVersion,
+                      @NonNull AsyncMinecraftDownloader.DoneListener listener) {
+        if(isLocalProfile) return;
+    }
+    private void downloadGame(Activity activity, JMinecraftVersionList.Version version, String realVersion) throws Exception {
+    }
+}
+""",
+            encoding="utf-8",
+        )
+
         auth_selector = app / "src/main/java/net/kdt/pojavlaunch/fragments/SelectAuthFragment.java"
         auth_selector.write_text(
             """import static net.kdt.pojavlaunch.Tools.hasNoOnlineProfileDialog;
@@ -715,7 +733,11 @@ EXTERNAL_API void pojavSwapBuffers() {
             version_fragment = (root / "app_pojavlauncher/src/main/java/net/kdt/pojavlaunch/fragments/VersionDownloadFragment.java").read_text(encoding="utf-8")
             self.assertIn("VersionSelectorDialog.open", version_fragment)
             self.assertIn("AsyncMinecraftDownloader.getListedVersion(normalizedVersion)", version_fragment)
-            self.assertIn("new MinecraftDownloader().start(requireActivity(), listedVersion, normalizedVersion", version_fragment)
+            self.assertIn("new MinecraftDownloader().downloadVersionFiles(requireActivity(), listedVersion, normalizedVersion", version_fragment)
+            downloader = (root / "app_pojavlauncher/src/main/java/net/kdt/pojavlaunch/tasks/MinecraftDownloader.java").read_text(encoding="utf-8")
+            self.assertIn("public void downloadVersionFiles(", downloader)
+            self.assertIn("downloadGame(activity, version, realVersion);", downloader)
+            self.assertIn("listener.onDownloadFailed(e);", downloader)
             self.assertIn("R.string.mylauncher_version_download_in_progress", version_fragment)
             self.assertIn("R.string.mylauncher_version_download_done", version_fragment)
             self.assertIn("new AsyncMinecraftDownloader.DoneListener()", version_fragment)
