@@ -533,30 +533,6 @@ def patch_upstream(upstream: Path) -> None:
             ):
                 raise ValueError(f"Voidcraft integrated launcher shortcut {button_id} is incomplete in {layout_path}")
 
-        # Keep the original menu actions below the new integrated shortcuts.
-        # The upstream custom-controls button originally follows the news area,
-        # so without this re-anchor it would overlap the new vertical menu.
-        custom_control_pattern = re.compile(
-            r'<com\.kdt\.mcgui\.LauncherMenuButton\s+android:id="@\+id/custom_control_button".*?/>',
-            flags=re.DOTALL,
-        )
-        custom_control_match = custom_control_pattern.search(layout_text)
-        if not custom_control_match:
-            raise ValueError(f"Could not find custom_control_button in {layout_path}")
-        custom_control_block = custom_control_match.group(0)
-        custom_control_block = re.sub(
-            r'app:layout_constraintTop_toBottomOf="@id/[^"]+"',
-            'app:layout_constraintTop_toBottomOf="@id/mylauncher_launcher_settings_button"',
-            custom_control_block,
-        )
-        if 'app:layout_constraintTop_toBottomOf="@id/mylauncher_launcher_settings_button"' not in custom_control_block:
-            custom_control_block = custom_control_block.replace(
-                'android:id="@+id/custom_control_button"',
-                'android:id="@+id/custom_control_button"\n        app:layout_constraintTop_toBottomOf="@id/mylauncher_launcher_settings_button"',
-                1,
-            )
-        layout_text = layout_text[:custom_control_match.start()] + custom_control_block + layout_text[custom_control_match.end():]
-
         title_match = re.search(
             r'<TextView\s+android:id="@\+id/mylauncher_hero_title".*?/>',
             layout_text,
