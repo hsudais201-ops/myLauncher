@@ -95,6 +95,10 @@ def patch_upstream(upstream: Path) -> None:
     ):
         raise ValueError("The Graphics & Renderer launcher label is missing or duplicated")
     control_labels = (
+        '<string name="mylauncher_accounts">Accounts: Microsoft / Offline</string>',
+        '<string name="mylauncher_instances">Create Instance / Profile</string>',
+        '<string name="mylauncher_java_runtime">Java &amp; Runtime</string>',
+        '<string name="mylauncher_launcher_settings">Launcher Settings</string>',
         '<string name="mylauncher_customize_controls">Customize Controls</string>',
         '<string name="mylauncher_control_settings">Controls &amp; Touch Settings</string>',
         '<string name="mylauncher_performance_overlay_category">Performance Overlay</string>',
@@ -243,13 +247,13 @@ def patch_upstream(upstream: Path) -> None:
     login_layout_text = replace_idempotently(
         login_layout_text,
         'android:text="@string/login_online_login_label"',
-        'android:text="@string/main_add_account"',
+        'android:text="@string/mylauncher_accounts"',
         str(login_layout),
     )
     if (
         login_layout_text.count('android:inputType="textPersonName"') != 1
         or 'android:inputType="textEmailAddress"' in login_layout_text
-        or 'android:text="@string/main_add_account"' not in login_layout_text
+        or 'android:text="@string/mylauncher_accounts"' not in login_layout_text
         or 'android:text="@string/login_online_login_label"' in login_layout_text
     ):
         raise ValueError("Offline account form must use a username field and an Add account action")
@@ -406,7 +410,7 @@ def patch_upstream(upstream: Path) -> None:
                 style="@style/LauncherMenuButton.Universal"
                 android:layout_width="match_parent"
                 android:drawableStart="@android:drawable/ic_menu_myplaces"
-                android:text="@string/main_add_account"
+                android:text="@string/mylauncher_accounts"
                 app:layout_constraintTop_toBottomOf="@id/open_files_button" />
 
 """
@@ -429,7 +433,7 @@ def patch_upstream(upstream: Path) -> None:
             or 'style="@style/LauncherMenuButton.Universal"' not in account_match.group(0)
             or 'android:layout_width="match_parent"' not in account_match.group(0)
             or 'android:drawableStart="@android:drawable/ic_menu_myplaces"' not in account_match.group(0)
-            or 'android:text="@string/main_add_account"' not in account_match.group(0)
+            or 'android:text="@string/mylauncher_accounts"' not in account_match.group(0)
             or 'app:layout_constraintTop_toBottomOf="@id/open_files_button"' not in account_match.group(0)
             or open_files_index < 0
             or open_files_index > account_match.start()
@@ -469,6 +473,65 @@ def patch_upstream(upstream: Path) -> None:
             or account_match.start() > graphics_match.start()
         ):
             raise ValueError(f"myLauncher Graphics & Renderer shortcut is incomplete in {layout_path}")
+
+        integrated_menu_buttons = (
+            (
+                "mylauncher_instances_button",
+                "@android:drawable/ic_menu_add",
+                "@string/mylauncher_instances",
+                "mylauncher_graphics_button",
+            ),
+            (
+                "mylauncher_java_runtime_button",
+                "@android:drawable/ic_menu_manage",
+                "@string/mylauncher_java_runtime",
+                "mylauncher_instances_button",
+            ),
+            (
+                "mylauncher_launcher_settings_button",
+                "@android:drawable/ic_menu_preferences",
+                "@string/mylauncher_launcher_settings",
+                "mylauncher_java_runtime_button",
+            ),
+        )
+        for button_id, button_drawable, button_label, anchor_id in integrated_menu_buttons:
+            button_pattern = re.compile(
+                r'<com\\.kdt\\.mcgui\\.LauncherMenuButton\\s+android:id="@\\+id/'
+                + re.escape(button_id)
+                + r'".*?/>',
+                flags=re.DOTALL,
+            )
+            if not button_pattern.search(layout_text):
+                anchor_pattern = re.compile(
+                    r'<com\\.kdt\\.mcgui\\.LauncherMenuButton\\s+android:id="@\\+id/'
+                    + re.escape(anchor_id)
+                    + r'".*?/>',
+                    flags=re.DOTALL,
+                )
+                anchor_match = anchor_pattern.search(layout_text)
+                if not anchor_match:
+                    raise ValueError(f"Could not find {anchor_id} to add {button_id} in {layout_path}")
+                button_block = (
+                    '            <com.kdt.mcgui.LauncherMenuButton\\n'
+                    + f'                android:id="@+id/{button_id}"\\n'
+                    + '                style="@style/LauncherMenuButton.Universal"\\n'
+                    + '                android:layout_width="match_parent"\\n'
+                    + f'                android:drawableStart="{button_drawable}"\\n'
+                    + f'                android:text="{button_label}"\\n'
+                    + f'                app:layout_constraintTop_toBottomOf="@id/{anchor_id}" />\\n'
+                )
+                layout_text = layout_text[:anchor_match.end()] + "\\n\\n" + button_block + layout_text[anchor_match.end():]
+            current_button = button_pattern.search(layout_text)
+            if (
+                not current_button
+                or layout_text.count(f'android:id="@+id/{button_id}"') != 1
+                or 'style="@style/LauncherMenuButton.Universal"' not in current_button.group(0)
+                or 'android:layout_width="match_parent"' not in current_button.group(0)
+                or f'android:drawableStart="{button_drawable}"' not in current_button.group(0)
+                or f'android:text="{button_label}"' not in current_button.group(0)
+                or f'app:layout_constraintTop_toBottomOf="@id/{anchor_id}"' not in current_button.group(0)
+            ):
+                raise ValueError(f"Voidcraft integrated launcher shortcut {button_id} is incomplete in {layout_path}")
 
         title_match = re.search(
             r'<TextView\s+android:id="@\+id/mylauncher_hero_title".*?/>',
@@ -578,6 +641,8 @@ def patch_upstream(upstream: Path) -> None:
         "import net.kdt.pojavlaunch.LauncherActivity;",
         "import net.kdt.pojavlaunch.prefs.screens.LauncherPreferenceVideoFragment;",
         "import net.kdt.pojavlaunch.prefs.screens.LauncherPreferenceControlFragment;",
+        "import net.kdt.pojavlaunch.prefs.screens.LauncherPreferenceJavaFragment;",
+        "import net.kdt.pojavlaunch.prefs.screens.LauncherPreferenceFragment;",
     )
     import_anchor = "import net.kdt.pojavlaunch.extra.ExtraCore;"
     if import_anchor not in main_menu_text:
@@ -630,6 +695,14 @@ def patch_upstream(upstream: Path) -> None:
         )
 
     graphics_binding = "Button mMyLauncherGraphicsButton = view.findViewById(R.id.mylauncher_graphics_button);"
+    instances_binding = "Button mMyLauncherInstancesButton = view.findViewById(R.id.mylauncher_instances_button);"
+    runtime_binding = "Button mMyLauncherRuntimeButton = view.findViewById(R.id.mylauncher_java_runtime_button);"
+    settings_binding = "Button mMyLauncherSettingsButton = view.findViewById(R.id.mylauncher_launcher_settings_button);"
+    for new_binding in (instances_binding, runtime_binding, settings_binding):
+        if new_binding not in main_menu_text:
+            main_menu_text = main_menu_text.replace(graphics_binding, graphics_binding + "\\n        " + new_binding, 1)
+        if main_menu_text.count(new_binding) != 1:
+            raise ValueError(f"Integrated launcher menu binding {new_binding} is missing or duplicated")
     if graphics_binding not in main_menu_text:
         if account_binding not in main_menu_text:
             raise ValueError("Could not find the account binding insertion point for graphics settings")
@@ -656,6 +729,41 @@ def patch_upstream(upstream: Path) -> None:
         main_menu_text = main_menu_text.replace(
             graphics_listener, graphics_listener + "\n        " + control_settings_listener, 1
         )
+    instances_listener = (
+        "mMyLauncherInstancesButton.setOnClickListener(v -> Tools.swapFragment(requireActivity(), "
+        "ProfileTypeSelectFragment.class, ProfileTypeSelectFragment.TAG, null));"
+    )
+    runtime_listener = (
+        "mMyLauncherRuntimeButton.setOnClickListener(v -> Tools.swapFragment(requireActivity(), "
+        "LauncherPreferenceJavaFragment.class, LauncherActivity.SETTING_FRAGMENT_TAG, null));"
+    )
+    settings_listener = (
+        "mMyLauncherSettingsButton.setOnClickListener(v -> Tools.swapFragment(requireActivity(), "
+        "LauncherPreferenceFragment.class, LauncherActivity.SETTING_FRAGMENT_TAG, null));"
+    )
+    for new_listener, insertion_anchor in (
+        (instances_listener, control_settings_listener),
+        (runtime_listener, instances_listener),
+        (settings_listener, runtime_listener),
+    ):
+        if new_listener not in main_menu_text:
+            if insertion_anchor not in main_menu_text:
+                raise ValueError("Could not find the integrated launcher navigation insertion point")
+            main_menu_text = main_menu_text.replace(insertion_anchor, insertion_anchor + "\\n        " + new_listener, 1)
+
+    if (
+        main_menu_text.count(instances_binding) != 1
+        or main_menu_text.count(runtime_binding) != 1
+        or main_menu_text.count(settings_binding) != 1
+        or main_menu_text.count(instances_listener) != 1
+        or main_menu_text.count(runtime_listener) != 1
+        or main_menu_text.count(settings_listener) != 1
+        or "LauncherPreferenceJavaFragment.class" not in main_menu_text
+        or "LauncherPreferenceFragment.class" not in main_menu_text
+        or "ProfileTypeSelectFragment.class" not in main_menu_text
+    ):
+        raise ValueError("Integrated launcher instance, Java/runtime, or settings navigation is incomplete")
+
     if (
         main_menu_text.count(account_binding) != 1
         or main_menu_text.count(account_listener) != 1
