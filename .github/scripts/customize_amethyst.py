@@ -108,7 +108,7 @@ def patch_upstream(upstream: Path) -> None:
             )
             if not graphics_match:
                 raise ValueError("Could not find Graphics & Renderer label insertion point for control settings")
-            strings_text = strings_text[:graphics_match.end()] + "\\n    " + control_label + strings_text[graphics_match.end():]
+            strings_text = strings_text[:graphics_match.end()] + "\n    " + control_label + strings_text[graphics_match.end():]
         if (
             len(re.findall(r'<string\s+name="' + re.escape(control_key) + r'"', strings_text)) != 1
             or control_label not in strings_text
@@ -324,7 +324,7 @@ def patch_upstream(upstream: Path) -> None:
             raise ValueError(f"Could not align social divider with news_button in {layout_path}")
 
         custom_control_match = re.search(
-            r'<com\\.kdt\\.mcgui\\.LauncherMenuButton\\s+android:id="@\\+id/custom_control_button".*?/>',
+            r'<com\.kdt\\.mcgui\\.LauncherMenuButton\\s+android:id="@\\+id/custom_control_button".*?/>',
             layout_text,
             flags=re.DOTALL,
         )
@@ -355,7 +355,7 @@ def patch_upstream(upstream: Path) -> None:
                 app:layout_constraintTop_toBottomOf="@id/custom_control_button" />
 """
             custom_control_match = re.search(
-                r'<com\\.kdt\\.mcgui\\.LauncherMenuButton\\s+android:id="@\\+id/custom_control_button".*?/>',
+                r'<com\.kdt\\.mcgui\\.LauncherMenuButton\\s+android:id="@\\+id/custom_control_button".*?/>',
                 layout_text,
                 flags=re.DOTALL,
             )
@@ -363,13 +363,13 @@ def patch_upstream(upstream: Path) -> None:
                 raise ValueError(f"Could not find insertion point for Controls & Touch Settings in {layout_path}")
             layout_text = (
                 layout_text[:custom_control_match.end()]
-                + "\\n\\n"
+                + "\n\\n"
                 + control_settings_button
                 + layout_text[custom_control_match.end():]
             )
 
         install_jar_match = re.search(
-            r'<com\\.kdt\\.mcgui\\.LauncherMenuButton\\s+android:id="@\\+id/install_jar_button".*?/>',
+            r'<com\.kdt\\.mcgui\\.LauncherMenuButton\\s+android:id="@\\+id/install_jar_button".*?/>',
             layout_text,
             flags=re.DOTALL,
         )
@@ -469,17 +469,17 @@ def patch_upstream(upstream: Path) -> None:
             flags=re.DOTALL,
         )
         custom_control_match = re.search(
-            r'<com\\.kdt\\.mcgui\\.LauncherMenuButton\\s+android:id="@\\+id/custom_control_button".*?/>',
+            r'<com\.kdt\\.mcgui\\.LauncherMenuButton\\s+android:id="@\\+id/custom_control_button".*?/>',
             layout_text,
             flags=re.DOTALL,
         )
         control_settings_match = re.search(
-            r'<com\\.kdt\\.mcgui\\.LauncherMenuButton\\s+android:id="@\\+id/mylauncher_control_settings_button".*?/>',
+            r'<com\.kdt\\.mcgui\\.LauncherMenuButton\\s+android:id="@\\+id/mylauncher_control_settings_button".*?/>',
             layout_text,
             flags=re.DOTALL,
         )
         install_jar_match = re.search(
-            r'<com\\.kdt\\.mcgui\\.LauncherMenuButton\\s+android:id="@\\+id/install_jar_button".*?/>',
+            r'<com\.kdt\\.mcgui\\.LauncherMenuButton\\s+android:id="@\\+id/install_jar_button".*?/>',
             layout_text,
             flags=re.DOTALL,
         )
@@ -614,7 +614,7 @@ def patch_upstream(upstream: Path) -> None:
         if account_binding not in main_menu_text:
             raise ValueError("Could not find account binding insertion point for Controls & Touch Settings")
         main_menu_text = main_menu_text.replace(
-            account_binding, account_binding + "\\n        " + control_settings_binding, 1
+            account_binding, account_binding + "\n        " + control_settings_binding, 1
         )
 
     graphics_binding = "Button mMyLauncherGraphicsButton = view.findViewById(R.id.mylauncher_graphics_button);"
@@ -642,7 +642,7 @@ def patch_upstream(upstream: Path) -> None:
         if graphics_listener not in main_menu_text:
             raise ValueError("Could not find Graphics & Renderer listener insertion point for control settings")
         main_menu_text = main_menu_text.replace(
-            graphics_listener, graphics_listener + "\\n        " + control_settings_listener, 1
+            graphics_listener, graphics_listener + "\n        " + control_settings_listener, 1
         )
     if (
         main_menu_text.count(account_binding) != 1
