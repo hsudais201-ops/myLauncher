@@ -463,6 +463,7 @@ EXTERNAL_API void pojavSwapBuffers() {
                 self.assertIn('android:text="@string/mylauncher_launcher_settings"', layout_text)
                 self.assertIn('app:layout_constraintTop_toBottomOf="@id/mylauncher_java_runtime_button"', layout_text)
                 self.assertIn('android:id="@+id/custom_control_button"', layout_text)
+                self.assertIn('app:layout_constraintTop_toBottomOf="@id/mylauncher_launcher_settings_button"', layout_text)
                 self.assertIn('android:text="@string/mylauncher_customize_controls"', layout_text)
                 self.assertIn('android:id="@+id/mylauncher_control_settings_button"', layout_text)
                 self.assertIn('android:drawableStart="@drawable/ic_setting_control_scale"', layout_text)
