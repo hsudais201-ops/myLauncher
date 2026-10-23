@@ -954,6 +954,10 @@ class BuildWorkflowTests(unittest.TestCase):
         self.assertIn('sha256sum "$(basename "$APK")"', self.workflow)
         self.assertIn("${{ env.APK_SHA256_PATH }}", self.workflow)
         self.assertIn("APK SHA-256:", self.workflow)
+        self.assertIn("adb shell pm grant com.mf.mylauncher.debug android.permission.POST_NOTIFICATIONS", self.workflow)
+        self.assertIn("adb shell dumpsys window windows > upstream/mylauncher-windows.txt", self.workflow)
+        self.assertIn("mCurrentFocus=.*com[.]mf[.]mylauncher[.]debug/net[.]kdt[.]pojavlaunch[.]LauncherActivity", self.workflow)
+        self.assertIn("upstream/mylauncher-windows.txt", self.workflow)
 
 
 if __name__ == "__main__":
