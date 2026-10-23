@@ -247,13 +247,13 @@ def patch_upstream(upstream: Path) -> None:
     login_layout_text = replace_idempotently(
         login_layout_text,
         'android:text="@string/login_online_login_label"',
-        'android:text="@string/mylauncher_accounts"',
+        'android:text="@string/main_add_account"',
         str(login_layout),
     )
     if (
         login_layout_text.count('android:inputType="textPersonName"') != 1
         or 'android:inputType="textEmailAddress"' in login_layout_text
-        or 'android:text="@string/mylauncher_accounts"' not in login_layout_text
+        or 'android:text="@string/main_add_account"' not in login_layout_text
         or 'android:text="@string/login_online_login_label"' in login_layout_text
     ):
         raise ValueError("Offline account form must use a username field and an Add account action")
