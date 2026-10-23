@@ -351,12 +351,12 @@ def patch_upstream(upstream: Path) -> None:
             layout_text = layout_text[:account_match.end()] + "\n\n" + graphics_button + layout_text[account_match.end():]
 
         account_match = re.search(
-            r'<com\\.kdt\\.mcgui\\.LauncherMenuButton\\s+android:id="@\\+id/mylauncher_account_button".*?/>',
+            r'<com\.kdt\.mcgui\.LauncherMenuButton\s+android:id="@\+id/mylauncher_account_button".*?/>',
             layout_text,
             flags=re.DOTALL,
         )
         graphics_match = re.search(
-            r'<com\\.kdt\\.mcgui\\.LauncherMenuButton\\s+android:id="@\\+id/mylauncher_graphics_button".*?/>',
+            r'<com\.kdt\.mcgui\.LauncherMenuButton\s+android:id="@\+id/mylauncher_graphics_button".*?/>',
             layout_text,
             flags=re.DOTALL,
         )
@@ -497,7 +497,7 @@ def patch_upstream(upstream: Path) -> None:
         if account_binding not in main_menu_text:
             raise ValueError("Could not find the account binding insertion point for graphics settings")
         main_menu_text = main_menu_text.replace(
-            account_binding, account_binding + "\\n        " + graphics_binding, 1
+            account_binding, account_binding + "\n        " + graphics_binding, 1
         )
     graphics_listener = (
         "mMyLauncherGraphicsButton.setOnClickListener(v -> Tools.swapFragment(requireActivity(), "
@@ -507,7 +507,7 @@ def patch_upstream(upstream: Path) -> None:
         if account_listener not in main_menu_text:
             raise ValueError("Could not find the account listener insertion point for graphics settings")
         main_menu_text = main_menu_text.replace(
-            account_listener, account_listener + "\\n        " + graphics_listener, 1
+            account_listener, account_listener + "\n        " + graphics_listener, 1
         )
     if (
         main_menu_text.count(account_binding) != 1
