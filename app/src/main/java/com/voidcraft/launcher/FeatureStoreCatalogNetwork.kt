@@ -1,6 +1,7 @@
 package com.voidcraft.launcher
 
 import java.io.ByteArrayOutputStream
+import java.io.InputStream
 import java.net.URI
 import java.net.URISyntaxException
 import java.nio.charset.StandardCharsets
@@ -26,6 +27,36 @@ internal fun isApprovedFeatureCatalogUri(uri: URI): Boolean =
         uri.host?.lowercase()?.let { it in approvedFeatureCatalogHosts } == true &&
         (uri.port == -1 || uri.port == 443) &&
         uri.rawUserInfo == null
+
+/**
+ * Reads a catalog with a hard streaming cap, even if the server omits Content-Length.
+ * The input remains owned by the caller so the HTTP connection can always be closed.
+ */
+internal fun readBoundedFeatureCatalog(input: InputStream, declaredLength: Long): ByteArray {
+    if (!featureCatalogContentLengthAllowed(declaredLength)) {
+        error("The Feature Store catalog exceeds the 1 MiB safety limit or is empty.")
+    }
+
+    val body = ByteArrayOutputStream()
+    val buffer = ByteArray(8 * 1024)
+    var total = 0L
+    while (true) {
+        val count = input.read(buffer)
+        if (count < 0) break
+        if (count == 0) continue
+        total += count
+        if (total > MAX_FEATURE_CATALOG_BYTES) {
+            error("The Feature Store catalog exceeded the 1 MiB safety limit.")
+        }
+        body.write(buffer, 0, count)
+    }
+
+    if (body.size() == 0) error("The Feature Store catalog response was empty.")
+    if (declaredLength >= 0L && body.size().toLong() != declaredLength) {
+        error("The Feature Store catalog response length did not match its headers.")
+    }
+    return body.toByteArray()
+}
 
 /**
  * Fetches a small Feature Store catalog with HTTPS-only redirects and a hard streamed-byte limit.
@@ -93,29 +124,10 @@ internal fun fetchFeatureCatalogJson(source: String): String {
                 error("Feature Store catalog request failed: HTTP $responseCode.")
             }
             val declaredLength = connection.contentLengthLong
-            if (!featureCatalogContentLengthAllowed(declaredLength)) {
-                error("The Feature Store catalog exceeds the 1 MiB safety limit or is empty.")
+            val body = connection.inputStream.use { input ->
+                readBoundedFeatureCatalog(input, declaredLength)
             }
-
-            val body = ByteArrayOutputStream()
-            connection.inputStream.use { input ->
-                val buffer = ByteArray(8 * 1024)
-                var total = 0L
-                while (true) {
-                    val count = input.read(buffer)
-                    if (count < 0) break
-                    total += count
-                    if (total > MAX_FEATURE_CATALOG_BYTES) {
-                        error("The Feature Store catalog exceeded the 1 MiB safety limit.")
-                    }
-                    body.write(buffer, 0, count)
-                }
-            }
-            if (body.size() == 0) error("The Feature Store catalog response was empty.")
-            if (declaredLength >= 0L && body.size().toLong() != declaredLength) {
-                error("The Feature Store catalog response length did not match its headers.")
-            }
-            return String(body.toByteArray(), StandardCharsets.UTF_8)
+            return String(body, StandardCharsets.UTF_8)
         } finally {
             connection.disconnect()
         }
