@@ -34,6 +34,8 @@ Record pass/fail for each item:
 - [ ] Audio and renderer behave without persistent errors.
 - [ ] Returning from Minecraft to Voidcraft does not crash the launcher.
 - [ ] The in-app OpenGL diagnostic screen reports the expected GPU/GL information.
+- [ ] Settings → Device diagnostics completes; review storage, memory, engine, runtime, selected-version and game-log checks.
+- [ ] If reporting a problem, export the diagnostics report and review it before sharing. It includes device model, Android version, CPU ABI and file-presence checks, but excludes account tokens and raw game-log contents.
 
 For Mods and Files, first confirm that the tools target the same active game directory shown by the engine. Only test a mod known to match that Minecraft version and mod loader. Do not treat a downloaded Feature Store package as an installed Minecraft mod: arbitrary third-party packages are stored but are not injected into the live game.
 
