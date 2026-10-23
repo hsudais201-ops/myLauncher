@@ -1597,7 +1597,7 @@ public final class VersionDownloadFragment extends Fragment {
         if (searchArguments != null && searchArguments.containsKey(ARG_IS_MODPACK)) {
             mSearchFilters.isModpack = searchArguments.getBoolean(ARG_IS_MODPACK, true);
         }"""
-    if "Bundle searchArguments = getArguments();" not in search_text:
+    if "searchArguments.containsKey(ARG_IS_MODPACK)" not in search_text:
         search_text = replace_idempotently(search_text, view_anchor, view_replacement, str(search_java))
 
     if "mTypeToggleButton = view.findViewById" not in search_text:
@@ -1717,7 +1717,7 @@ public final class VersionDownloadFragment extends Fragment {
         or 'putString("curseforge_api_key", key)' not in search_text
         or "new CommonApi(savedKey, mProvider)" not in search_text
         or "ARG_PROVIDER" not in search_text
-        or 'SearchModFragment.ARG_PROVIDER' not in search_text
+        or "mProvider = searchArguments.getString(ARG_PROVIDER, \"all\")" not in search_text
         or "mylauncher_search_mods_error" not in search_text
     ):
         raise ValueError("Modrinth/CurseForge search mode or local API-key handling is incomplete")
