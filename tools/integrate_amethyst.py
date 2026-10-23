@@ -70,6 +70,44 @@ VERSION_HANDOFF_METHOD = """    private void applyVoidcraftSelectedVersion() {
         }
 
         try {
+            org.json.JSONObject versionJson = new org.json.JSONObject(Tools.read(metadata.getAbsolutePath()));
+            if (!requestedVersion.equals(versionJson.optString("id", ""))) {
+                Toast.makeText(this, "Prepared metadata does not match Minecraft " + requestedVersion + ".",
+                        Toast.LENGTH_LONG).show();
+                return;
+            }
+
+            org.json.JSONObject downloads = versionJson.optJSONObject("downloads");
+            org.json.JSONObject client = downloads == null ? null : downloads.optJSONObject("client");
+            String expectedSha1 = client == null ? "" : client.optString("sha1", "");
+            long expectedSize = client == null ? -1L : client.optLong("size", -1L);
+            if (!expectedSha1.matches("(?i)^[0-9a-f]{40}$") ||
+                    expectedSize <= 0L || clientJar.length() != expectedSize) {
+                Toast.makeText(this,
+                        "Minecraft " + requestedVersion + " has incomplete or mismatched client metadata.",
+                        Toast.LENGTH_LONG).show();
+                return;
+            }
+
+            java.security.MessageDigest digest = java.security.MessageDigest.getInstance("SHA-1");
+            try (java.io.InputStream input = new java.io.FileInputStream(clientJar)) {
+                byte[] buffer = new byte[32768];
+                int count;
+                while ((count = input.read(buffer)) != -1) {
+                    digest.update(buffer, 0, count);
+                }
+            }
+            StringBuilder calculatedSha1 = new StringBuilder(40);
+            for (byte value : digest.digest()) {
+                calculatedSha1.append(String.format(java.util.Locale.ROOT, "%02x", value & 0xff));
+            }
+            if (!expectedSha1.equalsIgnoreCase(calculatedSha1.toString())) {
+                Toast.makeText(this,
+                        "Minecraft " + requestedVersion + " client JAR failed SHA-1 verification. Re-prepare the version.",
+                        Toast.LENGTH_LONG).show();
+                return;
+            }
+
             LauncherProfiles.load();
             String profileId = LauncherPreferences.DEFAULT_PREF.getString(
                     LauncherPreferences.PREF_KEY_CURRENT_PROFILE, "");
@@ -87,10 +125,10 @@ VERSION_HANDOFF_METHOD = """    private void applyVoidcraftSelectedVersion() {
             profile.lastVersionId = requestedVersion;
             LauncherProfiles.mainProfileJson.profiles.put(profileId, profile);
             LauncherProfiles.write();
-            Toast.makeText(this, "Selected Minecraft " + requestedVersion + " from Voidcraft.",
+            Toast.makeText(this, "Selected verified Minecraft " + requestedVersion + " from Voidcraft.",
                     Toast.LENGTH_SHORT).show();
-        } catch (RuntimeException exception) {
-            Toast.makeText(this, "Could not apply Voidcraft's selected version. Choose it in the engine profile menu.",
+        } catch (Exception exception) {
+            Toast.makeText(this, "Could not verify or apply Voidcraft's selected version. Choose it in the engine profile menu.",
                     Toast.LENGTH_LONG).show();
         }
     }
