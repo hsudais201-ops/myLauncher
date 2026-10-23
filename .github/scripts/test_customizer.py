@@ -250,7 +250,9 @@ class MainMenuFragment {
 """,
             encoding="utf-8",
         )
-        (api_dir / "ModItemAdapter.java").write_text(
+        modpacks_dir = app / "src/main/java/net/kdt/pojavlaunch/modloaders/modpacks"
+        modpacks_dir.mkdir(parents=True, exist_ok=True)
+        (modpacks_dir / "ModItemAdapter.java").write_text(
             """class ModItemAdapter {
         private void setDetailedStateDefault() {
             setInstallEnabled(false);
