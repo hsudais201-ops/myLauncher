@@ -99,7 +99,17 @@ def patch_upstream(upstream: Path) -> None:
         '<string name="mylauncher_instances">Create Instance / Profile</string>',
         '<string name="mylauncher_java_runtime">Java &amp; Runtime</string>',
         '<string name="mylauncher_launcher_settings">Launcher Settings</string>',
-        '<string name="mylauncher_download_versions">Minecraft Versions &amp; Loaders</string>',
+        '<string name="mylauncher_download_versions">Download Minecraft Versions</string>',
+        '<string name="mylauncher_version_download_title">Minecraft Version Downloads</string>',
+        '<string name="mylauncher_version_select_button">Choose Minecraft version</string>',
+        '<string name="mylauncher_version_download_button">Download selected version</string>',
+        '<string name="mylauncher_version_download_selected_none">No version selected</string>',
+        '<string name="mylauncher_version_download_hint">Choose a release, snapshot, or older version. Download it here, then select it in a profile to play.</string>',
+        '<string name="mylauncher_version_download_in_progress">Downloading Minecraft files. Keep Voidcraft open until complete.</string>',
+        '<string name="mylauncher_version_download_done">Download complete: %1$s. You can now select this version in a profile.</string>',
+        '<string name="mylauncher_version_download_failed">Could not download this Minecraft version.</string>',
+        '<string name="mylauncher_version_download_no_selection">Choose a version first.</string>',
+        '<string name="mylauncher_version_download_unavailable">That version is not in the official version list. Select a release, snapshot, or older version.</string>',
         '<string name="mylauncher_modrinth_curseforge">Modrinth &amp; CurseForge</string>',
         '<string name="mylauncher_install_mod">Install mod</string>',
         '<string name="mylauncher_download_mod_progress">Downloading mod file (%.2f MB / %.2f MB)</string>',
@@ -672,6 +682,7 @@ def patch_upstream(upstream: Path) -> None:
         "import net.kdt.pojavlaunch.LauncherActivity;",
         "import net.kdt.pojavlaunch.prefs.screens.LauncherPreferenceVideoFragment;",
         "import net.kdt.pojavlaunch.prefs.screens.LauncherPreferenceControlFragment;",
+        "import net.kdt.pojavlaunch.fragments.VersionDownloadFragment;",
         "import net.kdt.pojavlaunch.prefs.screens.LauncherPreferenceJavaFragment;",
         "import net.kdt.pojavlaunch.prefs.screens.LauncherPreferenceFragment;",
     )
@@ -777,7 +788,7 @@ def patch_upstream(upstream: Path) -> None:
     )
     versions_listener = (
         "mMyLauncherVersionsButton.setOnClickListener(v -> Tools.swapFragment(requireActivity(), "
-        "ProfileTypeSelectFragment.class, ProfileTypeSelectFragment.TAG, null));"
+        "VersionDownloadFragment.class, VersionDownloadFragment.TAG, null));"
     )
     mods_listener = """mMyLauncherModsButton.setOnClickListener(v -> {
             Bundle searchArgs = new Bundle();
@@ -810,6 +821,7 @@ def patch_upstream(upstream: Path) -> None:
         or "LauncherPreferenceJavaFragment.class" not in main_menu_text
         or "LauncherPreferenceFragment.class" not in main_menu_text
         or "ProfileTypeSelectFragment.class" not in main_menu_text
+        or "VersionDownloadFragment.class" not in main_menu_text
         or "SearchModFragment.ARG_IS_MODPACK, false" not in main_menu_text
         or "SearchModFragment.class" not in main_menu_text
     ):
@@ -832,6 +844,250 @@ def patch_upstream(upstream: Path) -> None:
         raise ValueError("The account, graphics, or controls shortcut binding, handler, or imports are incomplete")
     main_menu.write_text(main_menu_text, encoding="utf-8")
 
+
+    # Explicit vanilla-version downloader. The existing profile editor/Play workflow
+    # still provisions versions when launching; this screen also allows a version's
+    # files/assets to be downloaded without immediately launching the game.
+    version_fragment = upstream / "app_pojavlauncher" / "src" / "main" / "java" / "net" / "kdt" / "pojavlaunch" / "fragments" / "VersionDownloadFragment.java"
+    version_layout = upstream / "app_pojavlauncher" / "src" / "main" / "res" / "layout" / "fragment_version_download.xml"
+    version_fragment_source = """package net.kdt.pojavlaunch.fragments;
+
+import android.os.Bundle;
+import android.view.View;
+import android.widget.Button;
+import android.widget.ProgressBar;
+import android.widget.TextView;
+import android.widget.Toast;
+
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+import androidx.fragment.app.Fragment;
+
+import com.kdt.mcgui.ProgressLayout;
+
+import net.kdt.pojavlaunch.JMinecraftVersionList;
+import net.kdt.pojavlaunch.R;
+import net.kdt.pojavlaunch.Tools;
+import net.kdt.pojavlaunch.profiles.VersionSelectorDialog;
+import net.kdt.pojavlaunch.tasks.AsyncMinecraftDownloader;
+import net.kdt.pojavlaunch.tasks.MinecraftDownloader;
+import net.kdt.pojavlaunch.value.launcherprofiles.MinecraftProfile;
+
+public final class VersionDownloadFragment extends Fragment {
+    public static final String TAG = "VersionDownloadFragment";
+
+    private String mSelectedVersionId;
+    private Button mSelectVersionButton;
+    private Button mDownloadButton;
+    private TextView mSelectedVersionText;
+    private TextView mStatusText;
+    private ProgressBar mDownloadProgress;
+
+    public VersionDownloadFragment() {
+        super(R.layout.fragment_version_download);
+    }
+
+    @Override
+    public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
+        super.onViewCreated(view, savedInstanceState);
+        mSelectVersionButton = view.findViewById(R.id.mylauncher_select_version_button);
+        mDownloadButton = view.findViewById(R.id.mylauncher_download_version_button);
+        mSelectedVersionText = view.findViewById(R.id.mylauncher_selected_version_text);
+        mStatusText = view.findViewById(R.id.mylauncher_version_download_status);
+        mDownloadProgress = view.findViewById(R.id.mylauncher_version_download_progress);
+
+        mSelectedVersionId = AsyncMinecraftDownloader.normalizeVersionId(MinecraftProfile.LATEST_RELEASE);
+        updateSelectedVersionText();
+        mStatusText.setText(R.string.mylauncher_version_download_hint);
+
+        mSelectVersionButton.setOnClickListener(v -> VersionSelectorDialog.open(
+                v.getContext(), true, (id, snapshot) -> {
+                    mSelectedVersionId = AsyncMinecraftDownloader.normalizeVersionId(id);
+                    updateSelectedVersionText();
+                }));
+        mDownloadButton.setOnClickListener(v -> startVersionDownload());
+    }
+
+    private void updateSelectedVersionText() {
+        if (mSelectedVersionText == null) return;
+        if (mSelectedVersionId == null || mSelectedVersionId.trim().isEmpty()
+                || MinecraftProfile.LATEST_RELEASE.equals(mSelectedVersionId)
+                || MinecraftProfile.LATEST_SNAPSHOT.equals(mSelectedVersionId)) {
+            mSelectedVersionText.setText(R.string.mylauncher_version_download_selected_none);
+        } else {
+            mSelectedVersionText.setText(mSelectedVersionId);
+        }
+    }
+
+    private void startVersionDownload() {
+        if (mSelectedVersionId == null || mSelectedVersionId.trim().isEmpty()) {
+            Toast.makeText(requireContext(), R.string.mylauncher_version_download_no_selection,
+                    Toast.LENGTH_LONG).show();
+            return;
+        }
+        if (ProgressLayout.hasProcesses()) {
+            Toast.makeText(requireContext(), R.string.tasks_ongoing, Toast.LENGTH_LONG).show();
+            return;
+        }
+
+        String normalizedVersion = AsyncMinecraftDownloader.normalizeVersionId(mSelectedVersionId);
+        JMinecraftVersionList.Version listedVersion = AsyncMinecraftDownloader.getListedVersion(normalizedVersion);
+        if (listedVersion == null) {
+            Toast.makeText(requireContext(), R.string.mylauncher_version_download_unavailable,
+                    Toast.LENGTH_LONG).show();
+            return;
+        }
+
+        mSelectVersionButton.setEnabled(false);
+        mDownloadButton.setEnabled(false);
+        mDownloadProgress.setVisibility(View.VISIBLE);
+        mStatusText.setText(R.string.mylauncher_version_download_in_progress);
+        String failureTitle = getString(R.string.mylauncher_version_download_failed);
+
+        try {
+            new MinecraftDownloader().start(requireActivity(), listedVersion, normalizedVersion,
+                    new AsyncMinecraftDownloader.DoneListener() {
+                        @Override
+                        public void onDownloadDone() {
+                            Tools.runOnUiThread(() -> {
+                                if (!isAdded() || getView() == null) return;
+                                mDownloadProgress.setVisibility(View.GONE);
+                                mSelectVersionButton.setEnabled(true);
+                                mDownloadButton.setEnabled(true);
+                                mStatusText.setText(getString(R.string.mylauncher_version_download_done,
+                                        normalizedVersion));
+                                Toast.makeText(requireContext(), getString(
+                                        R.string.mylauncher_version_download_done, normalizedVersion),
+                                        Toast.LENGTH_LONG).show();
+                            });
+                        }
+
+                        @Override
+                        public void onDownloadFailed(Throwable throwable) {
+                            Tools.showErrorRemote(failureTitle, throwable);
+                            Tools.runOnUiThread(() -> {
+                                if (!isAdded() || getView() == null) return;
+                                mDownloadProgress.setVisibility(View.GONE);
+                                mSelectVersionButton.setEnabled(true);
+                                mDownloadButton.setEnabled(true);
+                                mStatusText.setText(failureTitle);
+                            });
+                        }
+                    });
+        } catch (RuntimeException e) {
+            mDownloadProgress.setVisibility(View.GONE);
+            mSelectVersionButton.setEnabled(true);
+            mDownloadButton.setEnabled(true);
+            Tools.showError(requireContext(), e);
+            mStatusText.setText(failureTitle);
+        }
+    }
+}
+"""
+    if version_fragment.exists():
+        if version_fragment.read_text(encoding="utf-8") != version_fragment_source:
+            raise ValueError("VersionDownloadFragment.java already exists with unexpected content")
+    else:
+        version_fragment.write_text(version_fragment_source, encoding="utf-8")
+
+    version_layout_source = """<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/background_app"
+    android:paddingHorizontal="@dimen/fragment_padding_medium"
+    android:paddingVertical="@dimen/fragment_padding_medium">
+
+    <TextView
+        android:id="@+id/mylauncher_version_download_title"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:text="@string/mylauncher_version_download_title"
+        android:textColor="@color/primary_text"
+        android:textSize="22sp"
+        android:textStyle="bold"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <TextView
+        android:id="@+id/mylauncher_version_download_hint"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:text="@string/mylauncher_version_download_hint"
+        android:textColor="@color/secondary_text"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/mylauncher_version_download_title" />
+
+    <TextView
+        android:id="@+id/mylauncher_selected_version_text"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="20dp"
+        android:background="@drawable/background_card"
+        android:padding="16dp"
+        android:text="@string/mylauncher_version_download_selected_none"
+        android:textColor="@color/primary_text"
+        android:textSize="18sp"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/mylauncher_version_download_hint" />
+
+    <Button
+        android:id="@+id/mylauncher_select_version_button"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:text="@string/mylauncher_version_select_button"
+        android:textAllCaps="false"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/mylauncher_selected_version_text" />
+
+    <Button
+        android:id="@+id/mylauncher_download_version_button"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="10dp"
+        android:text="@string/mylauncher_version_download_button"
+        android:textAllCaps="false"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/mylauncher_select_version_button" />
+
+    <ProgressBar
+        android:id="@+id/mylauncher_version_download_progress"
+        style="?android:attr/progressBarStyleHorizontal"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="14dp"
+        android:indeterminate="true"
+        android:visibility="gone"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/mylauncher_download_version_button" />
+
+    <TextView
+        android:id="@+id/mylauncher_version_download_status"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="14dp"
+        android:text="@string/mylauncher_version_download_hint"
+        android:textColor="@color/secondary_text"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/mylauncher_version_download_progress" />
+
+</androidx.constraintlayout.widget.ConstraintLayout>
+"""
+    if version_layout.exists():
+        if version_layout.read_text(encoding="utf-8") != version_layout_source:
+            raise ValueError("fragment_version_download.xml already exists with unexpected content")
+    else:
+        version_layout.write_text(version_layout_source, encoding="utf-8")
 
     # Expose the pinned engine's existing Minecraft-version profile flow and add
     # a real Mods / Modpacks search mode. Keep this patch idempotent and fail closed
@@ -1818,6 +2074,7 @@ public final class PerformanceOverlayView extends TextView {
         upstream / "app_pojavlauncher" / "src" / "main" / "res" / "layout" / "fragment_launcher.xml",
         upstream / "app_pojavlauncher" / "src" / "main" / "res" / "layout-land" / "fragment_launcher.xml",
         upstream / "app_pojavlauncher" / "src" / "main" / "res" / "layout" / "fragment_mod_search.xml",
+        upstream / "app_pojavlauncher" / "src" / "main" / "res" / "layout" / "fragment_version_download.xml",
         pref_control,
         menu_arrays,
         manifest,
