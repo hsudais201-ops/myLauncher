@@ -886,15 +886,17 @@ def patch_upstream(upstream: Path) -> None:
             raise ValueError("Could not add Toast import to SearchModFragment")
         search_text = search_text.replace(text_import, text_import + "\nimport android.widget.Toast;", 1)
 
-    search_text = replace_idempotently(
-        search_text,
-        '    public static final String TAG = "SearchModFragment";',
-        '    public static final String TAG = "SearchModFragment";\n    public static final String ARG_IS_MODPACK = "mylauncher_is_modpack";',
-        str(search_java),
-    )
+    if "public static final String ARG_IS_MODPACK" not in search_text:
+        search_text = replace_idempotently(
+            search_text,
+            '    public static final String TAG = "SearchModFragment";',
+            '    public static final String TAG = "SearchModFragment";\n    public static final String ARG_IS_MODPACK = "mylauncher_is_modpack";',
+            str(search_java),
+        )
     field_anchor = "    private ImageButton mFilterButton;"
     fields_new = field_anchor + "\n    private Button mTypeToggleButton;\n    private Button mCurseForgeKeyButton;"
-    search_text = replace_idempotently(search_text, field_anchor, fields_new, str(search_java))
+    if "private Button mTypeToggleButton;" not in search_text:
+        search_text = replace_idempotently(search_text, field_anchor, fields_new, str(search_java))
 
     search_text = replace_idempotently(
         search_text,
@@ -911,20 +913,23 @@ def patch_upstream(upstream: Path) -> None:
         if (searchArguments != null && searchArguments.containsKey(ARG_IS_MODPACK)) {
             mSearchFilters.isModpack = searchArguments.getBoolean(ARG_IS_MODPACK, true);
         }"""
-    search_text = replace_idempotently(search_text, view_anchor, view_replacement, str(search_java))
+    if "Bundle searchArguments = getArguments();" not in search_text:
+        search_text = replace_idempotently(search_text, view_anchor, view_replacement, str(search_java))
 
-    search_text = replace_idempotently(
-        search_text,
-        "        mFilterButton = view.findViewById(R.id.search_mod_filter);",
-        """        mFilterButton = view.findViewById(R.id.search_mod_filter);
+    if "mTypeToggleButton = view.findViewById" not in search_text:
+        search_text = replace_idempotently(
+            search_text,
+            "        mFilterButton = view.findViewById(R.id.search_mod_filter);",
+            """        mFilterButton = view.findViewById(R.id.search_mod_filter);
         mTypeToggleButton = view.findViewById(R.id.search_mod_type_toggle);
         mCurseForgeKeyButton = view.findViewById(R.id.search_mod_curseforge_key);""",
-        str(search_java),
-    )
-    search_text = replace_idempotently(
-        search_text,
-        "        mFilterButton.setOnClickListener(v -> displayFilterDialog());",
-        """        updateSearchModeLabel();
+            str(search_java),
+        )
+    if "mTypeToggleButton.setOnClickListener" not in search_text:
+        search_text = replace_idempotently(
+            search_text,
+            "        mFilterButton.setOnClickListener(v -> displayFilterDialog());",
+            """        updateSearchModeLabel();
         mTypeToggleButton.setOnClickListener(v -> {
             mSearchFilters.isModpack = !mSearchFilters.isModpack;
             updateSearchModeLabel();
@@ -932,19 +937,20 @@ def patch_upstream(upstream: Path) -> None:
         });
         mCurseForgeKeyButton.setOnClickListener(v -> showCurseForgeKeyDialog());
         mFilterButton.setOnClickListener(v -> displayFilterDialog());""",
-        str(search_java),
-    )
-    search_text = replace_idempotently(
-        search_text,
-        "        searchMods(null);",
-        """        searchMods(null);
+            str(search_java),
+        )
+    if "isCurseForgeKeyMissing(getConfiguredCurseForgeKey())" not in search_text:
+        search_text = replace_idempotently(
+            search_text,
+            "        searchMods(null);",
+            """        searchMods(null);
         if (isCurseForgeKeyMissing(getConfiguredCurseForgeKey())) {
             view.post(() -> {
                 if (isAdded()) showCurseForgeKeyDialog();
             });
         }""",
-        str(search_java),
-    )
+            str(search_java),
+        )
 
     search_text = replace_idempotently(
         search_text,
@@ -1033,12 +1039,6 @@ def patch_upstream(upstream: Path) -> None:
 
     # Add the second toolbar row with source setup and a toggle between mods and modpacks.
     layout_text = search_layout.read_text(encoding="utf-8")
-    layout_text = replace_idempotently(
-        layout_text,
-        'app:layout_constraintEnd_toStartOf="@id/search_mod_filter"',
-        'app:layout_constraintEnd_toStartOf="@id/search_mod_filter"',
-        str(search_layout),
-    )
     search_layout_buttons = """        <Button
             android:id="@+id/search_mod_type_toggle"
             android:layout_width="0dp"
@@ -1112,18 +1112,19 @@ def patch_upstream(upstream: Path) -> None:
     curseforge_api.write_text(curseforge_text, encoding="utf-8")
 
     adapter_text = adapter_java.read_text(encoding="utf-8")
-    adapter_text = replace_idempotently(
-        adapter_text,
-        """        private void setDetailedStateDefault() {
+    if "mExtendedButton.setText(mModItem.isModpack" not in adapter_text:
+        adapter_text = replace_idempotently(
+            adapter_text,
+            """        private void setDetailedStateDefault() {
             setInstallEnabled(false);
             mExtendedSpinner.setAdapter(mLoadingAdapter);""",
-        """        private void setDetailedStateDefault() {
+            """        private void setDetailedStateDefault() {
             setInstallEnabled(false);
             mExtendedButton.setText(mModItem.isModpack
                     ? R.string.modpack_install_button : R.string.mylauncher_install_mod);
             mExtendedSpinner.setAdapter(mLoadingAdapter);""",
-        str(adapter_java),
-    )
+            str(adapter_java),
+        )
     adapter_java.write_text(adapter_text, encoding="utf-8")
 
     mod_file_installer = api_dir / "ModFileInstaller.java"
