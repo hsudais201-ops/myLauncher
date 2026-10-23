@@ -39,14 +39,21 @@ adb install -r "$APK" | tee "$OUT_DIR/install.txt"
 adb shell am force-stop "$PACKAGE" >/dev/null 2>&1 || true
 adb shell monkey -p "$PACKAGE" 1 | tee "$OUT_DIR/launch-main.txt"
 
+# The integrated upstream engine declares the Android process as
+# com.voidcraft.launcher:launcher, so pidof "$PACKAGE" alone misses it.
+# Check the resumed app activity instead; this also verifies that Android
+# actually brought the launcher UI to the foreground.
+launcher_seen=false
 for attempt in $(seq 1 45); do
-  if adb shell pidof "$PACKAGE" 2>/dev/null | tr -d '\r' | grep -q '[0-9]'; then
+  adb shell dumpsys activity activities > "$OUT_DIR/activity-home.txt" 2>&1 || true
+  if grep -Fq "$PACKAGE/.MainActivity" "$OUT_DIR/activity-home.txt"; then
+    launcher_seen=true
     break
   fi
   sleep 1
 done
-if ! adb shell pidof "$PACKAGE" 2>/dev/null | tr -d '\r' | grep -q '[0-9]'; then
-  echo "Voidcraft process did not start." >&2
+if [[ "$launcher_seen" != true ]]; then
+  echo "Voidcraft MainActivity did not become active." >&2
   exit 4
 fi
 
