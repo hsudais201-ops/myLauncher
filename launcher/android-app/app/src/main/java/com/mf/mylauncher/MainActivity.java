@@ -25,6 +25,8 @@ import android.widget.SeekBar;
 import android.widget.Spinner;
 import android.widget.TextView;
 
+import com.mf.mylauncher.core.CancellationToken;
+import com.mf.mylauncher.core.JavaRuntimeCatalog;
 import com.mf.mylauncher.core.InstallationProgress;
 import com.mf.mylauncher.core.InstallationResult;
 import com.mf.mylauncher.core.InstallationService;
@@ -54,6 +56,7 @@ public final class MainActivity extends Activity {
     private static final String PREF_PROFILE = "profile_name";
     private static final String PREF_VERSION = "selected_version";
     private static final String PREF_HEAP = "heap_mib";
+    private static final String PREF_RUNTIME = "selected_runtime";
     private static final int BACKGROUND = Color.rgb(11, 16, 32);
     private static final int SURFACE = Color.rgb(22, 29, 51);
     private static final int ACCENT = Color.rgb(139, 118, 255);
@@ -63,6 +66,7 @@ public final class MainActivity extends Activity {
     private final ExecutorService ioExecutor = Executors.newSingleThreadExecutor();
     private SharedPreferences preferences;
     private Spinner versionSpinner;
+    private Spinner runtimeSpinner;
     private EditText profileInput;
     private TextView profileStatus;
     private TextView versionStatus;
@@ -71,11 +75,14 @@ public final class MainActivity extends Activity {
     private ProgressBar progressBar;
     private Button refreshButton;
     private Button installButton;
+    private Button runtimeRefreshButton;
     private SeekBar heapSlider;
     private final AtomicBoolean installationCancelled = new AtomicBoolean(false);
     private boolean installing;
     private List<MinecraftVersion> versions = new ArrayList<>();
     private boolean loadingVersions;
+    private List<JavaRuntimeCatalog.Candidate> runtimeCandidates = new ArrayList<>();
+    private boolean loadingRuntimes;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -86,6 +93,7 @@ public final class MainActivity extends Activity {
         window.setNavigationBarColor(BACKGROUND);
         buildUi();
         loadVersions();
+        loadRuntimes();
     }
 
     private void buildUi() {
@@ -190,36 +198,125 @@ public final class MainActivity extends Activity {
         });
 
         section(content, "JAVA RUNTIME");
-        runtimeStatus = text(runtimeStatusMessage(), 12, MUTED, false);
+        runtimeStatus = text("Checking installed Java runtimes…", 12, MUTED, false);
         content.addView(runtimeStatus, margins(matchWrap(), 0, 0, 0, dp(8)));
-        Button checkRuntimeButton = button("Check installed runtime", false);
-        content.addView(checkRuntimeButton, margins(matchWrap(), 0, 0, 0, dp(14)));
-        checkRuntimeButton.setOnClickListener(view -> runtimeStatus.setText(runtimeStatusMessage()));
 
-        Button launchButton = button("Launch game · runtime not connected", true);
+        runtimeSpinner = new Spinner(this);
+        runtimeSpinner.setAdapter(new ArrayAdapter<>(this,
+                android.R.layout.simple_spinner_dropdown_item,
+                new String[] {"Discovering installed runtimes…"}));
+        runtimeSpinner.setPadding(dp(8), dp(4), dp(8), dp(4));
+        runtimeSpinner.setBackground(panel(SURFACE, dp(12)));
+        content.addView(runtimeSpinner, margins(matchWrap(), 0, 0, 0, dp(8)));
+
+        runtimeRefreshButton = button("Refresh installed Java runtimes", false);
+        content.addView(runtimeRefreshButton, margins(matchWrap(), 0, 0, 0, dp(14)));
+        runtimeRefreshButton.setOnClickListener(view -> loadRuntimes());
+
+        Button launchButton = button("Launch game · full engine required", true);
         launchButton.setEnabled(false);
         launchButton.setAlpha(0.58f);
         content.addView(launchButton, margins(matchWrap(), 0, 0, 0, dp(12)));
-        content.addView(text("This downloads and verifies the client JAR, ordinary libraries and assets. The core can plan and extract native archives when given a compatible target, but an Android runtime provider, Android-native selection, Microsoft sign-in and the actual game launch are not connected yet.",
+        content.addView(text("This development shell can prepare verified Minecraft files and inspect installed Java runtimes. It does not download JRE packages or launch Minecraft. The separate playable APK is built with the Amethyst/Pojav-based engine, which owns Android runtime provisioning, native rendering, controls, account flow, and the actual game process.",
                 12, MUTED, false), matchWrap());
 
         setContentView(scrollView);
     }
 
-    private String runtimeStatusMessage() {
-        Path privateRoot = getFilesDir().toPath();
-        Path expected = privateRoot.resolve("runtimes/default/bin/java");
-        try {
-            java.util.Optional<Path> executable = new JavaRuntimeLocator(privateRoot).locate("default");
-            if (!executable.isPresent()) {
-                return "No installed Java runtime found. Expected location: " + expected
-                        + ". A compatible Android runtime provider is still needed.";
+    private void loadRuntimes() {
+        if (loadingRuntimes || isFinishing() || isDestroyed()) return;
+        loadingRuntimes = true;
+        if (runtimeRefreshButton != null) runtimeRefreshButton.setEnabled(false);
+        if (runtimeSpinner != null) runtimeSpinner.setEnabled(false);
+        runtimeStatus.setText("Inspecting app-private Java runtimes and checking each executable…");
+
+        ioExecutor.execute(() -> {
+            try {
+                List<JavaRuntimeCatalog.Candidate> discovered = JavaRuntimeCatalog.discover(
+                        getFilesDir().toPath(), getFilesDir().toPath(),
+                        CancellationToken.NONE, 2500);
+                runOnUiThread(() -> {
+                    if (isFinishing() || isDestroyed()) return;
+                    runtimeCandidates = new ArrayList<>(discovered);
+                    List<String> labels = new ArrayList<>();
+                    for (JavaRuntimeCatalog.Candidate candidate : runtimeCandidates) {
+                        labels.add(candidate.getDisplayLabel());
+                    }
+                    if (labels.isEmpty()) labels.add("No runtime slots found");
+                    ArrayAdapter<String> adapter = new ArrayAdapter<>(this,
+                            android.R.layout.simple_spinner_item, labels);
+                    adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+                    runtimeSpinner.setAdapter(adapter);
+
+                    String savedId = preferences.getString(PREF_RUNTIME, "");
+                    int selected = -1;
+                    if (!savedId.isEmpty()) {
+                        for (int i = 0; i < runtimeCandidates.size(); i++) {
+                            if (savedId.equals(runtimeCandidates.get(i).getRuntimeId())) {
+                                selected = i;
+                                break;
+                            }
+                        }
+                    }
+                    if (selected < 0) {
+                        for (int i = 0; i < runtimeCandidates.size(); i++) {
+                            if (runtimeCandidates.get(i).isAvailable()) {
+                                selected = i;
+                                break;
+                            }
+                        }
+                    }
+                    if (selected >= 0) runtimeSpinner.setSelection(selected);
+                    runtimeSpinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+                        @Override public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+                            if (position >= 0 && position < runtimeCandidates.size()) {
+                                preferences.edit().putString(PREF_RUNTIME,
+                                        runtimeCandidates.get(position).getRuntimeId()).apply();
+                            }
+                            updateRuntimeStatus();
+                        }
+                        @Override public void onNothingSelected(AdapterView<?> parent) { }
+                    });
+                    updateRuntimeStatus();
+                    finishRuntimeLoad();
+                });
+            } catch (InterruptedIOException exception) {
+                runOnUiThread(() -> {
+                    if (isFinishing() || isDestroyed()) return;
+                    runtimeStatus.setText("Runtime discovery was cancelled.");
+                    finishRuntimeLoad();
+                });
+            } catch (Exception exception) {
+                String reason = exception.getMessage();
+                runOnUiThread(() -> {
+                    if (isFinishing() || isDestroyed()) return;
+                    runtimeStatus.setText("Runtime discovery failed safely."
+                            + (reason == null ? "" : "\n" + reason));
+                    finishRuntimeLoad();
+                });
             }
-            return "Java executable found at " + executable.get()
-                    + ". Version and Android compatibility are not yet verified.";
-        } catch (IOException | IllegalArgumentException exception) {
-            return "Runtime check failed safely: " + exception.getMessage();
+        });
+    }
+
+    private void updateRuntimeStatus() {
+        if (runtimeStatus == null || runtimeSpinner == null) return;
+        int position = runtimeSpinner.getSelectedItemPosition();
+        if (position < 0 || position >= runtimeCandidates.size()) {
+            runtimeStatus.setText("No installed Java runtime could be selected. This shell does not install runtimes.");
+            return;
         }
+        JavaRuntimeCatalog.Candidate candidate = runtimeCandidates.get(position);
+        String compatibility = candidate.isAvailable()
+                ? "Java " + candidate.getJavaMajorVersion() + " answered the version probe. This is not a game-launch or native-graphics compatibility test."
+                : candidate.getMessage();
+        runtimeStatus.setText(candidate.getDisplayLabel() + "\n" + compatibility
+                + "\nRuntime package installation and actual gameplay are handled by the separate Amethyst-based APK.");
+    }
+
+    private void finishRuntimeLoad() {
+        loadingRuntimes = false;
+        if (runtimeRefreshButton != null) runtimeRefreshButton.setEnabled(true);
+        if (runtimeSpinner != null) runtimeSpinner.setEnabled(true);
     }
 
     private void loadVersions() {
