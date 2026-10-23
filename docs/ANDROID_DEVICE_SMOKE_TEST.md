@@ -11,6 +11,8 @@ This is an acceptance checklist for **debug/test artifacts**, not a public relea
 
 Only install an artifact produced by the expected repository workflow. The app's minimum Android version is API 26 (Android 8.0).
 
+Because the standalone and integrated debug APKs may be signed by different temporary CI debug keys, Android may refuse to install the integrated APK over an already-installed standalone build. If Android reports a signature conflict, uninstall the existing Voidcraft test build first, then install the integrated APK. **Uninstalling erases that app's private settings and cached data**; these debug artifacts are not a supported upgrade path. A public release needs a stable, protected signing key shared by release builds.
+
 ## 2. First launch and engine access
 
 - Install the extracted APK. If Android asks, grant the file manager permission to install apps, then revoke that permission after installation.
