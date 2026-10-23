@@ -97,6 +97,18 @@ def patch_upstream(upstream: Path) -> None:
     control_labels = (
         '<string name="mylauncher_customize_controls">Customize Controls</string>',
         '<string name="mylauncher_control_settings">Controls &amp; Touch Settings</string>',
+        '<string name="mylauncher_performance_overlay_category">Performance Overlay</string>',
+        '<string name="mylauncher_performance_overlay_enabled">Show in-game performance overlay</string>',
+        '<string name="mylauncher_performance_overlay_enabled_summary">Display live FPS and process memory. Drag the overlay to move it; toggle it from the in-game menu.</string>',
+        '<string name="mylauncher_performance_overlay_fps">Show FPS</string>',
+        '<string name="mylauncher_performance_overlay_fps_summary">Count real renderer frame swaps per second.</string>',
+        '<string name="mylauncher_performance_overlay_memory">Show memory usage</string>',
+        '<string name="mylauncher_performance_overlay_memory_summary">Show the launcher process memory resident in RAM.</string>',
+        '<string name="mylauncher_toggle_performance_overlay">Toggle Performance Overlay</string>',
+        '<string name="mylauncher_performance_overlay_enabled_toast">Performance overlay enabled</string>',
+        '<string name="mylauncher_performance_overlay_disabled_toast">Performance overlay disabled</string>',
+        '<string name="mylauncher_performance_overlay_fps_prefix">FPS</string>',
+        '<string name="mylauncher_performance_overlay_memory_prefix">RAM</string>',
     )
     for control_label in control_labels:
         control_key = re.search(r'<string\s+name="([^"]+)"', control_label).group(1)
@@ -744,6 +756,470 @@ def patch_upstream(upstream: Path) -> None:
     if "if (deviceRam <= 2048) return 512;" not in preferences_text:
         raise ValueError("The 1.5–2 GB RAM tier must default to a 512 MB heap")
     launcher_preferences.write_text(preferences_text, encoding="utf-8")
+
+
+    # Add the performance overlay settings to the existing control settings screen.
+    pref_control = upstream / "app_pojavlauncher" / "src" / "main" / "res" / "xml" / "pref_control.xml"
+    if not pref_control.is_file():
+        raise FileNotFoundError(f"Expected control preferences are missing: {pref_control}")
+    pref_control_text = pref_control.read_text(encoding="utf-8")
+    overlay_preferences = """    <PreferenceCategory
+        android:title="@string/mylauncher_performance_overlay_category">
+        <androidx.preference.SwitchPreferenceCompat
+            android:key="mylauncher_performance_overlay_enabled"
+            android:defaultValue="false"
+            android:title="@string/mylauncher_performance_overlay_enabled"
+            android:summary="@string/mylauncher_performance_overlay_enabled_summary" />
+        <androidx.preference.SwitchPreferenceCompat
+            android:key="mylauncher_performance_overlay_fps"
+            android:defaultValue="true"
+            android:title="@string/mylauncher_performance_overlay_fps"
+            android:summary="@string/mylauncher_performance_overlay_fps_summary" />
+        <androidx.preference.SwitchPreferenceCompat
+            android:key="mylauncher_performance_overlay_memory"
+            android:defaultValue="true"
+            android:title="@string/mylauncher_performance_overlay_memory"
+            android:summary="@string/mylauncher_performance_overlay_memory_summary" />
+    </PreferenceCategory>
+"""
+    if "mylauncher_performance_overlay_enabled" not in pref_control_text:
+        if "</PreferenceScreen>" not in pref_control_text:
+            raise ValueError("Could not append performance overlay switches to pref_control.xml")
+        pref_control_text = pref_control_text.replace(
+            "</PreferenceScreen>", overlay_preferences + "</PreferenceScreen>", 1
+        )
+    if (
+        pref_control_text.count('android:key="mylauncher_performance_overlay_enabled"') != 1
+        or pref_control_text.count('android:key="mylauncher_performance_overlay_fps"') != 1
+        or pref_control_text.count('android:key="mylauncher_performance_overlay_memory"') != 1
+    ):
+        raise ValueError("Performance overlay preferences are missing or duplicated")
+    pref_control.write_text(pref_control_text, encoding="utf-8")
+
+    # Add a quick in-game master toggle without changing the existing menu actions.
+    menu_arrays = upstream / "app_pojavlauncher" / "src" / "main" / "res" / "values" / "headings_array.xml"
+    if not menu_arrays.is_file():
+        raise FileNotFoundError(f"Expected menu array resources are missing: {menu_arrays}")
+    arrays_text = menu_arrays.read_text(encoding="utf-8")
+    menu_match = re.search(
+        r'(<string-array\s+name="menu_ingame"[^>]*>)(?P<body>.*?)</string-array>',
+        arrays_text,
+        flags=re.DOTALL,
+    )
+    if not menu_match:
+        raise ValueError("Could not find the in-game menu array for the performance toggle")
+    menu_body = menu_match.group("body")
+    toggle_item = "<item>@string/mylauncher_toggle_performance_overlay</item>"
+    if toggle_item not in menu_body:
+        menu_body = menu_body.rstrip() + "\n        " + toggle_item + "\n    "
+        arrays_text = (
+            arrays_text[:menu_match.start("body")]
+            + menu_body
+            + arrays_text[menu_match.end("body"):]
+        )
+    if arrays_text.count(toggle_item) != 1:
+        raise ValueError("The in-game Performance Overlay toggle is missing or duplicated")
+    menu_arrays.write_text(arrays_text, encoding="utf-8")
+
+    # Count actual native renderer buffer swaps; do not substitute display refresh rate.
+    egl_bridge = upstream / "app_pojavlauncher" / "src" / "main" / "jni" / "egl_bridge.c"
+    if not egl_bridge.is_file():
+        raise FileNotFoundError(f"Expected native EGL bridge is missing: {egl_bridge}")
+    egl_text = egl_bridge.read_text(encoding="utf-8")
+    counter_declaration = "static volatile uint32_t mylauncher_render_frame_count = 0;"
+    if counter_declaration not in egl_text:
+        abi_anchor = "#define ABI_COMPAT __attribute__((unused))"
+        if abi_anchor not in egl_text:
+            raise ValueError("Could not locate the EGL bridge insertion point for the native frame counter")
+        egl_text = egl_text.replace(
+            abi_anchor, abi_anchor + "\n\n" + counter_declaration, 1
+        )
+    counter_getter = """JNIEXPORT jlong JNICALL
+Java_net_kdt_pojavlaunch_utils_JREUtils_nativeGetRenderFrameCount(JNIEnv *env, jclass clazz) {
+    (void) env;
+    (void) clazz;
+    return (jlong) __atomic_load_n(&mylauncher_render_frame_count, __ATOMIC_RELAXED);
+}
+"""
+    if "Java_net_kdt_pojavlaunch_utils_JREUtils_nativeGetRenderFrameCount" not in egl_text:
+        swap_anchor = "EXTERNAL_API void pojavSwapBuffers() {"
+        if swap_anchor not in egl_text:
+            raise ValueError("Could not locate pojavSwapBuffers for the native FPS hook")
+        egl_text = egl_text.replace(swap_anchor, counter_getter + "\n" + swap_anchor, 1)
+    old_swap = """EXTERNAL_API void pojavSwapBuffers() {
+    br_swap_buffers();
+}"""
+    new_swap = """EXTERNAL_API void pojavSwapBuffers() {
+    br_swap_buffers();
+    __atomic_add_fetch(&mylauncher_render_frame_count, 1, __ATOMIC_RELAXED);
+}"""
+    if old_swap in egl_text:
+        egl_text = egl_text.replace(old_swap, new_swap, 1)
+    elif new_swap not in egl_text:
+        raise ValueError("Native render-frame counting was not installed safely")
+    if (
+        egl_text.count(counter_declaration) != 1
+        or egl_text.count("Java_net_kdt_pojavlaunch_utils_JREUtils_nativeGetRenderFrameCount") != 1
+        or new_swap not in egl_text
+    ):
+        raise ValueError("Native FPS counter definition or hook is missing or duplicated")
+    egl_bridge.write_text(egl_text, encoding="utf-8")
+
+    # Expose the native counter to Java through the already-loaded pojavexec library.
+    jre_utils = upstream / "app_pojavlauncher" / "src" / "main" / "java" / "net" / "kdt" / "pojavlaunch" / "utils" / "JREUtils.java"
+    if not jre_utils.is_file():
+        raise FileNotFoundError(f"Expected JRE utility class is missing: {jre_utils}")
+    jre_text = jre_utils.read_text(encoding="utf-8")
+    getter_anchor = "public static native int[] renderAWTScreenFrame(/* Object canvas, int width, int height */);"
+    getter_declaration = "@androidx.annotation.Keep\n    public static native long nativeGetRenderFrameCount();"
+    if getter_declaration not in jre_text:
+        if getter_anchor not in jre_text:
+            raise ValueError("Could not locate JREUtils native declarations for the frame counter")
+        jre_text = jre_text.replace(
+            getter_anchor, getter_anchor + "\n    " + getter_declaration, 1
+        )
+    if jre_text.count("public static native long nativeGetRenderFrameCount();") != 1:
+        raise ValueError("Java native FPS counter declaration is missing or duplicated")
+    jre_utils.write_text(jre_text, encoding="utf-8")
+
+    performance_overlay_source = r"""package net.kdt.pojavlaunch;
+
+import android.content.Context;
+import android.content.SharedPreferences;
+import android.graphics.Color;
+import android.graphics.Typeface;
+import android.graphics.drawable.GradientDrawable;
+import android.os.Debug;
+import android.os.Handler;
+import android.os.Looper;
+import android.os.SystemClock;
+import android.view.Gravity;
+import android.view.MotionEvent;
+import android.view.View;
+import android.view.ViewGroup;
+import android.widget.FrameLayout;
+import android.widget.TextView;
+
+import androidx.preference.PreferenceManager;
+
+import net.kdt.pojavlaunch.prefs.LauncherPreferences;
+import net.kdt.pojavlaunch.utils.JREUtils;
+
+import java.util.Locale;
+
+/** A low-overhead, draggable in-game FPS and process-memory display. */
+public final class PerformanceOverlayView extends TextView {
+    public static final String PREF_ENABLED = "mylauncher_performance_overlay_enabled";
+    public static final String PREF_FPS = "mylauncher_performance_overlay_fps";
+    public static final String PREF_MEMORY = "mylauncher_performance_overlay_memory";
+    private static final String PREF_X_DP = "mylauncher_performance_overlay_x_dp";
+    private static final String PREF_Y_DP = "mylauncher_performance_overlay_y_dp";
+    private static final int DEFAULT_MARGIN_DP = 8;
+    private static final long UPDATE_INTERVAL_MS = 1000L;
+
+    private final Handler mHandler = new Handler(Looper.getMainLooper());
+    private boolean mUpdatesStarted;
+    private long mPreviousFrames = -1L;
+    private long mPreviousSampleMs;
+    private int mCurrentFps = -1;
+    private float mDownRawX;
+    private float mDownRawY;
+    private int mDownLeft;
+    private int mDownTop;
+    private boolean mNativeCounterUnavailable;
+
+    private final Runnable mUpdateTask = new Runnable() {
+        @Override
+        public void run() {
+            updateMetrics();
+            if (mUpdatesStarted) {
+                mHandler.postDelayed(this, UPDATE_INTERVAL_MS);
+            }
+        }
+    };
+
+    public PerformanceOverlayView(Context context) {
+        super(context);
+        setTextColor(Color.WHITE);
+        setTextSize(12f);
+        setTypeface(Typeface.MONOSPACE, Typeface.BOLD);
+        setPadding(dp(9), dp(6), dp(9), dp(6));
+        setIncludeFontPadding(true);
+        setClickable(true);
+        setFocusable(false);
+        setLongClickable(false);
+        setElevation(dp(6));
+
+        GradientDrawable background = new GradientDrawable();
+        background.setColor(0xD91A1D26);
+        background.setCornerRadius(dp(8));
+        background.setStroke(dp(1), 0x88FFFFFF);
+        setBackground(background);
+        setContentDescription("Draggable Minecraft performance overlay");
+        setOnTouchListener(this::handleDrag);
+        setVisibility(GONE);
+        updateMetrics();
+    }
+
+    public void attachTo(ControlLayout parent) {
+        if (getParent() != null) {
+            return;
+        }
+        FrameLayout.LayoutParams params = new FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+                Gravity.TOP | Gravity.START);
+        params.leftMargin = dp(DEFAULT_MARGIN_DP);
+        params.topMargin = dp(DEFAULT_MARGIN_DP);
+        parent.addView(this, params);
+        post(this::restoreSavedPosition);
+    }
+
+    public void restoreSavedPosition() {
+        if (!(getParent() instanceof ViewGroup)) {
+            return;
+        }
+        post(() -> {
+            ViewGroup parent = (ViewGroup) getParent();
+            if (parent == null || !(getLayoutParams() instanceof FrameLayout.LayoutParams)) {
+                return;
+            }
+            SharedPreferences prefs = preferences();
+            FrameLayout.LayoutParams params = (FrameLayout.LayoutParams) getLayoutParams();
+            params.gravity = Gravity.TOP | Gravity.START;
+            params.leftMargin = dp(prefs.getInt(PREF_X_DP, DEFAULT_MARGIN_DP));
+            params.topMargin = dp(prefs.getInt(PREF_Y_DP, DEFAULT_MARGIN_DP));
+            clampToParent(parent, params);
+            setLayoutParams(params);
+        });
+    }
+
+    public void startUpdates() {
+        if (mUpdatesStarted) {
+            return;
+        }
+        mUpdatesStarted = true;
+        mHandler.removeCallbacks(mUpdateTask);
+        mUpdateTask.run();
+    }
+
+    public void stopUpdates() {
+        mUpdatesStarted = false;
+        mHandler.removeCallbacks(mUpdateTask);
+    }
+
+    public boolean toggleEnabled() {
+        SharedPreferences prefs = preferences();
+        boolean enabled = !prefs.getBoolean(PREF_ENABLED, false);
+        prefs.edit().putBoolean(PREF_ENABLED, enabled).apply();
+        updateMetrics();
+        return enabled;
+    }
+
+    public void refreshNow() {
+        updateMetrics();
+    }
+
+    private SharedPreferences preferences() {
+        if (LauncherPreferences.DEFAULT_PREF != null) {
+            return LauncherPreferences.DEFAULT_PREF;
+        }
+        return PreferenceManager.getDefaultSharedPreferences(getContext());
+    }
+
+    private void updateMetrics() {
+        SharedPreferences prefs = preferences();
+        boolean overlayEnabled = prefs.getBoolean(PREF_ENABLED, false);
+        boolean showFps = prefs.getBoolean(PREF_FPS, true);
+        boolean showMemory = prefs.getBoolean(PREF_MEMORY, true);
+        boolean visible = overlayEnabled && (showFps || showMemory);
+        setVisibility(visible ? VISIBLE : GONE);
+        if (!visible) {
+            return;
+        }
+
+        StringBuilder text = new StringBuilder();
+        if (showFps) {
+            long now = SystemClock.elapsedRealtime();
+            try {
+                long frames = JREUtils.nativeGetRenderFrameCount() & 0xffffffffL;
+                if (mPreviousSampleMs > 0L && now > mPreviousSampleMs && mPreviousFrames >= 0L) {
+                    long frameDelta = (frames - mPreviousFrames) & 0xffffffffL;
+                    mCurrentFps = (int) Math.max(0L, Math.round(frameDelta * 1000.0 / (now - mPreviousSampleMs)));
+                } else {
+                    mCurrentFps = -1;
+                }
+                mPreviousFrames = frames;
+                mPreviousSampleMs = now;
+                text.append("FPS: ").append(mCurrentFps < 0 ? "--" : String.format(Locale.US, "%d", mCurrentFps));
+            } catch (UnsatisfiedLinkError | RuntimeException error) {
+                mNativeCounterUnavailable = true;
+                text.append("FPS: N/A");
+            }
+            if (mNativeCounterUnavailable) {
+                text.setLength(0);
+                text.append("FPS: N/A");
+            }
+        }
+
+        if (showMemory) {
+            Debug.MemoryInfo memoryInfo = new Debug.MemoryInfo();
+            Debug.getMemoryInfo(memoryInfo);
+            long memoryMb = Math.max(0, memoryInfo.getTotalPss()) / 1024L;
+            if (text.length() > 0) {
+                text.append('\n');
+            }
+            text.append("RAM: ").append(memoryMb).append(" MB");
+        }
+
+        setText(text.toString());
+    }
+
+    private boolean handleDrag(View view, MotionEvent event) {
+        if (!(getParent() instanceof ViewGroup)
+                || !(getLayoutParams() instanceof FrameLayout.LayoutParams)) {
+            return false;
+        }
+        ViewGroup parent = (ViewGroup) getParent();
+        FrameLayout.LayoutParams params = (FrameLayout.LayoutParams) getLayoutParams();
+        switch (event.getActionMasked()) {
+            case MotionEvent.ACTION_DOWN:
+                mDownRawX = event.getRawX();
+                mDownRawY = event.getRawY();
+                mDownLeft = getLeft();
+                mDownTop = getTop();
+                return true;
+            case MotionEvent.ACTION_MOVE:
+                params.gravity = Gravity.TOP | Gravity.START;
+                params.leftMargin = mDownLeft + Math.round(event.getRawX() - mDownRawX);
+                params.topMargin = mDownTop + Math.round(event.getRawY() - mDownRawY);
+                clampToParent(parent, params);
+                setLayoutParams(params);
+                return true;
+            case MotionEvent.ACTION_UP:
+            case MotionEvent.ACTION_CANCEL:
+                savePosition();
+                performClick();
+                return true;
+            default:
+                return true;
+        }
+    }
+
+    @Override
+    public boolean performClick() {
+        super.performClick();
+        return true;
+    }
+
+    private void savePosition() {
+        float density = getResources().getDisplayMetrics().density;
+        SharedPreferences prefs = preferences();
+        prefs.edit()
+                .putInt(PREF_X_DP, Math.max(0, Math.round(getLeft() / density)))
+                .putInt(PREF_Y_DP, Math.max(0, Math.round(getTop() / density)))
+                .apply();
+    }
+
+    private void clampToParent(ViewGroup parent, FrameLayout.LayoutParams params) {
+        int maxLeft = Math.max(0, parent.getWidth() - getMeasuredWidth());
+        int maxTop = Math.max(0, parent.getHeight() - getMeasuredHeight());
+        params.leftMargin = Math.max(0, Math.min(params.leftMargin, maxLeft));
+        params.topMargin = Math.max(0, Math.min(params.topMargin, maxTop));
+    }
+
+    private int dp(int value) {
+        return Math.round(value * getResources().getDisplayMetrics().density);
+    }
+}
+"""
+    overlay_class = upstream / "app_pojavlauncher" / "src" / "main" / "java" / "net" / "kdt" / "pojavlaunch" / "PerformanceOverlayView.java"
+    overlay_class.parent.mkdir(parents=True, exist_ok=True)
+    overlay_class.write_text(performance_overlay_source, encoding="utf-8")
+
+    # Place the overlay over the control layer, persist its drag position, and add quick on/off.
+    main_activity = upstream / "app_pojavlauncher" / "src" / "main" / "java" / "net" / "kdt" / "pojavlaunch" / "MainActivity.java"
+    if not main_activity.is_file():
+        raise FileNotFoundError(f"Expected game activity is missing: {main_activity}")
+    main_activity_text = main_activity.read_text(encoding="utf-8")
+    field_anchor = "private FrameLayout contentFrame;"
+    field_new = field_anchor + "\n    private PerformanceOverlayView mPerformanceOverlayView;"
+    if "private PerformanceOverlayView mPerformanceOverlayView;" not in main_activity_text:
+        if field_anchor not in main_activity_text:
+            raise ValueError("Could not find the MainActivity field insertion point for the performance overlay")
+        main_activity_text = main_activity_text.replace(field_anchor, field_new, 1)
+
+    old_menu_case = "case 4: openCustomControls(); break;"
+    new_menu_case = """case 4: openCustomControls(); break;
+                    case 5: togglePerformanceOverlay(); break;"""
+    if old_menu_case in main_activity_text:
+        main_activity_text = main_activity_text.replace(old_menu_case, new_menu_case, 1)
+    elif new_menu_case not in main_activity_text:
+        raise ValueError("Could not add the in-game Performance Overlay on/off menu action")
+
+    attach_anchor = "            loadControls();"
+    attach_replacement = "            loadControls();\n            ensurePerformanceOverlay();"
+    if attach_replacement not in main_activity_text:
+        if attach_anchor not in main_activity_text:
+            raise ValueError("Could not find the control-layout startup hook for the performance overlay")
+        main_activity_text = main_activity_text.replace(attach_anchor, attach_replacement, 1)
+
+    load_controls_anchor = "        mControlLayout.toggleControlVisible();"
+    load_controls_replacement = load_controls_anchor + "\n        if (mPerformanceOverlayView != null) mPerformanceOverlayView.bringToFront();"
+    if load_controls_replacement not in main_activity_text:
+        if load_controls_anchor not in main_activity_text:
+            raise ValueError("Could not keep the performance overlay in front of reloaded touch controls")
+        main_activity_text = main_activity_text.replace(load_controls_anchor, load_controls_replacement, 1)
+
+    on_resume_anchor = "        super.onResume();"
+    on_resume_replacement = on_resume_anchor + "\n        if (mPerformanceOverlayView != null) mPerformanceOverlayView.startUpdates();"
+    if on_resume_replacement not in main_activity_text:
+        resume_method = re.search(r"public void onResume\\(\\)\\s*\\{(?P<body>.*?)\\n    \\}", main_activity_text, flags=re.DOTALL)
+        if not resume_method or on_resume_anchor not in resume_method.group(0):
+            raise ValueError("Could not connect performance overlay lifecycle to MainActivity.onResume")
+        main_activity_text = main_activity_text[:resume_method.start()] + resume_method.group(0).replace(on_resume_anchor, on_resume_replacement, 1) + main_activity_text[resume_method.end():]
+
+    pause_anchor = "        mGyroControl.disable();"
+    pause_replacement = "        if (mPerformanceOverlayView != null) mPerformanceOverlayView.stopUpdates();\n" + pause_anchor
+    if pause_replacement not in main_activity_text:
+        if pause_anchor not in main_activity_text:
+            raise ValueError("Could not connect performance overlay lifecycle to MainActivity.onPause")
+        main_activity_text = main_activity_text.replace(pause_anchor, pause_replacement, 1)
+
+    ensure_method = """    private void ensurePerformanceOverlay() {
+        if (mPerformanceOverlayView == null) {
+            mPerformanceOverlayView = new PerformanceOverlayView(this);
+            mPerformanceOverlayView.attachTo(mControlLayout);
+        }
+        mPerformanceOverlayView.bringToFront();
+        mPerformanceOverlayView.startUpdates();
+    }
+
+    private void togglePerformanceOverlay() {
+        if (mPerformanceOverlayView == null) ensurePerformanceOverlay();
+        boolean enabled = mPerformanceOverlayView.toggleEnabled();
+        Toast.makeText(this, enabled
+                ? R.string.mylauncher_performance_overlay_enabled_toast
+                : R.string.mylauncher_performance_overlay_disabled_toast,
+                Toast.LENGTH_SHORT).show();
+    }
+
+"""
+    if "private void ensurePerformanceOverlay()" not in main_activity_text:
+        menu_method_anchor = "    private void openCustomControls() {"
+        if menu_method_anchor not in main_activity_text:
+            raise ValueError("Could not find MainActivity insertion point for performance overlay actions")
+        main_activity_text = main_activity_text.replace(menu_method_anchor, ensure_method + menu_method_anchor, 1)
+    if (
+        main_activity_text.count("private void ensurePerformanceOverlay()") != 1
+        or main_activity_text.count("private void togglePerformanceOverlay()") != 1
+        or "case 5: togglePerformanceOverlay(); break;" not in main_activity_text
+        or "mPerformanceOverlayView.attachTo(mControlLayout);" not in main_activity_text
+        or "mPerformanceOverlayView.startUpdates();" not in main_activity_text
+        or "mPerformanceOverlayView.stopUpdates();" not in main_activity_text
+    ):
+        raise ValueError("MainActivity Performance Overlay controls or lifecycle wiring is incomplete")
+    main_activity.write_text(main_activity_text, encoding="utf-8")
 
     validate_xml_files((
         strings,
