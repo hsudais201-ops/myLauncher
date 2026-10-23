@@ -28,6 +28,15 @@ From repository root, with a JDK:
 
 The actual playable Android launcher is built by `.github/workflows/build.yml`, which fetches a pinned Amethyst-Android commit and runs the customizer from `.github/scripts/`.
 
+## Minecraft versions and mod downloads
+
+The playable launcher's home has two added shortcuts:
+
+- **Minecraft Versions & Loaders** opens the upstream profile-type flow. Create a vanilla profile to select a release, snapshot, or available legacy version in the profile editor; use the existing engine's Play/download workflow to fetch the selected Minecraft version and required game assets. The same flow exposes the supported Fabric, Forge, NeoForge, Quilt, and modpack installers that are included by the pinned engine.
+- **Modrinth & CurseForge** opens the existing provider-backed browser with a Mods/Modpacks switch. Modpacks continue to use the upstream instance installer. Individual mod downloads are written into the currently selected profile's `mods/` directory, download to a temporary file first, validate the JAR archive, and verify SHA-1 when provider metadata supplies a hash. The download URL must use HTTPS and a recognized provider domain.
+
+Modrinth search works without an API key. CurseForge requires an approved API key from [the CurseForge developer console](https://console.curseforge.com/). Enter it in the browser's CurseForge API key dialog. It is saved in the app's private preferences on that device, not in this repository or a checked-in source file. Without a key, the browser keeps Modrinth available and leaves CurseForge disabled. Do not paste a personal key into source code or commit it to GitHub.
+
 ## Unified playable-launcher home
 
 The customizer connects the Voidcraft shortcuts directly to screens in the playable Amethyst engine:
