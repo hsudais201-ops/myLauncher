@@ -16,8 +16,10 @@ Only install an artifact produced by the expected repository workflow. The app's
 - Install the extracted APK. If Android asks, grant the file manager permission to install apps, then revoke that permission after installation.
 - Open Voidcraft and complete the engine's first-run storage setup.
 - Tap **PLAY**. The integrated upstream launcher should open. If it does not, record the exact error and stop; do not assume the game engine is working.
+- For the version-handoff test, open Voidcraft **Versions**, select a vanilla version from the official manifest, inspect it, and choose **PREPARE FULL VERSION FILES**. Confirm and wait for the client JAR, supported library JARs, asset index, and referenced assets to finish verification.
+- Return to Voidcraft Home and tap **PLAY**. When the selected version's saved metadata and client JAR match their recorded ID, size, and SHA-1, the integrated engine should apply that version to the active profile. Record the exact toast/message and confirm the engine's profile menu shows the same version. If the files are missing or do not verify, the handoff should be refused; manually install/select the version in the engine before continuing.
 - Use only the engine's supported official account sign-in for an account you control. Never share passwords, session tokens, or unredacted logs.
-- In the engine, confirm a compatible Java runtime is available, install a vanilla Minecraft Java release, and start it from the engine's own launch control. Downloading metadata or files in the Voidcraft Versions screen alone is not a successful world-launch test.
+- In the engine, confirm a compatible Java runtime is available, complete sign-in, and start the chosen vanilla version from the engine's own launch control. Downloading metadata or files in the Voidcraft Versions screen alone is not a successful world-launch test.
 
 ## 3. Test game launch and inputs
 
@@ -28,6 +30,8 @@ Record pass/fail for each item:
 - [ ] Official sign-in/profile setup works.
 - [ ] A compatible Java runtime is selectable and starts.
 - [ ] A vanilla release installs, including its assets and libraries.
+- [ ] The version prepared in Voidcraft is applied to the intended engine profile after size/hash checks.
+- [ ] Missing/mismatched client files are not treated as a successful handoff.
 - [ ] Minecraft reaches the title screen.
 - [ ] A single-player world can be created/opened and played for at least five minutes.
 - [ ] Touch controls respond; keyboard/gamepad input is checked if available.
