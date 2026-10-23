@@ -94,6 +94,26 @@ def patch_upstream(upstream: Path) -> None:
         or graphics_label not in strings_text
     ):
         raise ValueError("The Graphics & Renderer launcher label is missing or duplicated")
+    control_labels = (
+        '<string name="mylauncher_customize_controls">Customize Controls</string>',
+        '<string name="mylauncher_control_settings">Controls &amp; Touch Settings</string>',
+    )
+    for control_label in control_labels:
+        control_key = re.search(r'<string\s+name="([^"]+)"', control_label).group(1)
+        if not re.search(r'<string\s+name="' + re.escape(control_key) + r'"', strings_text):
+            graphics_match = re.search(
+                r'<string\s+name="mylauncher_graphics_renderer"[^>]*>.*?</string>',
+                strings_text,
+                flags=re.DOTALL,
+            )
+            if not graphics_match:
+                raise ValueError("Could not find Graphics & Renderer label insertion point for control settings")
+            strings_text = strings_text[:graphics_match.end()] + "\\n    " + control_label + strings_text[graphics_match.end():]
+        if (
+            len(re.findall(r'<string\s+name="' + re.escape(control_key) + r'"', strings_text)) != 1
+            or control_label not in strings_text
+        ):
+            raise ValueError(f"Voidcraft control label {control_key} is missing or duplicated")
     strings.write_text(strings_text, encoding="utf-8")
 
     colors_text = colors.read_text(encoding="utf-8")
@@ -303,6 +323,71 @@ def patch_upstream(upstream: Path) -> None:
         if not divider_match or 'app:layout_constraintTop_toTopOf="@id/news_button"' not in divider_match.group(0):
             raise ValueError(f"Could not align social divider with news_button in {layout_path}")
 
+        custom_control_match = re.search(
+            r'<com\\.kdt\\.mcgui\\.LauncherMenuButton\\s+android:id="@\\+id/custom_control_button".*?/>',
+            layout_text,
+            flags=re.DOTALL,
+        )
+        if not custom_control_match:
+            raise ValueError(f"Could not find custom_control_button in {layout_path}")
+        custom_control_block = custom_control_match.group(0)
+        if 'android:text="@string/mylauncher_customize_controls"' not in custom_control_block:
+            if 'android:text="@string/mcl_option_customcontrol"' not in custom_control_block:
+                raise ValueError(f"Unexpected Custom Controls label in {layout_path}")
+            custom_control_block = custom_control_block.replace(
+                'android:text="@string/mcl_option_customcontrol"',
+                'android:text="@string/mylauncher_customize_controls"',
+                1,
+            )
+            layout_text = (
+                layout_text[:custom_control_match.start()]
+                + custom_control_block
+                + layout_text[custom_control_match.end():]
+            )
+
+        if 'android:id="@+id/mylauncher_control_settings_button"' not in layout_text:
+            control_settings_button = """            <com.kdt.mcgui.LauncherMenuButton
+                android:id="@+id/mylauncher_control_settings_button"
+                style="@style/LauncherMenuButton.Universal"
+                android:layout_width="match_parent"
+                android:drawableStart="@drawable/ic_setting_control_scale"
+                android:text="@string/mylauncher_control_settings"
+                app:layout_constraintTop_toBottomOf="@id/custom_control_button" />
+"""
+            custom_control_match = re.search(
+                r'<com\\.kdt\\.mcgui\\.LauncherMenuButton\\s+android:id="@\\+id/custom_control_button".*?/>',
+                layout_text,
+                flags=re.DOTALL,
+            )
+            if not custom_control_match:
+                raise ValueError(f"Could not find insertion point for Controls & Touch Settings in {layout_path}")
+            layout_text = (
+                layout_text[:custom_control_match.end()]
+                + "\\n\\n"
+                + control_settings_button
+                + layout_text[custom_control_match.end():]
+            )
+
+        install_jar_match = re.search(
+            r'<com\\.kdt\\.mcgui\\.LauncherMenuButton\\s+android:id="@\\+id/install_jar_button".*?/>',
+            layout_text,
+            flags=re.DOTALL,
+        )
+        if not install_jar_match:
+            raise ValueError(f"Could not find install_jar_button after adding control settings in {layout_path}")
+        install_jar_block = install_jar_match.group(0)
+        old_install_constraint = 'app:layout_constraintTop_toBottomOf="@id/custom_control_button"'
+        new_install_constraint = 'app:layout_constraintTop_toBottomOf="@id/mylauncher_control_settings_button"'
+        if old_install_constraint in install_jar_block:
+            install_jar_block = install_jar_block.replace(old_install_constraint, new_install_constraint, 1)
+            layout_text = (
+                layout_text[:install_jar_match.start()]
+                + install_jar_block
+                + layout_text[install_jar_match.end():]
+            )
+        elif new_install_constraint not in install_jar_block:
+            raise ValueError(f"Install JAR button would overlap the control settings shortcut in {layout_path}")
+
         if "mylauncher_account_button" not in layout_text:
             account_button = """            <com.kdt.mcgui.LauncherMenuButton
                 android:id="@+id/mylauncher_account_button"
@@ -383,9 +468,40 @@ def patch_upstream(upstream: Path) -> None:
             layout_text,
             flags=re.DOTALL,
         )
+        custom_control_match = re.search(
+            r'<com\\.kdt\\.mcgui\\.LauncherMenuButton\\s+android:id="@\\+id/custom_control_button".*?/>',
+            layout_text,
+            flags=re.DOTALL,
+        )
+        control_settings_match = re.search(
+            r'<com\\.kdt\\.mcgui\\.LauncherMenuButton\\s+android:id="@\\+id/mylauncher_control_settings_button".*?/>',
+            layout_text,
+            flags=re.DOTALL,
+        )
+        install_jar_match = re.search(
+            r'<com\\.kdt\\.mcgui\\.LauncherMenuButton\\s+android:id="@\\+id/install_jar_button".*?/>',
+            layout_text,
+            flags=re.DOTALL,
+        )
+        if (
+            not custom_control_match
+            or 'android:text="@string/mylauncher_customize_controls"' not in custom_control_match.group(0)
+            or not control_settings_match
+            or 'style="@style/LauncherMenuButton.Universal"' not in control_settings_match.group(0)
+            or 'android:layout_width="match_parent"' not in control_settings_match.group(0)
+            or 'android:drawableStart="@drawable/ic_setting_control_scale"' not in control_settings_match.group(0)
+            or 'android:text="@string/mylauncher_control_settings"' not in control_settings_match.group(0)
+            or 'app:layout_constraintTop_toBottomOf="@id/custom_control_button"' not in control_settings_match.group(0)
+            or not install_jar_match
+            or 'app:layout_constraintTop_toBottomOf="@id/mylauncher_control_settings_button"' not in install_jar_match.group(0)
+        ):
+            raise ValueError(f"Voidcraft Customize Controls or Controls & Touch Settings is incomplete in {layout_path}")
+
         if (
             layout_text.count('android:id="@+id/mylauncher_hero_title"') != 1
             or layout_text.count('android:id="@+id/mylauncher_hero_subtitle"') != 1
+            or layout_text.count('android:id="@+id/custom_control_button"') != 1
+            or layout_text.count('android:id="@+id/mylauncher_control_settings_button"') != 1
             or layout_text.count('android:id="@+id/mylauncher_account_button"') != 1
             or layout_text.count('android:id="@+id/mylauncher_graphics_button"') != 1
             or layout_text.count('android:id="@+id/news_button"') != 1
@@ -449,6 +565,7 @@ def patch_upstream(upstream: Path) -> None:
     graphics_imports = (
         "import net.kdt.pojavlaunch.LauncherActivity;",
         "import net.kdt.pojavlaunch.prefs.screens.LauncherPreferenceVideoFragment;",
+        "import net.kdt.pojavlaunch.prefs.screens.LauncherPreferenceControlFragment;",
     )
     import_anchor = "import net.kdt.pojavlaunch.extra.ExtraCore;"
     if import_anchor not in main_menu_text:
@@ -492,6 +609,14 @@ def patch_upstream(upstream: Path) -> None:
         if listener_anchor not in main_menu_text:
             raise ValueError("Could not find the main menu listener insertion point")
         main_menu_text = main_menu_text.replace(listener_anchor, listener_anchor + "\n        " + account_listener, 1)
+    control_settings_binding = "Button mMyLauncherControlSettingsButton = view.findViewById(R.id.mylauncher_control_settings_button);"
+    if control_settings_binding not in main_menu_text:
+        if account_binding not in main_menu_text:
+            raise ValueError("Could not find account binding insertion point for Controls & Touch Settings")
+        main_menu_text = main_menu_text.replace(
+            account_binding, account_binding + "\\n        " + control_settings_binding, 1
+        )
+
     graphics_binding = "Button mMyLauncherGraphicsButton = view.findViewById(R.id.mylauncher_graphics_button);"
     if graphics_binding not in main_menu_text:
         if account_binding not in main_menu_text:
@@ -509,9 +634,21 @@ def patch_upstream(upstream: Path) -> None:
         main_menu_text = main_menu_text.replace(
             account_listener, account_listener + "\n        " + graphics_listener, 1
         )
+    control_settings_listener = (
+        "mMyLauncherControlSettingsButton.setOnClickListener(v -> Tools.swapFragment(requireActivity(), "
+        "LauncherPreferenceControlFragment.class, LauncherActivity.SETTING_FRAGMENT_TAG, null));"
+    )
+    if control_settings_listener not in main_menu_text:
+        if graphics_listener not in main_menu_text:
+            raise ValueError("Could not find Graphics & Renderer listener insertion point for control settings")
+        main_menu_text = main_menu_text.replace(
+            graphics_listener, graphics_listener + "\\n        " + control_settings_listener, 1
+        )
     if (
         main_menu_text.count(account_binding) != 1
         or main_menu_text.count(account_listener) != 1
+        or main_menu_text.count(control_settings_binding) != 1
+        or main_menu_text.count(control_settings_listener) != 1
         or main_menu_text.count(graphics_binding) != 1
         or main_menu_text.count(graphics_listener) != 1
         or "import android.widget.Button;" not in main_menu_text
@@ -519,8 +656,9 @@ def patch_upstream(upstream: Path) -> None:
         or "import net.kdt.pojavlaunch.extra.ExtraCore;" not in main_menu_text
         or "import net.kdt.pojavlaunch.LauncherActivity;" not in main_menu_text
         or "import net.kdt.pojavlaunch.prefs.screens.LauncherPreferenceVideoFragment;" not in main_menu_text
+        or "import net.kdt.pojavlaunch.prefs.screens.LauncherPreferenceControlFragment;" not in main_menu_text
     ):
-        raise ValueError("The account or Graphics & Renderer shortcut binding, handler, or imports are incomplete")
+        raise ValueError("The account, graphics, or controls shortcut binding, handler, or imports are incomplete")
     main_menu.write_text(main_menu_text, encoding="utf-8")
 
     # Replace the upstream launcher artwork with a small vector mark that scales cleanly.
