@@ -140,6 +140,19 @@ class LocalLoginFragment {
         android:layout_width="0dp"
         app:layout_constraintTop_toTopOf="parent" />
     <com.kdt.mcgui.LauncherMenuButton
+        android:id="@+id/custom_control_button"
+        android:layout_width="match_parent"
+        android:text="@string/mcl_option_customcontrol"
+        app:layout_constraintTop_toBottomOf="@id/news_button" />
+    <com.kdt.mcgui.LauncherMenuButton
+        android:id="@+id/install_jar_button"
+        android:layout_width="match_parent"
+        app:layout_constraintTop_toBottomOf="@id/custom_control_button" />
+    <com.kdt.mcgui.LauncherMenuButton
+        android:id="@+id/share_logs_button"
+        android:layout_width="match_parent"
+        app:layout_constraintTop_toBottomOf="@id/install_jar_button" />
+    <com.kdt.mcgui.LauncherMenuButton
         android:id="@+id/open_files_button"
         android:layout_width="match_parent"
         app:layout_constraintTop_toBottomOf="@id/share_logs_button" />
@@ -169,12 +182,16 @@ class LocalLoginFragment {
         main_menu = app / "src/main/java/net/kdt/pojavlaunch/fragments/MainMenuFragment.java"
         main_menu.parent.mkdir(parents=True, exist_ok=True)
         main_menu.write_text(
-            """import android.widget.Button;
+            """import android.content.Intent;
+import android.widget.Button;
+import net.kdt.pojavlaunch.CustomControlsActivity;
 import net.kdt.pojavlaunch.extra.ExtraConstants;
 import net.kdt.pojavlaunch.extra.ExtraCore;
 
 class MainMenuFragment {
     void onViewCreated(View view) {
+        Button mCustomControlButton = view.findViewById(R.id.custom_control_button);
+        mCustomControlButton.setOnClickListener(v -> startActivity(new Intent(requireContext(), CustomControlsActivity.class)));
         Button mOpenDirectoryButton = view.findViewById(R.id.open_files_button);
         mVersionSpinner = view.findViewById(R.id.mc_version_spinner);
         mOpenDirectoryButton.setOnClickListener((v)-> {
@@ -257,6 +274,8 @@ class SelectAuthFragment {
             self.assertNotIn("Amethyst", strings)
             self.assertIn("myLauncher crashed", strings)
             self.assertIn('<string name="mylauncher_graphics_renderer">Graphics &amp; Renderer</string>', strings)
+            self.assertIn('<string name="mylauncher_customize_controls">Customize Controls</string>', strings)
+            self.assertIn('<string name="mylauncher_control_settings">Controls &amp; Touch Settings</string>', strings)
             tools_java = (root / "app_pojavlauncher/src/main/java/net/kdt/pojavlaunch/Tools.java").read_text(encoding="utf-8")
             self.assertIn('public static String APP_NAME = "myLauncher";', tools_java)
             self.assertNotIn('public static String APP_NAME = "Amethyst";', tools_java)
@@ -277,6 +296,14 @@ class SelectAuthFragment {
             self.assertIn('android:text="@string/main_add_account"', login_layout)
             self.assertNotIn('android:text="@string/login_online_login_label"', login_layout)
             main_menu = (root / "app_pojavlauncher/src/main/java/net/kdt/pojavlaunch/fragments/MainMenuFragment.java").read_text(encoding="utf-8")
+            self.assertIn("Button mCustomControlButton = view.findViewById(R.id.custom_control_button);", main_menu)
+            self.assertIn("CustomControlsActivity.class", main_menu)
+            self.assertIn("mCustomControlButton.setOnClickListener", main_menu)
+            self.assertIn("Button mMyLauncherControlSettingsButton = view.findViewById(R.id.mylauncher_control_settings_button);", main_menu)
+            self.assertIn("mMyLauncherControlSettingsButton.setOnClickListener", main_menu)
+            self.assertIn("LauncherPreferenceControlFragment.class", main_menu)
+            self.assertIn("LauncherActivity.SETTING_FRAGMENT_TAG", main_menu)
+            self.assertIn("import net.kdt.pojavlaunch.prefs.screens.LauncherPreferenceControlFragment;", main_menu)
             self.assertIn("Button mMyLauncherAccountButton = view.findViewById(R.id.mylauncher_account_button);", main_menu)
             self.assertIn("mMyLauncherAccountButton.setOnClickListener", main_menu)
             self.assertIn("Button mMyLauncherGraphicsButton = view.findViewById(R.id.mylauncher_graphics_button);", main_menu)
@@ -306,6 +333,13 @@ class SelectAuthFragment {
                 self.assertIn('android:id="@+id/mylauncher_graphics_button"', layout_text)
                 self.assertIn('android:text="@string/mylauncher_graphics_renderer"', layout_text)
                 self.assertIn('app:layout_constraintTop_toBottomOf="@id/mylauncher_account_button"', layout_text)
+                self.assertIn('android:id="@+id/custom_control_button"', layout_text)
+                self.assertIn('android:text="@string/mylauncher_customize_controls"', layout_text)
+                self.assertIn('android:id="@+id/mylauncher_control_settings_button"', layout_text)
+                self.assertIn('android:drawableStart="@drawable/ic_setting_control_scale"', layout_text)
+                self.assertIn('android:text="@string/mylauncher_control_settings"', layout_text)
+                self.assertIn('app:layout_constraintTop_toBottomOf="@id/custom_control_button"', layout_text)
+                self.assertIn('app:layout_constraintTop_toBottomOf="@id/mylauncher_control_settings_button"', layout_text)
             # All transformed resources must remain well-formed XML.
             for xml_path in (
                 root / "app_pojavlauncher/src/main/res/layout/fragment_launcher.xml",
@@ -331,6 +365,8 @@ class SelectAuthFragment {
                 self.assertEqual(launcher_layout.count('android:id="@+id/mylauncher_hero_title"'), 1)
                 self.assertEqual(launcher_layout.count('android:id="@+id/mylauncher_hero_subtitle"'), 1)
                 self.assertEqual(launcher_layout.count('android:id="@+id/mylauncher_account_button"'), 1)
+                self.assertEqual(launcher_layout.count('android:id="@+id/mylauncher_control_settings_button"'), 1)
+                self.assertIn('android:text="@string/mylauncher_customize_controls"', launcher_layout)
                 self.assertIn('android:text="myLauncher"', launcher_layout)
                 self.assertIn('android:text="Minecraft Java Edition · built for lightweight devices"', launcher_layout)
                 self.assertIn('android:text="@string/main_add_account"', launcher_layout)
