@@ -638,9 +638,14 @@ private fun VoidcraftApp() {
                         storeEnabled = storeEnabled,
                         onPlayClick = {
                             try {
-                                context.startActivity(
-                                    Intent().setClassName(context, "net.kdt.pojavlaunch.LauncherActivity")
+                                val engineIntent = Intent().setClassName(
+                                    context,
+                                    "net.kdt.pojavlaunch.LauncherActivity"
                                 )
+                                selectedGameVersion
+                                    .takeIf { it != "latest" && it.matches(Regex("^[A-Za-z0-9._-]{1,100}$")) }
+                                    ?.let { engineIntent.putExtra("voidcraft.selected_version", it) }
+                                context.startActivity(engineIntent)
                             } catch (_: ActivityNotFoundException) {
                                 selectedTab = 1
                                 scope.launch {
