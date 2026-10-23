@@ -2,6 +2,8 @@
 
 This is an acceptance checklist for **debug/test artifacts**, not a public release sign-off. A successful CI build proves the APK compiled and passed the workflow's checks; it does not prove that Minecraft launches on a particular device.
 
+The integrated build workflow now also runs the APK in an Android 11 x86_64 emulator, opens Voidcraft, taps the accessible **PLAY** button, and checks that the integrated engine activity starts and remains active briefly. This automated smoke test does not complete sign-in, configure Java, download a Minecraft version, or verify a title screen/world launch.
+
 ## 1. Get the combined test APK
 
 1. Open the [Voidcraft integrated Android engine workflow runs](https://github.com/hsudais201-ops/myLauncher/actions/workflows/voidcraft-engine-build.yml).
