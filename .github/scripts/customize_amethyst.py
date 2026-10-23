@@ -1512,7 +1512,7 @@ public final class VersionDownloadFragment extends Fragment {
         import_anchor = "import android.content.Context;"
         modpack_api_text = replace_idempotently(
             modpack_api_text, import_anchor,
-            import_anchor + "\\nimport android.widget.Toast;", str(modpack_api)
+            import_anchor + "\nimport android.widget.Toast;", str(modpack_api)
         )
     direct_install_old = """                ModLoader loaderInfo = installMod(modDetail, selectedVersion);
                 if (loaderInfo == null) return;"""
