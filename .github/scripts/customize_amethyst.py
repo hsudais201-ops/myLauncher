@@ -864,6 +864,60 @@ def patch_upstream(upstream: Path) -> None:
     # files/assets to be downloaded without immediately launching the game.
     version_fragment = upstream / "app_pojavlauncher" / "src" / "main" / "java" / "net" / "kdt" / "pojavlaunch" / "fragments" / "VersionDownloadFragment.java"
     version_layout = upstream / "app_pojavlauncher" / "src" / "main" / "res" / "layout" / "fragment_version_download.xml"
+
+    # The upstream start() helper intentionally refuses fresh downloads for a local
+    # profile. Expose a dedicated metadata/file installer so the explicit Download
+    # Version screen works with offline usernames as well as Microsoft accounts.
+    downloader_java = upstream / "app_pojavlauncher" / "src" / "main" / "java" / "net" / "kdt" / "pojavlaunch" / "tasks" / "MinecraftDownloader.java"
+    if not downloader_java.is_file():
+        raise FileNotFoundError(f"Expected Minecraft downloader is missing: {downloader_java}")
+    downloader_text = downloader_java.read_text(encoding="utf-8")
+    download_method = """    /**
+     * Downloads the selected official Minecraft version independently of account authentication.
+     * This is used by the explicit version-download screen; normal launch flow retains its guards.
+     */
+    public void downloadVersionFiles(@Nullable Activity activity,
+                       @NonNull JMinecraftVersionList.Version version,
+                       @NonNull String realVersion,
+                       @NonNull AsyncMinecraftDownloader.DoneListener listener) {
+        if (activity != null) {
+            isLocalProfile = Tools.isLocalProfile(activity);
+            isOnline = Tools.isOnline(activity);
+            Tools.switchDemo(Tools.isDemoProfile(activity));
+        } else {
+            isLocalProfile = true;
+            isOnline = false;
+            Tools.switchDemo(false);
+        }
+        sExecutorService.execute(() -> {
+            try {
+                if (version == null) throw new IOException("Selected Minecraft version is not available.");
+                downloadGame(activity, version, realVersion);
+                listener.onDownloadDone();
+            } catch (Exception e) {
+                listener.onDownloadFailed(e);
+            } finally {
+                ProgressLayout.clearProgress(ProgressLayout.DOWNLOAD_MINECRAFT);
+            }
+        });
+    }
+
+"""
+    download_method_anchor = "    public void start(@Nullable Activity activity, @Nullable JMinecraftVersionList.Version version,"
+    if "public void downloadVersionFiles(" not in downloader_text:
+        if download_method_anchor not in downloader_text:
+            raise ValueError("Could not find MinecraftDownloader.start() insertion point")
+        downloader_text = downloader_text.replace(
+            download_method_anchor, download_method + download_method_anchor, 1
+        )
+    elif (
+        downloader_text.count("public void downloadVersionFiles(") != 1
+        or "downloadGame(activity, version, realVersion);" not in downloader_text
+        or "listener.onDownloadFailed(e);" not in downloader_text
+    ):
+        raise ValueError("Explicit Minecraft version-download method is incomplete or duplicated")
+    downloader_java.write_text(downloader_text, encoding="utf-8")
+
     version_fragment_source = """package net.kdt.pojavlaunch.fragments;
 
 import android.os.Bundle;
@@ -1007,7 +1061,7 @@ public final class VersionDownloadFragment extends Fragment {
         String failureTitle = getString(R.string.mylauncher_version_download_failed);
 
         try {
-            new MinecraftDownloader().start(requireActivity(), listedVersion, normalizedVersion,
+            new MinecraftDownloader().downloadVersionFiles(requireActivity(), listedVersion, normalizedVersion,
                     new AsyncMinecraftDownloader.DoneListener() {
                         @Override
                         public void onDownloadDone() {
