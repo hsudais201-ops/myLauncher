@@ -44,11 +44,12 @@ private const val MAX_TRUSTED_DOWNLOAD_REDIRECTS = 5
  * Opens a GET connection only after validating the starting URL and each redirect destination.
  * Redirects never downgrade to HTTP and never contact a host outside the supplied allowlist.
  */
-private fun openTrustedGetConnection(
+internal fun openTrustedGetConnection(
     startUrl: URL,
     allowedHosts: Set<String>,
     connectTimeoutMs: Int,
-    readTimeoutMs: Int
+    readTimeoutMs: Int,
+    acceptHeader: String = "*/*"
 ): HttpURLConnection {
     var current = startUrl
     var redirects = 0
@@ -62,6 +63,7 @@ private fun openTrustedGetConnection(
             instanceFollowRedirects = false
             requestMethod = "GET"
             setRequestProperty("User-Agent", PIPELINE_USER_AGENT)
+            setRequestProperty("Accept", acceptHeader)
             setRequestProperty("Accept-Encoding", "identity")
         }
         val responseCode = try {
