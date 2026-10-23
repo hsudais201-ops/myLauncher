@@ -13,15 +13,27 @@ internal fun isValidMinecraftSha1(value: String): Boolean =
 
 /** The version manifest has a single expected HTTPS host. */
 internal fun isApprovedMinecraftVersionManifestUrl(url: URL): Boolean =
-    url.protocol == "https" &&
+    url.protocol.equals("https", ignoreCase = true) &&
         url.host.equals("piston-meta.mojang.com", ignoreCase = true) &&
-        hasNoEmbeddedCredentials(url)
+        hasNoEmbeddedCredentials(url) &&
+        usesStandardHttpsPort(url)
 
 /** Version JSON may come from either official Mojang metadata host. */
 internal fun isApprovedMinecraftVersionMetadataUrl(url: URL): Boolean =
-    url.protocol == "https" &&
+    url.protocol.equals("https", ignoreCase = true) &&
         url.host.lowercase() in approvedVersionMetadataHosts &&
-        hasNoEmbeddedCredentials(url)
+        hasNoEmbeddedCredentials(url) &&
+        usesStandardHttpsPort(url)
+
+/** For pinned downloads, also require exact HTTPS host, no credentials, and the standard TLS port. */
+internal fun isApprovedHttpsDownloadUrl(url: URL, allowedHosts: Set<String>): Boolean =
+    url.protocol.equals("https", ignoreCase = true) &&
+        url.host.lowercase() in allowedHosts &&
+        hasNoEmbeddedCredentials(url) &&
+        usesStandardHttpsPort(url)
+
+private fun usesStandardHttpsPort(url: URL): Boolean =
+    url.port == -1 || url.port == 443
 
 private fun hasNoEmbeddedCredentials(url: URL): Boolean =
     runCatching { url.toURI().rawUserInfo == null }.getOrDefault(false)
