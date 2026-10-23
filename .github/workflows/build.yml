@@ -143,7 +143,7 @@ jobs:
             adb install -r "$APK_PATH"
             # Use explicit package arguments so shell expansion cannot silently
             # turn "pm path" into an argument-less command on the emulator.
-            adb shell pm list packages | tr -d '\\r' | grep -Fx 'package:com.mf.mylauncher.debug'
+            adb shell pm list packages | grep -Fx 'package:com.mf.mylauncher.debug'
             adb shell pm path com.mf.mylauncher.debug | grep -F 'package:'
             adb shell am force-stop com.mf.mylauncher.debug
             adb shell monkey -p com.mf.mylauncher.debug -c android.intent.category.LAUNCHER 1
