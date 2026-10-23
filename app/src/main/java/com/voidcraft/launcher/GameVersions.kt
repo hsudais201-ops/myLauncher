@@ -149,6 +149,7 @@ fun GameVersionsScreen(
     }
 
     fun prepareFullVersion(details: MinecraftVersionDetails) {
+        onSelectVersion(details.id)
         scope.launch {
             downloadingVersion = details.id
             downloadMessage = "Preparing ${details.id}: checking official client metadata…"
