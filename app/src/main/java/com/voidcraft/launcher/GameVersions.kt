@@ -99,6 +99,7 @@ fun GameVersionsScreen(
     var inspectedDetails by remember { mutableStateOf<MinecraftVersionDetails?>(null) }
     var inspectionError by remember { mutableStateOf<String?>(null) }
     var pendingAssetDetails by remember { mutableStateOf<MinecraftVersionDetails?>(null) }
+    var pendingFullPrepareDetails by remember { mutableStateOf<MinecraftVersionDetails?>(null) }
     var status by remember { mutableStateOf("Connect to the internet to load Mojang's official version manifest.") }
     var engineLaunchStatus by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
@@ -144,6 +145,41 @@ fun GameVersionsScreen(
                     inspectionError = "Could not inspect ${entry.id}: ${error.message ?: "metadata error"}."
                 }
             inspectingId = null
+        }
+    }
+
+    fun prepareFullVersion(details: MinecraftVersionDetails) {
+        scope.launch {
+            downloadingVersion = details.id
+            downloadMessage = "Preparing ${details.id}: checking official client metadata…"
+            val result = withContext(Dispatchers.IO) {
+                runCatching {
+                    // Each stage validates the official metadata and its expected digest before saving.
+                    val client = downloadAndVerifyMinecraftClientJar(context, details)
+                    Handler(Looper.getMainLooper()).post {
+                        downloadMessage = "Client JAR verified. Preparing libraries…"
+                    }
+                    val libraries = downloadMinecraftLibraries(
+                        context, details.metadataUrl, details.metadataSha1
+                    ) { message ->
+                        Handler(Looper.getMainLooper()).post { downloadMessage = message }
+                    }
+                    val assets = downloadMinecraftAssets(
+                        context, details.metadataUrl, details.metadataSha1
+                    ) { message ->
+                        Handler(Looper.getMainLooper()).post { downloadMessage = message }
+                    }
+                    Triple(client, libraries, assets)
+                }
+            }
+            result.onSuccess { prepared ->
+                downloadMessage =
+                    "Prepared ${details.id}: client JAR verified, ${prepared.second} library JARs and ${prepared.third} asset objects verified. Open the integrated engine to finish profile/runtime setup and launch."
+            }.onFailure { error ->
+                downloadMessage =
+                    "Preparation stopped safely: ${error.message ?: "unknown download or verification error"}. Successfully verified files were kept; reopen this version and retry."
+            }
+            downloadingVersion = null
         }
     }
 
@@ -278,6 +314,17 @@ fun GameVersionsScreen(
                         lineHeight = 16.sp
                     )
                     Button(
+                        onClick = { pendingFullPrepareDetails = details },
+                        enabled = downloadingVersion == null &&
+                            !details.clientJarUrl.isNullOrBlank() &&
+                            !details.clientJarSha1.isNullOrBlank() &&
+                            details.clientJarSizeBytes != null &&
+                            details.assetIndexUrl?.isNotBlank() == true,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(if (downloadingVersion == details.id) "PREPARING VERSION…" else "PREPARE FULL VERSION FILES")
+                    }
+                    Button(
                         onClick = { downloadLibraries(details) },
                         enabled = downloadingVersion == null,
                         modifier = Modifier.fillMaxWidth()
@@ -321,6 +368,29 @@ fun GameVersionsScreen(
         inspectionError?.let { message ->
             Text(message, color = MaterialTheme.colorScheme.error, fontSize = 12.sp, lineHeight = 17.sp)
         }
+        pendingFullPrepareDetails?.let { pending ->
+            AlertDialog(
+                onDismissRequest = { pendingFullPrepareDetails = null },
+                title = { Text("Prepare Minecraft ${pending.id}?") },
+                text = {
+                    Text(
+                        "Voidcraft will download and verify the official client JAR, supported library JARs, the asset index, and referenced game assets. This may use hundreds of megabytes or several gigabytes of storage and mobile data. Use Wi-Fi and keep the app open. Nothing starts until you confirm. This prepares files only; the integrated engine still performs account sign-in, runtime/profile resolution, renderer setup, and actual launch."
+                    )
+                },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            pendingFullPrepareDetails = null
+                            prepareFullVersion(pending)
+                        }
+                    ) { Text("PREPARE FILES") }
+                },
+                dismissButton = {
+                    TextButton(onClick = { pendingFullPrepareDetails = null }) { Text("CANCEL") }
+                }
+            )
+        }
+
         pendingAssetDetails?.let { pending ->
             AlertDialog(
                 onDismissRequest = { pendingAssetDetails = null },
