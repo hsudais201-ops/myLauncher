@@ -106,14 +106,14 @@ def replace_once(source: str, old: str, new: str, label: str) -> str:
 def patch_launcher_activity(source: str) -> str:
     source = replace_once(
         source,
-        "        bindViews();\\n        checkNotificationPermission();",
-        "        bindViews();\\n        applyVoidcraftSelectedVersion();\\n        checkNotificationPermission();",
+        "        bindViews();\n        checkNotificationPermission();",
+        "        bindViews();\n        applyVoidcraftSelectedVersion();\n        checkNotificationPermission();",
         "Voidcraft selected-version handoff call"
     )
     return replace_once(
         source,
-        "    @Override\\n    protected void onResume() {",
-        VERSION_HANDOFF_METHOD + "    @Override\\n    protected void onResume() {",
+        "    @Override\n    protected void onResume() {",
+        VERSION_HANDOFF_METHOD + "    @Override\n    protected void onResume() {",
         "Voidcraft selected-version handoff method"
     )
 
