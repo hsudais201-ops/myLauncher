@@ -37,6 +37,8 @@ import com.mf.mylauncher.core.MinecraftVersion;
 import com.mf.mylauncher.core.OfflineProfileValidator;
 import com.mf.mylauncher.core.VersionManifest;
 import com.mf.mylauncher.core.VersionManifestDownloader;
+import com.mf.mylauncher.core.VersionDetails;
+import com.mf.mylauncher.core.VersionDetailsDownloader;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -83,6 +85,10 @@ public final class MainActivity extends Activity {
     private boolean loadingVersions;
     private List<JavaRuntimeCatalog.Candidate> runtimeCandidates = new ArrayList<>();
     private boolean loadingRuntimes;
+    private String javaRequirementVersionId = "";
+    private int requiredJavaMajor;
+    private boolean checkingJavaRequirement;
+    private String javaRequirementError = "";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -277,6 +283,7 @@ public final class MainActivity extends Activity {
                         }
                         @Override public void onNothingSelected(AdapterView<?> parent) { }
                     });
+                    if (requiredJavaMajor > 0) selectCompatibleRuntime(requiredJavaMajor);
                     updateRuntimeStatus();
                     finishRuntimeLoad();
                 });
@@ -298,18 +305,91 @@ public final class MainActivity extends Activity {
         });
     }
 
+    private void checkJavaRequirementForSelectedVersion() {
+        int position = versionSpinner == null ? -1 : versionSpinner.getSelectedItemPosition();
+        if (position < 0 || position >= versions.size()) return;
+        MinecraftVersion selectedVersion = versions.get(position);
+        String versionId = selectedVersion.getId();
+        if (versionId.equals(javaRequirementVersionId)
+                && (checkingJavaRequirement || requiredJavaMajor > 0 || !javaRequirementError.isEmpty())) return;
+
+        javaRequirementVersionId = versionId;
+        requiredJavaMajor = 0;
+        javaRequirementError = "";
+        checkingJavaRequirement = true;
+        updateRuntimeStatus();
+        ioExecutor.execute(() -> {
+            try {
+                VersionDetails details = new VersionDetailsDownloader().download(selectedVersion);
+                int major = details.getJavaMajorVersion();
+                runOnUiThread(() -> {
+                    if (isFinishing() || isDestroyed() || !versionId.equals(javaRequirementVersionId)) return;
+                    checkingJavaRequirement = false;
+                    requiredJavaMajor = major;
+                    javaRequirementError = "";
+                    selectCompatibleRuntime(major);
+                    updateRuntimeStatus();
+                });
+            } catch (Exception exception) {
+                String reason = exception.getMessage();
+                runOnUiThread(() -> {
+                    if (isFinishing() || isDestroyed() || !versionId.equals(javaRequirementVersionId)) return;
+                    checkingJavaRequirement = false;
+                    requiredJavaMajor = 0;
+                    javaRequirementError = reason == null ? "Version metadata could not be checked." : reason;
+                    updateRuntimeStatus();
+                });
+            }
+        });
+    }
+
+    private void selectCompatibleRuntime(int majorVersion) {
+        if (runtimeSpinner == null || runtimeCandidates.isEmpty()) return;
+        java.util.Optional<JavaRuntimeCatalog.Candidate> match =
+                JavaRuntimeCatalog.selectFor(runtimeCandidates, majorVersion);
+        if (!match.isPresent()) return;
+        String runtimeId = match.get().getRuntimeId();
+        for (int i = 0; i < runtimeCandidates.size(); i++) {
+            if (runtimeId.equals(runtimeCandidates.get(i).getRuntimeId())) {
+                if (runtimeSpinner.getSelectedItemPosition() != i) runtimeSpinner.setSelection(i);
+                preferences.edit().putString(PREF_RUNTIME, runtimeId).apply();
+                return;
+            }
+        }
+    }
+
     private void updateRuntimeStatus() {
         if (runtimeStatus == null || runtimeSpinner == null) return;
+        String requirement;
+        if (checkingJavaRequirement) {
+            requirement = "Checking the Java requirement for Minecraft " + javaRequirementVersionId + "…";
+        } else if (requiredJavaMajor > 0) {
+            requirement = "Selected Minecraft version requires Java " + requiredJavaMajor + ".";
+        } else if (!javaRequirementError.isEmpty()) {
+            requirement = "Could not determine the required Java version: " + javaRequirementError;
+        } else {
+            requirement = "Select a Minecraft version to check its required Java major version.";
+        }
+
         int position = runtimeSpinner.getSelectedItemPosition();
         if (position < 0 || position >= runtimeCandidates.size()) {
-            runtimeStatus.setText("No installed Java runtime could be selected. This shell does not install runtimes.");
+            runtimeStatus.setText(requirement + "\nNo installed Java runtime could be selected. This shell does not install runtimes.");
             return;
         }
         JavaRuntimeCatalog.Candidate candidate = runtimeCandidates.get(position);
-        String compatibility = candidate.isAvailable()
-                ? "Java " + candidate.getJavaMajorVersion() + " answered the version probe. This is not a game-launch or native-graphics compatibility test."
-                : candidate.getMessage();
-        runtimeStatus.setText(candidate.getDisplayLabel() + "\n" + compatibility
+        String compatibility;
+        if (!candidate.isAvailable()) {
+            compatibility = candidate.getMessage();
+        } else if (requiredJavaMajor > 0 && candidate.getJavaMajorVersion() == requiredJavaMajor) {
+            compatibility = "Selected Java runtime matches the required major version.";
+        } else if (requiredJavaMajor > 0) {
+            compatibility = "Selected runtime is Java " + candidate.getJavaMajorVersion()
+                    + "; it does not match the required Java " + requiredJavaMajor + ".";
+        } else {
+            compatibility = "Java " + candidate.getJavaMajorVersion()
+                    + " answered the version probe. This is not a game-launch or native-graphics compatibility test.";
+        }
+        runtimeStatus.setText(requirement + "\n" + candidate.getDisplayLabel() + "\n" + compatibility
                 + "\nRuntime package installation and actual gameplay are handled by the separate Amethyst-based APK.");
     }
 
@@ -322,6 +402,10 @@ public final class MainActivity extends Activity {
     private void loadVersions() {
         if (loadingVersions || isFinishing() || isDestroyed()) return;
         loadingVersions = true;
+        javaRequirementVersionId = "";
+        requiredJavaMajor = 0;
+        checkingJavaRequirement = false;
+        javaRequirementError = "";
         refreshButton.setEnabled(false);
         progressBar.setIndeterminate(true);
         progressBar.setProgress(0);
@@ -348,10 +432,12 @@ public final class MainActivity extends Activity {
                         @Override public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
                             if (position >= 0 && position < versions.size()) {
                                 preferences.edit().putString(PREF_VERSION, versions.get(position).getId()).apply();
+                                checkJavaRequirementForSelectedVersion();
                             }
                         }
                         @Override public void onNothingSelected(AdapterView<?> parent) { }
                     });
+                    checkJavaRequirementForSelectedVersion();
                     versionStatus.setText("Loaded " + ids.size() + " versions · Latest release "
                             + manifest.getLatestReleaseId() + " · Latest snapshot " + manifest.getLatestSnapshotId());
                     finishVersionLoad();
