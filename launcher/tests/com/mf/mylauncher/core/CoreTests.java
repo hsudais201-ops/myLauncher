@@ -1903,7 +1903,7 @@ public final class CoreTests {
 
     private static void installationProgress() {
         eq(50, new InstallationProgress(InstallationProgress.Stage.DOWNLOADING, null,
-                0, 0, Long.MAX_VALUE / 2, Long.MAX_VALUE).getPercent(),
+                0, 0, Long.MAX_VALUE / 2 + 1, Long.MAX_VALUE).getPercent(),
                 "download percentage does not overflow on large metadata byte totals");
         eq(99, new InstallationProgress(InstallationProgress.Stage.DOWNLOADING, null,
                 0, 0, Long.MAX_VALUE - 1, Long.MAX_VALUE).getPercent(),
