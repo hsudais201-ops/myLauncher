@@ -117,7 +117,7 @@ fun AdvancedModManagerScreen() {
                         ?.takeIf { it.isNotBlank() } ?: "imported-mod.jar"
                     if (!displayName.endsWith(".jar", true)) error("Choose a .jar mod file.")
                     val enabledDir = activeGameModsDirectory(context).apply { mkdirs() }
-                    val temp = File(enabledDir, "import-@@{System.currentTimeMillis()}.part")
+                    val temp = File(enabledDir, "import-${System.currentTimeMillis()}.part")
                     context.contentResolver.openInputStream(uri)?.use { input ->
                         temp.outputStream().use { output ->
                             val buffer = ByteArray(8192)
