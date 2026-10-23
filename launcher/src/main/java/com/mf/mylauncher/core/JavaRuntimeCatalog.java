@@ -102,7 +102,7 @@ public final class JavaRuntimeCatalog {
 
     private static Candidate inspect(String id, JavaRuntimeLocator locator, JavaProcessRunner runner,
                                      Path workingDirectory, CancellationToken cancellation, long timeoutMillis)
-            throws InterruptedException {
+            throws IOException, InterruptedException {
         try {
             Optional<Path> executable = locator.locate(id);
             if (!executable.isPresent()) {
