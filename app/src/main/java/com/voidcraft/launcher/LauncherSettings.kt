@@ -81,6 +81,7 @@ fun LauncherSettingsScreen(onOpenFeatureStore: () -> Unit) {
         "updates" -> ReleaseCheckerScreen(onBack = { page = "overview" })
         "runtime" -> JavaRuntimeManagerScreen(onBack = { page = "overview" })
         "render" -> RenderBackendScreen(onBack = { page = "overview" })
+        "diagnostics" -> LauncherDiagnosticsScreen(onBack = { page = "overview" })
         else -> SettingsOverviewScreen(
             onProfile = { page = "profile" },
             onPerformance = { page = "performance" },
@@ -90,6 +91,7 @@ fun LauncherSettingsScreen(onOpenFeatureStore: () -> Unit) {
             onUpdates = { page = "updates" },
             onRuntime = { page = "runtime" },
             onRender = { page = "render" },
+            onDiagnostics = { page = "diagnostics" },
             onStore = onOpenFeatureStore
         )
     }
@@ -105,6 +107,7 @@ private fun SettingsOverviewScreen(
     onUpdates: () -> Unit,
     onRuntime: () -> Unit,
     onRender: () -> Unit,
+    onDiagnostics: () -> Unit,
     onStore: () -> Unit
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -123,6 +126,7 @@ private fun SettingsOverviewScreen(
         SettingsTile("Check for updates", "Check the GitHub release feed and open published release notes.", onUpdates)
         SettingsTile("Java Runtime Manager", "Install and verify Android Java 8, 17, 21, and 25 runtimes where supported.", onRuntime)
         SettingsTile("Render Backend", "Run an OpenGL ES 2.0 GPU surface and shader smoke test.", onRender)
+        SettingsTile("Device diagnostics", "Check engine/runtime folders, game files, storage and memory; export a privacy-conscious report.", onDiagnostics)
         OutlinedButton(onClick = onStore, modifier = Modifier.fillMaxWidth()) {
             Text("OPEN FEATURE STORE")
         }
@@ -134,7 +138,7 @@ private fun SettingsOverviewScreen(
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 Text("What is still required", fontWeight = FontWeight.Bold)
                 Text(
-                    "The Java Runtime Manager can install and verify several Android Java versions. The Versions screen can download the official client JAR, Android-compatible library JAR artifacts, asset index, and referenced asset objects with SHA-1 checks. The Android LWJGL/native compatibility engine, secure Microsoft authentication, inherited/loader-specific version resolution, launch command, and game surface/input lifecycle are still not integrated. These tools do not bypass account authentication.",
+                    "The Versions screen can prepare the official client JAR, supported libraries, asset index, and game assets with integrity checks. Device diagnostics can help identify missing files and export a report. The integrated engine still owns secure Microsoft sign-in, complete profile/inherited-version resolution, renderer setup, and actual game launch; none of these tools bypasses account authentication.",
                     color = VoidMuted,
                     fontSize = 12.sp,
                     lineHeight = 18.sp
