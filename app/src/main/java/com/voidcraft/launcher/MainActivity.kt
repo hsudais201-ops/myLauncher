@@ -145,6 +145,7 @@ private fun VoidcraftApp() {
     var selectedGameVersion by remember { mutableStateOf(prefs.getString("selected_game_version", "latest") ?: "latest") }
     var catalog by remember { mutableStateOf(loadBundledCatalog(context)) }
     var isRefreshing by remember { mutableStateOf(false) }
+    var busyFeatureId by remember { mutableStateOf<String?>(null) }
     var selectedFeature by remember { mutableStateOf<StoreFeature?>(null) }
     var socialHubOpen by remember { mutableStateOf(false) }
     var serverStateOpen by remember { mutableStateOf(false) }
@@ -482,6 +483,7 @@ private fun VoidcraftApp() {
                     FeatureDetail(
                         feature = selectedFeature!!,
                         installed = selectedFeature!!.id in installedIds,
+                        busyFeatureId = busyFeatureId,
                         onInstall = {
                             val feature = selectedFeature!!
                             if (feature.builtIn) {
@@ -498,34 +500,50 @@ private fun VoidcraftApp() {
                             ) {
                                 scope.launch { snackbarHostState.showSnackbar("This listing needs an HTTPS package URL and a pinned SHA-256 digest.") }
                             } else {
-                                scope.launch {
-                                    val result = withContext(Dispatchers.IO) {
-                                        runCatching { downloadFeaturePackage(context, feature) }
-                                    }
-                                    result.onSuccess {
-                                        saveInstalled(installedIds + feature.id)
-                                        snackbarHostState.showSnackbar(
-                                            "${feature.name} downloaded safely to app storage. This package is not automatically loaded by Minecraft."
-                                        )
-                                    }.onFailure {
-                                        snackbarHostState.showSnackbar("Install failed: ${it.message ?: "download error"}")
+                                if (busyFeatureId != null) {
+                                    scope.launch { snackbarHostState.showSnackbar("Another Feature Store download is already running.") }
+                                } else {
+                                    busyFeatureId = feature.id
+                                    scope.launch {
+                                        try {
+                                            val result = withContext(Dispatchers.IO) {
+                                                runCatching { downloadFeaturePackage(context, feature) }
+                                            }
+                                            result.onSuccess {
+                                                saveInstalled(installedIds + feature.id)
+                                                snackbarHostState.showSnackbar(
+                                                    "${feature.name} downloaded safely to app storage. This package is not automatically loaded by Minecraft."
+                                                )
+                                            }.onFailure {
+                                                snackbarHostState.showSnackbar("Install failed: ${it.message ?: "download error"}")
+                                            }
+                                        } finally {
+                                            if (busyFeatureId == feature.id) busyFeatureId = null
+                                        }
                                     }
                                 }
                             }
                         },
                         onUninstall = {
                             val feature = selectedFeature!!
-                            File(context.filesDir, "feature-store/${feature.id.replace(Regex("[^A-Za-z0-9._-]"), "_")}.package").delete()
-                            saveInstalled(installedIds - feature.id)
-                            if (activeTheme == feature.id) {
-                                activeTheme = "default"
-                                prefs.edit().putString("active_theme", activeTheme).apply()
+                            if (!removeFeaturePackageFiles(File(context.filesDir, "feature-store"), feature.id)) {
+                                scope.launch {
+                                    snackbarHostState.showSnackbar(
+                                        "Could not remove the stored package. It is still marked installed; free storage and retry."
+                                    )
+                                }
+                            } else {
+                                saveInstalled(installedIds - feature.id)
+                                if (activeTheme == feature.id) {
+                                    activeTheme = "default"
+                                    prefs.edit().putString("active_theme", activeTheme).apply()
+                                }
+                                if (feature.id == "cosmetic-store") {
+                                    equippedCosmetic = null
+                                    prefs.edit().remove("equipped_cosmetic_id").apply()
+                                }
+                                scope.launch { snackbarHostState.showSnackbar("${feature.name} removed from Voidcraft.") }
                             }
-                            if (feature.id == "cosmetic-store") {
-                                equippedCosmetic = null
-                                prefs.edit().remove("equipped_cosmetic_id").apply()
-                            }
-                            scope.launch { snackbarHostState.showSnackbar("${feature.name} removed from Voidcraft.") }
                         },
                         onOpen = {
                             val feature = selectedFeature!!
@@ -1239,6 +1257,7 @@ private fun StoreScreen(features: List<StoreFeature>, installedIds: Set<String>,
 private fun FeatureDetail(
     feature: StoreFeature,
     installed: Boolean,
+    busyFeatureId: String?,
     onInstall: () -> Unit,
     onUninstall: () -> Unit,
     onOpen: () -> Unit
@@ -1269,10 +1288,27 @@ private fun FeatureDetail(
                         modifier = Modifier.fillMaxWidth()
                     ) { Text("PACKAGE STORED — NOT EXECUTABLE") }
                 }
-                OutlinedButton(onClick = onUninstall, modifier = Modifier.fillMaxWidth()) { Text("UNINSTALL") }
+                OutlinedButton(
+                    onClick = onUninstall,
+                    enabled = busyFeatureId == null,
+                    modifier = Modifier.fillMaxWidth()
+                ) { Text("UNINSTALL") }
             }
             feature.availability == "available" && (feature.builtIn || !feature.packageUrl.isNullOrBlank()) -> {
-                Button(onClick = onInstall, modifier = Modifier.fillMaxWidth()) { Text("INSTALL FEATURE") }
+                Button(
+                    onClick = onInstall,
+                    enabled = busyFeatureId == null,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    if (busyFeatureId == feature.id) {
+                        CircularProgressIndicator(strokeWidth = 2.dp, modifier = Modifier.size(18.dp))
+                        Text("DOWNLOADING PACKAGE…")
+                    } else if (busyFeatureId != null) {
+                        Text("ANOTHER DOWNLOAD IS RUNNING")
+                    } else {
+                        Text("INSTALL FEATURE")
+                    }
+                }
             }
             else -> {
                 Button(onClick = {}, enabled = false, modifier = Modifier.fillMaxWidth()) { Text("NOT INSTALLABLE YET") }
