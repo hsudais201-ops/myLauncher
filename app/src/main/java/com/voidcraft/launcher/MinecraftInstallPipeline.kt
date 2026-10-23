@@ -91,12 +91,7 @@ internal fun openTrustedGetConnection(
             error("Download redirected too many times")
         }
         if (location.isNullOrBlank()) error("Download redirect has no destination")
-        val next = runCatching { URL(current, location) }
-            .getOrElse { error("Download server returned an invalid redirect URL") }
-        require(isApprovedHttpsDownloadUrl(next, allowedHosts)) {
-            "Blocked a redirect outside the trusted HTTPS host allowlist"
-        }
-        current = next
+        current = resolveTrustedDownloadRedirect(current, location, allowedHosts)
         redirects++
     }
 }
