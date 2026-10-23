@@ -109,21 +109,25 @@ VERSION_HANDOFF_METHOD = """    private void applyVoidcraftSelectedVersion() {
             }
 
             LauncherProfiles.load();
+            java.util.Map<String, MinecraftProfile> profiles = LauncherProfiles.mainProfileJson.profiles;
             String profileId = LauncherPreferences.DEFAULT_PREF.getString(
                     LauncherPreferences.PREF_KEY_CURRENT_PROFILE, "");
-            if (profileId == null || profileId.isEmpty()) {
-                Toast.makeText(this, "Choose a launcher profile before applying the Voidcraft version.",
-                        Toast.LENGTH_LONG).show();
-                return;
+            if (profileId == null || !profiles.containsKey(profileId)) {
+                if (profiles.isEmpty()) {
+                    throw new IllegalStateException("No Minecraft profile is available.");
+                }
+                // The launcher activity can open before its profile spinner initializes.
+                // Reuse an existing profile rather than failing the handoff on first launch.
+                profileId = profiles.keySet().iterator().next();
+                LauncherPreferences.DEFAULT_PREF.edit()
+                        .putString(LauncherPreferences.PREF_KEY_CURRENT_PROFILE, profileId).apply();
             }
-            MinecraftProfile profile = LauncherProfiles.mainProfileJson.profiles.get(profileId);
+            MinecraftProfile profile = profiles.get(profileId);
             if (profile == null) {
-                Toast.makeText(this, "The current launcher profile could not be loaded.",
-                        Toast.LENGTH_LONG).show();
-                return;
+                throw new IllegalStateException("The selected Minecraft profile could not be loaded.");
             }
             profile.lastVersionId = requestedVersion;
-            LauncherProfiles.mainProfileJson.profiles.put(profileId, profile);
+            profiles.put(profileId, profile);
             LauncherProfiles.write();
             Toast.makeText(this, "Selected verified Minecraft " + requestedVersion + " from Voidcraft.",
                     Toast.LENGTH_SHORT).show();
