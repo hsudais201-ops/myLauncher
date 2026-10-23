@@ -230,6 +230,28 @@ class MainMenuFragment {
 """,
             encoding="utf-8",
         )
+        (api_dir / "ModpackApi.java").write_text(
+            """import android.content.Context;
+import net.kdt.pojavlaunch.R;
+import net.kdt.pojavlaunch.Tools;
+import com.kdt.mcgui.ProgressLayout;
+interface ModpackApi {
+    default void handleInstallation(Context context, ModDetail modDetail, int selectedVersion) {
+        ProgressLayout.setProgress(ProgressLayout.INSTALL_MODPACK, 0, R.string.global_waiting);
+        PojavApplication.sExecutorService.execute(() -> {
+            try {
+                ModLoader loaderInfo = installMod(modDetail, selectedVersion);
+                if (loaderInfo == null) return;
+                loaderInfo.getDownloadTask(new NotificationDownloadListener(context, loaderInfo)).run();
+            }catch (IOException e) {
+                Tools.showErrorRemote(context, R.string.modpack_install_download_failed, e);
+            }
+        });
+    }
+}
+""",
+            encoding="utf-8",
+        )
         (api_dir / "ModrinthApi.java").write_text(
             """class ModrinthApi {
     public ModLoader installMod(ModDetail modDetail, int selectedVersion) throws IOException{
@@ -665,6 +687,11 @@ EXTERNAL_API void pojavSwapBuffers() {
             common_api = (root / "app_pojavlauncher/src/main/java/net/kdt/pojavlaunch/modloaders/modpacks/api/CommonApi.java").read_text(encoding="utf-8")
             self.assertIn('"DUMMY".equalsIgnoreCase(key)', common_api)
             self.assertIn("CurseForge modpack import requires an approved API key.", common_api)
+            modpack_api = (root / "app_pojavlauncher/src/main/java/net/kdt/pojavlaunch/modloaders/modpacks/api/ModpackApi.java").read_text(encoding="utf-8")
+            self.assertIn("import android.widget.Toast;", modpack_api)
+            self.assertIn("!modDetail.isModpack", modpack_api)
+            self.assertIn("R.string.mylauncher_mod_install_success", modpack_api)
+            self.assertIn("Toast.makeText(context", modpack_api)
             for relative_api in ("ModrinthApi.java", "CurseforgeApi.java"):
                 api_text = (root / "app_pojavlauncher/src/main/java/net/kdt/pojavlaunch/modloaders/modpacks/api" / relative_api).read_text(encoding="utf-8")
                 self.assertIn("ModFileInstaller.install(modDetail, selectedVersion)", api_text)
