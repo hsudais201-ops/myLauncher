@@ -38,6 +38,67 @@ private val trustedLibraryHosts = setOf(
 )
 private val trustedAssetHosts = setOf("resources.download.minecraft.net")
 
+private const val MAX_TRUSTED_DOWNLOAD_REDIRECTS = 5
+
+/**
+ * Opens a GET connection only after validating the starting URL and each redirect destination.
+ * Redirects never downgrade to HTTP and never contact a host outside the supplied allowlist.
+ */
+private fun openTrustedGetConnection(
+    startUrl: URL,
+    allowedHosts: Set<String>,
+    connectTimeoutMs: Int,
+    readTimeoutMs: Int
+): HttpURLConnection {
+    var current = startUrl
+    var redirects = 0
+    while (true) {
+        require(isApprovedHttpsDownloadUrl(current, allowedHosts)) {
+            "Download URL must use HTTPS on an approved host without credentials or a custom port"
+        }
+        val connection = (current.openConnection() as HttpURLConnection).apply {
+            connectTimeout = connectTimeoutMs
+            readTimeout = readTimeoutMs
+            instanceFollowRedirects = false
+            requestMethod = "GET"
+            setRequestProperty("User-Agent", PIPELINE_USER_AGENT)
+            setRequestProperty("Accept-Encoding", "identity")
+        }
+        val responseCode = try {
+            connection.responseCode
+        } catch (failure: Exception) {
+            connection.disconnect()
+            throw failure
+        }
+        val isRedirect = responseCode == 301 ||
+            responseCode == 302 ||
+            responseCode == 303 ||
+            responseCode == 307 ||
+            responseCode == 308
+        if (!isRedirect) {
+            if (responseCode !in 200..299) {
+                connection.disconnect()
+                error("Download returned HTTP $responseCode")
+            }
+            return connection
+        }
+
+        val location = connection.getHeaderField("Location")
+        connection.disconnect()
+        if (redirects >= MAX_TRUSTED_DOWNLOAD_REDIRECTS) {
+            error("Download redirected too many times")
+        }
+        if (location.isNullOrBlank()) error("Download redirect has no destination")
+        val next = runCatching { URL(current, location) }
+            .getOrElse { error("Download server returned an invalid redirect URL") }
+        require(isApprovedHttpsDownloadUrl(next, allowedHosts)) {
+            "Blocked a redirect outside the trusted HTTPS host allowlist"
+        }
+        current = next
+        redirects++
+    }
+}
+
 /**
  * Downloads metadata-listed library JARs only. Desktop native classifiers are intentionally
  * excluded because Android requires a mobile LWJGL/native compatibility layer.
@@ -128,7 +189,7 @@ internal fun downloadMinecraftAssets(
     require(indexSha1.matches(Regex("^[0-9a-f]{40}$"))) { "Invalid asset index SHA-1" }
     require(indexSize in 1L..MAX_ASSET_INDEX_BYTES) { "Asset index size exceeds the safety limit" }
     val indexUrlObject = URL(indexUrl)
-    require(indexUrlObject.protocol == "https" && indexUrlObject.host.lowercase() in trustedMetadataHosts) {
+    require(isApprovedMinecraftVersionMetadataUrl(indexUrlObject)) {
         "Asset index URL is not hosted on an approved Mojang metadata host"
     }
 
@@ -224,15 +285,11 @@ private fun fetchVersionMetadata(urlText: String, expectedSha1: String): JSONObj
         "Official version manifest did not provide a valid version JSON SHA-1"
     }
     val url = URL(urlText)
-    require(url.protocol == "https" && url.host.lowercase() in trustedMetadataHosts) {
+    require(isApprovedMinecraftVersionMetadataUrl(url)) {
         "Version metadata must come from Mojang's official HTTPS metadata hosts"
     }
-    val connection = (url.openConnection() as HttpURLConnection).apply {
-        connectTimeout = 8000
-        readTimeout = 15000
-        requestMethod = "GET"
+    val connection = openTrustedGetConnection(url, trustedMetadataHosts, 8000, 15000).apply {
         setRequestProperty("Accept", "application/json")
-        setRequestProperty("User-Agent", PIPELINE_USER_AGENT)
     }
     try {
         if (connection.responseCode !in 200..299) error("Mojang returned HTTP ${connection.responseCode}")
@@ -296,7 +353,7 @@ private fun downloadVerified(
 ) {
     require(expectedSize in 1L..maxBytes) { "File size is outside the allowed download range" }
     val url = URL(sourceUrl)
-    require(url.protocol == "https" && url.host.lowercase() in allowedHosts) {
+    require(isApprovedHttpsDownloadUrl(url, allowedHosts)) {
         "Download URL host is not on the trusted HTTPS allowlist"
     }
     val parent = destination.parentFile ?: error("Download destination has no parent")
@@ -304,17 +361,10 @@ private fun downloadVerified(
     require(availableSpace(parent) >= expectedSize) { "Not enough free app storage for ${destination.name}" }
     val temporary = File(parent, destination.name + ".part")
     temporary.delete()
-    val connection = (url.openConnection() as HttpURLConnection).apply {
-        connectTimeout = 10000
-        readTimeout = 30000
-        requestMethod = "GET"
-        instanceFollowRedirects = true
-        setRequestProperty("User-Agent", PIPELINE_USER_AGENT)
-    }
+    val connection = openTrustedGetConnection(url, allowedHosts, 10000, 30000)
     try {
         if (connection.responseCode !in 200..299) error("Download returned HTTP ${connection.responseCode}")
-        val finalUrl = connection.url
-        require(finalUrl.protocol == "https" && finalUrl.host.lowercase() in allowedHosts) {
+        require(isApprovedHttpsDownloadUrl(connection.url, allowedHosts)) {
             "Download redirected outside the trusted HTTPS allowlist"
         }
         val responseLength = connection.getHeaderFieldLong("Content-Length", -1L)
