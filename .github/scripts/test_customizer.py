@@ -256,6 +256,7 @@ class SelectAuthFragment {
             self.assertNotIn("org.angelauramc.amethyst", build)
             self.assertNotIn("Amethyst", strings)
             self.assertIn("myLauncher crashed", strings)
+            self.assertIn('<string name="mylauncher_graphics_renderer">Graphics &amp; Renderer</string>', strings)
             tools_java = (root / "app_pojavlauncher/src/main/java/net/kdt/pojavlaunch/Tools.java").read_text(encoding="utf-8")
             self.assertIn('public static String APP_NAME = "myLauncher";', tools_java)
             self.assertNotIn('public static String APP_NAME = "Amethyst";', tools_java)
@@ -278,6 +279,11 @@ class SelectAuthFragment {
             main_menu = (root / "app_pojavlauncher/src/main/java/net/kdt/pojavlaunch/fragments/MainMenuFragment.java").read_text(encoding="utf-8")
             self.assertIn("Button mMyLauncherAccountButton = view.findViewById(R.id.mylauncher_account_button);", main_menu)
             self.assertIn("mMyLauncherAccountButton.setOnClickListener", main_menu)
+            self.assertIn("Button mMyLauncherGraphicsButton = view.findViewById(R.id.mylauncher_graphics_button);", main_menu)
+            self.assertIn("mMyLauncherGraphicsButton.setOnClickListener", main_menu)
+            self.assertIn("LauncherPreferenceVideoFragment.class", main_menu)
+            self.assertIn("LauncherActivity.SETTING_FRAGMENT_TAG", main_menu)
+            self.assertIn("import net.kdt.pojavlaunch.prefs.screens.LauncherPreferenceVideoFragment;", main_menu)
             self.assertIn("ExtraConstants.SELECT_AUTH_METHOD", main_menu)
             self.assertIn("Tools.isDemoProfile(v.getContext())", main_menu)
             self.assertIn("else openPath(v.getContext(), getCurrentProfileDirectory(), false);", main_menu)
@@ -292,6 +298,14 @@ class SelectAuthFragment {
             self.assertIn('android:label="@string/app_name"', manifest)
             self.assertNotIn("org.angelauramc.amethyst", manifest)
             self.assertIn('android:fillColor="#7C5CFF"', icon)
+            for relative_layout in (
+                "src/main/res/layout/fragment_launcher.xml",
+                "src/main/res/layout-land/fragment_launcher.xml",
+            ):
+                layout_text = (root / "app_pojavlauncher" / relative_layout).read_text(encoding="utf-8")
+                self.assertIn('android:id="@+id/mylauncher_graphics_button"', layout_text)
+                self.assertIn('android:text="@string/mylauncher_graphics_renderer"', layout_text)
+                self.assertIn('app:layout_constraintTop_toBottomOf="@id/mylauncher_account_button"', layout_text)
             # All transformed resources must remain well-formed XML.
             for xml_path in (
                 root / "app_pojavlauncher/src/main/res/layout/fragment_launcher.xml",
