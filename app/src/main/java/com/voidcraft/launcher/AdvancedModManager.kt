@@ -142,10 +142,13 @@ fun AdvancedModManagerScreen() {
                             suffix++
                         }
                         if (!temp.renameTo(destination)) {
+                            var copyCompleted = false
                             try {
                                 temp.copyTo(destination, overwrite = false)
+                                copyCompleted = true
                             } finally {
                                 temp.delete()
+                                if (!copyCompleted) destination.delete()
                             }
                         }
                         destination
