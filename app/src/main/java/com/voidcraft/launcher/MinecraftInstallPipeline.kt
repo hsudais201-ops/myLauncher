@@ -288,9 +288,7 @@ private fun fetchVersionMetadata(urlText: String, expectedSha1: String): JSONObj
     require(isApprovedMinecraftVersionMetadataUrl(url)) {
         "Version metadata must come from Mojang's official HTTPS metadata hosts"
     }
-    val connection = openTrustedGetConnection(url, trustedMetadataHosts, 8000, 15000).apply {
-        setRequestProperty("Accept", "application/json")
-    }
+    val connection = openTrustedGetConnection(url, trustedMetadataHosts, 8000, 15000)
     try {
         if (connection.responseCode !in 200..299) error("Mojang returned HTTP ${connection.responseCode}")
         val bodyBytes = connection.inputStream.use { input ->
