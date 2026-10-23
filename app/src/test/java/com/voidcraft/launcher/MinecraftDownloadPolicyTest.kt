@@ -76,4 +76,28 @@ class MinecraftDownloadPolicyTest {
             )
         )
     }
+
+    @Test
+    fun rejectsNonstandardPortsAndCredentialsForTrustedFileDownloads() {
+        val hosts = setOf("libraries.minecraft.net", "resources.download.minecraft.net")
+        assertTrue(isApprovedHttpsDownloadUrl(URL("https://libraries.minecraft.net/com/example.jar"), hosts))
+        assertFalse(isApprovedHttpsDownloadUrl(URL("http://libraries.minecraft.net/com/example.jar"), hosts))
+        assertFalse(isApprovedHttpsDownloadUrl(URL("https://attacker.example/com/example.jar"), hosts))
+        assertFalse(isApprovedHttpsDownloadUrl(URL("https://user@libraries.minecraft.net/com/example.jar"), hosts))
+        assertFalse(isApprovedHttpsDownloadUrl(URL("https://libraries.minecraft.net:8443/com/example.jar"), hosts))
+    }
+
+    @Test
+    fun rejectsNonstandardPortsForOfficialMetadata() {
+        assertFalse(
+            isApprovedMinecraftVersionMetadataUrl(
+                URL("https://piston-meta.mojang.com:8443/v1/version.json")
+            )
+        )
+        assertFalse(
+            isApprovedMinecraftVersionManifestUrl(
+                URL("https://piston-meta.mojang.com:8443/mc/game/version_manifest_v2.json")
+            )
+        )
+    }
 }
