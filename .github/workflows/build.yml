@@ -8,11 +8,11 @@ on:
       - '.github/workflows/build.yml'
       - '.github/scripts/**'
       - 'launcher/**'
-      - 'launcher/**'
   pull_request:
     paths:
       - '.github/workflows/build.yml'
       - '.github/scripts/**'
+      - 'launcher/**'
   workflow_dispatch:
 
 permissions:
