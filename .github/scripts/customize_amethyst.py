@@ -920,6 +920,223 @@ def patch_upstream(upstream: Path) -> None:
     main_menu.write_text(main_menu_text, encoding="utf-8")
 
 
+    # A small user-managed Feature Store. It intentionally displays only entries
+    # the user adds on this device; adding stores a feature link, removing uninstalls
+    # that entry from the store, and Open follows its validated HTTPS/HTTP URL.
+    feature_store_java = upstream / "app_pojavlauncher" / "src" / "main" / "java" / "net" / "kdt" / "pojavlaunch" / "fragments" / "FeatureStoreFragment.java"
+    feature_store_source = """package net.kdt.pojavlaunch.fragments;
+
+import android.content.Context;
+import android.content.SharedPreferences;
+import android.net.Uri;
+import android.os.Bundle;
+import android.view.Gravity;
+import android.view.LayoutInflater;
+import android.view.View;
+import android.view.ViewGroup;
+import android.widget.Button;
+import android.widget.EditText;
+import android.widget.LinearLayout;
+import android.widget.ScrollView;
+import android.widget.TextView;
+
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+import androidx.appcompat.app.AlertDialog;
+import androidx.fragment.app.Fragment;
+
+import net.kdt.pojavlaunch.R;
+import net.kdt.pojavlaunch.Tools;
+
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
+
+public class FeatureStoreFragment extends Fragment {
+    public static final String TAG = "FeatureStoreFragment";
+    private static final String PREFS = "mylauncher_feature_store";
+    private static final String ITEMS = "user_added_features";
+    private LinearLayout mList;
+    private TextView mEmpty;
+
+    @Nullable
+    @Override
+    public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container,
+                             @Nullable Bundle savedInstanceState) {
+        int pad = dp(16);
+        LinearLayout root = new LinearLayout(requireContext());
+        root.setOrientation(LinearLayout.VERTICAL);
+        root.setPadding(pad, pad, pad, pad);
+        root.setBackgroundColor(0xFF11131A);
+
+        TextView title = new TextView(requireContext());
+        title.setText(R.string.mylauncher_feature_store);
+        title.setTextSize(22);
+        title.setTextColor(0xFFFFFFFF);
+        root.addView(title, new LinearLayout.LayoutParams(-1, -2));
+
+        TextView hint = new TextView(requireContext());
+        hint.setText(R.string.mylauncher_feature_store_empty);
+        hint.setTextColor(0xFFB7BBC7);
+        LinearLayout.LayoutParams hintParams = new LinearLayout.LayoutParams(-1, -2);
+        hintParams.topMargin = dp(8);
+        root.addView(hint, hintParams);
+
+        Button add = new Button(requireContext());
+        add.setText(R.string.mylauncher_feature_store_add);
+        add.setOnClickListener(v -> showAddDialog());
+        LinearLayout.LayoutParams addParams = new LinearLayout.LayoutParams(-1, -2);
+        addParams.topMargin = dp(12);
+        root.addView(add, addParams);
+
+        ScrollView scroll = new ScrollView(requireContext());
+        mList = new LinearLayout(requireContext());
+        mList.setOrientation(LinearLayout.VERTICAL);
+        scroll.addView(mList, new ScrollView.LayoutParams(-1, -2));
+        LinearLayout.LayoutParams scrollParams = new LinearLayout.LayoutParams(-1, 0, 1f);
+        scrollParams.topMargin = dp(12);
+        root.addView(scroll, scrollParams);
+
+        mEmpty = new TextView(requireContext());
+        mEmpty.setText(R.string.mylauncher_feature_store_empty);
+        mEmpty.setTextColor(0xFFB7BBC7);
+        mEmpty.setGravity(Gravity.CENTER);
+        renderStore();
+        return root;
+    }
+
+    private int dp(int value) {
+        return (int) (value * getResources().getDisplayMetrics().density + 0.5f);
+    }
+
+    private SharedPreferences preferences() {
+        return requireContext().getSharedPreferences(PREFS, Context.MODE_PRIVATE);
+    }
+
+    private JSONArray readItems() {
+        try {
+            return new JSONArray(preferences().getString(ITEMS, "[]"));
+        } catch (JSONException ignored) {
+            return new JSONArray();
+        }
+    }
+
+    private void saveItems(JSONArray items) {
+        preferences().edit().putString(ITEMS, items.toString()).apply();
+        renderStore();
+    }
+
+    private void showAddDialog() {
+        LinearLayout form = new LinearLayout(requireContext());
+        form.setOrientation(LinearLayout.VERTICAL);
+        int pad = dp(16);
+        form.setPadding(pad, pad, pad, 0);
+        EditText name = new EditText(requireContext());
+        name.setSingleLine(true);
+        name.setHint(R.string.mylauncher_feature_store_name_hint);
+        form.addView(name, new LinearLayout.LayoutParams(-1, -2));
+        EditText url = new EditText(requireContext());
+        url.setSingleLine(true);
+        url.setInputType( android.text.InputType.TYPE_CLASS_TEXT | android.text.InputType.TYPE_TEXT_VARIATION_URI);
+        url.setHint(R.string.mylauncher_feature_store_url_hint);
+        form.addView(url, new LinearLayout.LayoutParams(-1, -2));
+
+        AlertDialog dialog = new AlertDialog.Builder(requireContext())
+                .setTitle(R.string.mylauncher_feature_store_add)
+                .setView(form)
+                .setPositiveButton(android.R.string.ok, null)
+                .setNegativeButton(android.R.string.cancel, null)
+                .create();
+        dialog.setOnShowListener(ignored -> dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v -> {
+            String featureName = name.getText().toString().trim();
+            String featureUrl = url.getText().toString().trim();
+            Uri parsed = Uri.parse(featureUrl);
+            String scheme = parsed.getScheme();
+            if (featureName.isEmpty() || parsed.getHost() == null ||
+                    !("https".equalsIgnoreCase(scheme) || "http".equalsIgnoreCase(scheme))) {
+                url.setError(getString(R.string.mylauncher_feature_store_url_hint));
+                return;
+            }
+            JSONArray items = readItems();
+            try {
+                JSONObject item = new JSONObject();
+                item.put("name", featureName);
+                item.put("url", featureUrl);
+                items.put(item);
+                saveItems(items);
+                dialog.dismiss();
+            } catch (JSONException e) {
+                url.setError(getString(R.string.mylauncher_feature_store_url_hint));
+            }
+        }));
+        dialog.show();
+    }
+
+    private void renderStore() {
+        if (mList == null) return;
+        mList.removeAllViews();
+        JSONArray items = readItems();
+        boolean hasItems = false;
+        for (int i = 0; i < items.length(); i++) {
+            JSONObject item = items.optJSONObject(i);
+            if (item == null) continue;
+            String name = item.optString("name", "").trim();
+            String url = item.optString("url", "").trim();
+            if (name.isEmpty() || url.isEmpty()) continue;
+            hasItems = true;
+
+            LinearLayout card = new LinearLayout(requireContext());
+            card.setOrientation(LinearLayout.VERTICAL);
+            card.setPadding(dp(12), dp(8), dp(12), dp(8));
+            card.setBackgroundColor(0xFF20232D);
+            LinearLayout.LayoutParams cardParams = new LinearLayout.LayoutParams(-1, -2);
+            cardParams.bottomMargin = dp(8);
+            mList.addView(card, cardParams);
+
+            TextView label = new TextView(requireContext());
+            label.setText(name);
+            label.setTextSize(16);
+            label.setTextColor(0xFFFFFFFF);
+            card.addView(label, new LinearLayout.LayoutParams(-1, -2));
+            TextView address = new TextView(requireContext());
+            address.setText(url);
+            address.setTextColor(0xFFB7BBC7);
+            card.addView(address, new LinearLayout.LayoutParams(-1, -2));
+
+            LinearLayout actions = new LinearLayout(requireContext());
+            actions.setOrientation(LinearLayout.HORIZONTAL);
+            Button open = new Button(requireContext());
+            open.setText(R.string.mylauncher_feature_store_open);
+            open.setOnClickListener(v -> Tools.openURL(requireActivity(), url));
+            actions.addView(open, new LinearLayout.LayoutParams(0, -2, 1f));
+            Button remove = new Button(requireContext());
+            remove.setText(R.string.mylauncher_feature_store_remove);
+            final int index = i;
+            remove.setOnClickListener(v -> {
+                JSONArray updated = readItems();
+                JSONArray remaining = new JSONArray();
+                for (int j = 0; j < updated.length(); j++) {
+                    if (j != index) remaining.put(updated.opt(j));
+                }
+                saveItems(remaining);
+            });
+            actions.addView(remove, new LinearLayout.LayoutParams(0, -2, 1f));
+            card.addView(actions, new LinearLayout.LayoutParams(-1, -2));
+        }
+        mEmpty.setVisibility(hasItems ? View.GONE : View.VISIBLE);
+        if (!hasItems) {
+            mList.addView(mEmpty, new LinearLayout.LayoutParams(-1, -2));
+        }
+    }
+}
+"""
+    if feature_store_java.exists():
+        existing_feature_store = feature_store_java.read_text(encoding="utf-8")
+        if existing_feature_store != feature_store_source:
+            raise ValueError("FeatureStoreFragment.java already exists with unexpected content")
+    else:
+        feature_store_java.write_text(feature_store_source, encoding="utf-8")
+
     # Explicit vanilla-version downloader. The existing profile editor/Play workflow
     # still provisions versions when launching; this screen also allows a version's
     # files/assets to be downloaded without immediately launching the game.
