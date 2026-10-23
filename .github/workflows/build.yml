@@ -141,14 +141,16 @@ jobs:
             set -eu
             adb wait-for-device
             adb install -r "$APK_PATH"
-            PACKAGE="com.mf.mylauncher.debug"
-            adb shell pm path "$PACKAGE"
-            adb shell am force-stop "$PACKAGE"
-            adb shell monkey -p "$PACKAGE" -c android.intent.category.LAUNCHER 1
+            # Use explicit package arguments so shell expansion cannot silently
+            # turn "pm path" into an argument-less command on the emulator.
+            adb shell pm list packages | tr -d '\\r' | grep -Fx 'package:com.mf.mylauncher.debug'
+            adb shell pm path com.mf.mylauncher.debug | grep -F 'package:'
+            adb shell am force-stop com.mf.mylauncher.debug
+            adb shell monkey -p com.mf.mylauncher.debug -c android.intent.category.LAUNCHER 1
             sleep 15
-            adb shell pidof "$PACKAGE"
+            adb shell pidof com.mf.mylauncher.debug
             adb shell dumpsys activity activities > upstream/mylauncher-activities.txt
-            grep -F "$PACKAGE" upstream/mylauncher-activities.txt
+            grep -F 'com.mf.mylauncher.debug' upstream/mylauncher-activities.txt
             adb logcat -d > upstream/mylauncher-emulator-logcat.txt
             if grep -E 'FATAL EXCEPTION|Process: com.mf.mylauncher.debug' upstream/mylauncher-emulator-logcat.txt; then
               echo "Detected an Android runtime crash during launcher smoke test." >&2
