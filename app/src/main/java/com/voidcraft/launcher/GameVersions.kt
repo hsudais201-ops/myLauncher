@@ -514,13 +514,17 @@ fun GameVersionsScreen(
 }
 
 private fun fetchMinecraftVersions(): MinecraftVersionManifest {
-    val connection = (URL(MOJANG_VERSION_MANIFEST).openConnection() as HttpURLConnection).apply {
-        connectTimeout = 8000
-        readTimeout = 12000
-        requestMethod = "GET"
-        setRequestProperty("Accept", "application/json")
-        setRequestProperty("User-Agent", "Voidcraft-Android-Launcher/0.1")
+    val manifestUrl = URL(MOJANG_VERSION_MANIFEST)
+    require(isApprovedMinecraftVersionManifestUrl(manifestUrl)) {
+        "The configured version manifest URL is not approved"
     }
+    val connection = openTrustedGetConnection(
+        manifestUrl,
+        setOf("piston-meta.mojang.com"),
+        8000,
+        12000,
+        "application/json"
+    )
     try {
         if (connection.responseCode !in 200..299) {
             error("Mojang returned HTTP ${connection.responseCode}")
@@ -584,13 +588,13 @@ private fun fetchMinecraftVersionDetails(context: Context, entry: MinecraftVersi
         "Unexpected metadata host; only Mojang version metadata is accepted"
     }
 
-    val connection = (metadataUrl.openConnection() as HttpURLConnection).apply {
-        connectTimeout = 8000
-        readTimeout = 15000
-        requestMethod = "GET"
-        setRequestProperty("Accept", "application/json")
-        setRequestProperty("User-Agent", "Voidcraft-Android-Launcher/0.1")
-    }
+    val connection = openTrustedGetConnection(
+        metadataUrl,
+        setOf("piston-meta.mojang.com", "launchermeta.mojang.com"),
+        8000,
+        15000,
+        "application/json"
+    )
     try {
         if (connection.responseCode !in 200..299) {
             error("Mojang returned HTTP ${connection.responseCode}")
@@ -699,14 +703,13 @@ private fun downloadAndVerifyMinecraftClientJar(
     }
 
     temporary.delete()
-    val connection = (clientUrl.openConnection() as HttpURLConnection).apply {
-        connectTimeout = 10000
-        readTimeout = 30000
-        requestMethod = "GET"
-        instanceFollowRedirects = true
-        setRequestProperty("Accept", "application/java-archive, application/octet-stream, */*")
-        setRequestProperty("User-Agent", "Voidcraft-Android-Launcher/0.1")
-    }
+    val connection = openTrustedGetConnection(
+        clientUrl,
+        allowedHosts,
+        10000,
+        30000,
+        "application/java-archive, application/octet-stream, */*"
+    )
 
     try {
         if (connection.responseCode !in 200..299) {
