@@ -11,7 +11,7 @@ This directory contains the product-owned launcher core, separated from CI autom
 - Verified classpath resolution and launch preflight; runtime-major probe and private-runtime lookup; launch coordinator validates install paths/index/classpath/runtime, then supervises a Java child process.
 - App-private multi-runtime discovery for conventional Java 8/17/21/25 slots and additional runtime IDs, actual `java -version` probing, visible missing/broken slots, and exact-major selection without silently substituting an incompatible runtime.
 - Explicit-target native classifier planning; checksum-verified native downloads; cancellation-aware single/multi-archive extraction with exclusions, traversal/symlink rejection, size caps, duplicate-file rejection and staged publication.
-- A dependency-free core regression suite; an earlier baseline passed 371 assertions under JDK 21. This review branch adds new 26.1+ metadata, native-classifier, logging-argument, symlink-path, and large-progress regressions; the latest branch still needs a fresh CI run.
+- A dependency-free core regression suite; the latest branch's GitHub Actions run passes the core tests, Android shell build, and playable APK emulator startup smoke test.
 
 ## Run tests
 
@@ -27,6 +27,8 @@ From repository root, with a JDK:
     gradle :app:assembleDebug
 
 The actual playable Android launcher is built by `.github/workflows/build.yml`, which fetches a pinned Amethyst-Android commit and runs the customizer from `.github/scripts/`.
+
+For the latest tested debug APK, open the [Build myLauncher APK workflow](https://github.com/hsudais201-ops/myLauncher/actions/workflows/build.yml), select the successful run on `feat/pojav-runtime-catalog-2026-10-23`, and download the `myLauncher-debug-apk` artifact. Extract the ZIP and install `app_pojavlauncher-debug.apk`. This is a debug build, not a signed production release.
 
 ## Minecraft versions and mod downloads
 
