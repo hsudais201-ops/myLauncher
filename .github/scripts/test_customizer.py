@@ -174,6 +174,9 @@ class LocalLoginFragment {
     void connectAccountSelector() {
         ExtraCore.addExtraListener(ExtraConstants.SELECT_AUTH_METHOD, mSelectAuthMethod);
     }
+    void importCurseforgeModpack(File modpackFile) throws IOException {
+                ModLoader loaderInfo = new CommonApi(getString(R.string.curseforge_api_key)).importModpack(modpackFile);
+    }
 }
 """,
             encoding="utf-8",
@@ -716,6 +719,15 @@ EXTERNAL_API void pojavSwapBuffers() {
             self.assertIn("R.string.mylauncher_version_download_in_progress", version_fragment)
             self.assertIn("R.string.mylauncher_version_download_done", version_fragment)
             self.assertIn("new AsyncMinecraftDownloader.DoneListener()", version_fragment)
+            self.assertIn("ensureVersionListAvailable()", version_fragment)
+            self.assertIn("new AsyncVersionList().getVersionList", version_fragment)
+            self.assertIn("ExtraConstants.RELEASE_TABLE", version_fragment)
+            self.assertIn("R.string.mylauncher_version_list_loading", version_fragment)
+            self.assertIn("R.string.mylauncher_version_list_failed", version_fragment)
+            self.assertIn('<string name="mylauncher_version_list_loading">', strings)
+            self.assertIn('<string name="mylauncher_version_list_failed">', strings)
+            self.assertIn('getSharedPreferences("mylauncher_mod_sources", MODE_PRIVATE)', activity)
+            self.assertIn("new CommonApi(curseForgeApiKey).importModpack(modpackFile)", activity)
             version_layout = root / "app_pojavlauncher/src/main/res/layout/fragment_version_download.xml"
             ET.parse(version_layout)
             version_layout_text = version_layout.read_text(encoding="utf-8")
