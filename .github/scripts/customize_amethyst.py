@@ -324,7 +324,7 @@ def patch_upstream(upstream: Path) -> None:
             raise ValueError(f"Could not align social divider with news_button in {layout_path}")
 
         custom_control_match = re.search(
-            r'<com\.kdt\\.mcgui\\.LauncherMenuButton\\s+android:id="@\\+id/custom_control_button".*?/>',
+            r'<com\.kdt\.mcgui\.LauncherMenuButton\s+android:id="@\+id/custom_control_button".*?/>',
             layout_text,
             flags=re.DOTALL,
         )
@@ -355,7 +355,7 @@ def patch_upstream(upstream: Path) -> None:
                 app:layout_constraintTop_toBottomOf="@id/custom_control_button" />
 """
             custom_control_match = re.search(
-                r'<com\.kdt\\.mcgui\\.LauncherMenuButton\\s+android:id="@\\+id/custom_control_button".*?/>',
+                r'<com\.kdt\.mcgui\.LauncherMenuButton\s+android:id="@\+id/custom_control_button".*?/>',
                 layout_text,
                 flags=re.DOTALL,
             )
@@ -369,7 +369,7 @@ def patch_upstream(upstream: Path) -> None:
             )
 
         install_jar_match = re.search(
-            r'<com\.kdt\\.mcgui\\.LauncherMenuButton\\s+android:id="@\\+id/install_jar_button".*?/>',
+            r'<com\.kdt\.mcgui\.LauncherMenuButton\s+android:id="@\+id/install_jar_button".*?/>',
             layout_text,
             flags=re.DOTALL,
         )
@@ -469,17 +469,17 @@ def patch_upstream(upstream: Path) -> None:
             flags=re.DOTALL,
         )
         custom_control_match = re.search(
-            r'<com\.kdt\\.mcgui\\.LauncherMenuButton\\s+android:id="@\\+id/custom_control_button".*?/>',
+            r'<com\.kdt\.mcgui\.LauncherMenuButton\s+android:id="@\+id/custom_control_button".*?/>',
             layout_text,
             flags=re.DOTALL,
         )
         control_settings_match = re.search(
-            r'<com\.kdt\\.mcgui\\.LauncherMenuButton\\s+android:id="@\\+id/mylauncher_control_settings_button".*?/>',
+            r'<com\.kdt\.mcgui\.LauncherMenuButton\s+android:id="@\+id/mylauncher_control_settings_button".*?/>',
             layout_text,
             flags=re.DOTALL,
         )
         install_jar_match = re.search(
-            r'<com\.kdt\\.mcgui\\.LauncherMenuButton\\s+android:id="@\\+id/install_jar_button".*?/>',
+            r'<com\.kdt\.mcgui\.LauncherMenuButton\s+android:id="@\+id/install_jar_button".*?/>',
             layout_text,
             flags=re.DOTALL,
         )
