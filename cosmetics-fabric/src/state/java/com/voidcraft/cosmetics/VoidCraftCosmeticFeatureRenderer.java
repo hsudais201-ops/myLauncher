@@ -67,7 +67,7 @@ public final class VoidCraftCosmeticFeatureRenderer
     ) {
         if ("none".equals(EQUIPPED_ID)) return;
         matrices.push();
-        getContextModel().head.rotate(matrices);
+        getContextModel().head.applyTransform(matrices);
         VertexConsumer vertices = vertexConsumers.getBuffer(
             RenderLayer.getEntityTranslucent(VoidCraftCosmeticsClient.HALO_TEXTURE)
         );
