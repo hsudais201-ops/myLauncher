@@ -13,14 +13,14 @@ import net.minecraft.client.render.entity.feature.FeatureRenderer;
 import net.minecraft.client.render.entity.feature.FeatureRendererContext;
 import net.minecraft.client.render.entity.model.PlayerEntityModel;
 import net.minecraft.client.util.math.MatrixStack;
-import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.client.network.AbstractClientPlayerEntity;
 
-public final class VoidCraftCosmeticFeatureRenderer extends FeatureRenderer<PlayerEntity, PlayerEntityModel<PlayerEntity>> {
+public final class VoidCraftCosmeticFeatureRenderer extends FeatureRenderer<AbstractClientPlayerEntity, PlayerEntityModel<AbstractClientPlayerEntity>> {
     private final ModelPart halo;
     private static final String EQUIPPED_ID = readEquippedId();
 
     public VoidCraftCosmeticFeatureRenderer(
-        FeatureRendererContext<PlayerEntity, PlayerEntityModel<PlayerEntity>> context,
+        FeatureRendererContext<AbstractClientPlayerEntity, PlayerEntityModel<AbstractClientPlayerEntity>> context,
         ModelPart halo
     ) {
         super(context);
@@ -59,7 +59,7 @@ public final class VoidCraftCosmeticFeatureRenderer extends FeatureRenderer<Play
         MatrixStack matrices,
         net.minecraft.client.render.VertexConsumerProvider vertexConsumers,
         int light,
-        PlayerEntity entity,
+        AbstractClientPlayerEntity entity,
         float limbAngle,
         float limbDistance,
         float tickDelta,
