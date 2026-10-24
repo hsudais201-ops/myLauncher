@@ -3,9 +3,7 @@
 
   const STORAGE_KEY = "voidcraft.server-state.saved.v2";
   const LEGACY_STORAGE_KEY = "voidcraft.server-state.saved.v1";
-  const API_BASE = "https://api.mcsrvstat.us/3/";
-  const BEDROCK_API_BASE = "https://api.mcsrvstat.us/bedrock/3/";
-  const ICON_API_BASE = "https://api.mcsrvstat.us/icon/";
+  const STATUS_API_PATH = "/api/server-status";
   const form = document.querySelector("#server-form");
   const addressInput = document.querySelector("#server-address");
   const editionInput = document.querySelector("#server-edition");
@@ -108,7 +106,7 @@
     if (data && typeof data.icon === "string" && /^data:image\/png;base64,[a-zA-Z0-9+/=]+$/.test(data.icon)) {
       image.src = data.icon;
     } else if (data) {
-      image.src = ICON_API_BASE + encodeURIComponent(server.address);
+      image.src = STATUS_API_PATH + "?resource=icon&address=" + encodeURIComponent(server.address) + "&edition=" + encodeURIComponent(server.edition);
     } else {
       image.src = "assets/logo.svg";
       image.alt = "Server icon not loaded yet";
@@ -245,23 +243,20 @@
     setNotice("Checking " + server.address + " (" + server.edition + ")…");
 
     try {
-      const base = server.edition === "bedrock" ? BEDROCK_API_BASE : API_BASE;
-      const response = await fetch(base + encodeURIComponent(server.address), {
+      const endpoint = STATUS_API_PATH + "?address=" + encodeURIComponent(server.address) + "&edition=" + encodeURIComponent(server.edition);
+      const response = await fetch(endpoint, {
         method: "GET",
-        mode: "cors",
         cache: "no-store",
-        credentials: "omit",
-        headers: { "Accept": "application/json" },
-        referrerPolicy: "strict-origin-when-cross-origin"
+        credentials: "same-origin",
+        headers: { "Accept": "application/json" }
       });
+      let data = null;
+      try { data = await response.json(); } catch (_) {}
       if (!response.ok) {
-        if (response.status === 403) {
-          throw new Error("The status service rejected this request (HTTP 403). Try again later; if this repeats, a same-origin status proxy is needed.");
-        }
+        if (data && typeof data.error === "string") throw new Error(data.error);
         if (response.status === 429) throw new Error("The status service rate-limited this check. Wait a little before retrying.");
         throw new Error("Status service returned HTTP " + response.status + ".");
       }
-      const data = await response.json();
       if (!data || typeof data.online !== "boolean") {
         throw new Error("The status service returned an unexpected response. Please retry later.");
       }
