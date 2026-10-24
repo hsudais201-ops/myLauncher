@@ -22,7 +22,7 @@ emulator_ready() {
         adb_limited 10 reconnect offline >/dev/null 2>&1 || true
         state="$(adb_limited 10 get-state 2>/dev/null || true)"
         if [ "$state" = "device" ]; then
-            booted="$(adb_limited 10 shell getprop sys.boot_completed 2>/dev/null | tr -d '\\r' || true)"
+            booted="$(adb_limited 10 shell getprop sys.boot_completed 2>/dev/null | tr -d '\r' || true)"
             if [ "$booted" = "1" ]; then
                 echo "[smoke] emulator is online and boot-complete"
                 return 0
