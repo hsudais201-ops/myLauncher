@@ -690,7 +690,7 @@ EXTERNAL_API void pojavSwapBuffers() {
                 self.assertIn('android:text="@string/mylauncher_browse_modrinth"', layout_text)
                 self.assertIn('android:id="@+id/mylauncher_cosmetics_button"', layout_text)
                 self.assertIn('android:text="@string/mylauncher_cosmetic_store"', layout_text)
-                self.assertIn('app:layout_constraintTop_toBottomOf="@id/mylauncher_cosmetics_button"', layout_text)
+                self.assertIn('app:layout_constraintTop_toBottomOf="@id/mylauncher_feature_store_button"', layout_text)
                 self.assertIn('app:layout_constraintTop_toBottomOf="@id/mylauncher_cosmetics_button"', layout_text)
                 self.assertIn('android:id="@+id/mylauncher_browse_curseforge_button"', layout_text)
                 self.assertIn('android:text="@string/mylauncher_browse_curseforge"', layout_text)
