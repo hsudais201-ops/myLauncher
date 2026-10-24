@@ -1,6 +1,6 @@
 import { json } from "../auth/_utils.js";
 
-function publicItem(row) {
+function publicItem(row, checkoutEnabled) {
   const priceCents = row.price_cents === null ? null : Number(row.price_cents);
   const packageAvailable = Boolean(row.package_url) && priceCents !== null;
   const isFreePackage = priceCents === 0;
@@ -28,7 +28,8 @@ function publicItem(row) {
     creatorUsername: row.creator_username || null,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
-    downloadCount: Number(row.download_count || 0)
+    downloadCount: Number(row.download_count || 0),
+    checkoutEnabled: Boolean(checkoutEnabled)
   };
 }
 
@@ -50,7 +51,8 @@ export async function onRequestGet({ request, env }) {
       "WHERE i.status = 'published' AND (? = '' OR i.kind = ?) " +
       "ORDER BY CASE i.availability WHEN 'available' THEN 0 WHEN 'coming_soon' THEN 1 WHEN 'preview' THEN 2 ELSE 3 END, i.name COLLATE NOCASE LIMIT 100"
     ).bind(kind, kind).all();
-    return json({ items: (result.results || []).map(publicItem) }, 200);
+    const checkoutEnabled = typeof env.STRIPE_SECRET_KEY === "string" && env.STRIPE_SECRET_KEY.startsWith("sk_") && typeof env.STRIPE_WEBHOOK_SECRET === "string" && env.STRIPE_WEBHOOK_SECRET.startsWith("whsec_");
+    return json({ items: (result.results || []).map(row => publicItem(row, checkoutEnabled)), checkoutEnabled }, 200);
   } catch (error) {
     console.error("VoidCraft catalog read failed", { name: error?.name || "Error" });
     return json({ error: "The store catalog could not be loaded.", code: "STORE_CATALOG_READ_FAILED" }, 503);
