@@ -1,1 +1,48 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#090b13"><meta name="description" content="Current site update: website account registration and sign-in, session-based profiles, and expandable image previews have been deployed. Store purchases, live server data, uploads and launcher-linked installs remain in development."><title>Changelog — VoidCraft</title><link rel="icon" href="assets/logo.svg"><link rel="stylesheet" href="assets/styles.css"></head><body><header><div class="bar"><a class="brand" href="index.html"><img src="assets/logo.svg" alt=""><span>VOIDCRAFT</span></a><nav class="nav" aria-label="Main navigation"><a href="index.html">Home</a><a href="downloads.html">Downloads</a><a href="feature-store.html">Feature Store</a><a href="cosmetic-store.html">Cosmetics</a><a href="servers.html">Servers</a><a href="community.html">Community</a><a href="developers.html">Developers</a><a href="docs.html">Docs</a></nav><div class="account-links"><a href="signin.html">Sign in</a><a href="profile.html">Profile</a></div></div></header><main><section class="hero"><div class="eyebrow">VoidCraft · Minecraft launcher community</div><h1>Follow project progress.</h1><p>This is the initial static website deployment. Verified launcher releases and tested feature changes will be listed here when available.</p><div class="actions"><a class="btn" href="downloads.html">Downloads →</a><a class="btn secondary" href="community.html">Community</a></div></section><div class="notice"><strong>Development status:</strong> VoidCraft website accounts are active. Purchases, live server data, uploads and launcher-linked installs are not active yet.</div></main><footer><div class="foot"><span>© VoidCraft community project · Independent from Mojang and Microsoft</span><span><a href="privacy.html">Privacy</a> · <a href="terms.html">Terms</a> · <a href="security.html">Security</a></span></div></footer><script src="assets/app.js" defer></script></body></html>
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#080a12">
+<meta name="description" content="VoidCraft website changelog covering the mobile-first Orbit redesign, account interface, Social Hub branding and marketplace status.">
+<link rel="icon" href="assets/logo.svg" type="image/svg+xml"><link rel="stylesheet" href="assets/styles.css">
+<title>Changelog — VoidCraft</title>
+</head>
+<body>
+<header><div class="bar">
+<a class="brand" href="index.html" aria-label="VoidCraft home"><img src="assets/logo.svg" alt=""><span>VOIDCRAFT</span></a>
+<nav class="nav" aria-label="Main navigation"><a href="index.html">Home</a><a href="downloads.html">Downloads</a><a href="feature-store.html">Feature Store</a><a href="cosmetic-store.html">Cosmetics</a><a href="servers.html">Servers</a><a href="social-hub.html">Chat &amp; Friends</a><a href="community.html">Community</a><a href="developers.html">Developers</a><a href="docs.html">Docs</a></nav>
+<div class="account-links"><a href="signin.html">Sign in</a><a href="profile.html">Profile</a></div>
+</div></header>
+<main id="vc-main">
+<section class="hero">
+<div class="eyebrow">PROJECT UPDATES</div><h1>Progress, made <span class="headline-glow">visible.</span></h1>
+<p>Website changes are tracked here. Launcher engine, payment, account, and compatibility claims remain separate from visual site updates and must be validated on their own.</p>
+<div class="actions"><a class="btn" href="https://github.com/hsudais201-ops/myLauncher/commits/main/website" rel="noopener">View website commits ↗</a><a class="btn secondary" href="downloads.html">Release information</a></div>
+</section>
+
+<section class="home-section changelog-list" aria-label="Recent changes">
+<article class="changelog-entry">
+<div class="changelog-entry-date"><span>24</span><span>OCT 2026</span></div>
+<div class="changelog-entry-copy"><div class="eyebrow">WEBSITE · DESIGN SYSTEM</div><h2>VoidCraft Orbit refresh</h2><p>The homepage and account entry page were redesigned with a more cohesive logo-led identity, cleaner content hierarchy, reusable cards and responsive layouts. Shared site styling now gives buttons, forms, navigation and footers a consistent look across the existing pages.</p><div class="changelog-tags"><span>Mobile-first layout</span><span>Shared styling</span><span>Accessibility</span></div></div>
+</article>
+<article class="changelog-entry">
+<div class="changelog-entry-date"><span>24</span><span>OCT 2026</span></div>
+<div class="changelog-entry-copy"><div class="eyebrow">NAVIGATION · CHAT</div><h2>Chat &amp; Friends is easier to reach</h2><p>Added an accessible mobile navigation toggle, consistent current-page states, clearer tap targets and the main VoidCraft logo on Social Hub sign-in. The site account script is isolated from the Social Hub form so they do not conflict.</p><div class="changelog-tags"><span>Responsive nav</span><span>Brand consistency</span><span>Auth form isolation</span></div></div>
+</article>
+<article class="changelog-entry">
+<div class="changelog-entry-date"><span>24</span><span>OCT 2026</span></div>
+<div class="changelog-entry-copy"><div class="eyebrow">DOCUMENTATION · COMMUNITY</div><h2>Updated guides and support routes</h2><p>Documentation now explains accounts, browser tools, store ownership, server checks, compatibility and current limitations. Community resources link to the actual source repository and issue tracker rather than invented social channels.</p><div class="changelog-tags"><span>Guides</span><span>Support links</span><span>Clear status</span></div></div>
+</article>
+<article class="changelog-entry">
+<div class="changelog-entry-date"><span>24</span><span>OCT 2026</span></div>
+<div class="changelog-entry-copy"><div class="eyebrow">COSMETICS · CATALOG</div><h2>Fresh Cosmetic Market interface</h2><p>The replaced store uses catalog data and account entitlements to decide which actions appear. Purchase buttons require a published paid package and configured secure checkout; Equip requires confirmed ownership.</p><p class="changelog-caveat"><strong>Limitation:</strong> Equip currently changes the website profile only. It does not render cosmetics in Minecraft or guarantee multiplayer visibility.</p><div class="changelog-tags"><span>Catalog-backed</span><span>Ownership check</span><span>No fake purchases</span></div></div>
+</article>
+<article class="changelog-entry">
+<div class="changelog-entry-date"><span>ONGOING</span><span>IN DEVELOPMENT</span></div>
+<div class="changelog-entry-copy"><div class="eyebrow">LAUNCHER · SERVICES</div><h2>What still needs real-world validation</h2><p>Launcher runtime and renderer support, tested APK releases, paid checkout configuration, published cosmetic packages, password reset email delivery and production readiness for Social Hub remain separate work items. A styled page or mockup is not counted as a completed runtime feature.</p><div class="actions"><a class="btn secondary" href="docs.html">Read current limitations</a><a class="btn secondary" href="https://github.com/hsudais201-ops/myLauncher/issues" rel="noopener">Track issues ↗</a></div></div>
+</article>
+</section>
+</main>
+<footer><div class="foot"><span>© VoidCraft community project · Independent from Mojang and Microsoft</span><span><a href="privacy.html">Privacy</a> · <a href="terms.html">Terms</a> · <a href="security.html">Security</a></span></div></footer>
+<script src="assets/app.js" defer></script>
+</body></html>
