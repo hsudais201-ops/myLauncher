@@ -1,51 +1,55 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#090b13">
-<meta name="description" content="Explore original VoidCraft themes, visual packs and cosmetics.">
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#090914">
+<meta name="description" content="Discover original VoidCraft cosmetics, profile effects and visual styles.">
 <title>Cosmetic Store — VoidCraft</title><link rel="icon" href="assets/logo.svg"><link rel="stylesheet" href="assets/styles.css">
+<style>
+:root{--cos-line:#292641;--cos-muted:#a7a6c5;--cos-violet:#a58bff;--cos-cyan:#69e9ee}
+.cosmetic-page main{padding-top:26px}.cosmetic-hero{position:relative;isolation:isolate;overflow:hidden;min-height:390px;margin:0 0 30px;padding:clamp(26px,5vw,58px);border:1px solid #332a54;border-radius:30px;background:radial-gradient(ellipse at 82% 35%,#6440b84a,transparent 34%),radial-gradient(ellipse at 90% 100%,#1c829344,transparent 40%),linear-gradient(130deg,#19152e,#0b1020 70%)}.cosmetic-hero:after{content:"";position:absolute;z-index:-1;width:250px;height:250px;right:7%;top:17%;border:1px solid #bca8ff40;border-radius:50%;box-shadow:0 0 0 22px #bca8ff0a,0 0 0 48px #bca8ff08,0 0 65px #9c7bff25}.cosmetic-hero .hero-copy{max-width:690px}.cosmetic-hero h1{max-width:720px;font-size:clamp(42px,7vw,76px);letter-spacing:-.06em;margin:16px 0}.headline-glow{color:#b6a2ff;text-shadow:0 0 30px #9c7bff40}.cosmetic-hero p{max-width:620px;font-size:16px}.cosmetic-pill-row,.store-trust-row{display:flex;flex-wrap:wrap;gap:9px;margin-top:24px}.cosmetic-pill{display:inline-flex;align-items:center;gap:7px;padding:7px 11px;border:1px solid #34304e;border-radius:999px;background:#0a0d19b8;color:#d7d6ed;font-size:11px;font-weight:750}.cosmetic-pill:before{content:"";width:6px;height:6px;background:#69e9ee;border-radius:50%;box-shadow:0 0 8px #69e9ee}.cosmetic-orb-scene{position:absolute;right:8%;top:26%;width:190px;height:190px;pointer-events:none}.cosmetic-orb{position:absolute;border-radius:50%;filter:blur(.2px)}.orb-one{width:84px;height:84px;left:54px;top:52px;background:radial-gradient(circle at 30% 25%,#fff,#b4a0ff 18%,#7851e8 45%,#1a1730 78%);box-shadow:0 0 32px #9c7bffb0,0 0 80px #9c7bff40}.orb-two{width:25px;height:25px;left:15px;top:28px;background:#69e9ee;box-shadow:0 0 25px #69e9ee}.orb-three{width:15px;height:15px;right:14px;bottom:31px;background:#ff9e79;box-shadow:0 0 20px #ff9e79}.cosmetic-orb-ring{position:absolute;inset:15px;border:1px solid #a58bff77;border-radius:50%;transform:rotate(-25deg) scaleY(.55)}.cosmetic-orb-ring:after{content:"";position:absolute;inset:-15px;border:1px solid #69e9ee35;border-radius:50%}
+.store-toolbar-section{margin:38px 0}.store-toolbar-heading{display:flex;align-items:end;justify-content:space-between;gap:15px;flex-wrap:wrap}.store-toolbar-heading h2{font-size:clamp(26px,4vw,34px);letter-spacing:-.04em;margin:6px 0}.store-toolbar{display:grid;grid-template-columns:minmax(0,1fr) 220px;gap:14px;margin:22px 0 8px;padding:16px;border:1px solid var(--cos-line);border-radius:18px;background:linear-gradient(145deg,#151529,#0e101c)}.store-toolbar label{margin:0;color:#d9d8ec}.store-toolbar input,.store-toolbar select{display:block;width:100%;margin-top:7px;padding:12px 13px;border:1px solid #34324e;border-radius:11px;background:#090c17;color:#f4f5ff;font:inherit;font-size:14px;outline:none}.store-toolbar input:focus,.store-toolbar select:focus{border-color:#a58bff;box-shadow:0 0 0 3px #a58bff20}.store-count{font-size:12px;margin:12px 2px 16px}.cosmetic-store-grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}.cosmetic-store-grid .store-card{overflow:hidden;border:1px solid var(--cos-line);border-radius:19px;background:linear-gradient(155deg,#17182b,#0c0f1b);transition:transform .18s,border-color .18s}.cosmetic-store-grid .store-card:hover{transform:translateY(-3px);border-color:#61518f}.cosmetic-store-grid .store-card img{max-width:100%}.cosmetic-feature-strip{display:flex;justify-content:space-between;align-items:center;gap:22px;flex-wrap:wrap;margin:35px 0;padding:24px;border:1px solid #2d3b50;border-radius:20px;background:linear-gradient(120deg,#111d2b,#17142a)}.cosmetic-feature-strip h2{margin:7px 0}.cosmetic-feature-strip p{margin-bottom:0;font-size:14px}.cosmetic-page .notice{margin:22px 0;border-color:#3b365d;background:#151427;color:#c9c7e1;font-size:13px}.wardrobe-section{margin:40px 0!important}
+@media(max-width:850px){.cosmetic-orb-scene{right:4%;opacity:.65}.cosmetic-store-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:620px){.cosmetic-page main{padding:24px 14px 55px}.cosmetic-hero{min-height:0;padding:26px 20px;border-radius:22px}.cosmetic-hero:after{right:-100px;top:20%;opacity:.5}.cosmetic-orb-scene{right:-25px;top:18%;transform:scale(.7);opacity:.35}.cosmetic-hero .hero-copy{position:relative;z-index:1}.store-toolbar{grid-template-columns:1fr;padding:12px}.cosmetic-store-grid{grid-template-columns:1fr}.cosmetic-feature-strip{padding:18px}.cosmetic-pill-row{gap:6px}}
+@media(prefers-reduced-motion:reduce){.cosmetic-store-grid .store-card{transition:none}}
+</style>
 </head>
-<body>
+<body class="cosmetic-page">
 <header><div class="bar">
 <a class="brand" href="index.html"><img src="assets/logo.svg" alt=""><span>VOIDCRAFT</span></a>
-<nav class="nav" aria-label="Main navigation"><a href="index.html">Home</a><a href="downloads.html">Downloads</a><a href="feature-store.html">Feature Store</a><a href="cosmetic-store.html" class="active">Cosmetics</a><a href="servers.html">Servers</a><a href="community.html">Community</a><a href="developers.html">Developers</a><a href="docs.html">Docs</a></nav>
+<nav class="nav" aria-label="Main navigation"><a href="index.html">Home</a><a href="downloads.html">Downloads</a><a href="feature-store.html">Feature Store</a><a href="cosmetic-store.html" class="active" aria-current="page">Cosmetics</a><a href="servers.html">Servers</a><a href="community.html">Community</a><a href="developers.html">Developers</a><a href="docs.html">Docs</a></nav>
 <div class="account-links"><a href="signin.html">Sign in</a><a href="profile.html">Profile</a></div>
 </div></header>
 <main>
-<section class="store-hero cosmetic-hero">
+<section class="cosmetic-hero">
+<div class="hero-copy">
 <div class="eyebrow">VOIDCRAFT MARKETPLACE · COSMETICS</div>
-<h1>Your style. Your <span class="headline-glow">Void.</span></h1>
-<p>Explore launcher themes and visual packs. Preview a listing, read its details, and check whether a real package is available before downloading.</p>
-<div class="actions"><a class="btn" href="developers.html">Create a cosmetic →</a><a class="btn secondary" href="feature-store.html">Browse features</a></div>
+<h1>Stand out.<br><span class="headline-glow">Stay in the Void.</span></h1>
+<p>Discover original visual styles and profile effects, preview the collection, and equip a look for your VoidCraft web profile. Minecraft in-game rendering is a separate integration.</p>
+<div class="actions"><a class="btn" href="#cosmetic-collection">Explore collection ↓</a><a class="btn secondary" href="developers.html">Create a cosmetic ↗</a></div>
+<div class="cosmetic-pill-row"><span class="cosmetic-pill">Original designs</span><span class="cosmetic-pill">Local profile wardrobe</span><span class="cosmetic-pill">Creator submissions</span></div>
+</div>
 <div class="cosmetic-orb-scene" aria-hidden="true"><div class="cosmetic-orb orb-one"></div><div class="cosmetic-orb orb-two"></div><div class="cosmetic-orb orb-three"></div><div class="cosmetic-orb-ring"></div></div>
 </section>
+
 <section class="wardrobe-section" aria-labelledby="wardrobe-title">
-<style>
-.wardrobe-section{margin:30px 0;padding:24px;border:1px solid var(--line);border-radius:24px;background:linear-gradient(140deg,#17152a,#0d1420)}.wardrobe-head{display:flex;gap:20px;align-items:start;justify-content:space-between;flex-wrap:wrap}.wardrobe-head p{max-width:650px;color:var(--muted)}.wardrobe-status{font-size:13px;color:var(--muted);min-height:22px}.wardrobe-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin:22px 0}.wardrobe-item{border:1px solid var(--line);border-radius:18px;padding:16px;background:#0a0e19;color:#f4f5ff}.wardrobe-item[aria-pressed=true]{outline:2px solid var(--wardrobe-color,#9c7bff);border-color:var(--wardrobe-color,#9c7bff)}.wardrobe-avatar{height:116px;display:grid;place-items:center;border-radius:14px;background:radial-gradient(circle,var(--wardrobe-color,#9c7bff)22,#101625 72%);margin-bottom:14px}.wardrobe-orb{width:58px;height:58px;border-radius:50%;background:var(--wardrobe-color,#9c7bff);box-shadow:0 0 24px var(--wardrobe-color,#9c7bff);border:5px solid #f4f5ff}.wardrobe-item h3{font-size:16px;margin:5px 0}.wardrobe-item p{font-size:12px;color:#a7aec8;min-height:32px}.wardrobe-item button{width:100%;margin-top:8px}.wardrobe-section [disabled]{opacity:.45;cursor:not-allowed}@media(max-width:760px){.wardrobe-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:400px){.wardrobe-grid{grid-template-columns:1fr}}
-</style>
-<div class="wardrobe-head"><div><div class="eyebrow">LOCAL PROFILE · COSMETIC TRY-ON</div><h2 id="wardrobe-title">Your Cosmetic Wardrobe</h2><p>Try on original VoidCraft profile effects. Install Cosmetic Store from the Feature Store to equip a style. Your selection is saved only in this browser and currently affects this website profile preview, not Minecraft in-game cosmetics.</p></div><div class="actions"><a class="btn secondary" id="wardrobe-install-link" href="feature-store.html">Install in Feature Store</a><button class="btn secondary" id="wardrobe-unequip" type="button">Unequip</button></div></div>
-<p id="wardrobe-status" class="wardrobe-status" aria-live="polite">Checking Cosmetic Store installation…</p>
-<div class="wardrobe-grid" id="wardrobe-grid">
-<article class="wardrobe-item"><div class="wardrobe-avatar"><div class="wardrobe-orb"></div></div><h3>Void Aura</h3><p>Signature violet energy glow.</p><button class="btn" disabled>Equip</button></article>
-</div>
+<div class="wardrobe-head"><div><div class="eyebrow">YOUR PERSONAL LOADOUT</div><h2 id="wardrobe-title">Cosmetic Wardrobe</h2><p>Try the original VoidCraft effects below. Install Cosmetic Store from Feature Store to equip a style; your choice is saved in this browser.</p></div><div class="actions"><a class="btn secondary" id="wardrobe-install-link" href="feature-store.html">Install store</a><button class="btn secondary" id="wardrobe-unequip" type="button">Unequip</button></div></div>
+<p id="wardrobe-status" class="wardrobe-status" aria-live="polite">Loading your wardrobe…</p>
+<div class="wardrobe-grid" id="wardrobe-grid"><article class="wardrobe-item"><div class="wardrobe-art"><div class="wardrobe-orb"></div></div><h3>Void Aura</h3><p>Signature violet energy.</p><button class="btn" disabled>Equip style</button></article></div>
 </section>
-<section class="store-toolbar-section">
-<div class="store-toolbar-heading"><div><div class="eyebrow">THE COLLECTION</div><h2>Cosmetic Store</h2></div><button class="btn secondary store-refresh" type="button" data-store-refresh>↻ Refresh</button></div>
+
+<section class="store-toolbar-section" id="cosmetic-collection">
+<div class="store-toolbar-heading"><div><div class="eyebrow">FIND YOUR LOOK</div><h2>Cosmetic collection</h2><p>Search the public catalog and check each listing's actual availability.</p></div><button class="btn secondary store-refresh" type="button" data-store-refresh>↻ Refresh catalog</button></div>
 <div class="store-toolbar">
-<label class="store-search-label">Search cosmetics<input id="store-search" type="search" placeholder="Search themes and visual packs…" autocomplete="off"></label>
-<label class="store-filter-label">Availability<select id="store-filter"><option value="all">All listings</option><option value="available">Available now</option><option value="preview">Previews</option><option value="coming_soon">Coming soon</option></select></label>
+<label class="store-search-label" for="store-search">Search cosmetics<input id="store-search" type="search" placeholder="Try “aura”, “cape” or a creator…" autocomplete="off"></label>
+<label class="store-filter-label" for="store-filter">Listing status<select id="store-filter"><option value="all">All listings</option><option value="available">Available now</option><option value="preview">Previews</option><option value="coming_soon">Coming soon</option></select></label>
 </div>
 <p id="store-result-count" class="store-count" aria-live="polite">Connecting to the online catalog…</p>
-<div class="store-grid cosmetic-store-grid" id="store-grid" data-store-grid data-store-kind="cosmetic" aria-live="polite">
-<article class="store-card store-loading"><div class="store-loading-art"></div><div><div class="store-skeleton"></div><div class="store-skeleton short"></div></div></article>
-<article class="store-card store-loading"><div class="store-loading-art"></div><div><div class="store-skeleton"></div><div class="store-skeleton short"></div></div></article>
-<article class="store-card store-loading"><div class="store-loading-art"></div><div><div class="store-skeleton"></div><div class="store-skeleton short"></div></div></article>
-</div>
+<div class="store-grid cosmetic-store-grid" id="store-grid" data-store-grid data-store-kind="cosmetic" aria-live="polite"><article class="store-card store-loading"><div class="store-loading-art"></div><div><div class="store-skeleton"></div><div class="store-skeleton short"></div></div></article><article class="store-card store-loading"><div class="store-loading-art"></div><div><div class="store-skeleton"></div><div class="store-skeleton short"></div></div></article><article class="store-card store-loading"><div class="store-loading-art"></div><div><div class="store-skeleton"></div><div class="store-skeleton short"></div></div></article></div>
 </section>
-<section class="cosmetic-feature-strip"><div><span class="eyebrow">ORIGINAL DESIGN</span><h2>Made for the VoidCraft identity</h2><p>Cosmetic submissions should be original or properly licensed. No trademarked assets, stolen themes or unlicensed artwork.</p></div><a class="btn secondary" href="security.html">Read creator rules →</a></section>
-<div class="notice store-status-notice"><strong>Marketplace status:</strong> The online catalog and listing review are connected. The local profile wardrobe can equip original browser-only effects after installing Cosmetic Store from the Feature Store. Downloadable cosmetic packages, Minecraft skin/game integration, and payment checkout are not enabled yet. Preview listings cannot be purchased as finished items.</div>
+
+<section class="cosmetic-feature-strip"><div><span class="eyebrow">MADE FOR THE VOIDCRAFT IDENTITY</span><h2>Originality comes first.</h2><p>Submit original or properly licensed artwork. Every listing should state compatibility, creator details and whether a real package is available.</p></div><a class="btn secondary" href="security.html">Creator & safety rules ↗</a></section>
+<div class="notice store-status-notice"><strong>Clear status:</strong> Catalog listings load from the online store API. Wardrobe effects are browser-only profile previews. Minecraft skin/cosmetic rendering, multiplayer visibility, package downloads and checkout are not enabled unless a listing and compatible integration explicitly provide them.</div>
 </main>
 <footer><div class="foot"><span>© VoidCraft community project · Independent from Mojang and Microsoft</span><span><a href="privacy.html">Privacy</a> · <a href="terms.html">Terms</a> · <a href="security.html">Security</a></span></div></footer>
-<script src="assets/app.js" defer></script>
-<script src="assets/cosmetic-wardrobe.js" defer></script>
+<script src="assets/app.js" defer></script><script src="assets/cosmetic-wardrobe.js" defer></script>
 </body></html>
