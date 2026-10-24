@@ -15,16 +15,21 @@
     if(authenticated&&state.token) headers.Authorization="Bearer "+state.token;
     const controller=new AbortController();
     const timeoutId=setTimeout(()=>controller.abort(),12000);
-    let res;
+    let res, data={};
     try {
       res=await fetch(API+path,{method:opts.method||"GET",headers,cache:"no-store",body:opts.body===undefined?undefined:JSON.stringify(opts.body),signal:controller.signal});
+      try { data=await res.json(); }
+      catch(error) {
+        // Keep the deadline active through body consumption, not only until
+        // fetch receives headers.
+        if(error&&error.name==="AbortError") throw error;
+      }
     } catch(error) {
       if(error&&error.name==="AbortError") throw new Error("Social Hub request timed out after 12 seconds. Check your connection and try again.");
       throw error;
     } finally {
       clearTimeout(timeoutId);
     }
-    let data={}; try { data=await res.json(); } catch (_) {}
     if(!res.ok) {
       if(res.status===401&&authenticated&&state.token) showAuth("Your beta session expired. Please sign in again.","info");
       throw new Error(data.error||"The request failed. Please try again.");
