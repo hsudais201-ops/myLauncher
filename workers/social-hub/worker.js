@@ -436,4 +436,13 @@ export default {
       if (request.method === "POST" && url.pathname === "/api/reports") return await reportUser(request, user, env);
       return json({ error: "Endpoint not found." }, 404);
     } catch (error) {
-      if (error ins --- TRUNCATED --- 23,495 chars
+      if (error instanceof HttpError) return json({ error: error.message }, error.status);
+      console.error("Social Hub request failed.", {
+        path: url.pathname,
+        errorName: error instanceof Error ? error.name : "UnknownError",
+        errorMessage: error instanceof Error ? error.message : String(error),
+      });
+      return json({ error: "Server error. Please try again later." }, 500);
+    }
+  },
+};
