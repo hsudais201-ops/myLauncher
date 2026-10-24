@@ -17,6 +17,7 @@
   const dialogTitle = document.getElementById("cm-details-title");
   const dialogBody = document.getElementById("cm-details-body");
   const dialogClose = document.getElementById("cm-details-close");
+  const reset = document.getElementById("cm-reset");
 
   let catalog = [];
   let visibleItems = [];
@@ -133,7 +134,7 @@
         }
       });
       ownership.append(clear);
-    } else if (catalogLoaded && !catalogFailed && getEquippedId()) {
+    } else if (catalogLoaded && !catalogFailed && entitlementStatus === "signed-in" && getEquippedId()) {
       // The saved cosmetic is no longer owned; do not allow it to remain active.
       try { localStorage.removeItem(EQUIPPED_KEY); } catch {}
     }
@@ -311,6 +312,7 @@
     });
 
     root.replaceChildren();
+    root.setAttribute("aria-busy", "false");
     if (!visibleItems.length) {
       const empty = make("div", "cm-empty");
       empty.append(make("strong", query ? "No matching cosmetics" : (mode === "owned" ? "No owned cosmetics yet" : "No cosmetics in this view")));
@@ -332,6 +334,7 @@
       refresh.disabled = true;
       refresh.textContent = "Refreshing…";
     }
+    root.setAttribute("aria-busy", "true");
     paintFeed("Loading catalog and checking your confirmed purchases…", "info");
     try {
       const [catalogResponse, ownedResponse] = await Promise.all([
@@ -422,6 +425,12 @@
   filter.addEventListener("change", render);
   sort.addEventListener("change", render);
   refresh.addEventListener("click", loadCatalog);
+  reset.addEventListener("click", () => {
+    search.value = "";
+    filter.value = "all";
+    sort.value = "featured";
+    render();
+  });
   dialogClose.addEventListener("click", () => dialog.close());
   dialog.addEventListener("click", event => { if (event.target === dialog) dialog.close(); });
   window.addEventListener("storage", event => {
