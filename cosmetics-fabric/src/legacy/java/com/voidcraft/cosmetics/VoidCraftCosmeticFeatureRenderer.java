@@ -27,13 +27,25 @@ public final class VoidCraftCosmeticFeatureRenderer extends FeatureRenderer<Abst
         this.halo = halo;
     }
 
+    private static JsonObject parseConfigJson(String raw) throws ReflectiveOperationException {
+        try {
+            java.lang.reflect.Method modern = JsonParser.class.getMethod("parseString", String.class);
+            return ((com.google.gson.JsonElement) modern.invoke(null, raw)).getAsJsonObject();
+        } catch (NoSuchMethodException ignored) {
+            // Older Minecraft versions ship a Gson without parseString(String).
+        }
+        Object parser = JsonParser.class.getDeclaredConstructor().newInstance();
+        java.lang.reflect.Method legacy = JsonParser.class.getMethod("parse", String.class);
+        return ((com.google.gson.JsonElement) legacy.invoke(parser, raw)).getAsJsonObject();
+    }
+
     private static String readEquippedId() {
         Path config = FabricLoader.getInstance().getGameDir()
             .resolve("config")
             .resolve("voidcraft-cosmetics.json");
         try {
             if (!Files.isRegularFile(config)) return "none";
-            JsonObject json = JsonParser.parseString(Files.readString(config)).getAsJsonObject();
+            JsonObject json = parseConfigJson(Files.readString(config));
             String id = json.has("equipped") ? json.get("equipped").getAsString() : "none";
             return switch (id) {
                 case "void-aura", "neon-mint", "arctic-ice", "solar-ember" -> id;
