@@ -1,0 +1,61 @@
+plugins {
+    id 'fabric-loom' version "${loom_version}"
+}
+
+version = project.mod_version
+group = project.maven_group
+
+base {
+    archivesName = "${project.archives_base_name}-mc${project.minecraft_version}"
+}
+
+// The rendering API changed substantially in 1.21.2: use the legacy renderer
+// before 1.21.2 and the render-state adapter from 1.21.2 onward.
+def stateBasedRenderer = project.minecraft_version.tokenize('.').with {
+    (it[0] as int) > 1 || ((it[0] as int) == 1 && (it[1] as int) > 21) ||
+    ((it[0] as int) == 1 && (it[1] as int) == 21 && (it.size() > 2 ? (it[2] as int) >= 2 : false))
+}
+sourceSets {
+    main {
+        java {
+            setSrcDirs(["src/common/java", stateBasedRenderer ? "src/state/java" : "src/legacy/java"])
+        }
+    }
+}
+
+dependencies {
+    minecraft "com.mojang:minecraft:${project.minecraft_version}"
+    mappings "net.fabricmc:yarn:${project.yarn_mappings}:v2"
+    modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
+    modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
+    testImplementation "org.junit.jupiter:junit-jupiter:5.11.4"
+    testRuntimeOnly "org.junit.platform:junit-platform-launcher:1.11.4"
+}
+
+processResources {
+    inputs.property "version", project.version
+    inputs.property "minecraft_version", project.minecraft_version
+    inputs.property "java_dependency", project.java_dependency
+    inputs.property "loader_version", project.loader_version
+    filesMatching("fabric.mod.json") {
+        expand(
+            "version": project.version,
+            "minecraft_version": project.minecraft_version,
+            "java_dependency": project.java_dependency,
+            "loader_version": project.loader_version
+        )
+    }
+}
+
+java {
+    toolchain.languageVersion = JavaLanguageVersion.of(21)
+    withSourcesJar()
+}
+
+tasks.withType(JavaCompile).configureEach {
+    it.options.release = project.java_bytecode_version.toInteger()
+}
+
+test {
+    useJUnitPlatform()
+}
