@@ -3,7 +3,7 @@ name: Voidcraft integrated Android engine build
 
 on:
   push:
-    branches: ["launcher/bootstrap"]
+    branches: ["launcher/bootstrap", "feature/fabric-cosmetics-renderer"]
     paths:
       - "app/src/main/java/com/voidcraft/launcher/**"
       - "app/src/main/assets/store/**"
