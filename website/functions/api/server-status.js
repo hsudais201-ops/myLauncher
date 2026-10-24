@@ -1,5 +1,5 @@
 const API_ORIGIN = "https://api.mcsrvstat.us";
-const SERVER_ADDRESS_PATTERN = /^[a-zA-Z0-9.\\-:[\\]]+$/;
+const SERVER_ADDRESS_PATTERN = /^[a-zA-Z0-9.\-:[\]]+$/;
 
 function jsonResponse(value, status, cacheControl) {
   return new Response(JSON.stringify(value), {
