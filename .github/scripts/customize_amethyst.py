@@ -114,6 +114,7 @@ def patch_upstream(upstream: Path) -> None:
         '<string name="mylauncher_version_list_failed">Could not load the Minecraft version list. Check internet and tap Choose Minecraft version to retry.</string>',
         '<string name="mylauncher_modrinth_curseforge">Browse Mods &amp; Modpacks</string>',
         '<string name="mylauncher_feature_store">Feature Store</string>',
+        '<string name="mylauncher_cosmetic_store">Cosmetic Store</string>',
         '<string name="mylauncher_browse_modrinth">Browse Modrinth</string>',
         '<string name="mylauncher_browse_curseforge">Browse CurseForge</string>',
         '<string name="mylauncher_feature_store_add">Add feature</string>',
@@ -567,10 +568,16 @@ def patch_upstream(upstream: Path) -> None:
                 "mylauncher_mods_button",
             ),
             (
+                "mylauncher_cosmetics_button",
+                "@android:drawable/ic_menu_gallery",
+                "@string/mylauncher_cosmetic_store",
+                "mylauncher_feature_store_button",
+            ),
+            (
                 "mylauncher_browse_modrinth_button",
                 "@android:drawable/ic_menu_search",
                 "@string/mylauncher_browse_modrinth",
-                "mylauncher_feature_store_button",
+                "mylauncher_cosmetics_button",
             ),
             (
                 "mylauncher_browse_curseforge_button",
@@ -667,6 +674,7 @@ def patch_upstream(upstream: Path) -> None:
             or layout_text.count('android:id="@+id/mylauncher_download_versions_button"') != 1
             or layout_text.count('android:id="@+id/mylauncher_mods_button"') != 1
             or layout_text.count('android:id="@+id/mylauncher_feature_store_button"') != 1
+            or layout_text.count('android:id="@+id/mylauncher_cosmetics_button"') != 1
             or layout_text.count('android:id="@+id/mylauncher_browse_modrinth_button"') != 1
             or layout_text.count('android:id="@+id/mylauncher_browse_curseforge_button"') != 1
             or layout_text.count('android:id="@+id/news_button"') != 1
@@ -745,6 +753,7 @@ def patch_upstream(upstream: Path) -> None:
         "import net.kdt.pojavlaunch.fragments.VersionDownloadFragment;",
         "import net.kdt.pojavlaunch.fragments.SearchModFragment;",
         "import net.kdt.pojavlaunch.fragments.FeatureStoreFragment;",
+        "import net.kdt.pojavlaunch.fragments.CosmeticStoreFragment;",
         "import net.kdt.pojavlaunch.prefs.screens.LauncherPreferenceJavaFragment;",
         "import net.kdt.pojavlaunch.prefs.screens.LauncherPreferenceFragment;",
     )
@@ -812,9 +821,10 @@ def patch_upstream(upstream: Path) -> None:
     versions_binding = "Button mMyLauncherVersionsButton = view.findViewById(R.id.mylauncher_download_versions_button);"
     mods_binding = "Button mMyLauncherModsButton = view.findViewById(R.id.mylauncher_mods_button);"
     feature_store_binding = "Button mMyLauncherFeatureStoreButton = view.findViewById(R.id.mylauncher_feature_store_button);"
+    cosmetics_binding = "Button mMyLauncherCosmeticsButton = view.findViewById(R.id.mylauncher_cosmetics_button);"
     browse_modrinth_binding = "Button mMyLauncherBrowseModrinthButton = view.findViewById(R.id.mylauncher_browse_modrinth_button);"
     browse_curseforge_binding = "Button mMyLauncherBrowseCurseForgeButton = view.findViewById(R.id.mylauncher_browse_curseforge_button);"
-    for new_binding in (instances_binding, runtime_binding, settings_binding, versions_binding, mods_binding, feature_store_binding, browse_modrinth_binding, browse_curseforge_binding):
+    for new_binding in (instances_binding, runtime_binding, settings_binding, versions_binding, mods_binding, feature_store_binding, cosmetics_binding, browse_modrinth_binding, browse_curseforge_binding):
         if new_binding not in main_menu_text:
             main_menu_text = main_menu_text.replace(graphics_binding, graphics_binding + "\n        " + new_binding, 1)
         if main_menu_text.count(new_binding) != 1:
@@ -862,6 +872,8 @@ def patch_upstream(upstream: Path) -> None:
         });"""
     feature_store_listener = """mMyLauncherFeatureStoreButton.setOnClickListener(v -> Tools.swapFragment(
             requireActivity(), FeatureStoreFragment.class, FeatureStoreFragment.TAG, null));"""
+    cosmetics_listener = """mMyLauncherCosmeticsButton.setOnClickListener(v -> Tools.swapFragment(
+            requireActivity(), CosmeticStoreFragment.class, CosmeticStoreFragment.TAG, null));"""
     browse_modrinth_listener = """mMyLauncherBrowseModrinthButton.setOnClickListener(v -> {
             Bundle searchArgs = new Bundle();
             searchArgs.putBoolean(SearchModFragment.ARG_IS_MODPACK, false);
@@ -881,7 +893,8 @@ def patch_upstream(upstream: Path) -> None:
         (versions_listener, settings_listener),
         (mods_listener, versions_listener),
         (feature_store_listener, mods_listener),
-        (browse_modrinth_listener, feature_store_listener),
+        (cosmetics_listener, feature_store_listener),
+        (browse_modrinth_listener, cosmetics_listener),
         (browse_curseforge_listener, browse_modrinth_listener),
     ):
         if new_listener not in main_menu_text:
@@ -896,9 +909,11 @@ def patch_upstream(upstream: Path) -> None:
         or main_menu_text.count(versions_binding) != 1
         or main_menu_text.count(mods_binding) != 1
         or main_menu_text.count(feature_store_binding) != 1
+        or main_menu_text.count(cosmetics_binding) != 1
         or main_menu_text.count(browse_modrinth_binding) != 1
         or main_menu_text.count(browse_curseforge_binding) != 1
         or main_menu_text.count(feature_store_listener) != 1
+        or main_menu_text.count(cosmetics_listener) != 1
         or main_menu_text.count(browse_modrinth_listener) != 1
         or main_menu_text.count(browse_curseforge_listener) != 1
         or main_menu_text.count(instances_listener) != 1
@@ -915,6 +930,7 @@ def patch_upstream(upstream: Path) -> None:
         or 'SearchModFragment.ARG_PROVIDER, "curseforge"' not in main_menu_text
         or "SearchModFragment.class" not in main_menu_text
         or "FeatureStoreFragment.class" not in main_menu_text
+        or "CosmeticStoreFragment.class" not in main_menu_text
     ):
         raise ValueError("Integrated launcher instance, versions, separate provider browsers, Feature Store, Java/runtime, or settings navigation is incomplete")
 
@@ -1152,6 +1168,152 @@ public class FeatureStoreFragment extends Fragment {
             raise ValueError("FeatureStoreFragment.java already exists with unexpected content")
     else:
         feature_store_java.write_text(feature_store_source, encoding="utf-8")
+
+    # Native cosmetics selector: writes the same config file read by the Fabric client mod.
+    cosmetic_store_java = upstream / "app_pojavlauncher" / "src" / "main" / "java" / "net" / "kdt" / "pojavlaunch" / "fragments" / "CosmeticStoreFragment.java"
+    cosmetic_store_source = """package net.kdt.pojavlaunch.fragments;
+
+import android.os.Bundle;
+import android.view.Gravity;
+import android.view.LayoutInflater;
+import android.view.View;
+import android.view.ViewGroup;
+import android.widget.Button;
+import android.widget.LinearLayout;
+import android.widget.ScrollView;
+import android.widget.TextView;
+
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+import androidx.fragment.app.Fragment;
+
+import net.kdt.pojavlaunch.Tools;
+
+import org.json.JSONObject;
+
+import java.io.File;
+import java.io.FileOutputStream;
+import java.nio.charset.StandardCharsets;
+
+public final class CosmeticStoreFragment extends Fragment {
+    public static final String TAG = "CosmeticStoreFragment";
+    private TextView mStatus;
+
+    @Nullable
+    @Override
+    public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container,
+                             @Nullable Bundle savedInstanceState) {
+        int pad = dp(16);
+        LinearLayout content = new LinearLayout(requireContext());
+        content.setOrientation(LinearLayout.VERTICAL);
+        content.setPadding(pad, pad, pad, pad);
+        content.setBackgroundColor(0xFF11131A);
+
+        TextView title = new TextView(requireContext());
+        title.setText("VoidCraft Cosmetic Store");
+        title.setTextSize(22);
+        title.setTextColor(0xFFFFFFFF);
+        content.addView(title, new LinearLayout.LayoutParams(-1, -2));
+
+        TextView explainer = new TextView(requireContext());
+        explainer.setText("Choose a style to save it to config/voidcraft-cosmetics.json in your Minecraft game folder. The matching, version-specific VoidCraft Cosmetics Fabric mod must also be installed in the mods folder. This effect is client-rendered; other players see it only if they also run a compatible mod.");
+        explainer.setTextSize(14);
+        explainer.setTextColor(0xFFB9C0D0);
+        explainer.setPadding(0, dp(10), 0, dp(16));
+        content.addView(explainer, new LinearLayout.LayoutParams(-1, -2));
+
+        addCosmetic(content, "Void Aura", "violet energy halo", "void-aura");
+        addCosmetic(content, "Neon Mint", "mint-green halo", "neon-mint");
+        addCosmetic(content, "Arctic Ice", "cyan ice halo", "arctic-ice");
+        addCosmetic(content, "Solar Ember", "warm orange halo", "solar-ember");
+
+        Button unequip = new Button(requireContext());
+        unequip.setAllCaps(false);
+        unequip.setText("Unequip cosmetic");
+        unequip.setOnClickListener(v -> saveEquipped("none", "No cosmetic"));
+        content.addView(unequip, new LinearLayout.LayoutParams(-1, -2));
+
+        mStatus = new TextView(requireContext());
+        mStatus.setTextSize(13);
+        mStatus.setTextColor(0xFFB9C0D0);
+        mStatus.setPadding(0, dp(14), 0, 0);
+        File target = configFile();
+        mStatus.setText("Handoff file: " + target.getAbsolutePath());
+        content.addView(mStatus, new LinearLayout.LayoutParams(-1, -2));
+
+        ScrollView scroll = new ScrollView(requireContext());
+        scroll.setFillViewport(true);
+        scroll.addView(content);
+        return scroll;
+    }
+
+    private void addCosmetic(LinearLayout content, String name, String description, String id) {
+        Button button = new Button(requireContext());
+        button.setAllCaps(false);
+        button.setGravity(Gravity.START | Gravity.CENTER_VERTICAL);
+        button.setText(name + "  ·  " + description);
+        button.setOnClickListener(v -> saveEquipped(id, name));
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(-1, -2);
+        params.topMargin = dp(6);
+        content.addView(button, params);
+    }
+
+    private File configFile() {
+        return new File(new File(Tools.DIR_GAME_HOME, "config"), "voidcraft-cosmetics.json");
+    }
+
+    private void saveEquipped(String id, String label) {
+        File gameDir = new File(Tools.DIR_GAME_HOME);
+        if (!gameDir.isDirectory()) {
+            mStatus.setText("Could not find the Minecraft game folder: " + gameDir.getAbsolutePath());
+            return;
+        }
+        File configDir = new File(gameDir, "config");
+        if (!configDir.isDirectory() && !configDir.mkdirs()) {
+            mStatus.setText("Could not create the config folder. Check game-folder storage permission.");
+            return;
+        }
+
+        File target = configFile();
+        File temporary = new File(configDir, "voidcraft-cosmetics.json.tmp");
+        try {
+            JSONObject json = new JSONObject();
+            json.put("schemaVersion", 1);
+            json.put("equipped", id);
+            try (FileOutputStream output = new FileOutputStream(temporary)) {
+                output.write(json.toString(2).getBytes(StandardCharsets.UTF_8));
+                output.flush();
+                output.getFD().sync();
+            }
+            if (target.exists() && !target.delete()) {
+                temporary.delete();
+                mStatus.setText("Could not replace the existing cosmetic config.");
+                return;
+            }
+            if (!temporary.renameTo(target)) {
+                temporary.delete();
+                mStatus.setText("Could not finish saving the cosmetic config.");
+                return;
+            }
+            mStatus.setText(label + " selected. Saved to " + target.getAbsolutePath()
+                + ". Install the matching Fabric mod before launching Minecraft.");
+        } catch (Exception exception) {
+            temporary.delete();
+            mStatus.setText("Could not save cosmetic config: " + exception.getMessage());
+        }
+    }
+
+    private int dp(int value) {
+        return (int) (value * getResources().getDisplayMetrics().density + 0.5f);
+    }
+}
+"""
+    if cosmetic_store_java.exists():
+        existing_cosmetic_store = cosmetic_store_java.read_text(encoding="utf-8")
+        if existing_cosmetic_store != cosmetic_store_source:
+            raise ValueError("CosmeticStoreFragment.java already exists with unexpected content")
+    else:
+        cosmetic_store_java.write_text(cosmetic_store_source, encoding="utf-8")
 
     # Explicit vanilla-version downloader. The existing profile editor/Play workflow
     # still provisions versions when launching; this screen also allows a version's
