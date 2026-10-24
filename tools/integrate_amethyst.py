@@ -139,7 +139,40 @@ VERSION_HANDOFF_METHOD = """    private void applyVoidcraftSelectedVersion() {
 
 """
 
-RENDERER_HANDOFF_METHOD = """    private void applyVoidcraftSelectedRenderer() {
+COSMETIC_HANDOFF_METHOD = """    private void applyVoidcraftCosmetic() {
+        String requestedId = getIntent() == null ? null :
+                getIntent().getStringExtra("voidcraft.cosmetic_id");
+        if (requestedId == null) requestedId = "none";
+        if (!java.util.Arrays.asList(
+                "none", "void-aura", "neon-mint", "arctic-ice", "solar-ember"
+        ).contains(requestedId)) requestedId = "none";
+
+        try {
+            if (Tools.DIR_GAME_HOME == null || Tools.DIR_GAME_HOME.isEmpty()) {
+                throw new IllegalStateException("Minecraft game directory is not initialized.");
+            }
+            File configDirectory = new File(Tools.DIR_GAME_HOME, "config");
+            if (!configDirectory.isDirectory() && !configDirectory.mkdirs()) {
+                throw new java.io.IOException("Could not create Minecraft config directory.");
+            }
+            File cosmeticConfig = new File(configDirectory, "voidcraft-cosmetics.json");
+            org.json.JSONObject config = new org.json.JSONObject().put("equipped", requestedId);
+            try (java.io.FileOutputStream output = new java.io.FileOutputStream(cosmeticConfig, false)) {
+                output.write(config.toString().getBytes(java.nio.charset.StandardCharsets.UTF_8));
+                output.flush();
+                output.getFD().sync();
+            }
+            if (!"none".equals(requestedId)) {
+                Toast.makeText(this,
+                        "Cosmetic saved. Install the VoidCraft Cosmetics Fabric mod in this instance.",
+                        Toast.LENGTH_LONG).show();
+            }
+        } catch (Exception exception) {
+            Toast.makeText(this, "Could not hand off the VoidCraft cosmetic to Minecraft.", Toast.LENGTH_LONG).show();
+        }
+    }
+
+"""\nRENDERER_HANDOFF_METHOD = """    private void applyVoidcraftSelectedRenderer() {
         String requestedRenderer = getIntent() == null ? null :
                 getIntent().getStringExtra("voidcraft.renderer");
         if (requestedRenderer == null || requestedRenderer.isEmpty()) return;
@@ -198,13 +231,13 @@ def patch_launcher_activity(source: str) -> str:
     source = replace_once(
         source,
         "        bindViews();\n        checkNotificationPermission();",
-        "        bindViews();\n        applyVoidcraftSelectedVersion();\n        applyVoidcraftSelectedRenderer();\n        checkNotificationPermission();",
+        "        bindViews();\n        applyVoidcraftSelectedVersion();\n        applyVoidcraftSelectedRenderer();\n        applyVoidcraftCosmetic();\n        checkNotificationPermission();",
         "Voidcraft selected-version handoff call"
     )
     return replace_once(
         source,
         "    @Override\n    protected void onResume() {",
-        VERSION_HANDOFF_METHOD + RENDERER_HANDOFF_METHOD + "    @Override\n    protected void onResume() {",
+        VERSION_HANDOFF_METHOD + RENDERER_HANDOFF_METHOD + COSMETIC_HANDOFF_METHOD + "    @Override\n    protected void onResume() {",
         "Voidcraft selected-version handoff method"
     )
 
