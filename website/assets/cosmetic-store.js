@@ -1,7 +1,6 @@
 (() => {
   "use strict";
 
-  const INSTALLED_KEY = "voidcraft.feature-installed.cosmetic-store";
   const EQUIPPED_KEY = "voidcraft.cosmetic-store.equipped";
   const grid = document.getElementById("cosmetic-grid");
   if (!grid || window.__voidcraftNewCosmeticStoreLoaded) return;
@@ -18,17 +17,14 @@
   const dialogBody = document.getElementById("cosmetic-details-body");
   const dialogClose = document.getElementById("cosmetic-details-close");
 
-  const profileEffects = [
-    { id: "void-aura", name: "Void Aura", tagline: "The signature VoidCraft look", description: "A violet energy orb with a deep-space glow. This is a browser profile effect, not an in-game Minecraft render.", color: "#a58bff", creatorUsername: "VoidCraft", localProfile: true, version: "1.0", license: "VoidCraft original" },
-    { id: "neon-mint", name: "Neon Mint", tagline: "Electric mint, clean sci-fi", description: "A crisp mint glow designed for a bright, modern profile. This is a browser profile effect, not an in-game Minecraft render.", color: "#63e8c1", creatorUsername: "VoidCraft", localProfile: true, version: "1.0", license: "VoidCraft original" },
-    { id: "arctic-ice", name: "Arctic Ice", tagline: "Cold light, sharp edges", description: "A cool ice-blue profile glow for a quiet, futuristic style. This is a browser profile effect, not an in-game Minecraft render.", color: "#7fc8ff", creatorUsername: "VoidCraft", localProfile: true, version: "1.0", license: "VoidCraft original" },
-    { id: "solar-ember", name: "Solar Ember", tagline: "Warm light with a bold edge", description: "An ember-orange profile glow inspired by a solar flare. This is a browser profile effect, not an in-game Minecraft render.", color: "#ff9e79", creatorUsername: "VoidCraft", localProfile: true, version: "1.0", license: "VoidCraft original" }
-  ];
+  // Store products become equipable only when the server confirms ownership.
 
   let onlineItems = [];
   let catalogError = "";
   let isLoading = false;
-  let items = profileEffects.slice();
+  let items = [];
+  let ownedItems = new Map();
+  let entitlementsUnavailable = false;
 
   function make(tag, className, text) {
     const node = document.createElement(tag);
@@ -41,8 +37,8 @@
     try { return localStorage.getItem(key) || ""; } catch { return ""; }
   }
 
-  function storeInstalled() {
-    return getLocal(INSTALLED_KEY) === "true";
+  function isOwned(item) {
+    return Boolean(item && item.kind === "cosmetic" && ownedItems.has(item.id));
   }
 
   function getEquipped() {
@@ -66,7 +62,7 @@
   }
 
   function availabilityLabel(item) {
-    if (item.localProfile) return "Profile effect";
+    if (isOwned(item)) return "Owned · equip unlocked";
     if (isAvailable(item)) return "Available now";
     if (item.availability === "coming_soon") return "Coming soon";
     if (item.availability === "paused") return "Temporarily unavailable";
@@ -74,7 +70,7 @@
   }
 
   function priceLabel(item) {
-    if (item.localProfile) return "Browser profile effect";
+    if (isOwned(item)) return "Purchased";
     if (item.priceCents === null || item.priceCents === undefined) return "Preview · not for sale";
     if (Number(item.priceCents) === 0) {
       return safeAssetUrl(item.packageUrl) && item.availability === "available" ? "Free download" : "Free · no package yet";
@@ -103,49 +99,49 @@
   function renderEquipState() {
     equipState.replaceChildren();
     const message = make("div", "cosmetics-equip-message");
-    const installed = storeInstalled();
     const equippedId = getEquipped();
-    const equippedItem = profileEffects.find(function(item) { return item.id === equippedId; });
+    const equippedItem = items.find(function(item) { return item.id === equippedId && isOwned(item); });
+    const ownedCosmetics = [...ownedItems.values()].filter(function(item) { return item.kind === "cosmetic"; });
 
-    if (!installed) {
-      message.append(make("span", "", "Cosmetic Store is not installed. Install it to enable profile effects."));
-      const link = make("a", "", "Install store");
-      link.href = "feature-store.html#cosmetic-store-feature-title";
-      message.append(link);
-    } else if (equippedItem) {
-      message.append(make("span", "", equippedItem.name + " is equipped on this browser profile. Website-only preview."));
-    } else if (equippedId) {
-      message.append(make("span", "", "Your saved style is no longer listed. Choose another profile effect."));
+    if (equippedItem) {
+      message.append(make("span", "", equippedItem.name + " is equipped for this website profile. This is not an in-game Minecraft cosmetic."));
+    } else if (ownedCosmetics.length) {
+      message.append(make("span", "", "You own " + ownedCosmetics.length + " cosmetic" + (ownedCosmetics.length === 1 ? "" : "s") + ". Choose Equip on an owned item below."));
+    } else if (entitlementsUnavailable) {
+      message.append(make("span", "", "Sign in to check purchases. Equip appears after a cosmetic purchase is confirmed."));
     } else {
-      message.append(make("span", "", "No profile effect equipped. Choose one card below to customize this browser profile."));
+      message.append(make("span", "", "Purchase a released cosmetic to unlock its Equip option. Preview listings cannot be equipped."));
     }
     equipState.append(message);
 
-    if (installed && equippedId) {
+    if (equippedItem) {
       const clear = make("button", "cosmetics-unequip", "Unequip");
       clear.type = "button";
       clear.addEventListener("click", function() {
         try {
           localStorage.removeItem(EQUIPPED_KEY);
           render();
-          feedStatus.textContent = "Profile effect unequipped.";
+          feedStatus.textContent = "Cosmetic unequipped from this website profile.";
           feedStatus.dataset.error = "false";
         } catch {
-          feedStatus.textContent = "Could not clear the saved effect. Check browser storage settings.";
+          feedStatus.textContent = "Could not clear the equipped cosmetic. Check browser storage settings.";
           feedStatus.dataset.error = "true";
         }
       });
       equipState.append(clear);
+    } else if (equippedId) {
+      // Never keep an equipped ID that isn't an owned cosmetic for this account.
+      try { localStorage.removeItem(EQUIPPED_KEY); } catch {}
     }
   }
 
   function renderArt(item) {
     const art = make("div", "cos-card-art");
     art.style.setProperty("--cos-color", item.color || "#a58bff");
-    const tag = make("span", "cos-card-kind", item.localProfile ? "VOIDCRAFT ORIGINAL" : "COSMETIC LISTING");
+    const tag = make("span", "cos-card-kind", isOwned(item) ? "OWNED COSMETIC" : "COSMETIC LISTING");
     art.append(tag);
 
-    const imageUrl = item.localProfile ? "" : safeAssetUrl(item.imageUrl);
+    const imageUrl = safeAssetUrl(item.imageUrl);
     if (imageUrl) {
       const image = make("img", "cos-card-art-image");
       image.src = imageUrl;
@@ -165,41 +161,29 @@
 
   function renderActions(item, card) {
     const actions = make("div", "cos-card-actions");
-    if (item.localProfile) {
+    if (isOwned(item)) {
       const active = getEquipped() === item.id;
-      const equip = make("button", "btn" + (active ? " is-equipped" : ""), active ? "✓ Equipped" : (storeInstalled() ? "Equip style" : "Install to equip"));
+      const equip = make("button", "btn" + (active ? " is-equipped" : ""), active ? "✓ Equipped" : "Equip");
       equip.type = "button";
-      equip.disabled = !storeInstalled() || active;
+      equip.disabled = active;
       equip.setAttribute("aria-pressed", String(active));
       equip.addEventListener("click", function() {
-        if (!storeInstalled()) {
-          feedStatus.textContent = "Install Cosmetic Store from Feature Store before equipping a profile effect.";
+        if (!isOwned(item)) {
+          feedStatus.textContent = "This cosmetic is not owned by the signed-in account.";
           feedStatus.dataset.error = "true";
           return;
         }
         try {
           localStorage.setItem(EQUIPPED_KEY, item.id);
           render();
-          feedStatus.textContent = item.name + " equipped for this browser profile.";
+          feedStatus.textContent = item.name + " equipped for this website profile.";
           feedStatus.dataset.error = "false";
         } catch {
-          feedStatus.textContent = "Could not save the style. Check browser site-storage settings.";
+          feedStatus.textContent = "Could not save the equipped cosmetic. Check browser site-storage settings.";
           feedStatus.dataset.error = "true";
         }
       });
       actions.append(equip);
-
-      // These four built-in effects are browser-only inclusions, not separate store SKUs.
-      // Keep the requested commerce controls visible but disabled rather than inventing cart IDs.
-      const addIncluded = make("button", "btn secondary", "Add to cart");
-      addIncluded.type = "button";
-      addIncluded.disabled = true;
-      addIncluded.title = "This original browser profile effect is included and has no separate store listing.";
-      const buyIncluded = make("button", "btn", "Buy now");
-      buyIncluded.type = "button";
-      buyIncluded.disabled = true;
-      buyIncluded.title = "This original browser profile effect is not sold as a standalone downloadable cosmetic.";
-      actions.append(addIncluded, buyIncluded);
     } else {
       const freeDownload = hasPackageDownload(item);
       if (freeDownload) {
@@ -210,8 +194,7 @@
         actions.append(download);
       }
 
-      // Keep the shopping actions visible across the cosmetics catalog.
-      // Only a published, released paid package can be added or sent to checkout.
+      // Keep commerce actions visible; enable them only for a released paid SKU.
       const purchasable = canBuy(item);
       const add = make("button", "btn secondary", "Add to cart");
       add.type = "button";
@@ -251,10 +234,10 @@
     dialogBody.append(make("p", "", item.description || item.tagline || "No description was supplied."));
     const facts = make("dl", "cosmetics-dialog-facts");
     const pairs = [
-      ["Type", item.localProfile ? "VoidCraft browser profile effect" : "Online cosmetic listing"],
+      ["Type", item.kind === "cosmetic" ? "Cosmetic listing" : "Launcher feature"],
       ["Status", availabilityLabel(item)],
       ["Version", item.version || "Not specified"],
-      ["Compatibility", item.compatibility || (item.localProfile ? "VoidCraft website profile only" : "Not supplied")],
+      ["Compatibility", item.compatibility || "Not supplied"],
       ["License", item.license || "Not supplied"],
       ["Creator", item.creatorUsername || "VoidCraft catalog"]
     ];
@@ -269,8 +252,8 @@
       source.rel = "noopener noreferrer";
       dialogBody.append(source);
     }
-    if (item.localProfile) {
-      const caveat = make("p", "", "This effect changes the local VoidCraft website profile experience only. It does not render on a Minecraft player model and is not visible to multiplayer players.");
+    if (isOwned(item)) {
+      const caveat = make("p", "", "This purchased cosmetic is unlocked on your website profile. Minecraft in-game rendering and multiplayer visibility require a compatible client/server integration.");
       dialogBody.append(caveat);
     } else if (!hasPackageDownload(item) && !canBuy(item)) {
       dialogBody.append(make("p", "", "This listing is currently informational only. A preview does not mean a Minecraft cosmetic renderer, downloadable asset or multiplayer support is available."));
@@ -280,7 +263,7 @@
   }
 
   function renderCard(item, index) {
-    const active = item.localProfile && getEquipped() === item.id;
+    const active = isOwned(item) && getEquipped() === item.id;
     const card = make("article", "cos-card" + (active ? " is-equipped" : ""));
     card.style.setProperty("--cos-delay", Math.min(index, 7) * 35 + "ms");
     card.style.setProperty("--cos-color", item.color || "#a58bff");
@@ -289,7 +272,7 @@
     const content = make("div", "cos-card-content");
     const chips = make("div", "cos-card-chips");
     let availabilityClass = "is-preview";
-    if (item.localProfile || isAvailable(item)) availabilityClass = "is-ready";
+    if (isOwned(item) || isAvailable(item)) availabilityClass = "is-ready";
     else if (item.availability === "coming_soon") availabilityClass = "is-soon";
     chips.append(make("span", "cos-chip " + availabilityClass, availabilityLabel(item)));
     chips.append(make("span", "cos-chip", priceLabel(item)));
@@ -302,7 +285,7 @@
     content.append(description);
 
     const meta = make("div", "cos-card-meta");
-    meta.append(make("span", "", item.version ? "Version " + item.version : (item.localProfile ? "Original" : "Version not supplied")));
+    meta.append(make("span", "", item.version ? "Version " + item.version : "Version not supplied"));
     if (item.license) meta.append(make("span", "", item.license));
     content.append(meta);
     card.append(content);
@@ -316,9 +299,9 @@
     const mode = filter.value || "all";
     const visible = items.filter(function(item) {
       if (query && !getSearchText(item).includes(query)) return false;
-      if (mode === "profile" && !item.localProfile) return false;
+      if (mode === "profile" && !isOwned(item)) return false;
       if (mode === "available" && !isAvailable(item)) return false;
-      if (mode === "preview" && (item.localProfile || isAvailable(item))) return false;
+      if (mode === "preview" && (isOwned(item) || isAvailable(item))) return false;
       return true;
     });
 
@@ -333,6 +316,29 @@
     }
     grid.setAttribute("aria-busy", "false");
     count.textContent = "Showing " + visible.length + " of " + items.length + " cosmetics";
+  }
+
+  async function loadEntitlements() {
+    entitlementsUnavailable = false;
+    ownedItems = new Map();
+    try {
+      const response = await fetch("/api/store/entitlements", {
+        credentials: "same-origin",
+        cache: "no-store",
+        headers: { "Accept": "application/json" }
+      });
+      const data = await response.json().catch(function() { return {}; });
+      if (!response.ok) throw new Error(data.error || "Could not check cosmetic ownership.");
+      for (const item of Array.isArray(data.items) ? data.items : []) {
+        if (item && typeof item.itemId === "string") {
+          ownedItems.set(item.itemId, { id: item.itemId, kind: item.kind, name: item.name, purchasedAt: item.purchasedAt });
+        }
+      }
+      if (data.authenticated === false) entitlementsUnavailable = true;
+    } catch {
+      entitlementsUnavailable = true;
+      ownedItems = new Map();
+    }
   }
 
   async function loadCatalog() {
@@ -370,16 +376,17 @@
       }
     }
 
-    items = profileEffects.concat(onlineItems);
+    await loadEntitlements();
+    items = onlineItems;
     render();
     if (catalogError) {
-      feedStatus.textContent = "Online catalog unavailable. Built-in profile effects are still ready to browse. " + catalogError;
+      feedStatus.textContent = "Online cosmetic catalog unavailable. " + catalogError;
       feedStatus.dataset.error = "true";
     } else if (onlineItems.length) {
-      feedStatus.textContent = "Loaded " + onlineItems.length + " online cosmetic listing" + (onlineItems.length === 1 ? "" : "s") + " alongside the built-in profile effects.";
+      feedStatus.textContent = "Loaded " + onlineItems.length + " cosmetic catalog listing" + (onlineItems.length === 1 ? "" : "s") + ". Owned paid cosmetics show Equip after purchase confirmation.";
       feedStatus.dataset.error = "false";
     } else {
-      feedStatus.textContent = "Your four VoidCraft profile effects are ready. No online cosmetic releases are listed right now.";
+      feedStatus.textContent = "No cosmetic releases are listed yet. Preview products cannot be purchased or equipped until a released package is published.";
       feedStatus.dataset.error = "false";
     }
   }
@@ -390,7 +397,7 @@
   if (dialogClose) dialogClose.addEventListener("click", function() { dialog.close(); });
   if (dialog) dialog.addEventListener("click", function(event) { if (event.target === dialog) dialog.close(); });
   window.addEventListener("storage", function(event) {
-    if (event.key === INSTALLED_KEY || event.key === EQUIPPED_KEY) render();
+    if (event.key === EQUIPPED_KEY) render();
   });
 
   render();
