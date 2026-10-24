@@ -1,0 +1,293 @@
+{
+  "schemaVersion": 1,
+  "catalogId": "voidcraft-feature-store",
+  "displayName": "VoidCraft Feature Store",
+  "layout": "flat-no-categories",
+  "status": "proposed-catalog-only",
+  "note": "Not wired into the app yet. Entries must remain proposed until runtime implementation and tests are complete.",
+  "features": [
+    {
+      "id": "smart-performance-advisor",
+      "name": "Smart Performance Advisor",
+      "type": "installable-addon",
+      "status": "proposed",
+      "dedicatedPage": "features/smart-performance-advisor",
+      "summary": "Recommendations based on available device, RAM, renderer, version, thermal and battery signals.",
+      "permissions": [
+        "read-device-signals",
+        "read-selected-profile-settings"
+      ],
+      "duplicatePolicy": "Extends existing heap defaults; never silently changes saved RAM or renderer settings."
+    },
+    {
+      "id": "server-status-monitor",
+      "name": "Server Status Monitor",
+      "type": "installable-addon",
+      "status": "proposed",
+      "dedicatedPage": "features/server-status-monitor",
+      "summary": "Add, edit, remove and refresh servers; show online state, MOTD, icon, player count and latency.",
+      "permissions": [
+        "internet",
+        "store-server-list"
+      ],
+      "duplicatePolicy": "Dedicated server-status page; not a duplicate of instance/profile management."
+    },
+    {
+      "id": "custom-theme-studio",
+      "name": "Custom Theme Studio",
+      "type": "installable-addon",
+      "status": "proposed",
+      "dedicatedPage": "features/custom-theme-studio",
+      "summary": "Preview, apply, switch, import and uninstall custom launcher themes.",
+      "permissions": [
+        "read-theme-package",
+        "write-theme-preferences"
+      ],
+      "duplicatePolicy": "Extends the built-in VoidCraft theme; never removes the default theme."
+    },
+    {
+      "id": "live-performance-hud",
+      "name": "Live Performance HUD",
+      "type": "installable-addon",
+      "status": "proposed",
+      "dedicatedPage": "features/live-performance-hud",
+      "summary": "Show supported in-game FPS, frame-time, memory and runtime metrics.",
+      "permissions": [
+        "read-supported-runtime-metrics",
+        "overlay-if-supported"
+      ],
+      "duplicatePolicy": "Only show metrics genuinely exposed by the device/runtime."
+    },
+    {
+      "id": "scheduled-world-backup-automation",
+      "name": "Scheduled World Backup Automation",
+      "type": "installable-addon",
+      "status": "proposed",
+      "dedicatedPage": "features/scheduled-world-backup-automation",
+      "summary": "Schedule backups, set retention limits and browse backup history.",
+      "permissions": [
+        "read-selected-worlds",
+        "write-backups",
+        "schedule-work"
+      ],
+      "duplicatePolicy": "Extends current manual ZIP backup/verify/restore; reuse all existing safety checks."
+    },
+    {
+      "id": "advanced-instance-toolkit",
+      "name": "Advanced Instance Toolkit",
+      "type": "installable-addon",
+      "status": "proposed",
+      "dedicatedPage": "features/advanced-instance-toolkit",
+      "summary": "Advanced cloning, icons, tags, favorites, search, sorting and notes where not already supported.",
+      "permissions": [
+        "read-profile-metadata",
+        "write-profile-metadata"
+      ],
+      "duplicatePolicy": "Show only missing workflows; reuse the existing profile format."
+    },
+    {
+      "id": "voidcraft-social",
+      "name": "VoidCraft Social",
+      "type": "installable-addon",
+      "status": "proposed",
+      "dedicatedPage": "features/voidcraft-social",
+      "summary": "Username profile, friend requests/removal, block/report, privacy settings and private chat.",
+      "permissions": [
+        "internet",
+        "social-profile",
+        "messages"
+      ],
+      "duplicatePolicy": "Requires separate secure backend and consent; Minecraft sign-in alone does not create a social account."
+    },
+    {
+      "id": "community-world-gallery",
+      "name": "Community World Gallery",
+      "type": "installable-addon",
+      "status": "proposed",
+      "dedicatedPage": "features/community-world-gallery",
+      "summary": "Browse reviewed community worlds with creator/license/version metadata and import after confirmation.",
+      "permissions": [
+        "internet",
+        "read-package-metadata",
+        "write-selected-world"
+      ],
+      "duplicatePolicy": "Use VoidCraft reviewed registry or creator-provided URLs; no Modrinth/CurseForge API dependency."
+    },
+    {
+      "id": "resource-pack-previewer",
+      "name": "Resource Pack Previewer",
+      "type": "installable-addon",
+      "status": "proposed",
+      "dedicatedPage": "features/resource-pack-previewer",
+      "summary": "Preview pack metadata/screenshots, compare details and inspect supported versions.",
+      "permissions": [
+        "read-pack-metadata",
+        "read-selected-profile-packs"
+      ],
+      "duplicatePolicy": "Extends existing pack folder/toggle; do not claim a live preview unless implemented."
+    },
+    {
+      "id": "download-queue-enhancer",
+      "name": "Download Queue Enhancer",
+      "type": "installable-addon",
+      "status": "proposed",
+      "dedicatedPage": "features/download-queue-enhancer",
+      "summary": "Unified supported-download status, history, retry/cancel and integrity indicators.",
+      "permissions": [
+        "read-download-status",
+        "manage-supported-download-tasks"
+      ],
+      "duplicatePolicy": "Reuse the existing downloader; never fake pause/resume or add a parallel downloader."
+    },
+    {
+      "id": "shader-compatibility-checker",
+      "name": "Shader Compatibility Checker",
+      "type": "installable-addon",
+      "status": "proposed",
+      "dedicatedPage": "features/shader-compatibility-checker",
+      "summary": "Compare shader metadata with Minecraft version, renderer and known device requirements.",
+      "permissions": [
+        "read-profile-settings",
+        "read-renderer-capabilities"
+      ],
+      "duplicatePolicy": "Extends shader folder/toggle; report evidence and uncertainty rather than guarantees."
+    },
+    {
+      "id": "mod-compatibility-checker",
+      "name": "Mod Compatibility Checker",
+      "type": "installable-addon",
+      "status": "proposed",
+      "dedicatedPage": "features/mod-compatibility-checker",
+      "summary": "Inspect dependency metadata, version constraints, duplicates and likely conflicts before launch.",
+      "permissions": [
+        "read-selected-profile-mods",
+        "read-mod-metadata"
+      ],
+      "duplicatePolicy": "Never delete or disable files automatically; do not rely on filenames alone."
+    },
+    {
+      "id": "quick-settings-profiles",
+      "name": "Quick Settings Profiles",
+      "type": "installable-addon",
+      "status": "proposed",
+      "dedicatedPage": "features/quick-settings-profiles",
+      "summary": "Save and switch named performance/battery settings with a preview before applying.",
+      "permissions": [
+        "read-allowlisted-settings",
+        "write-allowlisted-settings"
+      ],
+      "duplicatePolicy": "Reuse safe preference allowlists; exclude tokens, free-form Java arguments and user world data."
+    },
+    {
+      "id": "enhanced-crash-log-analyzer",
+      "name": "Enhanced Crash Log Analyzer",
+      "type": "installable-addon",
+      "status": "proposed",
+      "dedicatedPage": "features/enhanced-crash-log-analyzer",
+      "summary": "Richer crash signatures, explanations and a user-reviewed redacted diagnostic report.",
+      "permissions": [
+        "read-bounded-redacted-logs",
+        "share-after-review"
+      ],
+      "duplicatePolicy": "Extends existing heuristic log diagnosis; no silent log uploads."
+    },
+    {
+      "id": "playtime-tracker",
+      "name": "Playtime Tracker",
+      "type": "installable-addon",
+      "status": "proposed",
+      "dedicatedPage": "features/playtime-tracker",
+      "summary": "Track local session length, per-instance totals and recent sessions.",
+      "permissions": [
+        "read-launch-session-events",
+        "store-local-statistics"
+      ],
+      "duplicatePolicy": "Local-only by default; no cloud upload by default."
+    },
+    {
+      "id": "screenshot-gallery-plus",
+      "name": "Screenshot Gallery Plus",
+      "type": "installable-addon",
+      "status": "proposed",
+      "dedicatedPage": "features/screenshot-gallery-plus",
+      "summary": "Thumbnail gallery, sorting, favorites and explicit user-initiated sharing.",
+      "permissions": [
+        "read-profile-screenshots",
+        "share-after-confirmation"
+      ],
+      "duplicatePolicy": "Extends existing Screenshots folder shortcut; original files stay unchanged by default."
+    },
+    {
+      "id": "modpack-update-watcher",
+      "name": "Modpack Update Watcher",
+      "type": "installable-addon",
+      "status": "proposed",
+      "dedicatedPage": "features/modpack-update-watcher",
+      "summary": "Track compatible updates through signed VoidCraft manifests or trusted creator feeds.",
+      "permissions": [
+        "internet",
+        "read-modpack-manifest",
+        "write-files-after-confirmation"
+      ],
+      "duplicatePolicy": "No Modrinth/CurseForge API calls for the Feature Store; backup before applying changes."
+    },
+    {
+      "id": "accessibility-enhancements",
+      "name": "Accessibility Enhancements",
+      "type": "installable-addon",
+      "status": "proposed",
+      "dedicatedPage": "features/accessibility-enhancements",
+      "summary": "Extra high contrast, larger text/tap targets, reduced motion and focus indicators.",
+      "permissions": [
+        "write-accessibility-preferences"
+      ],
+      "duplicatePolicy": "Adds only options not already offered by Android/system accessibility or core UI."
+    },
+    {
+      "id": "storage-cleaner",
+      "name": "Storage Cleaner",
+      "type": "installable-addon",
+      "status": "proposed",
+      "dedicatedPage": "features/storage-cleaner",
+      "summary": "Review disposable temporary files, stale store downloads and allowlisted caches.",
+      "permissions": [
+        "scan-allowlisted-temp-paths",
+        "delete-after-review"
+      ],
+      "duplicatePolicy": "Never delete worlds, backups, profiles, accounts, configs, mods, runtimes, native libraries or game assets."
+    }
+  ],
+  "storeShell": {
+    "id": "community-feature-showcase",
+    "name": "Community Feature Showcase",
+    "type": "built-in-store-capability",
+    "status": "proposed",
+    "dedicatedPage": "feature-store",
+    "description": "Flat browse/search page, creator/review information, compatibility and permission details, install/update/uninstall states, and an installed-features list. Every installed feature opens its own page.",
+    "note": "Part of the Store shell, not a separately installable add-on. No categories."
+  },
+  "launcherCoreBoundary": {
+    "keepBuiltIn": [
+      "Java runtime, native libraries, engine, renderer/runtime integration and essential launch pipeline",
+      "Minecraft version metadata, client, library and asset downloads",
+      "Core account/session/profile infrastructure",
+      "Modpack import and export",
+      "Touch control designer"
+    ],
+    "integrationRules": [
+      "Optional add-ons call supported launcher services; they do not replace core internals.",
+      "Installation, update, failure, rollback and uninstall must preserve worlds and existing user data.",
+      "An item already implemented in core may only appear as an add-on when it adds a distinct, documented capability."
+    ]
+  },
+  "securityRequirements": {
+    "releaseSignatureRequired": true,
+    "sha256IntegrityRequired": true,
+    "explicitPermissionsRequired": true,
+    "compatibilityGateRequired": true,
+    "rollbackRequired": true,
+    "communityReviewRequired": true,
+    "ownerSignedTrustedReleaseRequired": true,
+    "defaultPackageModel": "Declarative UI/assets plus allowlisted launcher APIs; do not execute arbitrary downloaded bytecode, native libraries, shell scripts or APKs."
+  }
+}
