@@ -4,112 +4,105 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="theme-color" content="#090914">
-<meta name="description" content="Browse VoidCraft cosmetic listings and equip purchased cosmetics after verified checkout.">
-<title>Cosmetic Store — VoidCraft</title>
+<meta name="description" content="Explore the VoidCraft cosmetic catalog. Purchases unlock Equip on owned cosmetics after payment is verified.">
+<title>Cosmetic Market — VoidCraft</title>
 <link rel="icon" href="assets/logo.svg">
 <link rel="stylesheet" href="assets/styles.css">
-<link rel="stylesheet" href="assets/cosmetic-store.css">
+<link rel="stylesheet" href="assets/cosmetic-market.css">
 </head>
 <body>
 <header>
   <div class="bar">
     <a class="brand" href="index.html"><img src="assets/logo.svg" alt=""><span>VOIDCRAFT</span></a>
     <nav class="nav" aria-label="Main navigation">
-      <a href="index.html">Home</a>
-      <a href="downloads.html">Downloads</a>
+      <a href="index.html">Home</a><a href="downloads.html">Downloads</a>
       <a href="feature-store.html">Feature Store</a>
       <a href="cosmetic-store.html" class="active" aria-current="page">Cosmetics</a>
-      <a href="servers.html">Servers</a>
-      <a href="community.html">Community</a>
-      <a href="developers.html">Developers</a>
-      <a href="docs.html">Docs</a>
+      <a href="servers.html">Servers</a><a href="community.html">Community</a>
+      <a href="developers.html">Developers</a><a href="docs.html">Docs</a>
     </nav>
     <div class="account-links"><a href="signin.html">Sign in</a><a href="profile.html">Profile</a></div>
   </div>
 </header>
 
-<main class="cosmetics-main">
-  <section class="cosmetics-hero" aria-labelledby="cosmetics-title">
-    <div class="cosmetics-hero-copy">
-      <span class="cosmetics-kicker">VoidCraft · Cosmetic collection</span>
-      <h1 id="cosmetics-title">Make your look feel <span>like yours.</span></h1>
-      <p>Discover released VoidCraft cosmetic listings. The Equip option unlocks only after your account has a confirmed purchase. Search once, preview the collection, and equip the looks you own.</p>
-      <div class="cosmetics-hero-links">
-        <a class="btn" href="#cosmetic-collection">Explore collection <span aria-hidden="true">&nbsp;↓</span></a>
-        <a class="btn secondary" href="#cosmetic-ownership">How unlocks work</a>
+<main class="cm-page">
+  <section class="cm-hero" aria-labelledby="cm-title">
+    <div class="cm-hero-copy">
+      <div class="cm-eyebrow">VoidCraft · Cosmetic market</div>
+      <h1 id="cm-title">Find your next <span>signature look.</span></h1>
+      <p>Explore original VoidCraft cosmetics and community releases. See what is ready, keep track of what you own, and equip purchased cosmetics after your account's payment has been verified.</p>
+      <div class="cm-hero-actions">
+        <a class="btn" href="#cm-collection">Explore cosmetics <span aria-hidden="true">&nbsp;↓</span></a>
+        <a class="btn secondary" href="cart.html">View cart</a>
       </div>
     </div>
-    <div class="cosmetics-art" aria-hidden="true">
-      <div class="cosmetics-art-ring"></div>
-      <div class="cosmetics-art-orb"></div>
-      <div class="cosmetics-mini-chip cosmetics-mini-one"><span class="mini-dot"></span><span><strong>Cosmetic catalog</strong><small>Browse original looks</small></span></div>
-      <div class="cosmetics-mini-chip cosmetics-mini-two"><span><strong>Purchase verified</strong><small>Equip unlocks on ownership</small></span></div>
+    <div class="cm-hero-art" aria-hidden="true">
+      <span class="cm-orbit"></span><span class="cm-core"></span>
+      <div class="cm-glass-label cm-glass-one"><span class="cm-glass-dot"></span><span>Cosmetic catalog<small>Original looks &amp; releases</small></span></div>
+      <div class="cm-glass-label cm-glass-two"><span>✓</span><span>Purchase verified<small>Equip unlocks on ownership</small></span></div>
     </div>
   </section>
 
-  <section class="cosmetics-collection" id="cosmetic-collection" aria-labelledby="cosmetic-collection-title">
-    <div class="cosmetics-section-head">
-      <div>
-        <div class="eyebrow">Find your style</div>
-        <h2 id="cosmetic-collection-title">The collection</h2>
-        <p>One search and one collection. Equipable effects are marked clearly.</p>
-      </div>
-    </div>
+  <section class="cm-stats" aria-label="Store features">
+    <article class="cm-stat"><span class="cm-stat-icon" aria-hidden="true">✧</span><span><strong>Original looks</strong><small>VoidCraft cosmetic concepts</small></span></article>
+    <article class="cm-stat"><span class="cm-stat-icon" aria-hidden="true">◎</span><span><strong>Account ownership</strong><small>Verified on the server</small></span></article>
+    <article class="cm-stat"><span class="cm-stat-icon" aria-hidden="true">↗</span><span><strong>One collection</strong><small>Search, purchase and equip</small></span></article>
+  </section>
 
-    <div class="cosmetics-toolbox">
-      <label class="cosmetics-field" for="cosmetic-query">Search cosmetics
-        <input id="cosmetic-query" type="search" placeholder="Search name, style, creator or description…" autocomplete="off" spellcheck="false">
+  <section id="cm-collection" aria-labelledby="cm-collection-title">
+    <div class="cm-toolbar-head">
+      <div><div class="cm-eyebrow">The collection</div><h2 id="cm-collection-title">Browse cosmetics</h2><p>Equip is shown only for a cosmetic your account owns.</p></div>
+      <button class="btn secondary cm-refresh" type="button" id="cm-refresh">↻ Refresh catalog</button>
+    </div>
+    <div class="cm-toolbar">
+      <label class="cm-field" for="cm-search">Search
+        <input id="cm-search" type="search" placeholder="Name, creator, style or description…" autocomplete="off" spellcheck="false">
       </label>
-      <label class="cosmetics-field" for="cosmetic-filter">Show
-        <select id="cosmetic-filter">
+      <label class="cm-field" for="cm-filter">Show
+        <select id="cm-filter">
           <option value="all">All cosmetics</option>
-          <option value="profile">Owned cosmetics</option>
-          <option value="available">Available downloads</option>
-          <option value="preview">Previews and coming soon</option>
+          <option value="owned">Owned cosmetics</option>
+          <option value="available">Ready to purchase</option>
+          <option value="preview">Previews</option>
         </select>
       </label>
-      <button class="btn secondary cosmetics-refresh" id="cosmetic-refresh" type="button">↻ Refresh catalog</button>
+      <label class="cm-field" for="cm-sort">Sort by
+        <select id="cm-sort">
+          <option value="featured">Featured</option>
+          <option value="name">Name A–Z</option>
+          <option value="price-low">Price: low to high</option>
+          <option value="newest">Newest</option>
+        </select>
+      </label>
+      <button class="btn secondary cm-filter-reset" type="button" id="cm-reset">Reset filters</button>
     </div>
 
-    <p class="cosmetics-feed-status" id="cosmetic-feed-status" aria-live="polite">Loading the online cosmetic catalog…</p>
-    <div class="cosmetics-equip-state" id="cosmetic-equip-state" aria-live="polite"></div>
-    <p class="cosmetics-feed-status" id="cosmetic-result-count" aria-live="polite">Loading collection…</p>
-
-    <div class="cosmetics-grid" id="cosmetic-grid" aria-live="polite" aria-busy="true">
-      <div class="cosmetics-empty"><strong>Preparing your collection…</strong><p>Loading the cosmetic catalog and your confirmed purchases.</p></div>
+    <p class="cm-feed" id="cm-feed" aria-live="polite" data-state="info">Loading cosmetics and checking purchase ownership…</p>
+    <div class="cm-ownership" id="cm-ownership" aria-live="polite"><span class="cm-ownership-state">Checking your owned cosmetics…</span></div>
+    <p class="cm-feed" id="cm-count" aria-live="polite">Loading catalog…</p>
+    <div class="cm-grid" id="cm-catalog" aria-live="polite" aria-busy="true">
+      <div class="cm-empty"><strong>Preparing your cosmetic market…</strong><p>Loading the store catalog.</p></div>
     </div>
-    <p class="cosmetics-footer-line">Online listings are supplied by the VoidCraft catalog. A listing preview does not automatically mean an asset is downloadable or usable in Minecraft.</p>
   </section>
 
-  <div class="notice cosmetics-commerce-note"><strong>Checkout status:</strong> Paid checkout is not configured yet. Add to cart saves eligible item IDs to this browser; Buy now opens the checkout review, but no payment will be taken until secure checkout is configured. Free downloads do not require checkout.</div>
-
-  <aside class="cosmetics-note" id="cosmetic-ownership" aria-label="Cosmetic capability notice">
-    <div class="cosmetics-note-icon" aria-hidden="true">i</div>
-    <div>
-      <h3>Purchase first, then equip</h3>
-      <p>Cosmetic cards show Equip only after the store confirms payment and records ownership on your account. The current Equip control applies the purchased cosmetic to this website profile; it does not yet render on a Minecraft player model or make the cosmetic visible to multiplayer players. In-game visibility requires a compatible Minecraft client renderer and, for multiplayer, compatible server support.</p>
-    </div>
-  </aside>
+  <section class="cm-info-grid" aria-label="Store information">
+    <article class="cm-info"><span class="cm-info-icon" aria-hidden="true">✓</span><h3>Buy means buy</h3><p>A real release, published price, package and configured payment flow are required before an item can be purchased.</p></article>
+    <article class="cm-info"><span class="cm-info-icon" aria-hidden="true">⌑</span><h3>Ownership is checked</h3><p>The Equip option appears only after server-side purchase confirmation. A browser toggle or return URL alone cannot unlock a cosmetic.</p></article>
+    <article class="cm-info"><span class="cm-info-icon" aria-hidden="true">◈</span><h3>Honest compatibility</h3><p>Equipping currently applies to your VoidCraft website profile. Minecraft player-model rendering and multiplayer visibility require separate compatible client/server support.</p></article>
+  </section>
+  <div class="cm-notice"><strong>Payments:</strong> Secure checkout must be configured by the store owner before buying can be enabled. Preview products are not purchasable. No charge or cosmetic unlock is reported unless the server confirms payment.</div>
 </main>
 
-<footer>
-  <div class="foot">
-    <span>© VoidCraft community project · Independent from Mojang and Microsoft</span>
-    <span><a href="privacy.html">Privacy</a> · <a href="terms.html">Terms</a> · <a href="security.html">Security</a></span>
-  </div>
-</footer>
+<footer><div class="foot"><span>© VoidCraft community project · Independent from Mojang and Microsoft</span><span><a href="privacy.html">Privacy</a> · <a href="terms.html">Terms</a> · <a href="security.html">Security</a></span></div></footer>
 
-<dialog class="cosmetics-dialog" id="cosmetic-details" aria-labelledby="cosmetic-details-title">
-  <div class="cosmetics-dialog-panel">
-    <div class="cosmetics-dialog-head">
-      <h2 id="cosmetic-details-title">Cosmetic details</h2>
-      <button class="cosmetics-dialog-close" id="cosmetic-details-close" type="button">Close ✕</button>
-    </div>
-    <div class="cosmetics-dialog-body" id="cosmetic-details-body"></div>
+<dialog class="cm-dialog" id="cm-details" aria-labelledby="cm-details-title">
+  <div class="cm-dialog-panel">
+    <div class="cm-dialog-head"><h2 id="cm-details-title">Cosmetic details</h2><button class="cm-dialog-close" id="cm-details-close" type="button">Close ✕</button></div>
+    <div class="cm-dialog-body" id="cm-details-body"></div>
   </div>
 </dialog>
 
 <script src="assets/app.js" defer></script>
-<script src="assets/cosmetic-store.js" defer></script>
+<script src="assets/cosmetic-market.js" defer></script>
 </body>
 </html>
