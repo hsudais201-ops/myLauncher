@@ -214,11 +214,18 @@ COSMETIC_HANDOFF_METHOD = """    private void applyVoidcraftCosmetic() {
                 if (profile != null) selectedVersion = profile.lastVersionId == null ? "" : profile.lastVersionId;
             } catch (Exception ignored) { }
 
-            if (!"1.21.1".equals(selectedVersion)) {
+            boolean supportedVersion = "1.21.1".equals(selectedVersion) ||
+                    (selectedVersion != null && selectedVersion.endsWith("-1.21.1"));
+            File modsDirectory = new File(gameDirectory, "mods");
+            if (!supportedVersion) {
+                File staleMod = new File(modsDirectory, "voidcraft-cosmetics-fabric-0.1.0.jar");
+                if (staleMod.isFile() && !staleMod.delete()) {
+                    Toast.makeText(this, "Could not remove the 1.21.1 cosmetics mod from an incompatible game version.", Toast.LENGTH_LONG).show();
+                    return;
+                }
                 Toast.makeText(this, "Cosmetic choice synced. In-game rendering targets Fabric Minecraft 1.21.1.", Toast.LENGTH_LONG).show();
                 return;
             }
-            File modsDirectory = new File(gameDirectory, "mods");
             if (!modsDirectory.isDirectory() && !modsDirectory.mkdirs()) throw new java.io.IOException("Cannot create mods directory.");
             File modJar = new File(modsDirectory, "voidcraft-cosmetics-fabric-0.1.0.jar");
             try (java.io.InputStream input = getAssets().open("voidcraft/voidcraft-cosmetics-fabric-1.21.1.jar");
