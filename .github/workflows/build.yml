@@ -19,7 +19,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: mylauncher-build-${{ github.ref }}
+  group: mylauncher-build-v2-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
