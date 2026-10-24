@@ -1719,3 +1719,104 @@ document.addEventListener("click", (event) => {
   apply();
   window.addEventListener("voidcraft-theme-updated",apply);
 })();
+
+
+/* ===== VoidCraft Orbit shell: accessible mobile navigation + consistent identity ===== */
+(() => {
+  "use strict";
+  const pathname = window.location.pathname.split("/").pop() || "index.html";
+  const nav = document.querySelector("header .nav");
+  const bar = nav?.closest(".bar");
+  const main = document.querySelector("main");
+
+  if (main && !main.id) main.id = "vc-main";
+  if (!document.querySelector(".vc-skip-link") && main) {
+    const skip = document.createElement("a");
+    skip.className = "vc-skip-link";
+    skip.href = "#vc-main";
+    skip.textContent = "Skip to main content";
+    document.body.prepend(skip);
+  }
+
+  if (nav && bar) {
+    nav.id = nav.id || "vc-primary-nav";
+    [...nav.querySelectorAll("a[href]")].forEach((link) => {
+      const target = (link.getAttribute("href") || "").split("?")[0].split("#")[0];
+      const active = target === pathname || (pathname === "" && target === "index.html");
+      link.classList.toggle("active", active);
+      if (active) link.setAttribute("aria-current", "page");
+      else link.removeAttribute("aria-current");
+    });
+
+    let toggle = bar.querySelector(".vc-menu-toggle");
+    if (!toggle) {
+      toggle = document.createElement("button");
+      toggle.type = "button";
+      toggle.className = "vc-menu-toggle";
+      toggle.setAttribute("aria-controls", nav.id);
+      toggle.setAttribute("aria-expanded", "false");
+      toggle.setAttribute("aria-label", "Open navigation menu");
+      toggle.innerHTML = '<span class="vc-menu-icon" aria-hidden="true"><i></i><i></i><i></i></span><span>Menu</span>';
+      bar.append(toggle);
+    }
+    const toggleLabel = toggle.querySelector("span:last-child");
+    const closeMenu = () => {
+      nav.classList.remove("is-open");
+      toggle.setAttribute("aria-expanded", "false");
+      toggle.setAttribute("aria-label", "Open navigation menu");
+      if (toggleLabel) toggleLabel.textContent = "Menu";
+    };
+    toggle.addEventListener("click", () => {
+      const opening = toggle.getAttribute("aria-expanded") !== "true";
+      toggle.setAttribute("aria-expanded", String(opening));
+      toggle.setAttribute("aria-label", opening ? "Close navigation menu" : "Open navigation menu");
+      nav.classList.toggle("is-open", opening);
+      if (toggleLabel) toggleLabel.textContent = opening ? "Close" : "Menu";
+    });
+    nav.addEventListener("click", (event) => {
+      if (event.target.closest("a")) closeMenu();
+    });
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape") closeMenu();
+    });
+    window.addEventListener("resize", () => {
+      if (window.matchMedia("(min-width: 901px)").matches) closeMenu();
+    }, { passive: true });
+  }
+
+  // Reuse the exact site logo in both website-account and Social Hub sign-in views.
+  const authPanel = document.querySelector(".social-auth-layout .auth-panel") ||
+    (pathname === "signin.html" ? document.querySelector(".auth-layout .auth-panel") : null);
+  if (authPanel && !authPanel.querySelector(".vc-chat-brand")) {
+    const social = Boolean(document.querySelector(".social-auth-layout"));
+    const brand = document.createElement("div");
+    brand.className = "vc-chat-brand";
+    const logo = document.createElement("img");
+    logo.src = "assets/logo.svg";
+    logo.alt = "VoidCraft logo";
+    logo.width = 48;
+    logo.height = 48;
+    const copy = document.createElement("div");
+    copy.className = "vc-chat-brand-copy";
+    const name = document.createElement("span");
+    name.className = "vc-chat-brand-name";
+    name.textContent = "VOIDCRAFT";
+    const subtitle = document.createElement("span");
+    subtitle.className = "vc-chat-brand-subtitle";
+    subtitle.textContent = social ? "SOCIAL HUB · BETA" : "YOUR ACCOUNT · YOUR COMMUNITY";
+    const note = document.createElement("p");
+    note.className = "vc-chat-brand-note";
+    note.textContent = social
+      ? "VoidCraft Chat & Friends. This beta currently uses a separate Social Hub login."
+      : "One account for your VoidCraft website profile and community links.";
+    copy.append(name, subtitle, note);
+    brand.append(logo, copy);
+    const firstChild = authPanel.firstElementChild;
+    if (firstChild) authPanel.insertBefore(brand, firstChild);
+    else authPanel.append(brand);
+  }
+
+  // Prevent external or broken social navigation labels from duplicating the brand's main links.
+  const chatLink = nav?.querySelector('a[href="social-hub.html"]');
+  if (chatLink && chatLink.textContent.trim() !== "Chat & Friends") chatLink.textContent = "Chat & Friends";
+})();
