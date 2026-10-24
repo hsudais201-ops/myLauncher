@@ -42,7 +42,7 @@ fun CosmeticStoreScreen(
     Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
         OutlinedButton(onClick = onBack) { Text("← BACK") }
         Text("Cosmetic Store", fontSize = 28.sp, fontWeight = FontWeight.ExtraBold)
-        Text("Fabric 1.21.1 client cosmetics. Equip a colored halo rendered on player models by the VoidCraft Cosmetics Fabric mod.", color = VoidMuted, fontSize = 13.sp)
+        Text("Client-side halo cosmetics for the tested Minecraft targets listed below. Equip a style here; the matching version-specific Fabric mod must also be installed in the game instance.", color = VoidMuted, fontSize = 13.sp)
         Card(shape = RoundedCornerShape(18.dp), colors = CardDefaults.cardColors(containerColor = VoidSurface)) {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Text("IN-GAME COSMETIC", color = equippedId?.let { id -> cosmeticOptions.find { it.id == id }?.color } ?: VoidMuted, fontWeight = FontWeight.Black, letterSpacing = 1.sp)
@@ -80,6 +80,6 @@ fun CosmeticStoreScreen(
                 }
             }
         }
-        Text("Requires Minecraft 1.21.1 with Fabric Loader, Fabric API, and the VoidCraft Cosmetics mod installed in that instance. This launcher saves the equip selection for the next launch. The effect is client-rendered; other players see it only if they also have a compatible mod.", color = VoidMuted, fontSize = 11.sp)
+        Text("Build-tested targets: 1.17.1, 1.18.2, 1.19.4, 1.20.1–1.20.6, and 1.21–1.21.7 (selected releases only). Install the exact matching VoidCraft Cosmetics JAR, Fabric Loader, and Fabric API in the selected instance. VoidCraft saves your equip choice and passes it to the engine, but does not install Fabric or the mod automatically yet. Other players see the halo only if their clients also run a compatible mod.", color = VoidMuted, fontSize = 11.sp)
     }
 }
