@@ -72,6 +72,33 @@ public final class VoidCraftCosmeticFeatureRenderer
         }
     }
 
+
+    /**
+     * ModelPart's MatrixStack transform API changed within Minecraft 1.21.x.
+     * Prefer the modern applyTransform name, and fall back to the older rotate
+     * name when compiling/running against 1.21.2–1.21.4 mappings.
+     */
+    private static void applyHeadTransform(ModelPart head, MatrixStack matrices) {
+        for (String methodName : new String[] {"applyTransform", "rotate"}) {
+            try {
+                java.lang.reflect.Method method =
+                    ModelPart.class.getMethod(methodName, MatrixStack.class);
+                method.invoke(head, matrices);
+                return;
+            } catch (NoSuchMethodException ignored) {
+                // Try the transform name used by the other 1.21 API generation.
+            } catch (ReflectiveOperationException exception) {
+                throw new IllegalStateException(
+                    "Could not apply the player head transform for VoidCraft cosmetics.",
+                    exception
+                );
+            }
+        }
+        throw new IllegalStateException(
+            "This Minecraft version exposes no supported ModelPart head transform API."
+        );
+    }
+
     @Override
     public void render(
         MatrixStack matrices,
