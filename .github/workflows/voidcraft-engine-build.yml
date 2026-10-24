@@ -14,6 +14,13 @@ on:
       - "tools/validate_feature_catalog.py"
       - ".github/workflows/android-build.yml"
       - ".github/workflows/voidcraft-engine-build.yml"
+  pull_request:
+    branches: ["launcher/bootstrap"]
+    paths:
+      - "app/src/main/java/com/voidcraft/launcher/**"
+      - "cosmetics-fabric/**"
+      - "tools/integrate_amethyst.py"
+      - ".github/workflows/voidcraft-engine-build.yml"
   workflow_dispatch:
 
 permissions:
