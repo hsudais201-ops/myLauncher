@@ -18,20 +18,31 @@ adb_limited() {
 # transport.
 emulator_ready() {
     local attempt state booted
-    for attempt in $(seq 1 18); do
-        adb_limited 10 reconnect offline >/dev/null 2>&1 || true
-        state="$(adb_limited 10 get-state 2>/dev/null || true)"
+    for attempt in $(seq 1 10); do
+        adb_limited 5 reconnect offline >/dev/null 2>&1 || true
+        state="$(adb_limited 5 get-state 2>/dev/null || true)"
         if [ "$state" = "device" ]; then
-            booted="$(adb_limited 10 shell getprop sys.boot_completed 2>/dev/null | tr -d '\r' || true)"
+            booted="$(adb_limited 8 shell getprop sys.boot_completed 2>/dev/null | tr -d '\r' || true)"
             if [ "$booted" = "1" ]; then
                 echo "[smoke] emulator is online and boot-complete"
                 return 0
             fi
         fi
-        echo "[smoke] emulator not ready (attempt $attempt/18; state: ${state:-unknown})"
-        sleep 5
+        echo "[smoke] emulator not ready (attempt $attempt/10; state: ${state:-unknown})"
+        sleep 3
     done
     return 1
+}
+
+# Do not call adb's server-management or diagnostics commands without a
+# timeout: these were the only remaining unbounded ADB calls in this script.
+recover_adb() {
+    adb_limited 12 kill-server >/dev/null 2>&1 || true
+    adb_limited 12 start-server >/dev/null 2>&1 || true
+}
+
+show_adb_devices() {
+    adb_limited 10 devices -l || true
 }
 
 echo "[smoke] waiting for emulator device"
