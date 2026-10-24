@@ -406,7 +406,7 @@ jobs:
           script: bash voidcraft/tools/emulator_smoke_test.sh "$APK_PATH" "$GITHUB_WORKSPACE/voidcraft-emulator-smoke"
 
       - name: Upload integrated Voidcraft debug APK and build provenance
-        if: always()
+        if: always() && hashFiles('engine/Amethyst-Android/app_pojavlauncher/build/outputs/apk/debug/*.apk') != ''
         uses: actions/upload-artifact@v4
         with:
           name: voidcraft-integrated-debug-apk
