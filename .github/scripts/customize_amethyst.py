@@ -59,10 +59,10 @@ def patch_upstream(upstream: Path) -> None:
     )
     build_text = replace_idempotently(build_text, "Amethyst", "myLauncher", str(gradle))
     for old_label, new_label in (
-        ('"app_name", "Voidcraft (Debug)"', '"app_name", "Voidcraft (Debug)"'),
-        ('"app_name", "Voidcraft"', '"app_name", "Voidcraft"'),
-        ('"app_short_name", "Voidcraft (Debug)"', '"app_short_name", "Voidcraft (Debug)"'),
-        ('"app_short_name", "Voidcraft"', '"app_short_name", "Voidcraft"'),
+        ('"app_name", "myLauncher (Debug)"', '"app_name", "Voidcraft (Debug)"'),
+        ('"app_name", "myLauncher"', '"app_name", "Voidcraft"'),
+        ('"app_short_name", "myLauncher (Debug)"', '"app_short_name", "Voidcraft (Debug)"'),
+        ('"app_short_name", "myLauncher"', '"app_short_name", "Voidcraft"'),
     ):
         build_text = replace_idempotently(build_text, old_label, new_label, str(gradle))
     min_sdk = re.search(r"\bminSdkVersion\s+(\d+)\b", build_text)
