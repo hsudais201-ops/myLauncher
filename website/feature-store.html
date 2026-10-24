@@ -1,76 +1,147 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#090b13">
-<meta name="description" content="Browse VoidCraft launcher features, previews, compatibility notes and approved free downloads.">
-<title>Feature Store — VoidCraft</title><link rel="icon" href="assets/logo.svg"><link rel="stylesheet" href="assets/styles.css">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#090914">
+<meta name="description" content="Explore VoidCraft launcher tools, community extensions and reviewed releases in the redesigned Feature Store.">
+<title>Feature Store — VoidCraft</title>
+<link rel="icon" href="assets/logo.svg">
+<link rel="stylesheet" href="assets/styles.css">
+<link rel="stylesheet" href="assets/feature-store.css">
 </head>
 <body>
-<header><div class="bar">
-<a class="brand" href="index.html"><img src="assets/logo.svg" alt=""><span>VOIDCRAFT</span></a>
-<nav class="nav" aria-label="Main navigation"><a href="index.html">Home</a><a href="downloads.html">Downloads</a><a href="feature-store.html" class="active">Feature Store</a><a href="cosmetic-store.html">Cosmetics</a><a href="servers.html">Servers</a><a href="community.html">Community</a><a href="developers.html">Developers</a><a href="docs.html">Docs</a></nav>
-<div class="account-links"><a href="signin.html">Sign in</a><a href="profile.html">Profile</a></div>
-</div></header>
-<main>
-<section class="store-hero">
-<div class="eyebrow">VOIDCRAFT MARKETPLACE · FEATURES</div>
-<h1>Make your launcher <span class="headline-glow">more yours.</span></h1>
-<p>Discover optional launcher extensions from VoidCraft and the community. Check availability, compatibility, permissions and license details before installing anything.</p>
-<div class="actions"><a class="btn" href="developers.html">Submit a feature →</a><a class="btn secondary" href="cosmetic-store.html">Explore cosmetics</a></div>
-<div class="store-trust-row"><span>✓ Free downloads stay public</span><span>✓ Submissions reviewed before listing</span><span>✓ No fake install or payment status</span></div>
-</section>
-<section class="card" style="margin:28px 0;padding:24px;border:1px solid #3a355c;background:linear-gradient(135deg,#1a1830,#121624)" aria-labelledby="advanced-mod-manager-title">
-  <div class="eyebrow">NEW · OPTIONAL TOOL</div>
-  <h2 id="advanced-mod-manager-title">Advanced Mod Manager</h2>
-  <p>Organize your Minecraft Java mod JAR files in a private browser library. Import files, enable or disable them in your collection, export copies, and remove items. Nothing is uploaded to VoidCraft.</p>
-  <p><strong>Works in your browser:</strong> files are saved locally using IndexedDB. For Android, import exported JARs into the launcher’s optional Mod Manager.</p>
-  <div class="actions"><a class="btn" href="mod-manager.html">Open Mod Manager →</a><span class="btn secondary" aria-label="Feature status">Browser tool available · Android beta</span></div>
-</section>
-<section class="card" style="margin:28px 0;padding:24px;border:1px solid #ff966b;background:linear-gradient(135deg,#301c1a,#121624)" aria-labelledby="cosmetic-store-feature-title">
-  <div class="eyebrow">OPTIONAL · PERSONALIZATION</div>
-  <h2 id="cosmetic-store-feature-title">Cosmetic Store</h2>
-  <p>Browse cosmetic listings and equip original VoidCraft profile effects in your browser. Includes Void Aura, Neon Mint, Arctic Ice and Solar Ember. Equipped styles are local website profile effects—not Minecraft in-game cosmetics.</p>
-  <div class="actions"><button class="btn" type="button" data-cosmetic-store-install>Install</button><button class="btn secondary" type="button" data-cosmetic-store-open>Open</button><button class="btn secondary" type="button" data-cosmetic-store-uninstall>Uninstall</button><span class="btn secondary" data-cosmetic-store-status aria-live="polite">Not installed</span></div>
-  <p id="cosmetic-store-feature-message" aria-live="polite"></p>
-</section>
-<section class="card" style="margin:28px 0;padding:24px;border:1px solid #277a68;background:linear-gradient(135deg,#132a2a,#121624)" aria-labelledby="server-state-title">
-  <div class="eyebrow">NEW · OPTIONAL TOOL</div>
-  <h2 id="server-state-title">Server State</h2>
-  <p>Check live Minecraft Java and Bedrock server status, online player counts, versions and MOTD. Save up to 30 server addresses in your browser and refresh them on demand.</p>
-  <p><strong>Browser tool available:</strong> addresses stay in this browser; status checks send the server address to the public mcsrvstat.us service. Results may be delayed or unavailable.</p>
-  <div class="actions"><button class="btn" type="button" data-server-state-install>Install</button><button class="btn secondary" type="button" data-server-state-open>Open</button><button class="btn secondary" type="button" data-server-state-uninstall>Uninstall</button><span class="btn secondary" data-server-state-status aria-live="polite">Not installed</span></div><p id="server-state-store-message" aria-live="polite"></p>
-</section>
-<section class="card" style="margin:28px 0;padding:24px;border:1px solid #9c7bff;background:linear-gradient(135deg,#201a38,#121624)" aria-labelledby="theme-studio-title">
-  <div class="eyebrow">NEW · OPTIONAL PERSONALIZATION</div>
-  <h2 id="theme-studio-title">Theme Studio</h2>
-  <p>Customize the VoidCraft website with color presets or your own palette. Preview changes live, save your colors locally, and apply them across supported website pages.</p>
-  <p><strong>Browser-based:</strong> saved themes stay in this browser. This changes website colors only, not Minecraft textures or resource packs.</p>
-  <div class="actions"><button class="btn" type="button" data-theme-studio-install>Install</button><button class="btn secondary" type="button" data-theme-studio-open>Open</button><button class="btn secondary" type="button" data-theme-studio-uninstall>Uninstall</button><span class="btn secondary" data-theme-studio-status aria-live="polite">Not installed</span></div>
-  <p id="theme-studio-store-message" aria-live="polite"></p>
-</section>
-<section class="store-toolbar-section">
-<div class="store-toolbar-heading"><div><div class="eyebrow">THE CATALOG</div><h2>Feature Store</h2></div><button class="btn secondary store-refresh" type="button" data-store-refresh>↻ Refresh</button></div>
-<div class="store-toolbar">
-<label class="store-search-label">Search features<input id="store-search" type="search" placeholder="Search name or description…" autocomplete="off"></label>
-<label class="store-filter-label">Availability<select id="store-filter"><option value="all">All listings</option><option value="available">Available now</option><option value="preview">Previews</option><option value="coming_soon">Coming soon</option></select></label>
-</div>
-<p id="store-result-count" class="store-count" aria-live="polite">Connecting to the online catalog…</p>
-<div class="store-grid" id="store-grid" data-store-grid data-store-kind="feature" aria-live="polite">
-<article class="store-card store-loading"><div class="store-loading-art"></div><div><div class="store-skeleton"></div><div class="store-skeleton short"></div></div></article>
-<article class="store-card store-loading"><div class="store-loading-art"></div><div><div class="store-skeleton"></div><div class="store-skeleton short"></div></div></article>
-<article class="store-card store-loading"><div class="store-loading-art"></div><div><div class="store-skeleton"></div><div class="store-skeleton short"></div></div></article>
-</div>
-</section>
-<section class="store-bottom-panels">
-<article class="card store-info-card"><span class="store-info-icon">⬇</span><h3>Download without an account</h3><p>Approved free packages can be downloaded without signing in. Only paid purchases require a website account.</p></article>
-<article class="card store-info-card"><span class="store-info-icon">◇</span><h3>Community quality check</h3><p>Community submissions stay private until reviewed. We check licenses, source links, permissions and compatibility details before publishing.</p></article>
-<article class="card store-info-card"><span class="store-info-icon">⚿</span><h3>Know what is ready</h3><p>A concept preview is not an installable extension. Listings will show availability and package links only when a reviewed release is supplied.</p></article>
-</section>
-<div class="notice store-status-notice"><strong>Marketplace status:</strong> The online catalog and developer submission portal are connected. Payment checkout and direct binary uploads are not enabled yet. No purchase will be charged until secure checkout is configured.</div>
+<header>
+  <div class="bar">
+    <a class="brand" href="index.html"><img src="assets/logo.svg" alt=""><span>VOIDCRAFT</span></a>
+    <nav class="nav" aria-label="Main navigation">
+      <a href="index.html">Home</a><a href="downloads.html">Downloads</a>
+      <a href="feature-store.html" class="active" aria-current="page">Feature Store</a>
+      <a href="cosmetic-store.html">Cosmetics</a><a href="servers.html">Servers</a>
+      <a href="community.html">Community</a><a href="developers.html">Developers</a><a href="docs.html">Docs</a>
+    </nav>
+    <div class="account-links"><a href="signin.html">Sign in</a><a href="profile.html">Profile</a></div>
+  </div>
+</header>
+
+<main class="feature-main">
+  <section class="feature-hero" aria-labelledby="feature-store-title">
+    <div class="feature-hero-copy">
+      <span class="feature-kicker">VoidCraft · Feature marketplace</span>
+      <h1 id="feature-store-title">Your launcher.<br><span>Your setup.</span></h1>
+      <p>Discover optional tools and community releases for your VoidCraft workflow. Browse features, check compatibility, and only download or purchase items that have a real, reviewed release.</p>
+      <div class="feature-hero-actions">
+        <a class="btn" href="#feature-catalog">Explore the catalog <span aria-hidden="true">&nbsp;↓</span></a>
+        <a class="btn secondary" href="developers.html">Publish a feature</a>
+        <a class="btn secondary" href="cosmetic-store.html">Cosmetic Store</a>
+      </div>
+      <div class="feature-trust-row">
+        <span class="feature-trust-pill"><span>✓</span> Public free downloads</span>
+        <span class="feature-trust-pill"><span>✓</span> Reviewed listings</span>
+        <span class="feature-trust-pill"><span>✓</span> Honest compatibility status</span>
+      </div>
+    </div>
+    <div class="feature-hero-art" aria-hidden="true">
+      <div class="feature-art-ring"></div>
+      <div class="feature-art-core">
+        <svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M50 8 82 26.5V63L50 92 18 63V26.5L50 8Z" stroke="#fff" stroke-width="3.5" stroke-linejoin="round"/>
+          <path d="M35 34h30M35 50h30M35 66h19" stroke="#fff" stroke-width="5" stroke-linecap="round"/>
+          <path d="m66 62 7 7 13-16" stroke="#77f1d7" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+      <div class="feature-float-label feature-float-a"><span class="feature-float-dot"></span><span>Feature catalog<small>One place to explore</small></span></div>
+      <div class="feature-float-label feature-float-b"><span>✓</span><span>Release status<small>Preview or available</small></span></div>
+    </div>
+  </section>
+
+  <section class="feature-tools-section" aria-labelledby="feature-tools-title">
+    <div class="feature-section-heading">
+      <div><div class="eyebrow">Built-in web tools</div><h2 id="feature-tools-title">Explore VoidCraft tools</h2><p>Open the tools you need. Optional browser features can be installed or removed individually.</p></div>
+    </div>
+    <div class="feature-tools-grid">
+      <article class="feature-tool-card" data-tone="blue" aria-labelledby="advanced-mod-manager-title">
+        <div class="feature-tool-top"><div class="feature-tool-icon" aria-hidden="true">▤</div><div><div class="feature-tool-label">Files &amp; modding</div><h3 id="advanced-mod-manager-title">Advanced Mod Manager</h3></div></div>
+        <p>Organize Minecraft Java mod JAR files in a private browser library. Import files, enable or disable entries, export copies, and remove them. Your mod files are not uploaded to VoidCraft.</p>
+        <p class="feature-tool-note">Files stay in this browser's IndexedDB. Export JARs to import them into the launcher's Mod Manager.</p>
+        <div class="feature-tool-actions"><a class="btn" href="mod-manager.html">Open Mod Manager →</a><span class="feature-tool-status">Browser tool · Android beta</span></div>
+      </article>
+
+      <article class="feature-tool-card" data-tone="orange" aria-labelledby="cosmetic-store-feature-title">
+        <div class="feature-tool-top"><div class="feature-tool-icon" aria-hidden="true">✧</div><div><div class="feature-tool-label">Personalization</div><h3 id="cosmetic-store-feature-title">Cosmetic Store</h3></div></div>
+        <p>Browse cosmetic listings and equip original VoidCraft profile effects: Void Aura, Neon Mint, Arctic Ice and Solar Ember.</p>
+        <p class="feature-tool-note">Equipped effects currently apply to this website profile only, not Minecraft player models or multiplayer sessions.</p>
+        <div class="feature-tool-actions">
+          <button class="btn" type="button" data-cosmetic-store-install>Install</button>
+          <button class="btn secondary" type="button" data-cosmetic-store-open>Open</button>
+          <button class="btn secondary" type="button" data-cosmetic-store-uninstall>Uninstall</button>
+          <span class="feature-tool-status" data-cosmetic-store-status aria-live="polite">Not installed</span>
+        </div>
+        <p class="feature-tool-message" id="cosmetic-store-feature-message" aria-live="polite"></p>
+      </article>
+
+      <article class="feature-tool-card" data-tone="mint" aria-labelledby="server-state-title">
+        <div class="feature-tool-top"><div class="feature-tool-icon" aria-hidden="true">◉</div><div><div class="feature-tool-label">Multiplayer</div><h3 id="server-state-title">Server State</h3></div></div>
+        <p>Check Minecraft Java and Bedrock server status, player counts, version and message of the day. Save up to 30 server addresses in this browser and refresh on demand.</p>
+        <p class="feature-tool-note">Status requests share the server address with the public mcsrvstat.us service. Results may be delayed or unavailable.</p>
+        <div class="feature-tool-actions">
+          <button class="btn" type="button" data-server-state-install>Install</button>
+          <button class="btn secondary" type="button" data-server-state-open>Open</button>
+          <button class="btn secondary" type="button" data-server-state-uninstall>Uninstall</button>
+          <span class="feature-tool-status" data-server-state-status aria-live="polite">Not installed</span>
+        </div>
+        <p class="feature-tool-message" id="server-state-store-message" aria-live="polite"></p>
+      </article>
+
+      <article class="feature-tool-card" data-tone="blue" aria-labelledby="theme-studio-title">
+        <div class="feature-tool-top"><div class="feature-tool-icon" aria-hidden="true">◐</div><div><div class="feature-tool-label">Appearance</div><h3 id="theme-studio-title">Theme Studio</h3></div></div>
+        <p>Choose a preset or build your own color palette. Preview changes, save your theme locally, and apply colors across supported VoidCraft website pages.</p>
+        <p class="feature-tool-note">Theme Studio changes website colors only, not Minecraft textures or resource packs.</p>
+        <div class="feature-tool-actions">
+          <button class="btn" type="button" data-theme-studio-install>Install</button>
+          <button class="btn secondary" type="button" data-theme-studio-open>Open</button>
+          <button class="btn secondary" type="button" data-theme-studio-uninstall>Uninstall</button>
+          <span class="feature-tool-status" data-theme-studio-status aria-live="polite">Not installed</span>
+        </div>
+        <p class="feature-tool-message" id="theme-studio-store-message" aria-live="polite"></p>
+      </article>
+    </div>
+  </section>
+
+  <section class="feature-catalog store-toolbar-section" id="feature-catalog" aria-labelledby="feature-catalog-title">
+    <div class="feature-catalog-header">
+      <div><div class="eyebrow">Community releases</div><h2 id="feature-catalog-title">Browse the catalog</h2><p>Search published listings and check actual release availability.</p></div>
+      <button class="btn secondary feature-refresh" type="button" data-store-refresh>↻ Refresh catalog</button>
+    </div>
+    <div class="store-toolbar">
+      <label class="store-search-label" for="store-search">Search features
+        <input id="store-search" type="search" placeholder="Search name, description, creator or compatibility…" autocomplete="off" spellcheck="false">
+      </label>
+      <label class="store-filter-label" for="store-filter">Listing status
+        <select id="store-filter"><option value="all">All listings</option><option value="available">Available now</option><option value="preview">Previews</option><option value="coming_soon">Coming soon</option></select>
+      </label>
+    </div>
+    <p id="store-result-count" class="store-count" aria-live="polite">Connecting to the online catalog…</p>
+    <div class="store-grid" id="store-grid" data-store-grid data-store-kind="feature" aria-live="polite">
+      <article class="store-card store-loading"><div class="store-loading-art"></div><div><div class="store-skeleton"></div><div class="store-skeleton short"></div></div></article>
+      <article class="store-card store-loading"><div class="store-loading-art"></div><div><div class="store-skeleton"></div><div class="store-skeleton short"></div></div></article>
+      <article class="store-card store-loading"><div class="store-loading-art"></div><div><div class="store-skeleton"></div><div class="store-skeleton short"></div></div></article>
+    </div>
+  </section>
+
+  <section class="feature-details-grid" aria-label="Marketplace information">
+    <article class="feature-detail-card"><span aria-hidden="true">↓</span><h3>Free downloads stay public</h3><p>Approved free packages can be downloaded without an account. Items that have no released package are shown as previews.</p></article>
+    <article class="feature-detail-card"><span aria-hidden="true">◇</span><h3>Reviewed community listings</h3><p>Submissions are reviewed for license, source, permissions and compatibility information before public listing.</p></article>
+    <article class="feature-detail-card"><span aria-hidden="true">⚿</span><h3>Clear purchase status</h3><p>Add to cart and Buy now are available on catalog cards. They only activate for a published paid item with a released package.</p></article>
+  </section>
+  <div class="notice feature-market-status"><strong>Checkout status:</strong> Cart items are saved in this browser and their prices are checked again by the server. Secure payment is not configured yet, so Buy now will not charge you or falsely report a completed purchase. Approved free packages remain downloadable without signing in.</div>
+  <div class="feature-bottom-links"><span>Keep control of every optional tool and download.</span><span><a href="developers.html">Creator submission rules</a> · <a href="security.html">Security guidance</a></span></div>
 </main>
+
 <footer><div class="foot"><span>© VoidCraft community project · Independent from Mojang and Microsoft</span><span><a href="privacy.html">Privacy</a> · <a href="terms.html">Terms</a> · <a href="security.html">Security</a></span></div></footer>
 <script src="assets/app.js" defer></script>
 <script src="assets/theme-studio-store.js" defer></script>
 <script src="assets/server-state-store.js" defer></script>
 <script src="assets/cosmetic-store-feature.js" defer></script>
-</body></html>
+</body>
+</html>
