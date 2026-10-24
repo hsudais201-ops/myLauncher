@@ -27,7 +27,7 @@ Open this repo in Android Studio or run the normal Android build workflow. It up
 
 ### Fabric cosmetics mod
 
-The `cosmetics-fabric/` project targets Minecraft 1.21.1 with Fabric Loader and Fabric API. The integrated launcher writes the equipped cosmetic ID to `config/voidcraft-cosmetics.json`; the client mod reads it and renders the selected halo. CI builds and tests the mod as the `voidcraft-fabric-cosmetics-mc-1.21.1` artifact. Install the mod JAR and Fabric API in the target instance's `mods` directory. This initial version does not auto-install the mod or convert vanilla instances to Fabric.
+The `cosmetics-fabric/` project builds version-specific client mods for selected Minecraft releases. The integrated launcher writes the equipped cosmetic ID to `config/voidcraft-cosmetics.json`; the client mod reads it and renders the selected halo. CI is configured to build separate artifacts per listed version, but compatibility is only confirmed for targets whose build and in-game tests pass. Install the matching mod JAR, Fabric Loader, and Fabric API in the target instance. Automatic installation and conversion of vanilla instances to Fabric are not implemented.
 
 ### Combined Voidcraft + Android game engine
 
