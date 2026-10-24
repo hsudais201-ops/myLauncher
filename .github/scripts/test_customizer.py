@@ -545,7 +545,7 @@ EXTERNAL_API void pojavSwapBuffers() {
             self.assertIn("'shareProviderAuthority', 'com.mf.mylauncher.scoped.controlfolder.debug'", build)
             self.assertNotIn("org.angelauramc.amethyst", build)
             self.assertNotIn("Amethyst", strings)
-            self.assertIn("myLauncher crashed", strings)
+            self.assertIn("Voidcraft crashed", strings)
             self.assertIn('<string name="mylauncher_graphics_renderer">Graphics &amp; Renderer</string>', strings)
             self.assertIn('<string name="mylauncher_download_versions">Download Minecraft Versions</string>', strings)
             self.assertIn('<string name="mylauncher_version_download_title">Minecraft Version Downloads</string>', strings)
