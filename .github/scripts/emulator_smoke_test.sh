@@ -12,15 +12,19 @@ adb_limited() {
     timeout --foreground "${seconds}s" adb "$@"
 }
 
+echo "[smoke] waiting for emulator device"
 adb_limited 180 wait-for-device
-adb_limited 90 install -r "$APK_PATH"
-adb_limited 15 shell pm list packages | grep -Fx 'package:com.mf.mylauncher.debug'
-adb_limited 15 shell pm path com.mf.mylauncher.debug | grep -F 'package:'
+echo "[smoke] installing 140 MB debug APK (software emulators can be slow)"
+adb_limited 240 install -r "$APK_PATH"
+echo "[smoke] verifying installed package"
+adb_limited 20 shell pm list packages | grep -Fx 'package:com.mf.mylauncher.debug'
+adb_limited 20 shell pm path com.mf.mylauncher.debug | grep -F 'package:'
 
 # First-run notification popups obscure the UI on API 33+.
-adb_limited 15 shell pm grant com.mf.mylauncher.debug android.permission.POST_NOTIFICATIONS >/dev/null 2>&1 || true
-adb_limited 15 shell am force-stop com.mf.mylauncher.debug
-adb_limited 30 shell monkey -p com.mf.mylauncher.debug -c android.intent.category.LAUNCHER 1
+echo "[smoke] preparing and launching LauncherActivity"
+adb_limited 20 shell pm grant com.mf.mylauncher.debug android.permission.POST_NOTIFICATIONS >/dev/null 2>&1 || true
+adb_limited 20 shell am force-stop com.mf.mylauncher.debug
+adb_limited 45 shell monkey -p com.mf.mylauncher.debug -c android.intent.category.LAUNCHER 1
 
 # CI's software-rendered emulator can take longer on a cold start. Wait for
 # LauncherActivity to resume AND for Android's temporary splash window to go away.
