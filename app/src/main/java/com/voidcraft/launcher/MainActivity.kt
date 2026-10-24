@@ -656,6 +656,8 @@ private fun VoidcraftApp() {
                                         )
                                     }
                                     ?.let { engineIntent.putExtra("voidcraft.renderer", it) }
+                                // The integrated engine writes this ID to the game config directory.
+                                engineIntent.putExtra("voidcraft.cosmetic_id", equippedCosmetic ?: "none")
                                 context.startActivity(engineIntent)
                             } catch (_: ActivityNotFoundException) {
                                 selectedTab = 1
