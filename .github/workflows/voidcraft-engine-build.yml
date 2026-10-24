@@ -7,6 +7,7 @@ on:
     paths:
       - "app/src/main/java/com/voidcraft/launcher/**"
       - "app/src/main/assets/store/**"
+      - "cosmetics-fabric/**"
       - "store/catalog.json"
       - "tools/integrate_amethyst.py"
       - "tools/emulator_smoke_test.sh"
@@ -23,6 +24,47 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  fabric-cosmetics-mod:
+    name: Build and test Fabric in-game cosmetics mod
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out Voidcraft sources
+        uses: actions/checkout@v4
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.10.2"
+      - name: Compile, test, and package the Fabric client mod
+        working-directory: cosmetics-fabric
+        run: gradle clean test build --no-daemon
+      - name: Verify the mod JAR and required metadata
+        shell: bash
+        run: |
+          set -euo pipefail
+          JAR="$(find cosmetics-fabric/build/libs -maxdepth 1 -type f -name 'voidcraft-cosmetics-fabric-*.jar' ! -name '*-sources.jar' -print -quit)"
+          test -s "$JAR"
+          unzip -t "$JAR" | tail -n 2
+          unzip -p "$JAR" fabric.mod.json | grep -F '"id": "voidcraft_cosmetics"'
+          unzip -l "$JAR" | grep -F 'VoidCraftCosmeticFeatureRenderer.class'
+          sha256sum "$JAR" | tee voidcraft-cosmetics-mod-sha256.txt
+          echo "FABRIC_MOD_JAR=$JAR" >> "$GITHUB_ENV"
+      - name: Upload Fabric cosmetics mod
+        uses: actions/upload-artifact@v4
+        with:
+          name: voidcraft-fabric-cosmetics-mc-1.21.1
+          path: |
+            ${{ env.FABRIC_MOD_JAR }}
+            voidcraft-cosmetics-mod-sha256.txt
+          if-no-files-found: error
+          retention-days: 14
+
+
   integrated-debug-apk:
     name: Build Voidcraft with Android Java/LWJGL engine
     runs-on: ubuntu-latest
