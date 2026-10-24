@@ -1,0 +1,88 @@
+/* VoidCraft Cosmetic Store — clean, single-toolbar storefront */
+.cosmetics-main{max-width:1180px;padding-top:42px;padding-bottom:76px}
+.cosmetics-hero{position:relative;isolation:isolate;display:grid;grid-template-columns:minmax(0,1.15fr) minmax(260px,.85fr);align-items:center;gap:24px;overflow:hidden;min-height:360px;padding:clamp(24px,5vw,56px);border:1px solid #343052;border-radius:30px;background:radial-gradient(ellipse at 74% 43%,#6949c743,transparent 35%),radial-gradient(ellipse at 92% 90%,#247b8734,transparent 40%),linear-gradient(135deg,#17162c,#0b1020 72%);box-shadow:0 24px 80px #0003}
+.cosmetics-hero:before{content:"";position:absolute;z-index:-1;inset:0;background-image:linear-gradient(#a58bff08 1px,transparent 1px),linear-gradient(90deg,#a58bff08 1px,transparent 1px);background-size:38px 38px;mask-image:linear-gradient(90deg,#000,transparent 95%)}
+.cosmetics-hero-copy{position:relative;z-index:1;max-width:670px}
+.cosmetics-kicker{display:inline-flex;align-items:center;gap:9px;padding:7px 11px;border:1px solid #5b4b82;border-radius:999px;background:#110f22c9;color:#d9d0ff;font-size:11px;font-weight:850;letter-spacing:.12em;text-transform:uppercase}
+.cosmetics-kicker:before{content:"";width:7px;height:7px;border-radius:50%;background:#7df4df;box-shadow:0 0 13px #7df4df}
+.cosmetics-hero h1{max-width:700px;margin:20px 0 16px;font-size:clamp(40px,6.4vw,72px);line-height:1.02;letter-spacing:-.065em}
+.cosmetics-hero h1 span{color:#b9a5ff;text-shadow:0 0 38px #a58bff3b}
+.cosmetics-hero p{max-width:590px;font-size:15px;line-height:1.8}
+.cosmetics-hero-links{display:flex;gap:10px;flex-wrap:wrap;margin-top:24px}
+.cosmetics-hero .btn{min-height:44px}
+.cosmetics-hero .btn.secondary{background:#111425;border-color:#38364f}
+.cosmetics-art{position:relative;display:grid;place-items:center;min-height:260px}
+.cosmetics-art-ring{position:absolute;width:min(94%,300px);aspect-ratio:1;border:1px solid #a58bff6b;border-radius:50%;transform:rotate(-22deg) scaleY(.62);box-shadow:0 0 0 22px #a58bff08,0 0 0 45px #a58bff05}
+.cosmetics-art-ring:before,.cosmetics-art-ring:after{content:"";position:absolute;inset:13%;border:1px solid #68e8e9aa;border-radius:50%;transform:rotate(70deg) scaleY(.68)}
+.cosmetics-art-ring:after{inset:-12%;border-color:#c4b3ff31;transform:rotate(-45deg) scaleY(.53)}
+.cosmetics-art-orb{position:relative;width:clamp(94px,12vw,145px);aspect-ratio:1;border-radius:50%;background:radial-gradient(circle at 29% 23%,#fff 0 3%,#d8d0ff 8%,#a58bff 22%,#6541ca 46%,#17152e 76%);border:2px solid #e1d8ff99;box-shadow:0 0 30px #a58bffb0,0 0 88px #7851e855,inset -13px -17px 28px #090914;animation:cosmetics-orb-float 4s ease-in-out infinite}
+.cosmetics-art-orb:after{content:"";position:absolute;width:18px;height:18px;top:18%;right:16%;border-radius:50%;background:#fff;filter:blur(2px);opacity:.8}
+.cosmetics-mini-chip{position:absolute;display:flex;gap:8px;align-items:center;padding:9px 12px;border:1px solid #51466d;border-radius:13px;background:#0d1020d9;box-shadow:0 12px 30px #0003;color:#e9e5ff;font-size:11px;font-weight:800;backdrop-filter:blur(12px)}
+.cosmetics-mini-chip strong{display:block;font-size:12px;color:white}
+.cosmetics-mini-chip small{display:block;color:#a9afcc;font-weight:600}
+.cosmetics-mini-chip .mini-dot{width:9px;height:9px;border-radius:50%;background:#67ead2;box-shadow:0 0 10px #67ead2}
+.cosmetics-mini-one{top:16%;left:0}.cosmetics-mini-two{right:0;bottom:14%}
+@keyframes cosmetics-orb-float{0%,100%{transform:translateY(0)}50%{transform:translateY(-7px)}}
+.cosmetics-collection{margin-top:42px}
+.cosmetics-section-head{display:flex;justify-content:space-between;align-items:end;gap:16px;flex-wrap:wrap}
+.cosmetics-section-head h2{font-size:clamp(26px,4vw,35px);letter-spacing:-.04em;margin:7px 0}
+.cosmetics-section-head p{margin:0;font-size:14px}
+.cosmetics-toolbox{display:grid;grid-template-columns:minmax(0,1fr) 210px auto;gap:12px;align-items:end;margin:22px 0 10px;padding:15px;border:1px solid #292941;border-radius:18px;background:linear-gradient(140deg,#151628,#0e111b)}
+.cosmetics-field{display:block;margin:0;color:#d8d8eb;font-size:12px;font-weight:800}
+.cosmetics-field input,.cosmetics-field select{display:block;width:100%;height:46px;margin-top:7px;padding:0 13px;border:1px solid #34344d;border-radius:11px;outline:none;background:#090c16;color:#f5f5ff;font:inherit;font-size:14px}
+.cosmetics-field input:focus,.cosmetics-field select:focus{border-color:#a58bff;box-shadow:0 0 0 3px #a58bff24}
+.cosmetics-field input::placeholder{color:#737b9b}
+.cosmetics-refresh{height:46px;white-space:nowrap;font:inherit;font-size:12px}
+.cosmetics-feed-status{min-height:24px;margin:12px 3px 14px;color:#aab2ce;font-size:12px}
+.cosmetics-feed-status[data-error=true]{color:#ffbd9c}
+.cosmetics-equip-state{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin:0 0 18px;padding:12px 14px;border:1px solid #2f3b4c;border-radius:13px;background:linear-gradient(100deg,#111e29,#121426);color:#d1d8ef;font-size:12px}
+.cosmetics-equip-message{display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+.cosmetics-equip-message:before{content:"";width:7px;height:7px;flex:0 0 7px;border-radius:50%;background:#67ead2;box-shadow:0 0 10px #67ead2}
+.cosmetics-equip-message a{color:#c5b3ff;font-weight:800;text-underline-offset:3px}
+.cosmetics-unequip{padding:7px 10px;border:1px solid #3c405b;border-radius:9px;background:#0b0e18;color:#d9dcf1;font:inherit;font-size:11px;font-weight:800}
+.cosmetics-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
+.cos-card{min-width:0;overflow:hidden;border:1px solid #292b43;border-radius:19px;background:linear-gradient(160deg,#17192b,#0c0f1a);transition:transform .18s ease,border-color .18s ease,box-shadow .18s ease;animation:cos-card-in .28s ease both;animation-delay:var(--cos-delay,0ms)}
+.cos-card:hover{transform:translateY(-3px);border-color:#63568c;box-shadow:0 18px 34px #00025}
+.cos-card.is-equipped{border-color:#60dabe;box-shadow:inset 0 0 0 1px #60dabe33,0 0 26px #49cdb115}
+@keyframes cos-card-in{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+.cos-card-art{position:relative;display:grid;place-items:center;min-height:190px;overflow:hidden;background:radial-gradient(ellipse at 50% 45%,color-mix(in srgb,var(--cos-color,#9c7bff) 22%,transparent),transparent 48%),linear-gradient(135deg,#151a2e,#090c16)}
+.cos-card-art:before{content:"";position:absolute;inset:0;background-image:linear-gradient(#ffffff06 1px,transparent 1px),linear-gradient(90deg,#ffffff06 1px,transparent 1px);background-size:24px 24px;mask-image:radial-gradient(ellipse,#000,transparent 85%)}
+.cos-card-art-image{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:.92}
+.cos-card-orbit{position:absolute;width:125px;height:78px;border:1px solid var(--cos-color,#9c7bff);border-radius:50%;transform:rotate(-28deg) scaleY(.56);opacity:.6;box-shadow:0 0 22px color-mix(in srgb,var(--cos-color,#9c7bff) 24%,transparent)}
+.cos-card-orbit:after{content:"";position:absolute;inset:-17px;border:1px solid var(--cos-color,#9c7bff);border-radius:50%;opacity:.45}
+.cos-card-orb{position:relative;width:68px;aspect-ratio:1;border-radius:50%;background:radial-gradient(circle at 30% 22%,#fff 0 4%,color-mix(in srgb,var(--cos-color,#9c7bff) 86%,white) 15%,var(--cos-color,#9c7bff) 37%,#121329 78%);border:1px solid #ffffffa1;box-shadow:0 0 20px var(--cos-color,#9c7bff),0 0 52px color-mix(in srgb,var(--cos-color,#9c7bff) 34%,transparent)}
+.cos-card-kind{position:absolute;top:11px;left:11px;padding:5px 7px;border:1px solid #ffffff25;border-radius:7px;background:#080a14c9;color:#e3e5f7;font-size:9px;font-weight:900;letter-spacing:.1em}
+.cos-card-content{padding:15px}
+.cos-card-chips{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
+.cos-chip{display:inline-flex;align-items:center;max-width:100%;padding:4px 7px;border-radius:7px;background:#202238;color:#c9cbe0;font-size:10px;font-weight:800}
+.cos-chip.is-ready{background:#16352f;color:#aaf8df}.cos-chip.is-soon{background:#342b20;color:#ffd6a1}.cos-chip.is-preview{background:#25263b;color:#c8cbe4}
+.cos-card h3{margin:0 0 5px;font-size:18px;line-height:1.25;letter-spacing:-.025em}
+.cos-card-tagline{margin:0 0 8px;color:#d3d6ed;font-size:12px;font-weight:750}
+.cos-card-description{min-height:58px;margin:0;color:#a6aec9;font-size:12px;line-height:1.6}
+.cos-card-meta{display:flex;flex-wrap:wrap;gap:7px;margin-top:12px;color:#8f99b8;font-size:10px}
+.cos-card-meta span{padding-right:7px;border-right:1px solid #35374e}.cos-card-meta span:last-child{border:0}
+.cos-card-actions{display:flex;gap:8px;align-items:stretch;margin-top:15px}
+.cos-card-actions .btn,.cos-card-actions button{min-height:39px;flex:1;padding:9px 10px;font-size:11px}
+.cos-card-actions .cos-details{flex:0 0 auto;border:1px solid #34364d;border-radius:11px;background:#101321;color:#d9def2;font-weight:800}
+.cos-card-actions button:disabled{opacity:.45;cursor:not-allowed}
+.cosmetics-empty{grid-column:1/-1;padding:36px 20px;border:1px dashed #383a55;border-radius:16px;text-align:center;background:#111321}
+.cosmetics-empty strong{display:block;color:#f3f3ff;font-size:17px}
+.cosmetics-empty p{margin:7px auto 0;font-size:13px}
+.cosmetics-note{display:grid;grid-template-columns:auto minmax(0,1fr);gap:13px;align-items:start;margin-top:32px;padding:18px;border:1px solid #3d365e;border-radius:16px;background:linear-gradient(125deg,#17152b,#111725)}
+.cosmetics-note-icon{display:grid;place-items:center;width:35px;height:35px;border-radius:10px;background:#292142;color:#d0c3ff;font-weight:900}
+.cosmetics-note h3{margin:0 0 4px;font-size:14px}.cosmetics-note p{margin:0;font-size:12px;line-height:1.7}
+.cosmetics-dialog{width:min(650px,calc(100% - 26px));max-height:min(82vh,760px);padding:0;border:1px solid #474266;border-radius:20px;background:#101322;color:#f5f5ff;box-shadow:0 25px 100px #0009}
+.cosmetics-dialog::backdrop{background:#05060bd9;backdrop-filter:blur(7px)}
+.cosmetics-dialog-panel{padding:20px}
+.cosmetics-dialog-head{display:flex;justify-content:space-between;align-items:center;gap:12px;border-bottom:1px solid #2a2d43;padding-bottom:12px}
+.cosmetics-dialog-head h2{margin:0;font-size:22px}
+.cosmetics-dialog-close{padding:8px 10px;border:1px solid #34364d;border-radius:9px;background:#171a2b;color:#edf0ff;font:inherit;font-size:12px;font-weight:800}
+.cosmetics-dialog-body{padding-top:15px}.cosmetics-dialog-body p{margin:0 0 12px;font-size:13px}
+.cosmetics-dialog-facts{display:grid;grid-template-columns:130px minmax(0,1fr);gap:8px 12px;margin:18px 0;font-size:12px}
+.cosmetics-dialog-facts dt{color:#8f99b8}.cosmetics-dialog-facts dd{margin:0;color:#e2e5f7;overflow-wrap:anywhere}
+.cosmetics-dialog-body a{color:#b9a5ff;font-weight:800}
+.cosmetics-footer-line{margin-top:24px;color:#7f88a7;font-size:11px}
+@media(max-width:900px){.cosmetics-hero{grid-template-columns:minmax(0,1fr) minmax(220px,.7fr)}.cosmetics-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.cosmetics-mini-one{left:-7px}.cosmetics-mini-two{right:-5px}}
+@media(max-width:700px){.cosmetics-main{padding:26px 14px 54px}.cosmetics-hero{grid-template-columns:1fr;gap:0;min-height:0;padding:25px 21px;border-radius:23px}.cosmetics-hero h1{font-size:clamp(38px,11vw,58px)}.cosmetics-art{min-height:215px;margin-top:8px}.cosmetics-art-ring{width:210px}.cosmetics-art-orb{width:104px}.cosmetics-mini-one{left:5%}.cosmetics-mini-two{right:2%}.cosmetics-toolbox{grid-template-columns:minmax(0,1fr);padding:12px}.cosmetics-refresh{width:100%}.cosmetics-grid{gap:11px}.cos-card-art{min-height:150px}.cos-card-content{padding:12px}.cos-card h3{font-size:16px}.cos-card-description{min-height:75px}.cos-card-actions{flex-wrap:wrap}.cos-card-actions .cos-details{flex:1}}
+@media(max-width:430px){.cosmetics-grid{grid-template-columns:1fr}.cos-card-art{min-height:190px}.cos-card-description{min-height:0}.cos-card-actions .btn,.cos-card-actions button{font-size:12px}.cosmetics-art{min-height:205px}.cosmetics-dialog-facts{grid-template-columns:100px minmax(0,1fr)}}
+@media(prefers-reduced-motion:reduce){.cosmetics-art-orb,.cos-card{animation:none!important;transition:none!important}.cos-card:hover{transform:none}}
