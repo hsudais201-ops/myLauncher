@@ -31,5 +31,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - name: Check server status UI syntax
+        run: node --check website/assets/server-state.js
       - name: Test server status endpoint
         run: node --test website/tests/server-status.test.mjs
