@@ -7,6 +7,7 @@ on:
     paths:
       - "app/src/main/java/com/voidcraft/launcher/**"
       - "app/src/main/assets/store/**"
+      - "cosmetics-mod/**"
       - "store/catalog.json"
       - "tools/integrate_amethyst.py"
       - "tools/emulator_smoke_test.sh"
@@ -151,6 +152,36 @@ jobs:
           done
           ls -lh "$output"
 
+      - name: Build Fabric 1.21.1 cosmetics mod and bundle it in the engine
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Set up Gradle for the Fabric cosmetics mod
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.10.2"
+
+      - name: Compile and package the Fabric cosmetics mod
+        shell: bash
+        run: |
+          set -euo pipefail
+          gradle -p voidcraft/cosmetics-mod build --no-daemon
+          MOD_JAR="voidcraft/cosmetics-mod/build/libs/voidcraft-cosmetics-fabric-0.1.0.jar"
+          test -s "$MOD_JAR"
+          jar tf "$MOD_JAR" | grep -F 'com/voidcraft/cosmetics/VoidCraftCosmeticsClient.class'
+          jar tf "$MOD_JAR" | grep -F 'fabric.mod.json'
+          mkdir -p engine/Amethyst-Android/app_pojavlauncher/src/main/assets/voidcraft
+          cp "$MOD_JAR" engine/Amethyst-Android/app_pojavlauncher/src/main/assets/voidcraft/voidcraft-cosmetics-fabric-1.21.1.jar
+          sha256sum "$MOD_JAR" | tee voidcraft-cosmetics-mod-sha256.txt
+
+      - name: Restore Java 17 for the Android engine build
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
       - name: Overlay Voidcraft frontend onto the tested engine
         run: |
           python3 voidcraft/tools/integrate_amethyst.py engine/Amethyst-Android --gl4es-root runtime/PojavLauncher --gl4es-license-root runtime/gl4es-114-extra
@@ -171,6 +202,10 @@ jobs:
           grep -Fq 'applyVoidcraftSelectedRenderer();' "$ENGINE_ACTIVITY"
           grep -Fq 'pojavRendererName = requestedRenderer' "$ENGINE_ACTIVITY"
           grep -Fq 'voidcraft.renderer' "$VOIDCRAFT_MAIN"
+          grep -Fq 'voidcraft.cosmetic_id' "$VOIDCRAFT_MAIN"
+          grep -Fq 'applyVoidcraftCosmetic();' "$ENGINE_ACTIVITY"
+          grep -Fq 'voidcraft-cosmetics-fabric-1.21.1.jar' "$ENGINE_ACTIVITY"
+          test -s engine/Amethyst-Android/app_pojavlauncher/src/main/assets/voidcraft/voidcraft-cosmetics-fabric-1.21.1.jar
           ENGINE_JRE_UTILS="engine/Amethyst-Android/app_pojavlauncher/src/main/java/net/kdt/pojavlaunch/utils/JREUtils.java"
           ENGINE_TOOLS="engine/Amethyst-Android/app_pojavlauncher/src/main/java/net/kdt/pojavlaunch/Tools.java"
           ENGINE_RENDERERS="engine/Amethyst-Android/app_pojavlauncher/src/main/res/values/headings_array.xml"
@@ -240,6 +275,7 @@ jobs:
           path: |
             engine/Amethyst-Android/app_pojavlauncher/build/outputs/apk/debug/*.apk
             voidcraft-apk-sha256.txt
+            voidcraft-cosmetics-mod-sha256.txt
             engine-build-provenance.txt
             engine-license-files.txt
             engine/Amethyst-Android/VOIDCRAFT_ENGINE_INTEGRATION.txt
