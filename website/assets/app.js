@@ -499,6 +499,11 @@ if (profileCard) {
 
 /* Online storefront: public catalog, item details and free download handling. */
 (() => {
+  // Prevent duplicate controls/listeners if this bundle is included twice by a page template.
+  if (window.__voidcraftStoreCatalogInitialized) return;
+  window.__voidcraftStoreCatalogInitialized = true;
+  const toolbars = document.querySelectorAll(".store-toolbar-section");
+  toolbars.forEach((section, index) => { if (index > 0) section.remove(); });
   const grid = document.querySelector("[data-store-grid]");
   if (!grid) return;
 
