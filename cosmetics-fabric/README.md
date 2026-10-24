@@ -1,27 +1,31 @@
-# VoidCraft Cosmetics — Fabric client mod
+# VoidCraft Cosmetics — version-specific Fabric client mod
 
-Initial target: Minecraft Java Edition **1.21.1**, Fabric Loader **0.16.10+**, Fabric API **0.115.6+1.21.1**, Java 21.
+VoidCraft cosmetics use a **version-specific client mod**, because Minecraft changes rendering APIs between releases. There is no safe universal JAR for every Minecraft version.
 
-The client mod registers a player feature renderer and draws a colored, four-sided halo around the local and other player models on clients that have this mod installed. The equipped cosmetic is read from `config/voidcraft-cosmetics.json` in the Minecraft game directory.
-
-Example configuration:
+The equip handoff writes `config/voidcraft-cosmetics.json` in the active Minecraft game directory. The file includes a schema version, selected cosmetic ID, and selected Minecraft version:
 
 ```json
-{"equipped":"void-aura"}
+{"schemaVersion":1,"equipped":"void-aura","minecraftVersion":"1.21.1"}
 ```
 
-Supported IDs: `void-aura`, `neon-mint`, `arctic-ice`, `solar-ember`. The VoidCraft Android launcher writes this config through the integrated Amethyst launch activity when the cosmetic ID is passed in the launch intent.
+Cosmetic IDs: `void-aura`, `neon-mint`, `arctic-ice`, `solar-ember`. The renderer currently draws a four-sided halo around player heads.
 
-## Build
+## Version builds
 
-From this directory, with JDK 21 installed:
+The CI workflow compiles an exact JAR for each target listed in its version matrix. It records the exact Minecraft version in the JAR metadata and artifact name. Install the JAR built for the selected Minecraft version, the matching Fabric Loader, and the Fabric API build for that same version. Do not copy one target JAR to a different game version merely because the game version number looks similar.
+
+The initial matrix covers selected stable release targets from Minecraft 1.17.1 through 1.21.7. This is a compatibility expansion, not a claim that every Minecraft release is covered yet: snapshots, versions before 1.17.1, and the newer rendering architecture starting in later 1.21 releases need separate adapters and successful builds before they can be marked supported. The launcher handoff is version-aware, but automatic mod/Fabric API installation is not implemented yet.
+
+## Build locally
+
+Use JDK 21 and Gradle 8.10.2 from this directory:
 
 ```sh
-gradle build
+gradle clean test build --no-daemon
 ```
 
-The mod JAR is created under `build/libs/`. Install it into the selected Minecraft instance's `mods` directory along with Fabric API. For the first iteration, Minecraft 1.21.1 Fabric is the supported target; other versions are not claimed compatible.
+For a different target, override the game version, mappings, Fabric API, Java metadata, and bytecode target using the values declared in the CI matrix. Every target build must pass before its artifact can be treated as supported.
 
 ## Multiplayer limits
 
-The effect is client-rendered. Other players see it only if their client also has a compatible VoidCraft Cosmetics mod and their rendering setup supports it. This mod does not add server-side cosmetics, upload skins/capes, or make vanilla clients render the effect.
+The effect is client-rendered. Other players see it only when their clients have a compatible VoidCraft Cosmetics mod and compatible rendering setup. This mod does not add server-side cosmetics, upload skins/capes, or make vanilla clients render the effect.
