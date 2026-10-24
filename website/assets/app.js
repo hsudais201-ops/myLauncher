@@ -561,7 +561,7 @@ if (profileCard) {
     const group = make("div", detailMode ? "store-purchase-buttons store-purchase-buttons-detail" : "store-purchase-buttons");
     const freeUrl = safeAssetUrl(item.packageUrl);
     const isFreeDownload = item.availability === "available" && freeUrl && Number(item.priceCents) === 0;
-    const isPaidPurchase = item.availability === "available" && item.packageAvailable &&
+    const isPaidPurchase = item.checkoutEnabled === true && item.availability === "available" && item.packageAvailable &&
       item.priceCents !== null && item.priceCents !== undefined && Number(item.priceCents) > 0;
 
     // The same commerce actions are present for every catalog listing.
@@ -591,9 +591,11 @@ if (profileCard) {
       buy.setAttribute("aria-disabled", "true");
       const reason = isFreeDownload
         ? "This listing is free. Use Download free; checkout is not required."
-        : item.availability === "coming_soon"
-          ? "This listing is coming soon and cannot be purchased yet."
-          : "This is a preview or has no released purchasable package yet.";
+        : item.checkoutEnabled !== true
+          ? "Secure checkout is not configured yet. No charge will be made."
+          : item.availability === "coming_soon"
+            ? "This listing is coming soon and cannot be purchased yet."
+            : "This is a preview or has no released purchasable package yet.";
       add.title = reason;
       buy.title = reason;
       group.title = reason;
@@ -1348,7 +1350,7 @@ document.addEventListener("click", (event) => {
 
   function isPurchasable(item) {
     return item && item.status === "published" && item.availability === "available" &&
-      Boolean(item.packageAvailable) && item.priceCents !== null && Number(item.priceCents) > 0;
+      item.checkoutEnabled === true && Boolean(item.packageAvailable) && item.priceCents !== null && Number(item.priceCents) > 0;
   }
 
   function message(text, kind = "info") {
@@ -1477,7 +1479,7 @@ document.addEventListener("click", (event) => {
 
   function canBuy(item) {
     return item && item.status === "published" && item.availability === "available" &&
-      Boolean(item.packageAvailable) && item.priceCents !== null && Number(item.priceCents) > 0;
+      item.checkoutEnabled === true && Boolean(item.packageAvailable) && item.priceCents !== null && Number(item.priceCents) > 0;
   }
 
   async function confirmPurchaseReturn() {
