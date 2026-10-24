@@ -18,7 +18,7 @@ The initial matrix covers selected stable release targets from Minecraft 1.17.1 
 
 ## Build locally
 
-Use JDK 21 and Gradle 8.10.2 from this directory:
+Use JDK 21 and Gradle 8.12.1 from this directory:
 
 ```sh
 gradle clean test build --no-daemon
