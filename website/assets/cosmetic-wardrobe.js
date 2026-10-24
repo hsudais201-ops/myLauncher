@@ -1,5 +1,10 @@
 (() => {
   "use strict";
+  // Keep one wardrobe and one set of equip controls if markup or scripts are repeated.
+  const wardrobes = document.querySelectorAll('section[aria-labelledby="wardrobe-title"]');
+  wardrobes.forEach((section, index) => { if (index > 0) section.remove(); });
+  if (window.__voidcraftCosmeticWardrobeInitialized) return;
+  window.__voidcraftCosmeticWardrobeInitialized = true;
   const INSTALLED = "voidcraft.feature-installed.cosmetic-store";
   const EQUIPPED = "voidcraft.cosmetic-store.equipped";
   const items = [
