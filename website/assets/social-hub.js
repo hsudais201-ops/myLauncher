@@ -2,7 +2,7 @@
   "use strict";
   const API = "/social-api";
   const KEY = "voidcraft.socialHub.beta.token";
-  const state = { token: getStored(), me: "", mode: "login", friends: [], incoming: [], outgoing: [], blocked: [], selected: "", cursors: Object.create(null), poll: null, busy: false };
+  const state = { token: getStored(), me: "", mode: "login", friends: [], incoming: [], outgoing: [], blocked: [], selected: "", cursors: Object.create(null), poll: null, pollGeneration: 0, pollBusy: false, busy: false };
   const el = (id) => document.getElementById(id);
   const authView = el("auth-view"), appView = el("app-view"), messages = el("messages");
   function getStored() { try { return sessionStorage.getItem(KEY) || ""; } catch (_) { return ""; } }
@@ -13,7 +13,17 @@
     opts=opts||{}; const authenticated=opts.auth!==false;
     const headers={"Content-Type":"application/json","X-Client-Version":"website-beta-1"};
     if(authenticated&&state.token) headers.Authorization="Bearer "+state.token;
-    const res=await fetch(API+path,{method:opts.method||"GET",headers,cache:"no-store",body:opts.body===undefined?undefined:JSON.stringify(opts.body)});
+    const controller=new AbortController();
+    const timeoutId=setTimeout(()=>controller.abort(),12000);
+    let res;
+    try {
+      res=await fetch(API+path,{method:opts.method||"GET",headers,cache:"no-store",body:opts.body===undefined?undefined:JSON.stringify(opts.body),signal:controller.signal});
+    } catch(error) {
+      if(error&&error.name==="AbortError") throw new Error("Social Hub request timed out after 12 seconds. Check your connection and try again.");
+      throw error;
+    } finally {
+      clearTimeout(timeoutId);
+    }
     let data={}; try { data=await res.json(); } catch (_) {}
     if(!res.ok) {
       if(res.status===401&&authenticated&&state.token) showAuth("Your beta session expired. Please sign in again.","info");
@@ -30,7 +40,7 @@
     el("confirm-wrap").hidden=!reg; el("confirm-password").required=reg; el("password").minLength=reg?12:1; el("password").autocomplete=reg?"new-password":"current-password";
     feedback("auth-feedback","","info");
   }
-  function stopPolling() { if(state.poll) clearInterval(state.poll); state.poll=null; }
+  function stopPolling() { if(state.poll) clearTimeout(state.poll); state.poll=null; state.pollGeneration++; }
   function showAuth(message,kind) {
     stopPolling(); setToken(""); state.me=""; state.selected=""; state.cursors=Object.create(null);
     authView.hidden=false; appView.hidden=true; if(message) feedback("auth-feedback",message,kind);
@@ -75,6 +85,7 @@
     el("chat-empty").hidden=false; messages.hidden=true; el("message-form").hidden=true; el("chat-actions").hidden=true; el("report-form").hidden=true;
   }
   async function openChat(username) {
+    stopPolling();
     state.selected=username; state.cursors[username]=0; renderFriends(); el("chat-title").textContent=username; el("chat-subtitle").textContent="Private messages · refreshes automatically while this page is open";
     el("chat-empty").hidden=true; messages.hidden=false; el("message-form").hidden=false; el("chat-actions").hidden=false; el("report-form").hidden=true; el("report-name").textContent=username; feedback("thread-feedback","","info");
     try { await loadMessages(true); startPolling(); el("message-text").focus(); } catch(e) { feedback("thread-feedback",e.message,"error"); }
@@ -94,7 +105,29 @@
     if(reset&&!rows.length){const p=document.createElement("p");p.className="no-messages";p.textContent="No messages yet. Say hello to start your conversation.";messages.appendChild(p);}
     rows.forEach(appendMessage); state.cursors[who]=Math.max(state.cursors[who]||0,Number(d.nextAfter)||0); if(rows.length) messages.scrollTop=messages.scrollHeight;
   }
-  function startPolling() { stopPolling(); state.poll=setInterval(async()=>{if(!state.token||!state.selected||document.visibilityState!=="visible")return;try{await loadMessages(false);feedback("thread-feedback","","info");}catch(e){feedback("thread-feedback",e.message,"error");}},3000); }
+  function startPolling() {
+    stopPolling();
+    const generation=state.pollGeneration;
+    const scheduleNext=()=> {
+      if(generation===state.pollGeneration&&state.token&&state.selected) state.poll=setTimeout(poll,3000);
+    };
+    const poll=async()=> {
+      state.poll=null;
+      if(generation!==state.pollGeneration||!state.token||!state.selected) return;
+      if(document.visibilityState!=="visible"||state.pollBusy) { scheduleNext(); return; }
+      state.pollBusy=true;
+      try {
+        await loadMessages(false);
+        if(generation===state.pollGeneration) feedback("thread-feedback","","info");
+      } catch(e) {
+        if(generation===state.pollGeneration) feedback("thread-feedback",e.message,"error");
+      } finally {
+        state.pollBusy=false;
+        scheduleNext();
+      }
+    };
+    state.poll=setTimeout(poll,3000);
+  }
   el("login-tab").addEventListener("click",()=>mode("login")); el("register-tab").addEventListener("click",()=>mode("register"));
   el("auth-form").addEventListener("submit",async ev=>{
     ev.preventDefault();if(state.busy)return;const username=el("username").value.trim(),password=el("password").value,reg=state.mode==="register";

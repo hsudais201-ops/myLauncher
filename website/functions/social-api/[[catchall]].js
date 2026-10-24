@@ -11,11 +11,14 @@ export async function onRequest(context) {
   headers.delete("host");
   headers.delete("origin");
 
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 10000);
   try {
     const init = {
       method: request.method,
       headers,
       redirect: "manual",
+      signal: controller.signal,
     };
     if (request.method !== "GET" && request.method !== "HEAD") {
       init.body = request.body;
@@ -32,9 +35,14 @@ export async function onRequest(context) {
       headers: responseHeaders,
     });
   } catch (error) {
+    const timedOut = error && error.name === "AbortError";
     return Response.json(
-      { error: "Social Hub service is temporarily unreachable. Please try again shortly." },
-      { status: 502, headers: { "cache-control": "no-store" } },
+      { error: timedOut
+        ? "Social Hub request timed out. Please retry in a moment."
+        : "Social Hub service is temporarily unreachable. Please try again shortly." },
+      { status: timedOut ? 504 : 502, headers: { "cache-control": "no-store" } },
     );
+  } finally {
+    clearTimeout(timeoutId);
   }
 }

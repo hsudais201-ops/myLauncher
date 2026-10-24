@@ -6,7 +6,9 @@ on:
       - main
     paths:
       - 'website/assets/server-state.js'
+      - 'website/assets/social-hub.js'
       - 'website/functions/api/server-status.js'
+      - 'website/functions/social-api/**'
       - 'website/tests/**'
       - '.github/workflows/website-status-tests.yml'
   pull_request:
@@ -31,7 +33,9 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Check server status UI syntax
-        run: node --check website/assets/server-state.js
-      - name: Test server status endpoint
-        run: node --test website/tests/server-status.test.mjs
+      - name: Check browser scripts syntax
+        run: |
+          node --check website/assets/server-state.js
+          node --check website/assets/social-hub.js
+      - name: Test website API functions
+        run: node --test website/tests/server-status.test.mjs website/tests/social-api-proxy.test.mjs
