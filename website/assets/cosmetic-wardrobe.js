@@ -40,7 +40,7 @@
     if(!isInstalled()||!selected){status.textContent="Install Cosmetic Store and equip a supported style before exporting.";return}
     try{
       const config={schemaVersion:1,equipped:selected.id};
-      const blob=new Blob([JSON.stringify(config,null,2)+"\\n"],{type:"application/json"});
+      const blob=new Blob([JSON.stringify(config,null,2)+"\n"],{type:"application/json"});
       const url=URL.createObjectURL(blob);
       const link=document.createElement("a");
       link.href=url;
