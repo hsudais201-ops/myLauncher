@@ -84,7 +84,7 @@ function requestedAccountReturnPath() {
 }
 
 const authForm = document.getElementById("auth-form");
-if (authForm) {
+if (authForm && document.getElementById("auth-identifier")) {
   const modeButtons = [...document.querySelectorAll("[data-auth-mode]")];
   const loginFields = document.getElementById("login-fields");
   const registerFields = document.getElementById("register-fields");
