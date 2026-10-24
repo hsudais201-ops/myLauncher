@@ -803,3 +803,15 @@ footer{background:linear-gradient(180deg,#080a1200,#080a12cc);border-top:1px sol
  .changelog-entry-date span:first-child{font-size:16px}
  .changelog-entry-date span:last-child{font-size:8px}
 }
+
+
+/* Tablet widths get the same controlled menu instead of squeezing nine links. */
+@media (min-width:561px) and (max-width:1060px){
+ header .bar{display:grid;grid-template-columns:minmax(0,1fr) auto auto;grid-template-areas:"brand account toggle" "nav nav nav";gap:10px;padding:11px 20px}
+ .brand{grid-area:brand}
+ .account-links{grid-area:account;gap:6px}
+ .nav{grid-area:nav;display:none;width:100%;margin:0;padding:11px 0 2px;border-top:1px solid #ffffff12;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px;align-items:stretch;white-space:normal}
+ .nav.is-open{display:grid}
+ .nav a{white-space:normal;justify-content:flex-start;min-height:44px;padding:9px 10px;font-size:12px;background:#ffffff04;border-color:#ffffff0a}
+ .vc-menu-toggle{grid-area:toggle;display:inline-flex}
+}
