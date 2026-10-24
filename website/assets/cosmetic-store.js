@@ -25,6 +25,7 @@
   let items = [];
   let ownedItems = new Map();
   let entitlementsUnavailable = false;
+  let catalogLoaded = false;
 
   function make(tag, className, text) {
     const node = document.createElement(tag);
@@ -101,7 +102,7 @@
     const message = make("div", "cosmetics-equip-message");
     const equippedId = getEquipped();
     const equippedItem = items.find(function(item) { return item.id === equippedId && isOwned(item); });
-    const ownedCosmetics = [...ownedItems.values()].filter(function(item) { return item.kind === "cosmetic"; });
+    const ownedCosmetics = items.filter(function(item) { return isOwned(item); });
 
     if (equippedItem) {
       message.append(make("span", "", equippedItem.name + " is equipped for this website profile. This is not an in-game Minecraft cosmetic."));
@@ -129,8 +130,8 @@
         }
       });
       equipState.append(clear);
-    } else if (equippedId) {
-      // Never keep an equipped ID that isn't an owned cosmetic for this account.
+    } else if (equippedId && catalogLoaded && !catalogError) {
+      // Never keep an equipped ID that is no longer an owned cosmetic for this account.
       try { localStorage.removeItem(EQUIPPED_KEY); } catch {}
     }
   }
@@ -377,7 +378,19 @@
     }
 
     await loadEntitlements();
-    items = onlineItems;
+    const listedIds = new Set(onlineItems.map(function(item) { return item.id; }));
+    const previouslyOwned = [...ownedItems.values()]
+      .filter(function(item) { return item.kind === "cosmetic" && !listedIds.has(item.id); })
+      .map(function(item) {
+        return Object.assign({}, item, {
+          availability: "paused",
+          tagline: "Owned by your account",
+          description: "Previously purchased cosmetic. It remains available to equip on this website profile, but it is no longer listed for new purchases.",
+          localProfile: false
+        });
+      });
+    items = onlineItems.concat(previouslyOwned);
+    catalogLoaded = true;
     render();
     if (catalogError) {
       feedStatus.textContent = "Online cosmetic catalog unavailable. " + catalogError;
