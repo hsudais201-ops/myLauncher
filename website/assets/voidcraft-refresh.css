@@ -586,3 +586,23 @@ button{cursor:pointer}
   html{scroll-behavior:auto}
   *,*::before,*::after{scroll-behavior:auto!important;animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}
 }
+
+/* 2.1 usability pass: readable skip link, consistent brand, and calmer touch interactions */
+.vc-skip-link{
+  position:fixed;left:14px;top:10px;z-index:1000;transform:translateY(-160%);
+  padding:11px 15px;border:1px solid rgba(114,240,236,.5);border-radius:12px;
+  background:#101523;color:#fff;font-size:13px;font-weight:900;text-decoration:none;
+  box-shadow:var(--vc-shadow);transition:transform .16s ease;
+}
+.vc-skip-link:focus{transform:translateY(0);outline:2px solid var(--vc-cyan);outline-offset:3px}
+.nav a[aria-current="page"]{color:#fff;background:linear-gradient(120deg,rgba(167,139,250,.2),rgba(114,240,236,.08));border-color:rgba(167,139,250,.28)}
+button,.btn,a,input,textarea,select{touch-action:manipulation}
+input,textarea,select{scroll-margin-bottom:28px}
+button:disabled,.btn:disabled{filter:grayscale(.12)}
+::placeholder{color:#8994af}
+@media(max-width:560px){
+  .vc-skip-link{left:9px;top:8px}
+  .account-links a{max-width:96px;overflow:hidden;text-overflow:ellipsis}
+  .nav a{overflow-wrap:anywhere}
+  .cm-dialog,.image-preview-dialog{max-height:calc(100dvh - 16px)}
+}
