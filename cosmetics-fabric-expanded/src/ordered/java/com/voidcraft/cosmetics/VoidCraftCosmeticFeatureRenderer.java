@@ -8,8 +8,8 @@ import java.nio.file.Path;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.model.ModelPart;
 import net.minecraft.client.render.OverlayTexture;
-import net.minecraft.client.render.RenderLayers;
 import net.minecraft.client.render.RenderLayer;
+import net.minecraft.util.Identifier;
 import net.minecraft.client.render.command.OrderedRenderCommandQueue;
 import net.minecraft.client.render.entity.feature.FeatureRenderer;
 import net.minecraft.client.render.entity.feature.FeatureRendererContext;
@@ -72,6 +72,26 @@ public final class VoidCraftCosmeticFeatureRenderer
         };
     }
 
+    private static RenderLayer translucentEntityLayer(Identifier texture) {
+        // Minecraft 1.21.9 still exposes RenderLayer.getEntityTranslucent;
+        // 1.21.10+ moved the factory into RenderLayers.entityTranslucent.
+        try {
+            Class<?> renderLayers = Class.forName("net.minecraft.client.render.RenderLayers");
+            Method modern = renderLayers.getMethod("entityTranslucent", Identifier.class);
+            return (RenderLayer) modern.invoke(null, texture);
+        } catch (ClassNotFoundException | NoSuchMethodException ignored) {
+            // Older late-1.21 builds have the static factory on RenderLayer.
+        } catch (ReflectiveOperationException exception) {
+            throw new IllegalStateException("Could not create the VoidCraft cosmetic render layer.", exception);
+        }
+        try {
+            Method legacy = RenderLayer.class.getMethod("getEntityTranslucent", Identifier.class);
+            return (RenderLayer) legacy.invoke(null, texture);
+        } catch (ReflectiveOperationException exception) {
+            throw new IllegalStateException("No supported translucent entity render layer factory was found.", exception);
+        }
+    }
+
     private static void transformHead(ModelPart head, MatrixStack matrices) {
         for (String methodName : new String[] {"applyTransform", "rotate"}) {
             try {
@@ -104,7 +124,7 @@ public final class VoidCraftCosmeticFeatureRenderer
         if ("none".equals(EQUIPPED_ID)) return;
         matrices.push();
         transformHead(getContextModel().head, matrices);
-        RenderLayer layer = RenderLayers.entityTranslucent(VoidCraftCosmeticsClient.HALO_TEXTURE);
+        RenderLayer layer = translucentEntityLayer(VoidCraftCosmeticsClient.HALO_TEXTURE);
         queue.submitModelPart(
             halo, matrices, layer, light, OverlayTexture.DEFAULT_UV,
             null, false, false, tint(), null, 0
