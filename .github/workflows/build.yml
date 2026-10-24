@@ -126,6 +126,7 @@ jobs:
           echo "APK SHA-256: $(cut -d ' ' -f1 "$APK_SHA256_PATH")" >> upstream/MYLAUNCHER_BUILD_INFO.txt
 
       - name: Install and launch APK in a headless Android emulator
+        timeout-minutes: 25
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 35
