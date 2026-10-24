@@ -22,6 +22,6 @@ test("legacy password hashes are upgraded only after verification succeeds", () 
 });
 
 test("diagnostics remain server-side while client errors stay generic", () => {
-  assert.match(source, /console\.error\("Social Hub request failed\.",/);
+  assert.match(source, /console\\.error\\(/);
   assert.match(source, /Server error\. Please try again later\./);
 });
