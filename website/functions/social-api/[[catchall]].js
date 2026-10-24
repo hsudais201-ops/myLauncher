@@ -24,12 +24,21 @@ export async function onRequest(context) {
       init.body = request.body;
     }
     const upstream = await fetch(new Request(target.toString(), init));
+    // Consume the body while the abort timer is still active. fetch() resolves
+    // when headers arrive, so returning upstream.body directly would leave a
+    // stalled response stream outside the timeout window.
+    const body = await upstream.arrayBuffer();
     const responseHeaders = new Headers(upstream.headers);
     responseHeaders.set("cache-control", "no-store");
     responseHeaders.delete("access-control-allow-origin");
     responseHeaders.delete("access-control-allow-methods");
     responseHeaders.delete("access-control-allow-headers");
-    return new Response(upstream.body, {
+    // Fetch may transparently decompress an upstream body. Avoid forwarding
+    // stale transfer metadata after re-buffering it.
+    responseHeaders.delete("content-length");
+    responseHeaders.delete("content-encoding");
+    responseHeaders.delete("transfer-encoding");
+    return new Response(body, {
       status: upstream.status,
       statusText: upstream.statusText,
       headers: responseHeaders,
