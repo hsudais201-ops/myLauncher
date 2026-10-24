@@ -1,1 +1,88 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#090b13"><meta name="description" content="Setup guidance, troubleshooting, feature-store policy and project information will live here. Feature status must distinguish tested behavior from prototypes."><title>Documentation — VoidCraft</title><link rel="icon" href="assets/logo.svg"><link rel="stylesheet" href="assets/styles.css"></head><body><header><div class="bar"><a class="brand" href="index.html"><img src="assets/logo.svg" alt=""><span>VOIDCRAFT</span></a><nav class="nav" aria-label="Main navigation"><a href="index.html">Home</a><a href="downloads.html">Downloads</a><a href="feature-store.html">Feature Store</a><a href="cosmetic-store.html">Cosmetics</a><a href="servers.html">Servers</a><a href="community.html">Community</a><a href="developers.html">Developers</a><a href="docs.html" class="active">Docs</a></nav><div class="account-links"><a href="signin.html">Sign in</a><a href="profile.html">Profile</a></div></div></header><main><section class="hero"><div class="eyebrow">VoidCraft · Minecraft launcher community</div><h1>Find your way around VoidCraft.</h1><p>Setup guidance, troubleshooting, feature-store policy and project information will live here. Feature status must distinguish tested behavior from prototypes.</p><div class="actions"><a class="btn" href="security.html">Security guidance →</a><a class="btn secondary" href="community.html">Community</a></div></section><div class="notice"><strong>Development status:</strong> VoidCraft website accounts are active. Purchases, live server data, uploads and launcher-linked installs are not active yet.</div></main><footer><div class="foot"><span>© VoidCraft community project · Independent from Mojang and Microsoft</span><span><a href="privacy.html">Privacy</a> · <a href="terms.html">Terms</a> · <a href="security.html">Security</a></span></div></footer><script src="assets/app.js" defer></script></body></html>
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#080a12">
+<meta name="description" content="Practical VoidCraft website, launcher, account, marketplace, Social Hub and troubleshooting documentation.">
+<link rel="icon" href="assets/logo.svg" type="image/svg+xml"><link rel="stylesheet" href="assets/styles.css">
+<title>Documentation — VoidCraft</title>
+</head>
+<body>
+<header><div class="bar">
+<a class="brand" href="index.html" aria-label="VoidCraft home"><img src="assets/logo.svg" alt=""><span>VOIDCRAFT</span></a>
+<nav class="nav" aria-label="Main navigation"><a href="index.html">Home</a><a href="downloads.html">Downloads</a><a href="feature-store.html">Feature Store</a><a href="cosmetic-store.html">Cosmetics</a><a href="servers.html">Servers</a><a href="social-hub.html">Chat &amp; Friends</a><a href="community.html">Community</a><a href="developers.html">Developers</a><a href="docs.html" aria-current="page">Docs</a></nav>
+<div class="account-links"><a href="signin.html">Sign in</a><a href="profile.html">Profile</a></div>
+</div></header>
+<main id="vc-main">
+<section class="hero">
+<div class="eyebrow">VOIDCRAFT KNOWLEDGE BASE</div>
+<h1>Find your way<br><span class="headline-glow">around the Void.</span></h1>
+<p>Practical guidance for using the website, checking builds, working with browser tools, and understanding what the current project does — and does not — do yet.</p>
+<div class="actions"><a class="btn" href="downloads.html">Start with releases ↗</a><a class="btn secondary" href="security.html">Security guidance</a></div>
+</section>
+
+<section class="home-state-grid" aria-label="Documentation quick links">
+<article class="home-state-card"><span class="home-state-icon" aria-hidden="true">↧</span><div><strong>Download carefully</strong><p>Use release tags and asset details to verify what you install.</p><a href="downloads.html">Downloads →</a></div></article>
+<article class="home-state-card"><span class="home-state-icon" aria-hidden="true">⌁</span><div><strong>Chat with friends</strong><p>Understand Social Hub beta accounts and current safety limits.</p><a href="social-hub.html">Social Hub →</a></div></article>
+<article class="home-state-card"><span class="home-state-icon" aria-hidden="true">◇</span><div><strong>Use store previews</strong><p>See how catalog availability and ownership are represented.</p><a href="feature-store.html">Feature Store →</a></div></article>
+</section>
+
+<section class="home-section" id="launcher" aria-labelledby="launcher-title">
+<div class="section-top"><div><div class="eyebrow">01 / LAUNCHER</div><h2 id="launcher-title">Launchers, builds and compatibility.</h2></div><p>Use verified repository releases as the source of truth for installable launcher builds. A website concept or roadmap entry is not a release artifact.</p></div>
+<div class="feature-detail-grid">
+<article class="card"><h3>Where to find a build</h3><p>Open the downloads page and follow the official GitHub Releases link. Confirm the release tag, file name and release notes before installing.</p><a href="downloads.html">Open downloads →</a></article>
+<article class="card"><h3>When a build won't install</h3><p>Check the device's Android version, free storage, APK integrity and Android's install permission for the file source. Never ignore an Android package warning solely to test a preview.</p></article>
+<article class="card"><h3>Crashes and logs</h3><p>Record the launcher build, Android version, Minecraft version, renderer and the first relevant error. Remove private tokens or account data before sharing logs publicly.</p><a href="community.html">Find support options →</a></article>
+</div>
+</section>
+
+<section class="home-section" id="account" aria-labelledby="account-title">
+<div class="section-top"><div><div class="eyebrow">02 / WEBSITE ACCOUNT</div><h2 id="account-title">Sign in and profile basics.</h2></div><p>Your username is part of your website profile. Keep it distinct from your Microsoft, Xbox and Minecraft credentials.</p></div>
+<div class="feature-detail-grid">
+<article class="card"><h3>Create an account</h3><p>Open Sign in, choose Create account, enter a username, email and a strong unique password, then submit. The site should show an error if the account service cannot complete the request.</p><a href="signin.html">Open account sign-in →</a></article>
+<article class="card"><h3>Review your profile</h3><p>The profile page checks the active website session and shows account information returned by the server. Your website role grants no permissions on GitHub, Cloudflare, Microsoft or Minecraft.</p><a href="profile.html">Open profile →</a></article>
+<article class="card"><h3>Password recovery</h3><p>Recovery depends on email delivery being configured and verified. If the flow reports the service is unavailable, no recovery code has been sent or verified; don't trust anyone asking you to reveal your current password.</p><a href="forgot-password.html">Password recovery →</a></article>
+</div>
+</section>
+
+<section class="home-section" id="feature-store" aria-labelledby="feature-store-title">
+<div class="section-top"><div><div class="eyebrow">03 / FEATURE STORE</div><h2 id="feature-store-title">Understand listings before using them.</h2></div><p>Check the status chip, compatibility, source information and package availability on each listing. A card in the catalog does not mean a feature is installed in the launcher.</p></div>
+<div class="card"><p><strong>Preview:</strong> concept or metadata only, not an installable release. <strong>Available:</strong> a release package exists and the listing is public. Paid purchases additionally require secure checkout and server-confirmed ownership.</p><div class="actions"><a class="btn" href="feature-store.html">Browse features</a><a class="btn secondary" href="developers.html">Creator guidelines</a></div></div>
+</section>
+
+<section class="home-section" id="browser-tools" aria-labelledby="browser-tools-title">
+<div class="section-top"><div><div class="eyebrow">04 / BROWSER TOOLS</div><h2 id="browser-tools-title">What local tools can do.</h2></div><p>Some pages work inside this browser without installing an Android package. Their data and controls do not automatically alter Minecraft's game files.</p></div>
+<div class="feature-detail-grid">
+<article class="card"><h3>Advanced Mod Manager</h3><p>Imports and organizes JARs in this browser's local IndexedDB library. Export a file to move it elsewhere; browser clearing or site-data cleanup may erase the library. It does not directly write into launcher-private storage.</p><a href="mod-manager.html">Open Mod Manager →</a></article>
+<article class="card"><h3>Theme Studio</h3><p>Changes the website's colors using browser-local preferences. It does not change in-game textures, shaders, resource packs or Minecraft settings.</p><a href="theme-studio.html">Open Theme Studio →</a></article>
+<article class="card"><h3>Server State</h3><p>Check server status on demand. A status request sends the server address to the public mcsrvstat.us service. Saved server addresses remain in this browser.</p><a href="servers.html">Open server tools →</a></article>
+</div>
+</section>
+
+<section class="home-section" id="cosmetics" aria-labelledby="cosmetics-title">
+<div class="section-top"><div><div class="eyebrow">05 / COSMETIC MARKET</div><h2 id="cosmetics-title">Ownership, payment and equip are separate steps.</h2></div><p>Only server-confirmed purchase entitlements unlock the Equip button. The current Equip option applies to the VoidCraft website profile only.</p></div>
+<div class="notice"><strong>Compatibility limitation:</strong> Website equip does not render a cosmetic on a Minecraft player model, make it visible to multiplayer users, or patch the client. That needs a compatible client renderer and, for shared visibility, appropriate server/client integration. Preview listings are not purchasable until price, release package and payment configuration are ready.</div>
+<div class="actions"><a class="btn" href="cosmetic-store.html">Open Cosmetic Market →</a><a class="btn secondary" href="cart.html">View cart</a></div>
+</section>
+
+<section class="home-section" id="social" aria-labelledby="social-title">
+<div class="section-top"><div><div class="eyebrow">06 / SOCIAL HUB</div><h2 id="social-title">A browser chat beta.</h2></div><p>Social Hub supports friend requests and private messages between accepted friends in its current staging service.</p></div>
+<div class="feature-detail-grid">
+<article class="card"><h3>Beta account is separate</h3><p>Website sign-in and Social Hub login currently use separate authentication systems. Matching branding does not merge credentials. Use a unique password in each service.</p></article>
+<article class="card"><h3>Safety and privacy limits</h3><p>Email verification, password recovery, push notifications and end-to-end encryption are not implemented in the beta. Avoid sending personal or sensitive information in messages.</p></article>
+<article class="card"><h3>Use the safety tools</h3><p>Available beta controls include removing a friend, blocking a user and submitting a report. The service is still staging software, not a production security guarantee.</p><a href="social-hub.html">Go to Chat &amp; Friends →</a></article>
+</div>
+</section>
+
+<section class="home-section" id="security" aria-labelledby="security-title">
+<div class="section-top"><div><div class="eyebrow">07 / STAY SAFE</div><h2 id="security-title">A few good habits matter.</h2></div><p>Be cautious with downloads, account links and files from unknown creators.</p></div>
+<div class="feature-detail-grid">
+<article class="card"><h3>Use unique passwords</h3><p>Never reuse your email or Microsoft password for a beta service. VoidCraft staff will never need your current password or one-time code.</p></article>
+<article class="card"><h3>Check files and licences</h3><p>Review the source, licence, compatibility and publisher of a mod or community submission. A listing being published does not mean the package was automatically scanned or signed.</p></article>
+<article class="card"><h3>Report a problem</h3><p>Share the affected page, steps to reproduce and a redacted error message. Never include passwords, session tokens or private messages in a public bug report.</p><a href="community.html">Support and reports →</a></article>
+</div>
+</section>
+</main>
+<footer><div class="foot"><span>© VoidCraft community project · Independent from Mojang and Microsoft</span><span><a href="privacy.html">Privacy</a> · <a href="terms.html">Terms</a> · <a href="security.html">Security</a> · <a href="changelog.html">Changelog</a></span></div></footer>
+<script src="assets/app.js" defer></script>
+</body></html>
