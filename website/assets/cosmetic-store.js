@@ -188,6 +188,18 @@
         }
       });
       actions.append(equip);
+
+      // These four built-in effects are browser-only inclusions, not separate store SKUs.
+      // Keep the requested commerce controls visible but disabled rather than inventing cart IDs.
+      const addIncluded = make("button", "btn secondary", "Add to cart");
+      addIncluded.type = "button";
+      addIncluded.disabled = true;
+      addIncluded.title = "This original browser profile effect is included and has no separate store listing.";
+      const buyIncluded = make("button", "btn", "Buy now");
+      buyIncluded.type = "button";
+      buyIncluded.disabled = true;
+      buyIncluded.title = "This original browser profile effect is not sold as a standalone downloadable cosmetic.";
+      actions.append(addIncluded, buyIncluded);
     } else {
       const freeDownload = hasPackageDownload(item);
       if (freeDownload) {
