@@ -17,6 +17,24 @@ def replace_idempotently(text: str, old: str, new: str, label: str) -> str:
     raise ValueError(f"Could not find expected token in {label}: {old!r} or {new!r}")
 
 
+
+def replace_string_value(text: str, name: str, old: str, new: str, label: str) -> str:
+    """Update one Android string value while preserving XML formatting and repeatability."""
+    old_pattern = rf'(<string\s+name="{re.escape(name)}"[^>]*>\s*){re.escape(old)}(\s*</string>)'
+    new_pattern = rf'(<string\s+name="{re.escape(name)}"[^>]*>\s*){re.escape(new)}(\s*</string>)'
+    if re.search(new_pattern, text, flags=re.DOTALL):
+        return text
+    if not re.search(old_pattern, text, flags=re.DOTALL):
+        raise ValueError(f"Could not find expected string value {name}={old!r} or {new!r} in {label}")
+    return re.sub(
+        old_pattern,
+        lambda match: match.group(1) + new + match.group(2),
+        text,
+        count=1,
+        flags=re.DOTALL,
+    )
+
+
 def validate_xml_files(paths: tuple[Path, ...]) -> None:
     """Fail early when a generated Android resource is not well-formed XML."""
     for path in paths:
@@ -39,7 +57,7 @@ def patch_upstream(upstream: Path) -> None:
     build_text = replace_idempotently(
         build_text, "org.angelauramc.amethyst", "com.mf.mylauncher", str(gradle)
     )
-    build_text = replace_idempotently(build_text, "Amethyst", "myLauncher", str(gradle))
+    build_text = replace_idempotently(build_text, "Amethyst", "Voidcraft", str(gradle))
     min_sdk = re.search(r"\bminSdkVersion\s+(\d+)\b", build_text)
     if not min_sdk:
         raise ValueError("Could not verify minSdkVersion; refusing an unverified Android 9 build")
@@ -53,19 +71,20 @@ def patch_upstream(upstream: Path) -> None:
 
     strings_text = strings.read_text(encoding="utf-8")
     strings_text = strings_text.replace("org.angelauramc.amethyst", "com.mf.mylauncher")
-    strings_text = replace_idempotently(strings_text, "Amethyst", "myLauncher", str(strings))
+    strings_text = replace_idempotently(strings_text, "Amethyst", "Voidcraft", str(strings))
+    strings_text = replace_string_value(strings_text, "app_name", "myLauncher", "Voidcraft", str(strings))
     if not re.search(
-        r'<string\s+name="app_name"[^>]*>\s*myLauncher\s*</string>',
+        r'<string\s+name="app_name"[^>]*>\s*Voidcraft\s*</string>',
         strings_text,
         flags=re.DOTALL,
     ):
-        raise ValueError("The patched strings.xml is missing app_name=myLauncher")
+        raise ValueError("The patched strings.xml is missing app_name=Voidcraft")
     # Upstream defines app_short_name through Gradle resValue, not strings.xml.
     required_gradle_values = (
-        '"app_name", "myLauncher (Debug)"',
-        '"app_name", "myLauncher"',
-        '"app_short_name", "myLauncher (Debug)"',
-        '"app_short_name", "myLauncher"',
+        '"app_name", "Voidcraft (Debug)"',
+        '"app_name", "Voidcraft"',
+        '"app_short_name", "Voidcraft (Debug)"',
+        '"app_short_name", "Voidcraft"',
         "'application_package', 'com.mf.mylauncher.debug'",
         "'application_package', 'com.mf.mylauncher'",
         "'storageProviderAuthorities', 'com.mf.mylauncher.scoped.gamefolder.debug'",
@@ -322,7 +341,7 @@ def patch_upstream(upstream: Path) -> None:
                 android:layout_marginStart="20dp"
                 android:layout_marginTop="18dp"
                 android:layout_marginEnd="20dp"
-                android:text="myLauncher"
+                android:text="Voidcraft"
                 android:textColor="@color/primary_text"
                 android:textSize="26sp"
                 android:textStyle="bold"
@@ -675,7 +694,7 @@ def patch_upstream(upstream: Path) -> None:
             or not title_match
             or not subtitle_match
             or 'android:layout_width="0dp"' not in title_match.group(0)
-            or 'android:text="myLauncher"' not in title_match.group(0)
+            or 'android:text="Voidcraft"' not in title_match.group(0)
             or 'android:layout_width="0dp"' not in subtitle_match.group(0)
             or 'android:text="Minecraft Java Edition · built for lightweight devices"' not in subtitle_match.group(0)
             or 'app:layout_constraintTop_toBottomOf="@id/mylauncher_hero_title"' not in subtitle_match.group(0)
