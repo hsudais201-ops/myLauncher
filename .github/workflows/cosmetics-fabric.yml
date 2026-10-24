@@ -1,0 +1,253 @@
+name: VoidCraft Fabric cosmetics
+
+on:
+  push:
+    branches: ["feature/cosmetic-store-fabric-handoff"]
+    paths:
+      - "cosmetics-fabric/**"
+      - "cosmetics-fabric-expanded/**"
+      - ".github/workflows/cosmetics-fabric.yml"
+  pull_request:
+    branches: ["main"]
+    paths:
+      - "cosmetics-fabric/**"
+      - "cosmetics-fabric-expanded/**"
+      - ".github/workflows/cosmetics-fabric.yml"
+      - ".github/scripts/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: voidcraft-cosmetics-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  fabric-cosmetics:
+    name: Build/test Fabric cosmetics ${{ matrix.minecraft_version }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - minecraft_version: "1.17.1"
+            yarn_mappings: "1.17.1+build.65"
+            fabric_version: "0.46.1+1.17"
+            loader_version: "0.14.25"
+            java_dependency: "16"
+            java_bytecode_version: "16"
+          - minecraft_version: "1.18.2"
+            yarn_mappings: "1.18.2+build.4"
+            fabric_version: "0.77.0+1.18.2"
+            loader_version: "0.14.25"
+            java_dependency: "17"
+            java_bytecode_version: "17"
+          - minecraft_version: "1.19.4"
+            yarn_mappings: "1.19.4+build.2"
+            fabric_version: "0.87.2+1.19.4"
+            loader_version: "0.14.25"
+            java_dependency: "17"
+            java_bytecode_version: "17"
+          - minecraft_version: "1.20.1"
+            yarn_mappings: "1.20.1+build.10"
+            fabric_version: "0.92.9+1.20.1"
+            loader_version: "0.15.11"
+            java_dependency: "17"
+            java_bytecode_version: "17"
+          - minecraft_version: "1.20.2"
+            yarn_mappings: "1.20.2+build.4"
+            fabric_version: "0.91.6+1.20.2"
+            loader_version: "0.15.11"
+            java_dependency: "17"
+            java_bytecode_version: "17"
+          - minecraft_version: "1.20.3"
+            yarn_mappings: "1.20.3+build.1"
+            fabric_version: "0.91.1+1.20.3"
+            loader_version: "0.15.11"
+            java_dependency: "17"
+            java_bytecode_version: "17"
+          - minecraft_version: "1.20.4"
+            yarn_mappings: "1.20.4+build.3"
+            fabric_version: "0.97.3+1.20.4"
+            loader_version: "0.15.11"
+            java_dependency: "17"
+            java_bytecode_version: "17"
+          - minecraft_version: "1.20.5"
+            yarn_mappings: "1.20.5+build.1"
+            fabric_version: "0.97.8+1.20.5"
+            loader_version: "0.15.11"
+            java_dependency: "21"
+            java_bytecode_version: "21"
+          - minecraft_version: "1.20.6"
+            yarn_mappings: "1.20.6+build.3"
+            fabric_version: "0.100.8+1.20.6"
+            loader_version: "0.15.11"
+            java_dependency: "21"
+            java_bytecode_version: "21"
+          - minecraft_version: "1.21"
+            yarn_mappings: "1.21+build.9"
+            fabric_version: "0.102.0+1.21"
+            loader_version: "0.16.10"
+            java_dependency: "21"
+            java_bytecode_version: "21"
+          - minecraft_version: "1.21.1"
+            yarn_mappings: "1.21.1+build.3"
+            fabric_version: "0.116.12+1.21.1"
+            loader_version: "0.16.10"
+            java_dependency: "21"
+            java_bytecode_version: "21"
+          - minecraft_version: "1.21.2"
+            yarn_mappings: "1.21.2+build.1"
+            fabric_version: "0.106.1+1.21.2"
+            loader_version: "0.16.10"
+            java_dependency: "21"
+            java_bytecode_version: "21"
+          - minecraft_version: "1.21.3"
+            yarn_mappings: "1.21.3+build.2"
+            fabric_version: "0.114.1+1.21.3"
+            loader_version: "0.16.10"
+            java_dependency: "21"
+            java_bytecode_version: "21"
+          - minecraft_version: "1.21.4"
+            yarn_mappings: "1.21.4+build.8"
+            fabric_version: "0.119.4+1.21.4"
+            loader_version: "0.16.10"
+            java_dependency: "21"
+            java_bytecode_version: "21"
+          - minecraft_version: "1.21.5"
+            yarn_mappings: "1.21.5+build.1"
+            fabric_version: "0.128.2+1.21.5"
+            loader_version: "0.16.10"
+            java_dependency: "21"
+            java_bytecode_version: "21"
+          - minecraft_version: "1.21.6"
+            yarn_mappings: "1.21.6+build.1"
+            fabric_version: "0.128.2+1.21.6"
+            loader_version: "0.16.10"
+            java_dependency: "21"
+            java_bytecode_version: "21"
+          - minecraft_version: "1.21.7"
+            yarn_mappings: "1.21.7+build.8"
+            fabric_version: "0.129.0+1.21.7"
+            loader_version: "0.16.10"
+            java_dependency: "21"
+            java_bytecode_version: "21"
+    steps:
+      - name: Check out VoidCraft sources
+        uses: actions/checkout@v4
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.12.1"
+      - name: Compile, test, and package this exact Fabric target
+        working-directory: cosmetics-fabric
+        env:
+          TARGET_MINECRAFT_VERSION: ${{ matrix.minecraft_version }}
+          TARGET_YARN_MAPPINGS: ${{ matrix.yarn_mappings }}
+          TARGET_FABRIC_VERSION: ${{ matrix.fabric_version }}
+          TARGET_LOADER_VERSION: ${{ matrix.loader_version }}
+          TARGET_JAVA_DEPENDENCY: ${{ matrix.java_dependency }}
+          TARGET_JAVA_BYTECODE: ${{ matrix.java_bytecode_version }}
+        run: |
+          gradle clean test build --no-daemon \
+            -Pminecraft_version="$TARGET_MINECRAFT_VERSION" \
+            -Pyarn_mappings="$TARGET_YARN_MAPPINGS" \
+            -Pfabric_version="$TARGET_FABRIC_VERSION" \
+            -Ploader_version="$TARGET_LOADER_VERSION" \
+            -Pjava_dependency="$TARGET_JAVA_DEPENDENCY" \
+            -Pjava_bytecode_version="$TARGET_JAVA_BYTECODE"
+      - name: Verify exact target JAR and metadata
+        shell: bash
+        run: |
+          set -euo pipefail
+          JAR="$(find cosmetics-fabric/build/libs -maxdepth 1 -type f -name 'voidcraft-cosmetics-fabric-mc${{ matrix.minecraft_version }}-*.jar' ! -name '*-sources.jar' -print -quit)"
+          test -n "$JAR"
+          test -s "$JAR"
+          unzip -t "$JAR" | tail -n 2
+          unzip -p "$JAR" fabric.mod.json | grep -F '"id": "voidcraft_cosmetics"'
+          unzip -p "$JAR" fabric.mod.json | grep -F '"minecraft": "${{ matrix.minecraft_version }}"'
+          unzip -l "$JAR" | grep -F 'VoidCraftCosmeticFeatureRenderer.class'
+          sha256sum "$JAR" | tee "voidcraft-cosmetics-mc-${{ matrix.minecraft_version }}-sha256.txt"
+          echo "FABRIC_MOD_JAR=$JAR" >> "$GITHUB_ENV"
+      - name: Upload version-specific Fabric mod
+        uses: actions/upload-artifact@v4
+        with:
+          name: voidcraft-fabric-cosmetics-mc-${{ matrix.minecraft_version }}
+          path: |
+            ${{ env.FABRIC_MOD_JAR }}
+            voidcraft-cosmetics-mc-${{ matrix.minecraft_version }}-sha256.txt
+          if-no-files-found: error
+          retention-days: 14
+
+  fabric-cosmetics-late-121:
+    name: Build/test Fabric cosmetics ${{ matrix.minecraft_version }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - minecraft_version: "1.21.8"
+            yarn_mappings: "1.21.8+build.1"
+            fabric_version: "0.136.1+1.21.8"
+          - minecraft_version: "1.21.9"
+            yarn_mappings: "1.21.9+build.1"
+            fabric_version: "0.134.1+1.21.9"
+          - minecraft_version: "1.21.10"
+            yarn_mappings: "1.21.10+build.3"
+            fabric_version: "0.138.4+1.21.10"
+          - minecraft_version: "1.21.11"
+            yarn_mappings: "1.21.11+build.6"
+            fabric_version: "0.141.6+1.21.11"
+    steps:
+      - name: Check out VoidCraft sources
+        uses: actions/checkout@v4
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "9.2.0"
+      - name: Compile, test, and package this exact Fabric target
+        working-directory: cosmetics-fabric-expanded
+        env:
+          TARGET_MINECRAFT_VERSION: ${{ matrix.minecraft_version }}
+          TARGET_YARN_MAPPINGS: ${{ matrix.yarn_mappings }}
+          TARGET_FABRIC_VERSION: ${{ matrix.fabric_version }}
+        run: |
+          gradle clean test build --no-daemon \
+            -Pminecraft_version="$TARGET_MINECRAFT_VERSION" \
+            -Pyarn_mappings="$TARGET_YARN_MAPPINGS" \
+            -Pfabric_version="$TARGET_FABRIC_VERSION"
+      - name: Verify exact target JAR and metadata
+        shell: bash
+        run: |
+          set -euo pipefail
+          JAR="$(find cosmetics-fabric-expanded/build/libs -maxdepth 1 -type f -name 'voidcraft-cosmetics-fabric-mc${{ matrix.minecraft_version }}-*.jar' ! -name '*-sources.jar' -print -quit)"
+          test -n "$JAR"
+          test -s "$JAR"
+          unzip -t "$JAR" | tail -n 2
+          unzip -p "$JAR" fabric.mod.json | grep -F '"id": "voidcraft_cosmetics"'
+          unzip -p "$JAR" fabric.mod.json | grep -F '"minecraft": "${{ matrix.minecraft_version }}"'
+          unzip -l "$JAR" | grep -F 'VoidCraftCosmeticFeatureRenderer.class'
+          sha256sum "$JAR" | tee "voidcraft-cosmetics-mc-${{ matrix.minecraft_version }}-sha256.txt"
+          echo "FABRIC_MOD_JAR=$JAR" >> "$GITHUB_ENV"
+      - name: Upload version-specific Fabric mod
+        uses: actions/upload-artifact@v4
+        with:
+          name: voidcraft-fabric-cosmetics-mc-${{ matrix.minecraft_version }}
+          path: |
+            ${{ env.FABRIC_MOD_JAR }}
+            voidcraft-cosmetics-mc-${{ matrix.minecraft_version }}-sha256.txt
+          if-no-files-found: error
+          retention-days: 14
