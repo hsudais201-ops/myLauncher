@@ -58,6 +58,19 @@
     }
   }
 
+  function cosmeticColor(item) {
+    const palette = {
+      "cosmetic-void-aura": "#a58bff",
+      "cosmetic-neon-mint": "#63e8c1",
+      "cosmetic-arctic-ice": "#7fc8ff",
+      "cosmetic-solar-ember": "#ff9e79",
+      "cosmetic-neon-night": "#9c7bff",
+      "cosmetic-void-minimal": "#c4c8dc",
+      "cosmetic-creator-packs": "#69e8ed"
+    };
+    return item && (item.color || palette[item.id]) || "#a58bff";
+  }
+
   function isAvailable(item) {
     return !item.localProfile && item.availability === "available" && Boolean(item.packageAvailable);
   }
@@ -138,7 +151,7 @@
 
   function renderArt(item) {
     const art = make("div", "cos-card-art");
-    art.style.setProperty("--cos-color", item.color || "#a58bff");
+    art.style.setProperty("--cos-color", cosmeticColor(item));
     const tag = make("span", "cos-card-kind", isOwned(item) ? "OWNED COSMETIC" : "COSMETIC LISTING");
     art.append(tag);
 
@@ -269,7 +282,7 @@
     const active = isOwned(item) && getEquipped() === item.id;
     const card = make("article", "cos-card" + (active ? " is-equipped" : ""));
     card.style.setProperty("--cos-delay", Math.min(index, 7) * 35 + "ms");
-    card.style.setProperty("--cos-color", item.color || "#a58bff");
+    card.style.setProperty("--cos-color", cosmeticColor(item));
     card.append(renderArt(item));
 
     const content = make("div", "cos-card-content");
