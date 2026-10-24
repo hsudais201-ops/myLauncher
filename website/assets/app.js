@@ -1820,3 +1820,13 @@ document.addEventListener("click", (event) => {
   const chatLink = nav?.querySelector('a[href="social-hub.html"]');
   if (chatLink && chatLink.textContent.trim() !== "Chat & Friends") chatLink.textContent = "Chat & Friends";
 })();
+
+/* Load the unified 2026 VoidCraft redesign after each page's existing stylesheets. */
+(() => {
+  if (document.querySelector('link[data-voidcraft-refresh="true"]')) return;
+  const link = document.createElement("link");
+  link.rel = "stylesheet";
+  link.href = new URL("assets/voidcraft-refresh.css", document.baseURI).href;
+  link.dataset.voidcraftRefresh = "true";
+  document.head.append(link);
+})();
