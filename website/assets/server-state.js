@@ -253,12 +253,12 @@
     servers.forEach(server => list.append(renderCard(server)));
   }
 
-  async function checkServer(server) {
+  async function checkServer(server, quiet) {
     const key = keyFor(server);
     if (busy.has(key)) return;
     busy.add(key);
     render();
-    setNotice("Checking " + server.address + " (" + server.edition + ")…");
+    if (!quiet) setNotice("Checking " + server.address + " (" + server.edition + ")…");
 
     try {
       const endpoint = STATUS_API_PATH + "?address=" + encodeURIComponent(server.address) + "&edition=" + encodeURIComponent(server.edition);
@@ -294,7 +294,7 @@
         message: ""
       });
       render();
-      setNotice("Checked " + server.address + ". Status comes from mcsrvstat.us and may be cached by the provider.");
+      if (!quiet) setNotice("Checked " + server.address + ". Status comes from mcsrvstat.us and may be cached by the provider.");
     } catch (error) {
       const message = error && error.name === "AbortError"
         ? "The status check timed out after 12 seconds. The provider may be slow or unreachable; please retry."
@@ -302,7 +302,7 @@
           (navigator.onLine === false ? "You appear to be offline. Reconnect and try again." : "Could not reach the status service."));
       results.set(key, { state: "error", data: null, checkedAt: Date.now(), message });
       render();
-      setNotice("Could not check " + server.address + ". " + message);
+      if (!quiet) setNotice("Could not check " + server.address + ". " + message);
     } finally {
       busy.delete(key);
       render();
@@ -336,12 +336,36 @@
     checkServer(server);
   });
 
+  async function refreshSavedServers() {
+    const snapshot = servers.slice();
+    if (!snapshot.length) {
+      setNotice("No saved servers yet. Add a Java or Bedrock server above.");
+      return;
+    }
+
+    setNotice("Refreshing saved server states…");
+    const batchSize = 4;
+    for (let i = 0; i < snapshot.length; i += batchSize) {
+      const batch = snapshot.slice(i, i + batchSize).filter(server =>
+        servers.some(current => keyFor(current) === keyFor(server))
+      );
+      await Promise.all(batch.map(server => checkServer(server, true)));
+    }
+
+    if (servers.length) {
+      const failed = snapshot.some(server => statusFor(server).state === "error");
+      setNotice(failed
+        ? "Saved servers refreshed. Some checks failed; see those cards for details and retry."
+        : "Saved server states refreshed. Results may be cached by mcsrvstat.us; use Refresh all to check again.");
+    }
+  }
+
   refreshAll && refreshAll.addEventListener("click", () => {
-    servers.slice().forEach(server => checkServer(server));
+    refreshSavedServers();
   });
 
   render();
   if (servers.length) {
-    setNotice("Saved servers are stored in this browser. Select the correct Java or Bedrock edition, then use Check status to refresh.");
+    refreshSavedServers();
   }
 })();
