@@ -47,10 +47,7 @@ public final class VoidCraftCosmeticFeatureRenderer extends FeatureRenderer<Abst
             if (!Files.isRegularFile(config)) return "none";
             JsonObject json = parseConfigJson(Files.readString(config));
             String id = json.has("equipped") ? json.get("equipped").getAsString() : "none";
-            return switch (id) {
-                case "void-aura", "neon-mint", "arctic-ice", "solar-ember" -> id;
-                default -> "none";
-            };
+            return CosmeticId.normalize(id);
         } catch (Exception ignored) {
             return "none";
         }
