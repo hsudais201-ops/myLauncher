@@ -12,10 +12,63 @@ adb_limited() {
     timeout --foreground "${seconds}s" adb "$@"
 }
 
+# android-emulator-runner can occasionally expose an ADB device as "offline"
+# after boot. Wait for the guest to finish booting and recover ADB before the
+# large APK install, rather than spending the entire install timeout on a dead
+# transport.
+emulator_ready() {
+    local attempt state booted
+    for attempt in $(seq 1 10); do
+        adb_limited 5 reconnect offline >/dev/null 2>&1 || true
+        state="$(adb_limited 5 get-state 2>/dev/null || true)"
+        if [ "$state" = "device" ]; then
+            booted="$(adb_limited 8 shell getprop sys.boot_completed 2>/dev/null | tr -d '\r' || true)"
+            if [ "$booted" = "1" ]; then
+                echo "[smoke] emulator is online and boot-complete"
+                return 0
+            fi
+        fi
+        echo "[smoke] emulator not ready (attempt $attempt/10; state: ${state:-unknown})"
+        sleep 3
+    done
+    return 1
+}
+
+# Do not call adb's server-management or diagnostics commands without a
+# timeout: these were the only remaining unbounded ADB calls in this script.
+recover_adb() {
+    adb_limited 12 kill-server >/dev/null 2>&1 || true
+    adb_limited 12 start-server >/dev/null 2>&1 || true
+}
+
+show_adb_devices() {
+    adb_limited 10 devices -l || true
+}
+
 echo "[smoke] waiting for emulator device"
-adb_limited 180 wait-for-device
+if ! adb_limited 180 wait-for-device || ! emulator_ready; then
+    echo "[smoke] restarting ADB server once to recover the emulator transport"
+    adb_limited 10 kill-server || true
+    adb_limited 10 start-server || true
+    if ! emulator_ready; then
+        adb_limited 10 devices -l || true
+        echo "[smoke] emulator never became online; cannot run install/launch test" >&2
+        exit 1
+    fi
+fi
+
 echo "[smoke] installing 140 MB debug APK (software emulators can be slow)"
-adb_limited 240 install -r "$APK_PATH"
+if ! adb_limited 240 install -r "$APK_PATH"; then
+    echo "[smoke] APK install failed; recover ADB and retry once"
+    adb_limited 10 kill-server || true
+    adb_limited 10 start-server || true
+    if ! emulator_ready; then
+        adb_limited 10 devices -l || true
+        echo "[smoke] emulator transport failed during APK install" >&2
+        exit 1
+    fi
+    adb_limited 240 install -r "$APK_PATH"
+fi
 echo "[smoke] verifying installed package"
 adb_limited 20 shell pm list packages | grep -Fx 'package:com.mf.mylauncher.debug'
 adb_limited 20 shell pm path com.mf.mylauncher.debug | grep -F 'package:'
@@ -26,8 +79,12 @@ adb_limited 20 shell pm grant com.mf.mylauncher.debug android.permission.POST_NO
 adb_limited 20 shell am force-stop com.mf.mylauncher.debug
 adb_limited 45 shell monkey -p com.mf.mylauncher.debug -c android.intent.category.LAUNCHER 1
 
-# CI's software-rendered emulator can take longer on a cold start. Wait for
-# LauncherActivity to resume AND for Android's temporary splash window to go away.
+# On a fresh install, the manifest launcher component TestStorageActivity
+# intentionally redirects to MissingStorageActivity until the user chooses a
+# game-storage location. That is a valid first-run screen, not a launch failure.
+# Accept the home screen or either storage-setup activity, but require Android
+# to report the activity window drawn and the temporary splash to be gone.
+visible_activity_re='com[.]mf[.]mylauncher[.]debug/net[.]kdt[.]pojavlaunch[.](LauncherActivity|MissingStorageActivity|TestStorageActivity)'
 launcher_ready=0
 for attempt in $(seq 1 12); do
     sleep 5
@@ -44,8 +101,11 @@ for attempt in $(seq 1 12); do
         break
     fi
 
-    if grep -Eq 'ResumedActivity:.*com[.]mf[.]mylauncher[.]debug/net[.]kdt[.]pojavlaunch[.]LauncherActivity|mFocusedApp=.*com[.]mf[.]mylauncher[.]debug/net[.]kdt[.]pojavlaunch[.]LauncherActivity' upstream/mylauncher-activities.txt \
+    if grep -Eq "ResumedActivity:.*${visible_activity_re}|mFocusedApp=.*${visible_activity_re}" upstream/mylauncher-activities.txt \
+       && grep -Eq 'reportedDrawn=true reportedVisible=true' upstream/mylauncher-activities.txt \
+       && grep -Eq "Window\\{[^}]+ ${visible_activity_re//\\//\\/}" upstream/mylauncher-windows.txt \
        && ! grep -Fq 'Splash Screen com.mf.mylauncher.debug' upstream/mylauncher-windows.txt; then
+        echo "[smoke] first-run or launcher activity is resumed, drawn, and visible"
         launcher_ready=1
         break
     fi
@@ -64,12 +124,12 @@ if [ "$launcher_ready" -ne 1 ]; then
         sleep 2
         adb_limited 15 logcat -d > upstream/mylauncher-emulator-logcat.txt || true
     fi
-    echo "LauncherActivity did not draw its first frame before the smoke-test timeout." >&2
+    echo "LauncherActivity or the first-run storage screen did not draw before the smoke-test timeout." >&2
     echo "Inspect mylauncher-activities.txt, mylauncher-windows.txt, and mylauncher-emulator-logcat.txt." >&2
     exit 1
 fi
 
-grep -E 'ResumedActivity:.*com[.]mf[.]mylauncher[.]debug/net[.]kdt[.]pojavlaunch[.]LauncherActivity|mFocusedApp=.*com[.]mf[.]mylauncher[.]debug/net[.]kdt[.]pojavlaunch[.]LauncherActivity' upstream/mylauncher-activities.txt
+grep -E "ResumedActivity:.*${visible_activity_re}|mFocusedApp=.*${visible_activity_re}" upstream/mylauncher-activities.txt
 if grep -F 'Process: com.mf.mylauncher.debug' upstream/mylauncher-emulator-logcat.txt; then
     echo "Detected an Android runtime crash during launcher smoke test." >&2
     exit 1
