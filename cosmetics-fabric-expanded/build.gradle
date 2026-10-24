@@ -10,14 +10,20 @@ base {
     archivesName = "${project.archives_base_name}-mc${project.minecraft_version}"
 }
 
-// These releases use the render-state implementation from the main cosmetics
-// project. Reuse the sources so compatibility patches remain in one place.
+// Rendering changed again in 1.21.9: FeatureRenderer uses ordered render
+// commands and RenderLayers instead of direct VertexConsumer access.
+def orderedRenderQueue = project.minecraft_version.tokenize('.').with {
+    (it[0] as int) == 1 && (it[1] as int) == 21 &&
+        (it.size() > 2 ? (it[2] as int) >= 9 : false)
+}
+// Reuse common model/test sources, with distinct renderer adapters by API era.
 sourceSets {
     main {
         java {
             setSrcDirs([
                 "../cosmetics-fabric/src/common/java",
-                "../cosmetics-fabric/src/state/java"
+                orderedRenderQueue ? "src/ordered/java" :
+                    "../cosmetics-fabric/src/state/java"
             ])
         }
         resources {
@@ -37,6 +43,7 @@ dependencies {
     modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
     modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
     testImplementation "org.junit.jupiter:junit-jupiter:5.11.4"
+    testRuntimeOnly "org.junit.platform:junit-platform-launcher"
 }
 
 processResources {
