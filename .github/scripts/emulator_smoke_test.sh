@@ -37,10 +37,10 @@ emulator_ready() {
 echo "[smoke] waiting for emulator device"
 if ! adb_limited 180 wait-for-device || ! emulator_ready; then
     echo "[smoke] restarting ADB server once to recover the emulator transport"
-    adb kill-server || true
-    adb start-server
+    adb_limited 10 kill-server || true
+    adb_limited 10 start-server || true
     if ! emulator_ready; then
-        adb devices -l || true
+        adb_limited 10 devices -l || true
         echo "[smoke] emulator never became online; cannot run install/launch test" >&2
         exit 1
     fi
@@ -49,10 +49,10 @@ fi
 echo "[smoke] installing 140 MB debug APK (software emulators can be slow)"
 if ! adb_limited 240 install -r "$APK_PATH"; then
     echo "[smoke] APK install failed; recover ADB and retry once"
-    adb kill-server || true
-    adb start-server
+    adb_limited 10 kill-server || true
+    adb_limited 10 start-server || true
     if ! emulator_ready; then
-        adb devices -l || true
+        adb_limited 10 devices -l || true
         echo "[smoke] emulator transport failed during APK install" >&2
         exit 1
     fi
