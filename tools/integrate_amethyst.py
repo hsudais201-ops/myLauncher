@@ -156,7 +156,16 @@ COSMETIC_HANDOFF_METHOD = """    private void applyVoidcraftCosmetic() {
                 throw new java.io.IOException("Could not create Minecraft config directory.");
             }
             File cosmeticConfig = new File(configDirectory, "voidcraft-cosmetics.json");
-            org.json.JSONObject config = new org.json.JSONObject().put("equipped", requestedId);
+            String requestedMinecraftVersion = getIntent() == null ? null :
+                    getIntent().getStringExtra("voidcraft.selected_version");
+            if (requestedMinecraftVersion == null ||
+                    !requestedMinecraftVersion.matches("^[A-Za-z0-9._-]{1,100}$")) {
+                requestedMinecraftVersion = "unknown";
+            }
+            org.json.JSONObject config = new org.json.JSONObject()
+                    .put("schemaVersion", 1)
+                    .put("equipped", requestedId)
+                    .put("minecraftVersion", requestedMinecraftVersion);
             try (java.io.FileOutputStream output = new java.io.FileOutputStream(cosmeticConfig, false)) {
                 output.write(config.toString().getBytes(java.nio.charset.StandardCharsets.UTF_8));
                 output.flush();
@@ -164,7 +173,8 @@ COSMETIC_HANDOFF_METHOD = """    private void applyVoidcraftCosmetic() {
             }
             if (!"none".equals(requestedId)) {
                 Toast.makeText(this,
-                        "Cosmetic saved. Install the VoidCraft Cosmetics Fabric mod in this instance.",
+                        "Cosmetic saved for Minecraft " + requestedMinecraftVersion +
+                                ". Install the matching VoidCraft Cosmetics Fabric mod in this instance.",
                         Toast.LENGTH_LONG).show();
             }
         } catch (Exception exception) {
