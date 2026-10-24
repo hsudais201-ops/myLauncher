@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "id": "voidcraft_cosmetics",
+  "version": "${version}",
+  "name": "VoidCraft Cosmetics",
+  "description": "Client-side particle cosmetics for VoidCraft players. Cosmetics are local unless a compatible client/server system is also installed.",
+  "environment": "client",
+  "entrypoints": { "client": ["com.voidcraft.cosmetics.VoidCraftCosmeticsClient"] },
+  "depends": {
+    "fabricloader": ">=0.16.0",
+    "minecraft": "~1.21.1",
+    "java": ">=21",
+    "fabric-api": "*"
+  }
+}
