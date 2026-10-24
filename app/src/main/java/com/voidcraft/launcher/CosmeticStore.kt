@@ -42,7 +42,7 @@ fun CosmeticStoreScreen(
     Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
         OutlinedButton(onClick = onBack) { Text("← BACK") }
         Text("Cosmetic Store", fontSize = 28.sp, fontWeight = FontWeight.ExtraBold)
-        Text("Choose an original VoidCraft launcher-profile effect. Your selection is stored on this device.", color = VoidMuted, fontSize = 13.sp)
+        Text("Choose a VoidCraft particle effect for Minecraft Java 1.21.1 with Fabric. The integrated engine syncs your equipped choice into the game config.", color = VoidMuted, fontSize = 13.sp)
         Card(shape = RoundedCornerShape(18.dp), colors = CardDefaults.cardColors(containerColor = VoidSurface)) {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Text("PROFILE PREVIEW", color = equippedId?.let { id -> cosmeticOptions.find { it.id == id }?.color } ?: VoidMuted, fontWeight = FontWeight.Black, letterSpacing = 1.sp)
@@ -80,6 +80,6 @@ fun CosmeticStoreScreen(
                 }
             }
         }
-        Text("These are launcher profile effects only. Applying a cosmetic does not modify a Minecraft skin, game files, or multiplayer appearance.", color = VoidMuted, fontSize = 11.sp)
+        Text("Requires Fabric Loader + Fabric API for Minecraft 1.21.1. Effects render locally in-game. Other players will not see them unless they also have a compatible cosmetic client/server system.", color = VoidMuted, fontSize = 11.sp)
     }
 }
