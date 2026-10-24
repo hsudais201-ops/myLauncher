@@ -305,6 +305,7 @@
     } else {
       visible.forEach(function(item, index) { grid.append(renderCard(item, index)); });
     }
+    grid.setAttribute("aria-busy", "false");
     count.textContent = "Showing " + visible.length + " of " + items.length + " cosmetics";
   }
 
@@ -316,6 +317,7 @@
       refreshButton.disabled = true;
       refreshButton.textContent = "Loading…";
     }
+    grid.setAttribute("aria-busy", "true");
     if (feedStatus) {
       feedStatus.textContent = "Checking the online cosmetic catalog…";
       feedStatus.dataset.error = "false";
