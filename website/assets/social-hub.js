@@ -94,7 +94,7 @@
     if(reset&&!rows.length){const p=document.createElement("p");p.className="no-messages";p.textContent="No messages yet. Say hello to start your conversation.";messages.appendChild(p);}
     rows.forEach(appendMessage); state.cursors[who]=Math.max(state.cursors[who]||0,Number(d.nextAfter)||0); if(rows.length) messages.scrollTop=messages.scrollHeight;
   }
-  function startPolling() { stopPolling(); state.poll=setInterval(async()=>{if(!state.token||!state.selected||document.visibilityState!=="visible")return;try{await loadMessages(false);feedback("thread-feedback","","info");}catch(e){feedback("thread-feedback",e.message,"error");}},7000); }
+  function startPolling() { stopPolling(); state.poll=setInterval(async()=>{if(!state.token||!state.selected||document.visibilityState!=="visible")return;try{await loadMessages(false);feedback("thread-feedback","","info");}catch(e){feedback("thread-feedback",e.message,"error");}},3000); }
   el("login-tab").addEventListener("click",()=>mode("login")); el("register-tab").addEventListener("click",()=>mode("register"));
   el("auth-form").addEventListener("submit",async ev=>{
     ev.preventDefault();if(state.busy)return;const username=el("username").value.trim(),password=el("password").value,reg=state.mode==="register";
@@ -117,9 +117,19 @@
   el("message-text").addEventListener("input",()=>{el("message-count").textContent=el("message-text").value.length+" / 2000";});
   el("message-form").addEventListener("submit",async ev=>{
     ev.preventDefault();if(!state.selected||state.busy)return;const text=el("message-text").value.trim();if(!text){feedback("thread-feedback","Type a message before sending.","error");return;}
-    const who=state.selected;state.busy=true;el("send-message").disabled=true;
-    try{await api("/api/messages",{method:"POST",body:{username:who,text}});el("message-text").value="";el("message-count").textContent="0 / 2000";await loadMessages(true);feedback("thread-feedback","Message sent.","success");}
-    catch(e){feedback("thread-feedback",e.message,"error");}finally{state.busy=false;el("send-message").disabled=false;}
+    const who=state.selected;const optimisticId="pending-"+Date.now()+"-"+Math.random().toString(36).slice(2);const optimistic={id:optimisticId,sender:state.me,recipient:who,body:text,created_at:Date.now()};
+    appendMessage(optimistic);messages.scrollTop=messages.scrollHeight;
+    el("message-text").value="";el("message-count").textContent="0 / 2000";
+    state.busy=true;el("send-message").disabled=true;feedback("thread-feedback","Sending…","info");
+    try{
+      const d=await api("/api/messages",{method:"POST",body:{username:who,text}});
+      const pending=messages.querySelector('[data-message-id="'+optimisticId+'"]');if(pending)pending.remove();
+      if(state.selected===who&&d.message){appendMessage(d.message);state.cursors[who]=Math.max(state.cursors[who]||0,Number(d.message.created_at)||0);messages.scrollTop=messages.scrollHeight;}
+      feedback("thread-feedback","Message sent.","success");
+    }catch(e){
+      const pending=messages.querySelector('[data-message-id="'+optimisticId+'"]');if(pending)pending.remove();
+      if(state.selected===who){el("message-text").value=text;el("message-count").textContent=text.length+" / 2000";feedback("thread-feedback",e.message,"error");}
+    }finally{state.busy=false;el("send-message").disabled=false;}
   });
   el("logout").addEventListener("click",async()=>{try{if(state.token)await api("/api/logout",{method:"POST",body:{}});}catch(_){}showAuth("You have been signed out.","success");});
   el("remove-friend").addEventListener("click",async()=>{const who=state.selected;if(!who||!confirm("Remove "+who+" from your friends?"))return;try{await api("/api/friends/remove",{method:"POST",body:{username:who}});clearChat();await loadFriends();feedback("app-feedback","Friend removed.","success");}catch(e){feedback("thread-feedback",e.message,"error");}});

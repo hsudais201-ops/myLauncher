@@ -1,0 +1,24 @@
+name: Social Hub Worker tests
+
+on:
+  push:
+    paths:
+      - "workers/social-hub/**"
+      - ".github/workflows/social-hub-worker.yml"
+  pull_request:
+    paths:
+      - "workers/social-hub/**"
+      - ".github/workflows/social-hub-worker.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  worker-contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: node --test workers/social-hub/tests/*.test.mjs
