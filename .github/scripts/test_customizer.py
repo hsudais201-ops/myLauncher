@@ -62,7 +62,7 @@ class CustomizeAmethystTests(unittest.TestCase):
         tools_java = app / "src/main/java/net/kdt/pojavlaunch/Tools.java"
         tools_java.parent.mkdir(parents=True, exist_ok=True)
         tools_java.write_text(
-            'public final class Tools { public static String APP_NAME = "Amethyst"; }\n',
+            'public final class Tools { public static String APP_NAME = "Amethyst"; public static String DIR_GAME_HOME = Environment.getExternalStorageDirectory().getAbsolutePath() + "/games/Amethyst"; }\n',
             encoding="utf-8",
         )
 
@@ -555,6 +555,8 @@ EXTERNAL_API void pojavSwapBuffers() {
             tools_java = (root / "app_pojavlauncher/src/main/java/net/kdt/pojavlaunch/Tools.java").read_text(encoding="utf-8")
             self.assertIn('public static String APP_NAME = "myLauncher";', tools_java)
             self.assertNotIn('public static String APP_NAME = "Amethyst";', tools_java)
+            self.assertIn('public static String DIR_GAME_HOME = null;', tools_java)
+            self.assertNotIn('public static String DIR_GAME_HOME = Environment.getExternalStorageDirectory().getAbsolutePath() + "/games/Amethyst";', tools_java)
             self.assertIn("rootProject.name='myLauncher'", settings)
             self.assertIn("if (deviceRam <= 2048) return 512;", prefs)
             self.assertIn("int targetSide = Tools.getTotalDeviceMemory(context) <= 2048 ? 480 : (isDevicePowerful ? 1080 : 720);", prefs)
