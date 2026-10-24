@@ -1,0 +1,19 @@
+# Java build/test output
+/build/
+/out/
+*.class
+
+# Android/Gradle output for future modules
+.gradle/
+**/build/
+*.apk
+*.aab
+local.properties
+
+# IDE
+.idea/
+*.iml
+
+# Python helper caches if scripts are added later
+__pycache__/
+*.py[cod]
