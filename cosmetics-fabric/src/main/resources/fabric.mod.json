@@ -9,7 +9,7 @@
     "client": ["com.voidcraft.cosmetics.VoidCraftCosmeticsClient"]
   },
   "depends": {
-    "fabricloader": ">=0.16.0",
+    "fabricloader": ">=${loader_version}",
     "minecraft": "${minecraft_version}",
     "java": ">=${java_dependency}",
     "fabric-api": "*"
