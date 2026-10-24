@@ -188,28 +188,42 @@
         }
       });
       actions.append(equip);
-    } else if (hasPackageDownload(item)) {
-      const download = make("a", "btn", "Download free");
-      download.href = safeAssetUrl(item.packageUrl);
-      download.rel = "noopener noreferrer";
-      download.setAttribute("aria-label", "Download free package: " + item.name);
-      actions.append(download);
-    } else if (canBuy(item)) {
+    } else {
+      const freeDownload = hasPackageDownload(item);
+      if (freeDownload) {
+        const download = make("a", "btn", "Download free");
+        download.href = safeAssetUrl(item.packageUrl);
+        download.rel = "noopener noreferrer";
+        download.setAttribute("aria-label", "Download free package: " + item.name);
+        actions.append(download);
+      }
+
+      // Keep the shopping actions visible across the cosmetics catalog.
+      // Only a published, released paid package can be added or sent to checkout.
+      const purchasable = canBuy(item);
       const add = make("button", "btn secondary", "Add to cart");
       add.type = "button";
-      add.dataset.cartAdd = item.id;
       add.setAttribute("aria-label", "Add " + item.name + " to cart");
       const buy = make("button", "btn", "Buy now");
       buy.type = "button";
-      buy.dataset.buyNow = item.id;
       buy.setAttribute("aria-label", "Buy " + item.name + " now");
+      if (purchasable) {
+        add.dataset.cartAdd = item.id;
+        buy.dataset.buyNow = item.id;
+      } else {
+        add.disabled = true;
+        buy.disabled = true;
+        add.setAttribute("aria-disabled", "true");
+        buy.setAttribute("aria-disabled", "true");
+        const reason = freeDownload
+          ? "This listing is free. Use Download free; checkout is not required."
+          : item.availability === "coming_soon"
+            ? "This listing is coming soon and cannot be purchased yet."
+            : "This is a preview or has no released purchasable package yet.";
+        add.title = reason;
+        buy.title = reason;
+      }
       actions.append(add, buy);
-    } else {
-      const state = make("button", "btn secondary", item.availability === "coming_soon" ? "Coming soon" : "Preview only");
-      state.type = "button";
-      state.disabled = true;
-      state.title = "This listing does not have an available package yet.";
-      actions.append(state);
     }
 
     const details = make("button", "cos-details", "Details");
