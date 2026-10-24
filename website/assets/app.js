@@ -1461,6 +1461,7 @@ document.addEventListener("click", (event) => {
   let orderItems = [];
   let signedIn = false;
   let purchasable = false;
+  const checkoutParams = new URLSearchParams(window.location.search);
 
   function el(tag, cls, text) {
     const node = document.createElement(tag);
@@ -1479,8 +1480,73 @@ document.addEventListener("click", (event) => {
       Boolean(item.packageAvailable) && item.priceCents !== null && Number(item.priceCents) > 0;
   }
 
+  async function confirmPurchaseReturn() {
+    const sessionId = checkoutParams.get("session_id") || "";
+    button.disabled = true;
+    button.hidden = true;
+    button.textContent = "Confirming purchase…";
+    accountState.replaceChildren(el("span", "", "Verifying payment with the store…"));
+    itemsRoot.replaceChildren(el("div", "empty-state", "Confirming your payment. Cosmetics are not unlocked until the store verifies it."));
+    if (!/^cs_(test|live)_[A-Za-z0-9]+$/.test(sessionId)) {
+      throw new Error("The payment return is missing a valid checkout session ID.");
+    }
+
+    const response = await fetch("/api/store/confirm?session_id=" + encodeURIComponent(sessionId), {
+      credentials: "same-origin",
+      cache: "no-store",
+      headers: { "Accept": "application/json" }
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok || data.confirmed !== true) {
+      throw new Error(data.error || "Payment is not confirmed yet. Retry confirmation in a moment.");
+    }
+
+    itemsRoot.replaceChildren();
+    const entries = Array.isArray(data.items) ? data.items : [];
+    for (const item of entries) {
+      const row = el("article", "checkout-item-row");
+      row.append(
+        el("div", "checkout-item-title", item.name || "Purchased item"),
+        el("p", "", "Payment confirmed · " + (item.kind === "cosmetic" ? "Cosmetic ownership unlocked" : "Store item owned")),
+        el("span", "store-status-chip is-available", "Purchased")
+      );
+      itemsRoot.append(row);
+      window.VoidCraftCart?.remove(item.id);
+    }
+    if (!entries.length) itemsRoot.append(el("div", "empty-state", "Payment confirmed, but the order had no display items. Contact VoidCraft support before retrying a purchase."));
+    if (totalLabel) totalLabel.textContent = window.VoidCraftCart.money(Number(data.totalCents || 0), data.currency || "USD");
+
+    accountState.replaceChildren(el("strong", "", "Payment confirmed."));
+    const link = el("a", "btn", data.hasCosmetics ? "Equip your cosmetics →" : "Return to Feature Store →");
+    link.href = data.hasCosmetics ? "cosmetic-store.html?purchase=success" : "feature-store.html?purchase=success";
+    accountState.append(link);
+    say(data.hasCosmetics
+      ? "Purchase verified. Your cosmetic Equip option is now unlocked on the Cosmetic Store."
+      : "Purchase verified. Your item is now owned by this account.", "success");
+    button.hidden = true;
+    button.disabled = true;
+    return true;
+  }
+
   async function loadCheckout() {
     button.disabled = true;
+    if (checkoutParams.get("purchase") === "success") {
+      try {
+        await confirmPurchaseReturn();
+      } catch (error) {
+        itemsRoot.replaceChildren(el("div", "empty-state", error?.message || "Unable to confirm this payment."));
+        accountState.replaceChildren(el("span", "", "Payment confirmation needs another check."));
+        say((error?.message || "Payment confirmation failed.") + " No cosmetic has been unlocked yet.", "error");
+        button.hidden = false;
+        button.disabled = false;
+        button.textContent = "Retry payment confirmation";
+      }
+      return;
+    }
+    button.hidden = false;
+    if (checkoutParams.get("purchase") === "cancelled") {
+      say("Payment was canceled. Nothing was charged. You can return to your cart or the store.", "info");
+    }
     itemsRoot.replaceChildren(el("div", "empty-state", "Loading your order…"));
     try {
       const authResponse = await fetch("/api/auth/me", {
@@ -1543,9 +1609,13 @@ document.addEventListener("click", (event) => {
   }
 
   button.addEventListener("click", async () => {
+    if (checkoutParams.get("purchase") === "success") {
+      loadCheckout();
+      return;
+    }
     if (button.disabled || !signedIn || !purchasable) return;
     button.disabled = true;
-    button.textContent = "Checking order…";
+    button.textContent = "Opening secure checkout…";
     say("");
     try {
       const response = await fetch("/api/store/checkout", {
@@ -1557,12 +1627,18 @@ document.addEventListener("click", (event) => {
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(data.error || "Secure checkout is unavailable (HTTP " + response.status + ").");
-      say("The checkout provider returned successfully.", "success");
+      if (typeof data.checkoutUrl !== "string" || !data.checkoutUrl.startsWith("https://checkout.stripe.com/")) {
+        throw new Error("The payment provider did not return a valid secure checkout URL.");
+      }
+      window.location.assign(data.checkoutUrl);
+      return;
     } catch (error) {
       say((error?.message || "Checkout is unavailable.") + " No charge has been made.", "error");
     } finally {
-      button.disabled = !purchasable;
-      button.textContent = "Continue to secure payment →";
+      if (checkoutParams.get("purchase") !== "success") {
+        button.disabled = !purchasable;
+        button.textContent = "Continue to secure payment →";
+      }
     }
   });
 
