@@ -54,6 +54,43 @@ public final class VoidCraftCosmeticFeatureRenderer extends FeatureRenderer<Abst
         };
     }
 
+    private static void renderHalo(
+        ModelPart part,
+        MatrixStack matrices,
+        VertexConsumer vertices,
+        int light,
+        int color
+    ) {
+        // 1.21 uses the packed-color overload; older game releases use RGBA floats.
+        try {
+            java.lang.reflect.Method modern = ModelPart.class.getMethod(
+                "render", MatrixStack.class, VertexConsumer.class,
+                int.class, int.class, int.class
+            );
+            modern.invoke(part, matrices, vertices, light, OverlayTexture.DEFAULT_UV, color);
+            return;
+        } catch (NoSuchMethodException ignored) {
+            // Try the older RGBA overload below.
+        } catch (ReflectiveOperationException exception) {
+            throw new IllegalStateException("Could not render VoidCraft cosmetic on this version.", exception);
+        }
+
+        float red = ((color >> 16) & 0xFF) / 255.0F;
+        float green = ((color >> 8) & 0xFF) / 255.0F;
+        float blue = (color & 0xFF) / 255.0F;
+        float alpha = ((color >>> 24) & 0xFF) / 255.0F;
+        try {
+            java.lang.reflect.Method legacy = ModelPart.class.getMethod(
+                "render", MatrixStack.class, VertexConsumer.class,
+                int.class, int.class, float.class, float.class, float.class, float.class
+            );
+            legacy.invoke(part, matrices, vertices, light, OverlayTexture.DEFAULT_UV,
+                red, green, blue, alpha);
+        } catch (ReflectiveOperationException exception) {
+            throw new IllegalStateException("This Minecraft version has no supported ModelPart renderer.", exception);
+        }
+    }
+
     @Override
     public void render(
         MatrixStack matrices,
@@ -73,7 +110,7 @@ public final class VoidCraftCosmeticFeatureRenderer extends FeatureRenderer<Abst
         VertexConsumer vertices = vertexConsumers.getBuffer(
             RenderLayer.getEntityTranslucent(VoidCraftCosmeticsClient.HALO_TEXTURE)
         );
-        halo.render(matrices, vertices, light, OverlayTexture.DEFAULT_UV, tint());
+        renderHalo(halo, matrices, vertices, light, tint());
         matrices.pop();
     }
 }
