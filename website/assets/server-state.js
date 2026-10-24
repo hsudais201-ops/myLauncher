@@ -15,7 +15,14 @@
   function loadServers() {
     try {
       const parsed = JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
-      return Array.isArray(parsed) ? parsed.filter(x => typeof x === "string").slice(0, 30) : [];
+      if (!Array.isArray(parsed)) return [];
+      const saved = parsed.filter(x => typeof x === "string").slice(0, 30);
+      // Automatically remove this known failing address from saved browser lists.
+      const cleaned = saved.filter(address => !/^eventmc\.xyz(?::|$)/i.test(address.trim()));
+      if (cleaned.length !== saved.length) {
+        try { localStorage.setItem(STORAGE_KEY, JSON.stringify(cleaned)); } catch (_) {}
+      }
+      return cleaned;
     } catch { return []; }
   }
   function saveServers() {
