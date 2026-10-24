@@ -2,134 +2,130 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="theme-color" content="#090b13">
-<meta name="description" content="Discover VoidCraft Launcher: an Android-first Minecraft Java launcher project, its feature roadmap, optional add-ons, customization, community and development status.">
-<title>VoidCraft — Minecraft, your way</title>
-<link rel="icon" href="assets/logo.svg">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#080a12">
+<meta name="description" content="VoidCraft — a community-built, Android-first Minecraft Java launcher project with account tools, optional features, cosmetics, server utilities and Social Hub chat.">
+<meta property="og:title" content="VoidCraft — Your Minecraft. Your world.">
+<meta property="og:description" content="Explore the VoidCraft launcher project, tools, marketplace concepts and community hub.">
+<meta property="og:type" content="website">
+<link rel="icon" href="assets/logo.svg" type="image/svg+xml">
 <link rel="stylesheet" href="assets/styles.css">
+<title>VoidCraft — Your Minecraft. Your world.</title>
 </head>
 <body>
 <header>
   <div class="bar">
-    <a class="brand" href="index.html"><img src="assets/logo.svg" alt=""><span>VOIDCRAFT</span></a>
+    <a class="brand" href="index.html" aria-label="VoidCraft home"><img src="assets/logo.svg" alt=""><span>VOIDCRAFT</span></a>
     <nav class="nav" aria-label="Main navigation">
-      <a href="index.html" class="active">Home</a><a href="downloads.html">Downloads</a><a href="feature-store.html">Feature Store</a><a href="cosmetic-store.html">Cosmetics</a><a href="servers.html">Servers</a><a href="social-hub.html">Social Hub</a><a href="community.html">Community</a><a href="developers.html">Developers</a><a href="docs.html">Docs</a>
+      <a href="index.html" class="active" aria-current="page">Home</a>
+      <a href="downloads.html">Downloads</a>
+      <a href="feature-store.html">Feature Store</a>
+      <a href="cosmetic-store.html">Cosmetics</a>
+      <a href="servers.html">Servers</a>
+      <a href="social-hub.html">Chat &amp; Friends</a>
+      <a href="community.html">Community</a>
+      <a href="developers.html">Developers</a>
+      <a href="docs.html">Docs</a>
     </nav>
     <div class="account-links"><a href="signin.html">Sign in</a><a href="profile.html">Profile</a></div>
   </div>
 </header>
-<main>
-  <section class="hero hero-split home-hero">
+
+<main id="vc-main">
+  <section class="hero hero-split home-hero" aria-labelledby="home-title">
     <div class="hero-copy">
-      <div class="eyebrow">VOIDCRAFT · ANDROID-FIRST MINECRAFT JAVA LAUNCHER PROJECT</div>
-      <h1>Minecraft, <span class="headline-glow">your way.</span></h1>
-      <p class="hero-lead">One place to work toward a more personal Minecraft Java experience on Android: launcher controls, instances, versions, optional features, customization and community tools.</p>
-      <div class="actions"><a class="btn" href="downloads.html">Check launcher releases →</a><a class="btn secondary" href="feature-store.html">Explore the Feature Store</a><a class="btn secondary" href="social-hub.html">Social Hub beta →</a></div>
-      <p class="hero-footnote">This page describes the project and its roadmap. It does not claim every planned function is already implemented or tested.</p>
+      <div class="eyebrow">A COMMUNITY PROJECT · BUILT FOR MOBILE</div>
+      <h1 id="home-title">Your Minecraft.<br><span class="headline-glow">Your world.</span></h1>
+      <p class="hero-lead">VoidCraft is building a more personal way to explore Minecraft Java on Android — with a launcher project, optional tools, customization, and a place to connect with other players.</p>
+      <div class="actions">
+        <a class="btn" href="downloads.html">Explore launcher releases <span aria-hidden="true">↗</span></a>
+        <a class="btn secondary" href="social-hub.html">Open Chat &amp; Friends <span aria-hidden="true">↗</span></a>
+      </div>
+      <div class="home-trust-row" aria-label="Project principles">
+        <span><b aria-hidden="true">✦</b> Phone-first design</span>
+        <span><b aria-hidden="true">◇</b> Clear feature status</span>
+        <span><b aria-hidden="true">⌁</b> Community-led</span>
+      </div>
     </div>
     <div class="hero-visual">
-      <button type="button" class="image-preview-trigger main-art-trigger" data-image-preview="assets/previews/voidcraft-home.svg" data-image-title="VoidCraft launcher dashboard concept">
-        <img src="assets/previews/voidcraft-home.svg" alt="Original concept preview of a VoidCraft launcher dashboard" class="hero-art">
-        <span class="image-overlay-label"><span class="preview-icon">↗</span> Tap to enlarge preview</span>
+      <button type="button" class="image-preview-trigger main-art-trigger" data-image-preview="assets/previews/voidcraft-home.svg" data-image-title="VoidCraft interface concept">
+        <img src="assets/previews/voidcraft-home.svg" alt="Illustrative VoidCraft launcher dashboard concept" class="hero-art" fetchpriority="high">
+        <span class="image-overlay-label"><span class="preview-icon" aria-hidden="true">↗</span> View interface concept</span>
       </button>
-      <p class="preview-caption">Original VoidCraft interface concept · illustrative preview, not proof of completed features</p>
+      <p class="preview-caption">Concept artwork, not a screenshot of a completed launcher build.</p>
     </div>
   </section>
 
-  <section class="status-strip" aria-label="Project status at a glance">
-    <div><span class="status-dot active-dot"></span><strong>Website accounts</strong><span>Registration and sign-in available</span></div>
-    <div><span class="status-dot roadmap-dot"></span><strong>Launcher development</strong><span>Core app and runtime need build/device validation</span></div>
-    <div><span class="status-dot concept-dot"></span><strong>Store previews</strong><span>Concepts; package installation not connected</span></div>
+  <section class="home-state-grid" aria-label="Project status">
+    <article class="home-state-card"><span class="home-state-icon" aria-hidden="true">◉</span><div><strong>Website account</strong><p>Registration, sign-in and profile pages are connected to the site API.</p></div><span class="home-state-chip">Connected · test recommended</span></article>
+    <article class="home-state-card"><span class="home-state-icon" aria-hidden="true">⌁</span><div><strong>Social Hub</strong><p>Browser beta with friend requests and private messaging.</p></div><span class="home-state-chip is-beta">Staging beta</span></article>
+    <article class="home-state-card"><span class="home-state-icon" aria-hidden="true">◇</span><div><strong>Stores and launcher</strong><p>Catalog previews and project builds need per-item or per-release checks.</p></div><span class="home-state-chip is-preview">Not all features released</span></article>
   </section>
 
-  <section class="welcome-journey" aria-labelledby="journey-title">
-    <div class="journey-heading">
-      <div><div class="eyebrow">START EXPLORING</div><h2 id="journey-title">Your next move in the Void.</h2><p>Pick what you're here for. Jump straight into the part of VoidCraft that interests you.</p></div>
-      <span class="journey-orbit" aria-hidden="true">✦</span>
+  <section class="home-section" aria-labelledby="explore-title">
+    <div class="section-top">
+      <div><div class="eyebrow">YOUR NEXT MOVE</div><h2 id="explore-title">Everything starts here.</h2></div>
+      <p>Jump directly to the part of VoidCraft you need. Each section keeps its own status visible so preview pages never look like released software.</p>
     </div>
-    <div class="journey-grid">
-      <a class="journey-card journey-download" href="downloads.html">
-        <span class="journey-number">01 / GET STARTED</span><span class="journey-icon" aria-hidden="true">↧</span>
-        <h3>Find a launcher build</h3><p>Check release notes and available downloads before installing.</p><span class="journey-link">Explore releases <span aria-hidden="true">↗</span></span>
+    <div class="home-explore-grid">
+      <a class="home-explore-card home-card-launcher" href="downloads.html">
+        <span class="home-card-index">01 / LAUNCHER</span><span class="home-card-glyph" aria-hidden="true">↧</span>
+        <h3>Launcher &amp; releases</h3><p>Review available builds, release notes and source before installing anything.</p><span class="home-card-link">Explore releases <span aria-hidden="true">↗</span></span>
       </a>
-      <a class="journey-card journey-store" href="feature-store.html">
-        <span class="journey-number">02 / MAKE IT YOURS</span><span class="journey-icon" aria-hidden="true">◇</span>
-        <h3>Explore the Feature Store</h3><p>Browse optional ideas, check availability, and see what is genuinely ready.</p><span class="journey-link">Browse features <span aria-hidden="true">↗</span></span>
+      <a class="home-explore-card home-card-features" href="feature-store.html">
+        <span class="home-card-index">02 / TOOLS</span><span class="home-card-glyph" aria-hidden="true">⌘</span>
+        <h3>Feature Store</h3><p>Discover optional tools, community submissions and their real availability.</p><span class="home-card-link">Browse features <span aria-hidden="true">↗</span></span>
       </a>
-      <a class="journey-card journey-social" href="social-hub.html">
-        <span class="journey-number">03 / MEET THE COMMUNITY</span><span class="journey-icon" aria-hidden="true">⌁</span>
-        <h3>Chat &amp; Friends</h3><p>Visit the browser beta to send friend requests and message accepted friends.</p><span class="journey-link">Open Social Hub <span aria-hidden="true">↗</span></span>
+      <a class="home-explore-card home-card-cosmetics" href="cosmetic-store.html">
+        <span class="home-card-index">03 / PERSONALIZE</span><span class="home-card-glyph" aria-hidden="true">✧</span>
+        <h3>Cosmetic Market</h3><p>Explore original cosmetic concepts and view confirmed ownership in your profile.</p><span class="home-card-link">Explore cosmetics <span aria-hidden="true">↗</span></span>
+      </a>
+      <a class="home-explore-card home-card-chat" href="social-hub.html">
+        <span class="home-card-index">04 / COMMUNITY</span><span class="home-card-glyph" aria-hidden="true">✉</span>
+        <h3>Chat &amp; Friends</h3><p>Send friend requests and chat privately with accepted friends in the browser beta.</p><span class="home-card-link">Enter Social Hub <span aria-hidden="true">↗</span></span>
+      </a>
+      <a class="home-explore-card home-card-servers" href="servers.html">
+        <span class="home-card-index">05 / MULTIPLAYER</span><span class="home-card-glyph" aria-hidden="true">◎</span>
+        <h3>Server tools</h3><p>Open server utilities and check the limits of live status information.</p><span class="home-card-link">Open server tools <span aria-hidden="true">↗</span></span>
+      </a>
+      <a class="home-explore-card home-card-build" href="developers.html">
+        <span class="home-card-index">06 / BUILD TOGETHER</span><span class="home-card-glyph" aria-hidden="true">⌘</span>
+        <h3>Developer Hub</h3><p>Learn how submissions are reviewed and how to share a feature idea.</p><span class="home-card-link">Visit Developer Hub <span aria-hidden="true">↗</span></span>
       </a>
     </div>
-    <div class="journey-foot"><span><span class="journey-pulse"></span> A project in progress, built in the open</span><a href="https://github.com/hsudais201-ops/myLauncher">See source and changes →</a></div>
   </section>
 
-  <section class="home-section quick-answers" aria-labelledby="quick-answers-title">
-    <div class="section-top"><div><div class="eyebrow">QUICK ANSWERS</div><h2 id="quick-answers-title">Before you dive in</h2></div><p>Clear answers help you know what works now and what is still being built.</p></div>
+  <section class="home-section home-community-band" aria-labelledby="community-title">
+    <div class="home-community-mark" aria-hidden="true"><img src="assets/logo.svg" alt=""></div>
+    <div class="home-community-copy"><div class="eyebrow">THE VOIDCRAFT COMMUNITY</div><h2 id="community-title">Your people. Your projects. One place to start.</h2><p>Chat, browse docs, read project notes and find ways to contribute. Social Hub is still a separate staging beta account, not Microsoft or Minecraft sign-in.</p><div class="actions"><a class="btn" href="social-hub.html">Open Social Hub <span aria-hidden="true">↗</span></a><a class="btn secondary" href="community.html">Community information</a></div></div>
+  </section>
+
+  <section class="home-section" aria-labelledby="roadmap-title">
+    <div class="section-top"><div><div class="eyebrow">BUILT WITH CARE</div><h2 id="roadmap-title">Useful features, without the guesswork.</h2></div><p>These are goals for the launcher project, not guarantees that every function is already available in the latest APK.</p></div>
+    <div class="home-capability-grid">
+      <article class="card"><span class="home-capability-number">01</span><h3>Versions &amp; instances</h3><p>Work toward distinct profiles, version selection and safer per-instance settings without overwriting existing worlds.</p><a href="docs.html">Read project docs →</a></article>
+      <article class="card"><span class="home-capability-number">02</span><h3>Mods &amp; performance</h3><p>Plan clear mod-loader compatibility, memory options, diagnostics and useful crash information for supported devices.</p><a href="feature-store.html">Explore optional tools →</a></article>
+      <article class="card"><span class="home-capability-number">03</span><h3>Controls &amp; accessibility</h3><p>Prioritize touch-friendly controls, comfortable text sizes, responsive layouts and reduced-motion support.</p><a href="docs.html">Learn about the project →</a></article>
+      <article class="card"><span class="home-capability-number">04</span><h3>Open development</h3><p>Follow source changes and release notes. A design preview is never treated as proof that a feature is working.</p><a href="https://github.com/hsudais201-ops/myLauncher" rel="noopener">View source on GitHub ↗</a></article>
+    </div>
+  </section>
+
+  <section class="home-section home-answers" aria-labelledby="answers-title">
+    <div class="section-top"><div><div class="eyebrow">CLEAR ANSWERS</div><h2 id="answers-title">Good to know.</h2></div><p>Useful details before signing in, buying, downloading or chatting.</p></div>
     <div class="answer-list">
-      <details><summary>Can I download and play right now?</summary><p>Check the <a href="downloads.html">releases page</a> for available builds and notes. Device compatibility and in-game functionality must be verified for each release.</p></details>
-      <details><summary>Are all Feature Store items installable?</summary><p>No. Some entries are concepts or previews. Check each listing's availability and package details; a preview is not an installed feature.</p></details>
-      <details><summary>Can I chat with friends?</summary><p>The <a href="social-hub.html">Social Hub browser beta</a> supports friend requests and private messages after a request is accepted. It currently uses a separate beta account and staging service.</p></details>
+      <details><summary>Does website sign-in also sign me into Minecraft?</summary><p>No. The VoidCraft website account manages your web profile. It is not Microsoft/Xbox/Minecraft authentication and does not verify game ownership.</p></details>
+      <details><summary>Can I buy cosmetics right now?</summary><p>The Cosmetic Market may show preview listings. A cosmetic can only be purchased after a real price, released package and secure payment configuration are active. Website equip does not by itself render a cosmetic in Minecraft.</p></details>
+      <details><summary>Is Social Hub using the same account?</summary><p>Not yet. Social Hub is an independently authenticated staging beta. Use a unique password there. The same VoidCraft visual branding does not mean the accounts are connected.</p></details>
     </div>
   </section>
 
-  <section class="home-section">
-    <div class="section-top"><div><div class="eyebrow">THE PROJECT</div><h2>A launcher foundation with a distinct VoidCraft identity</h2></div><p>VoidCraft is being developed around the existing launcher foundation instead of replacing its essential runtime internals without a technical reason.</p></div>
-    <div class="feature-detail-grid">
-      <article class="card roadmap-card"><div class="card-icon">◈</div><div class="mini-label">CORE FOUNDATION</div><h3>Keep the essential engine working</h3><p>Preserve the existing runtime approach, renderer/native components, libraries, version metadata and working compatibility code while building original VoidCraft screens and features around it.</p><span class="status-label">Preservation principle</span></article>
-      <article class="card roadmap-card"><div class="card-icon">▣</div><div class="mini-label">ANDROID-FIRST</div><h3>Designed for phones, tablets and Chromebook</h3><p>Prioritize responsive layouts, readable controls, touch-friendly navigation and clear device compatibility information. Actual support depends on the device, Android environment and build.</p><span class="status-label">Design direction</span></article>
-      <article class="card roadmap-card"><div class="card-icon">⚙</div><div class="mini-label">TRANSPARENCY</div><h3>Clear status, not empty promises</h3><p>Separate working functions, prototypes and planned work. A preview or settings screen alone will not be treated as proof that a feature launches successfully in-game.</p><span class="status-label">Project quality goal</span></article>
-    </div>
+  <section class="home-closing">
+    <div><div class="eyebrow">WELCOME TO VOIDCRAFT</div><h2>Make room for your kind of Minecraft.</h2><p>Start with the project, find the tools that are ready, and join the community as the launcher grows.</p></div>
+    <div class="actions"><a class="btn" href="downloads.html">Explore VoidCraft</a><a class="btn secondary" href="signin.html">Create your account</a></div>
   </section>
-
-  <section class="home-section">
-    <div class="section-top"><div><div class="eyebrow">LAUNCHER ROADMAP</div><h2>What VoidCraft is building toward</h2></div><p>The following describes target functionality. Availability must be verified in the actual launcher build before it is called complete.</p></div>
-    <div class="feature-detail-grid">
-      <article class="card roadmap-card"><div class="card-icon">▶</div><h3>Versions and launch flow</h3><p>Work toward choosing compatible Minecraft Java versions, checking required files, reporting downloads clearly, and surfacing launch errors with useful diagnostics.</p><span class="status-label planned">In development / validation required</span></article>
-      <article class="card roadmap-card"><div class="card-icon">▤</div><h3>Instances and profiles</h3><p>Target separate game profiles with version, loader and per-instance preferences, plus safe clone, import, export and organization options without overwriting a user's worlds.</p><span class="status-label planned">Planned / verify per build</span></article>
-      <article class="card roadmap-card"><div class="card-icon">◇</div><h3>Mods, loaders and modpacks</h3><p>Target supported loader and modpack workflows with version compatibility checks, clear install results and recovery paths. Support will vary by Minecraft version and device.</p><span class="status-label planned">Planned / compatibility dependent</span></article>
-      <article class="card roadmap-card"><div class="card-icon">⌁</div><h3>Touch controls</h3><p>Target touch layouts that are easier to adapt to different screens, with a touch-control designer and practical in-game usability checks.</p><span class="status-label planned">Planned</span></article>
-      <article class="card roadmap-card"><div class="card-icon">▧</div><h3>Worlds, settings and backups</h3><p>Target world-safe management, backup and restore guidance, configurable memory and launch settings where supported, and safeguards against accidental data loss.</p><span class="status-label planned">Planned</span></article>
-      <article class="card roadmap-card"><div class="card-icon">◉</div><h3>Performance and stability</h3><p>Target compatibility-aware performance guidance, reversible settings and useful diagnostics. FPS and stability claims require repeatable testing on real supported devices; no universal FPS guarantee is made.</p><span class="status-label planned">Planned / testing required</span></article>
-    </div>
-  </section>
-
-  <section class="home-section store-section">
-    <div class="section-top"><div><div class="eyebrow">OPTIONAL ADD-ONS</div><h2>A Feature Store that doesn't replace the launcher core</h2></div><p>VoidCraft's store concept is for optional, reviewable extensions. Essential launch, runtime, rendering and file-management components must remain part of the core where required.</p></div>
-    <div class="feature-detail-grid">
-      <article class="card roadmap-card"><h3>Smart Performance Advisor</h3><p>Potential device snapshot, compatibility notes, reversible presets and explanations of trade-offs.</p><span class="status-label planned">Concept preview</span></article>
-      <article class="card roadmap-card"><h3>Server Status</h3><p>Potential saved-server list, online/offline result, MOTD, icon, player count and edit/remove/refresh actions through a real status service.</p><span class="status-label planned">Concept preview</span></article>
-      <article class="card roadmap-card"><h3>Friends and Chat</h3><p>The browser beta supports friend requests and private messages after a request is accepted. It uses a separate beta account and staging service; email recovery and end-to-end encryption are not available.</p><span class="status-label planned">Limited browser beta · use with care</span></article>
-      <article class="card roadmap-card"><h3>Backup Manager</h3><p>Potential backup verification, restore preview and safeguards before replacing or deleting world files.</p><span class="status-label planned">Concept preview</span></article>
-      <article class="card roadmap-card"><h3>Theme Studio</h3><p>Potential custom colors, backgrounds, density and layout options so the launcher can feel personal without changing the game runtime.</p><span class="status-label planned">Concept preview</span></article>
-      <article class="card roadmap-card"><h3>Community-submitted features</h3><p>Long-term goal: individually managed optional features, each with a dedicated page, source/licence details, permissions, compatibility notes and review status.</p><span class="status-label planned">Uploads and installation not connected</span></article>
-    </div>
-    <div class="actions"><a class="btn" href="feature-store.html">View all feature concepts →</a><a class="btn secondary" href="developers.html">Developer submission rules</a></div>
-  </section>
-
-  <section class="home-section two-column-section">
-    <article class="card big-card"><div class="eyebrow">PERSONALIZATION</div><h2>Cosmetics and an original interface</h2><p>VoidCraft is building its own visual identity: a dark interface, violet/cyan accents, responsive cards and motion effects. The Cosmetic Store page contains theme ideas and original illustrations; purchases and cosmetic unlocks are not active.</p><a href="cosmetic-store.html">Explore cosmetic concepts →</a></article>
-    <article class="card big-card"><div class="eyebrow">COMMUNITY TOOLS</div><h2>Servers, docs and developer resources</h2><p>Project pages outline server tracking, community support, safe feature submissions and documentation. Live server pings, community sign-up links and upload workflows must be connected before they can be used as real services.</p><div class="text-link-row"><a href="servers.html">Server page →</a><a href="community.html">Community →</a><a href="docs.html">Docs →</a></div></article>
-  </section>
-
-  <section class="home-section">
-    <div class="section-top"><div><div class="eyebrow">ACCOUNT AND SECURITY</div><h2>Your website username is created with your account</h2></div><p>Registration asks for a username, email and password together. The username is saved to the website profile; use the same username when signing in.</p></div>
-    <div class="account-info-grid">
-      <article class="card"><h3>What your website account does</h3><p>It provides registration, sign-in, a session and a basic profile. A visible website role such as Owner is part of this website account.</p></article>
-      <article class="card"><h3>What it does not do yet</h3><p>It is not Microsoft, Xbox or Minecraft authentication, does not prove game ownership, and does not currently sign into the Android launcher.</p></article>
-      <article class="card"><h3>Security notes</h3><p>Passwords are stored as salted chained PBKDF2-HMAC-SHA-256 hashes, not plain text. Session cookies are Secure, HttpOnly and SameSite. Email verification and password reset still need implementation.</p></article>
-    </div>
-    <div class="actions"><a class="btn" href="signin.html">Sign in / Create account →</a><a class="btn secondary" href="profile.html">Open profile</a><a class="btn secondary" href="security.html">Security information</a></div>
-  </section>
-
-  <section class="closing-panel">
-    <div><div class="eyebrow">FOLLOW THE PROJECT</div><h2>Built incrementally, tested honestly.</h2><p>Follow releases and source changes, review the project documentation, and check each feature's status before relying on it.</p></div>
-    <div class="actions"><a class="btn" href="https://github.com/hsudais201-ops/myLauncher/releases">GitHub releases →</a><a class="btn secondary" href="https://github.com/hsudais201-ops/myLauncher">View source →</a></div>
-  </section>
-  <div class="notice"><strong>Important:</strong> The website is available, but not every launcher or store feature listed above is implemented. Verified launcher builds should be obtained from the official releases page. VoidCraft is an independent community project and is not affiliated with Mojang or Microsoft.</div>
 </main>
-<footer><div class="foot"><span>© VoidCraft community project · Independent from Mojang and Microsoft</span><span><a href="privacy.html">Privacy</a> · <a href="terms.html">Terms</a> · <a href="security.html">Security</a></span></div></footer>
+
+<footer><div class="foot"><span>© VoidCraft community project · Independent from Mojang and Microsoft</span><span><a href="privacy.html">Privacy</a> · <a href="terms.html">Terms</a> · <a href="security.html">Security</a> · <a href="changelog.html">Changelog</a></span></div></footer>
 <script src="assets/app.js" defer></script>
 </body>
 </html>
