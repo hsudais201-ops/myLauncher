@@ -3,7 +3,7 @@ name: Voidcraft integrated Android engine build
 
 on:
   push:
-    branches: ["launcher/bootstrap"]
+    branches: ["launcher/bootstrap", "feature/fabric-in-game-cosmetics"]
     paths:
       - "app/src/main/java/com/voidcraft/launcher/**"
       - "app/src/main/assets/store/**"
@@ -213,6 +213,10 @@ jobs:
           grep -Fq 'applyVoidcraftSelectedRenderer();' "$ENGINE_ACTIVITY"
           grep -Fq 'pojavRendererName = requestedRenderer' "$ENGINE_ACTIVITY"
           grep -Fq 'voidcraft.renderer' "$VOIDCRAFT_MAIN"
+          grep -Fq 'voidcraft.cosmetic_id' "$VOIDCRAFT_MAIN"
+          grep -Fq 'applyVoidcraftCosmetic();' "$ENGINE_ACTIVITY"
+          grep -Fq 'voidcraft-cosmetics.json' "$ENGINE_ACTIVITY"
+          grep -Fq 'Tools.DIR_GAME_HOME' "$ENGINE_ACTIVITY"
           ENGINE_JRE_UTILS="engine/Amethyst-Android/app_pojavlauncher/src/main/java/net/kdt/pojavlaunch/utils/JREUtils.java"
           ENGINE_TOOLS="engine/Amethyst-Android/app_pojavlauncher/src/main/java/net/kdt/pojavlaunch/Tools.java"
           ENGINE_RENDERERS="engine/Amethyst-Android/app_pojavlauncher/src/main/res/values/headings_array.xml"
