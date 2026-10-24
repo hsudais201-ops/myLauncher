@@ -81,10 +81,10 @@ def patch_upstream(upstream: Path) -> None:
         raise ValueError("The patched strings.xml is missing app_name=Voidcraft")
     # Upstream defines app_short_name through Gradle resValue, not strings.xml.
     required_gradle_values = (
-        '"app_name", "myLauncher (Debug)"',
-        '"app_name", "myLauncher"',
-        '"app_short_name", "myLauncher (Debug)"',
-        '"app_short_name", "myLauncher"',
+        '"app_name", "Voidcraft (Debug)"',
+        '"app_name", "Voidcraft"',
+        '"app_short_name", "Voidcraft (Debug)"',
+        '"app_short_name", "Voidcraft"',
         "'application_package', 'com.mf.mylauncher.debug'",
         "'application_package', 'com.mf.mylauncher'",
         "'storageProviderAuthorities', 'com.mf.mylauncher.scoped.gamefolder.debug'",
