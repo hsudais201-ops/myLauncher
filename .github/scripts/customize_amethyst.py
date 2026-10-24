@@ -694,7 +694,7 @@ def patch_upstream(upstream: Path) -> None:
             or not title_match
             or not subtitle_match
             or 'android:layout_width="0dp"' not in title_match.group(0)
-            or 'android:text="myLauncher"' not in title_match.group(0)
+            or 'android:text="Voidcraft"' not in title_match.group(0)
             or 'android:layout_width="0dp"' not in subtitle_match.group(0)
             or 'android:text="Minecraft Java Edition · built for lightweight devices"' not in subtitle_match.group(0)
             or 'app:layout_constraintTop_toBottomOf="@id/mylauncher_hero_title"' not in subtitle_match.group(0)
