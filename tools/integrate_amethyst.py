@@ -172,7 +172,9 @@ COSMETIC_HANDOFF_METHOD = """    private void applyVoidcraftCosmetic() {
         }
     }
 
-"""\nRENDERER_HANDOFF_METHOD = """    private void applyVoidcraftSelectedRenderer() {
+"""
+
+RENDERER_HANDOFF_METHOD = """    private void applyVoidcraftSelectedRenderer() {
         String requestedRenderer = getIntent() == null ? null :
                 getIntent().getStringExtra("voidcraft.renderer");
         if (requestedRenderer == null || requestedRenderer.isEmpty()) return;
