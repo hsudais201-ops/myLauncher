@@ -192,8 +192,24 @@ def patch_upstream(upstream: Path) -> None:
         'public static String APP_NAME = "myLauncher";',
         str(tools_java),
     )
+    # The upstream non-null initializer hardcodes /games/Amethyst before Android
+    # storage has been initialized. On Android 10+ the real data root is the
+    # app-specific external-files directory. A stale non-null path makes the
+    # startup storage check open MissingStorageActivity before LauncherPreferences
+    # can call initStorageConstants(). Let getPojavStorageRoot(context) select the
+    # correct path for each SDK level instead.
+    tools_text = replace_idempotently(
+        tools_text,
+        'public static String DIR_GAME_HOME = Environment.getExternalStorageDirectory().getAbsolutePath() + "/games/Amethyst";',
+        'public static String DIR_GAME_HOME = null;',
+        str(tools_java),
+    )
     if 'public static String APP_NAME = "Amethyst";' in tools_text:
         raise ValueError("The shared launcher app-name constant still uses upstream branding")
+    if 'public static String DIR_GAME_HOME = Environment.getExternalStorageDirectory().getAbsolutePath() + "/games/Amethyst";' in tools_text:
+        raise ValueError("Pre-initialized legacy storage path can block Android 10+ launcher startup")
+    if 'public static String DIR_GAME_HOME = null;' not in tools_text:
+        raise ValueError("Launcher storage root must be resolved from Context before initialization")
     tools_java.write_text(tools_text, encoding="utf-8")
 
     # The upstream local/offline account flow exists, but this guard blocks it when
