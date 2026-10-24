@@ -3,15 +3,15 @@
   "id": "voidcraft_cosmetics",
   "version": "${version}",
   "name": "VoidCraft Cosmetics",
-  "description": "Client-side VoidCraft cosmetic halo renderer for Minecraft 1.21.1 Fabric.",
+  "description": "Client-side VoidCraft cosmetic halo renderer for this exact Minecraft Fabric target.",
   "environment": "client",
   "entrypoints": {
     "client": ["com.voidcraft.cosmetics.VoidCraftCosmeticsClient"]
   },
   "depends": {
     "fabricloader": ">=0.16.0",
-    "minecraft": "~1.21.1",
-    "java": ">=21",
+    "minecraft": "${minecraft_version}",
+    "java": ">=${java_dependency}",
     "fabric-api": "*"
   }
 }
