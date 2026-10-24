@@ -872,8 +872,11 @@ def patch_upstream(upstream: Path) -> None:
         });"""
     feature_store_listener = """mMyLauncherFeatureStoreButton.setOnClickListener(v -> Tools.swapFragment(
             requireActivity(), FeatureStoreFragment.class, FeatureStoreFragment.TAG, null));"""
-    cosmetics_listener = """mMyLauncherCosmeticsButton.setOnClickListener(v -> Tools.swapFragment(
-            requireActivity(), CosmeticStoreFragment.class, CosmeticStoreFragment.TAG, null));"""
+    cosmetics_listener = """mMyLauncherCosmeticsButton.setOnClickListener(v -> {
+            Bundle cosmeticArgs = new Bundle();
+            cosmeticArgs.putString(CosmeticStoreFragment.ARG_GAME_DIR, getCurrentProfileDirectory().getAbsolutePath());
+            Tools.swapFragment(requireActivity(), CosmeticStoreFragment.class, CosmeticStoreFragment.TAG, cosmeticArgs);
+        });"""
     browse_modrinth_listener = """mMyLauncherBrowseModrinthButton.setOnClickListener(v -> {
             Bundle searchArgs = new Bundle();
             searchArgs.putBoolean(SearchModFragment.ARG_IS_MODPACK, false);
@@ -1197,6 +1200,7 @@ import java.nio.charset.StandardCharsets;
 
 public final class CosmeticStoreFragment extends Fragment {
     public static final String TAG = "CosmeticStoreFragment";
+    public static final String ARG_GAME_DIR = "voidcraft_game_dir";
     private TextView mStatus;
 
     @Nullable
@@ -1238,7 +1242,9 @@ public final class CosmeticStoreFragment extends Fragment {
         mStatus.setTextColor(0xFFB9C0D0);
         mStatus.setPadding(0, dp(14), 0, 0);
         File target = configFile();
-        mStatus.setText("Handoff file: " + target.getAbsolutePath());
+        mStatus.setText(target == null
+            ? "Could not resolve the active Minecraft profile folder."
+            : "Handoff file: " + target.getAbsolutePath());
         content.addView(mStatus, new LinearLayout.LayoutParams(-1, -2));
 
         ScrollView scroll = new ScrollView(requireContext());
@@ -1258,14 +1264,26 @@ public final class CosmeticStoreFragment extends Fragment {
         content.addView(button, params);
     }
 
+    private File gameDirectory() {
+        Bundle args = getArguments();
+        String selectedPath = args == null ? null : args.getString(ARG_GAME_DIR);
+        if (selectedPath != null && !selectedPath.trim().isEmpty()) {
+            File selectedDirectory = new File(selectedPath);
+            if (selectedDirectory.isAbsolute()) return selectedDirectory;
+        }
+        return Tools.DIR_GAME_HOME == null ? null : new File(Tools.DIR_GAME_HOME);
+    }
+
     private File configFile() {
-        return new File(new File(Tools.DIR_GAME_HOME, "config"), "voidcraft-cosmetics.json");
+        File gameDir = gameDirectory();
+        return gameDir == null ? null
+            : new File(new File(gameDir, "config"), "voidcraft-cosmetics.json");
     }
 
     private void saveEquipped(String id, String label) {
-        File gameDir = new File(Tools.DIR_GAME_HOME);
-        if (!gameDir.isDirectory()) {
-            mStatus.setText("Could not find the Minecraft game folder: " + gameDir.getAbsolutePath());
+        File gameDir = gameDirectory();
+        if (gameDir == null || !gameDir.isDirectory()) {
+            mStatus.setText("Could not find the active Minecraft profile folder. Open Cosmetic Store from the launcher's main menu and check storage access.");
             return;
         }
         File configDir = new File(gameDir, "config");
@@ -1275,7 +1293,13 @@ public final class CosmeticStoreFragment extends Fragment {
         }
 
         File target = configFile();
+        if (target == null) {
+            mStatus.setText("Could not resolve the cosmetic config path for the active profile.");
+            return;
+        }
         File temporary = new File(configDir, "voidcraft-cosmetics.json.tmp");
+        File backup = new File(configDir, "voidcraft-cosmetics.json.bak");
+        boolean hadPreviousConfig = target.exists();
         try {
             JSONObject json = new JSONObject();
             json.put("schemaVersion", 1);
@@ -1285,20 +1309,31 @@ public final class CosmeticStoreFragment extends Fragment {
                 output.flush();
                 output.getFD().sync();
             }
-            if (target.exists() && !target.delete()) {
+            if (backup.exists() && !backup.delete()) {
                 temporary.delete();
-                mStatus.setText("Could not replace the existing cosmetic config.");
+                mStatus.setText("Could not clear a previous config backup.");
+                return;
+            }
+            if (hadPreviousConfig && !target.renameTo(backup)) {
+                temporary.delete();
+                mStatus.setText("Could not protect the existing cosmetic config before updating it.");
                 return;
             }
             if (!temporary.renameTo(target)) {
                 temporary.delete();
-                mStatus.setText("Could not finish saving the cosmetic config.");
+                if (hadPreviousConfig && !backup.renameTo(target)) {
+                    mStatus.setText("Save failed and the previous config could not be restored. Backup: " + backup.getAbsolutePath());
+                } else {
+                    mStatus.setText("Could not finish saving the cosmetic config. The previous config was preserved.");
+                }
                 return;
             }
+            if (hadPreviousConfig) backup.delete();
             mStatus.setText(label + " selected. Saved to " + target.getAbsolutePath()
                 + ". Install the matching Fabric mod before launching Minecraft.");
         } catch (Exception exception) {
             temporary.delete();
+            if (hadPreviousConfig && !target.exists() && backup.exists()) backup.renameTo(target);
             mStatus.setText("Could not save cosmetic config: " + exception.getMessage());
         }
     }
