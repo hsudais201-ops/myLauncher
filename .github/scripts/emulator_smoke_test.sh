@@ -12,10 +12,52 @@ adb_limited() {
     timeout --foreground "${seconds}s" adb "$@"
 }
 
+# android-emulator-runner can occasionally expose an ADB device as "offline"
+# after boot. Wait for the guest to finish booting and recover ADB before the
+# large APK install, rather than spending the entire install timeout on a dead
+# transport.
+emulator_ready() {
+    local attempt state booted
+    for attempt in $(seq 1 18); do
+        adb_limited 10 reconnect offline >/dev/null 2>&1 || true
+        state="$(adb_limited 10 get-state 2>/dev/null || true)"
+        if [ "$state" = "device" ]; then
+            booted="$(adb_limited 10 shell getprop sys.boot_completed 2>/dev/null | tr -d '\\r' || true)"
+            if [ "$booted" = "1" ]; then
+                echo "[smoke] emulator is online and boot-complete"
+                return 0
+            fi
+        fi
+        echo "[smoke] emulator not ready (attempt $attempt/18; state: ${state:-unknown})"
+        sleep 5
+    done
+    return 1
+}
+
 echo "[smoke] waiting for emulator device"
-adb_limited 180 wait-for-device
+if ! adb_limited 180 wait-for-device || ! emulator_ready; then
+    echo "[smoke] restarting ADB server once to recover the emulator transport"
+    adb kill-server || true
+    adb start-server
+    if ! emulator_ready; then
+        adb devices -l || true
+        echo "[smoke] emulator never became online; cannot run install/launch test" >&2
+        exit 1
+    fi
+fi
+
 echo "[smoke] installing 140 MB debug APK (software emulators can be slow)"
-adb_limited 240 install -r "$APK_PATH"
+if ! adb_limited 240 install -r "$APK_PATH"; then
+    echo "[smoke] APK install failed; recover ADB and retry once"
+    adb kill-server || true
+    adb start-server
+    if ! emulator_ready; then
+        adb devices -l || true
+        echo "[smoke] emulator transport failed during APK install" >&2
+        exit 1
+    fi
+    adb_limited 240 install -r "$APK_PATH"
+fi
 echo "[smoke] verifying installed package"
 adb_limited 20 shell pm list packages | grep -Fx 'package:com.mf.mylauncher.debug'
 adb_limited 20 shell pm path com.mf.mylauncher.debug | grep -F 'package:'
