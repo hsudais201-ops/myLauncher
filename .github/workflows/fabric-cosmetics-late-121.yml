@@ -1,0 +1,90 @@
+name: VoidCraft late 1.21 Fabric cosmetics
+
+on:
+  push:
+    branches: ["feature/fabric-cosmetics-late-121"]
+    paths:
+      - "cosmetics-fabric-expanded/**"
+      - "cosmetics-fabric/src/**"
+      - ".github/workflows/fabric-cosmetics-late-121.yml"
+  pull_request:
+    branches: ["feature/fabric-in-game-cosmetics"]
+    paths:
+      - "cosmetics-fabric-expanded/**"
+      - "cosmetics-fabric/src/**"
+      - ".github/workflows/fabric-cosmetics-late-121.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: voidcraft-cosmetics-late-121-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  fabric-cosmetics:
+    name: Build/test Fabric cosmetics ${{ matrix.minecraft_version }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - minecraft_version: "1.21.8"
+            yarn_mappings: "1.21.8+build.1"
+            fabric_version: "0.136.1+1.21.8"
+          - minecraft_version: "1.21.9"
+            yarn_mappings: "1.21.9+build.1"
+            fabric_version: "0.134.1+1.21.9"
+          - minecraft_version: "1.21.10"
+            yarn_mappings: "1.21.10+build.3"
+            fabric_version: "0.138.4+1.21.10"
+          - minecraft_version: "1.21.11"
+            yarn_mappings: "1.21.11+build.6"
+            fabric_version: "0.141.6+1.21.11"
+    steps:
+      - name: Check out source tree
+        uses: actions/checkout@v4
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+      - name: Set up compatible Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "9.2.0"
+      - name: Compile, test, and package this exact Minecraft target
+        working-directory: cosmetics-fabric-expanded
+        env:
+          TARGET_MINECRAFT_VERSION: ${{ matrix.minecraft_version }}
+          TARGET_YARN_MAPPINGS: ${{ matrix.yarn_mappings }}
+          TARGET_FABRIC_VERSION: ${{ matrix.fabric_version }}
+        run: |
+          gradle clean test build --no-daemon \
+            -Pminecraft_version="$TARGET_MINECRAFT_VERSION" \
+            -Pyarn_mappings="$TARGET_YARN_MAPPINGS" \
+            -Pfabric_version="$TARGET_FABRIC_VERSION"
+      - name: Verify exact target JAR and metadata
+        shell: bash
+        run: |
+          set -euo pipefail
+          JAR="$(find cosmetics-fabric-expanded/build/libs -maxdepth 1 -type f -name 'voidcraft-cosmetics-fabric-mc${{ matrix.minecraft_version }}-*.jar' ! -name '*-sources.jar' -print -quit)"
+          test -n "$JAR"
+          test -s "$JAR"
+          unzip -t "$JAR" | tail -n 2
+          unzip -p "$JAR" fabric.mod.json | grep -F '"id": "voidcraft_cosmetics"'
+          unzip -p "$JAR" fabric.mod.json | grep -F '"minecraft": "${{ matrix.minecraft_version }}"'
+          unzip -l "$JAR" | grep -F 'VoidCraftCosmeticFeatureRenderer.class'
+          sha256sum "$JAR" | tee "voidcraft-cosmetics-mc-${{ matrix.minecraft_version }}-sha256.txt"
+          echo "FABRIC_MOD_JAR=$JAR" >> "$GITHUB_ENV"
+      - name: Upload exact version mod and checksum
+        uses: actions/upload-artifact@v4
+        with:
+          name: voidcraft-fabric-cosmetics-mc-${{ matrix.minecraft_version }}
+          path: |
+            ${{ env.FABRIC_MOD_JAR }}
+            voidcraft-cosmetics-mc-${{ matrix.minecraft_version }}-sha256.txt
+          if-no-files-found: error
+          retention-days: 14
