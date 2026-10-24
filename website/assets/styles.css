@@ -760,3 +760,46 @@ footer{background:linear-gradient(180deg,#080a1200,#080a12cc);border-top:1px sol
 .signin-social-link small{font-size:11px;color:#9bece7;font-weight:750}
 .signin-separate-note{font-size:10px!important;margin:10px 0 0!important;color:#8e98b5!important}
 @media(max-width:650px){.signin-layout{gap:14px}.signin-panel{padding:19px}.signin-aside{padding:20px}.signin-aside-art{min-height:130px}.signin-aside-art img{width:60px;height:60px}}
+
+
+/* ===== Community, release and changelog page components ===== */
+.community-visual,.download-release-visual{position:relative;isolation:isolate;display:flex;flex-direction:column;justify-content:center;align-items:flex-start;gap:14px;min-height:330px;padding:clamp(22px,4vw,36px);border:1px solid #343a5b;border-radius:27px;overflow:hidden;background:radial-gradient(ellipse at 25% 10%,#9d82ff2b,transparent 48%),radial-gradient(ellipse at 95% 85%,#3bbdca25,transparent 45%),linear-gradient(145deg,#141a2b,#0a101a);box-shadow:0 22px 60px #0003}
+.community-visual::before,.download-release-visual::before{content:"";position:absolute;z-index:-1;width:260px;height:260px;top:30px;right:-55px;border:1px solid #a7a1ff22;border-radius:44%;transform:rotate(34deg)}
+.community-logo-art{display:block;width:104px;height:104px;object-fit:contain;filter:drop-shadow(0 0 30px #9075ff64)}
+.community-visual-copy{display:grid;gap:5px}
+.community-visual-copy strong{font-size:clamp(22px,3vw,30px);line-height:1.15}
+.community-visual-copy span{color:#a5aec8;font-size:12px}
+.download-release-visual{flex-direction:row;flex-wrap:wrap;align-items:center;gap:22px}
+.download-release-visual>div{min-width:0}
+.download-release-visual h2{font-size:clamp(25px,4vw,36px);margin:7px 0}
+.download-release-visual p{font-size:13px;margin:0}
+.download-mark{width:88px;height:88px;flex:0 0 auto;filter:drop-shadow(0 0 23px #8974ff55)}
+.download-visual-chip{align-self:flex-start;flex:0 0 auto;padding:6px 10px;border:1px solid #56517c;border-radius:999px;background:#1d1b32;color:#c9c1ff;font-size:10px;font-weight:850}
+.changelog-list{display:grid;gap:14px}
+.changelog-entry{display:grid;grid-template-columns:96px minmax(0,1fr);gap:clamp(15px,3vw,28px);padding:clamp(18px,3vw,30px);border:1px solid #2d3650;border-radius:23px;background:linear-gradient(145deg,#151b2a,#0d121d);box-shadow:0 13px 36px #0002}
+.changelog-entry-date{display:grid;align-content:start;justify-items:center;gap:5px;padding:15px 8px;border:1px solid #49436c;border-radius:16px;background:linear-gradient(150deg,#252040,#111c29);color:#e2ddff}
+.changelog-entry-date span:first-child{font-size:22px;line-height:1;font-weight:950;letter-spacing:-.04em;text-align:center}
+.changelog-entry-date span:last-child{font-size:8px;line-height:1.5;font-weight:900;letter-spacing:.12em;text-align:center;color:#a8efe9}
+.changelog-entry-copy{min-width:0}
+.changelog-entry-copy h2{font-size:clamp(20px,3vw,28px);margin:8px 0 10px}
+.changelog-entry-copy p{font-size:13px;line-height:1.8;margin:0 0 13px}
+.changelog-entry-copy .eyebrow{font-size:9px}
+.changelog-tags{display:flex;gap:7px;flex-wrap:wrap;margin-top:13px}
+.changelog-tags span{display:inline-flex;align-items:center;padding:5px 8px;border:1px solid #343c58;border-radius:999px;background:#111725;color:#c0c9e0;font-size:9px;font-weight:800}
+.changelog-caveat{padding:11px 13px;border-left:3px solid #d5a36f;background:#2a2117;border-radius:0 10px 10px 0;color:#e3c8a7!important}
+.home-state-card a{display:inline-block;color:#aaf0ee;font-size:11px;font-weight:850;text-decoration:none}
+.home-state-card a:hover{text-decoration:underline}
+.download-source-card{padding:clamp(22px,4vw,38px)}
+.download-source-card h2{margin:12px 0}
+.download-source-card p{font-size:14px}
+@media(max-width:650px){
+ .community-visual,.download-release-visual{min-height:250px;border-radius:21px;padding:22px}
+ .community-logo-art{width:80px;height:80px}
+ .download-mark{width:64px;height:64px}
+ .download-release-visual{align-items:flex-start}
+ .download-visual-chip{width:100%}
+ .changelog-entry{grid-template-columns:1fr;gap:14px;border-radius:19px}
+ .changelog-entry-date{display:flex;align-items:center;justify-content:flex-start;gap:10px;width:max-content;max-width:100%;padding:8px 11px}
+ .changelog-entry-date span:first-child{font-size:16px}
+ .changelog-entry-date span:last-child{font-size:8px}
+}
