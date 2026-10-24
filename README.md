@@ -6,7 +6,7 @@ Voidcraft is a touch-first Android launcher frontend for Minecraft: Java Edition
 
 - **Launcher frontend and Feature Store:** optional and opt-in; only catalog entries are shown, and built-in tools require an explicit Install action before Open is enabled.
 - **Social Hub:** local contacts/notes plus an online staging beta for accounts, friend requests, and direct messages. This is not production-secure.
-- **Theme Studio and Cosmetic Store:** persisted launcher accent/preset choices and local profile preview effects. Cosmetic previews are not Minecraft skins or multiplayer cosmetics.
+- **Theme Studio and Cosmetic Store:** persisted launcher accent/preset choices plus equip handoff to the integrated game engine. The separate `cosmetics-fabric/` client mod adds a real four-sided colored halo renderer for Minecraft 1.21.1 Fabric. It requires Fabric Loader, Fabric API, and the mod JAR in the selected instance; other versions are not yet claimed compatible. This is client-rendered, not server-authoritative, and vanilla clients without the mod will not render the effect.
 - **Versions and preparation:** reads Mojang's official version manifest, can search older release/beta/alpha entries, verifies the selected version JSON against the manifest SHA-1, and can download the client JAR, metadata-listed library JARs, asset index, and assets with size/path/host/ SHA-1 checks. Game assets require a separate confirmation because they can consume multiple gigabytes and mobile data.
 - **Active game folders in the integrated build:** version preparation targets the engine's version/library/assets folders; the file library and Advanced Mod Manager target its configured game folder and mods directory. Mods need the right game version and mod loader, and changes require a game restart.
 - **Settings links:** profile/account, runtime/game settings, performance and touch-control pages can open the actual engine's account/runtime/game settings or control-layout editor in the combined build. Standalone preferences remain local preferences and should not be confused with engine settings.
@@ -24,6 +24,10 @@ Voidcraft is a touch-first Android launcher frontend for Minecraft: Java Edition
 - Compile SDK: 35
 
 Open this repo in Android Studio or run the normal Android build workflow. It uploads an artifact named `voidcraft-debug-apk`. **That standalone artifact does not include the Minecraft game-launch engine.**
+
+### Fabric cosmetics mod
+
+The `cosmetics-fabric/` project builds version-specific client mods for selected Minecraft releases. The integrated launcher writes the equipped cosmetic ID to `config/voidcraft-cosmetics.json`; the client mod reads it and renders the selected halo. CI is configured to build separate artifacts per listed version, but compatibility is only confirmed for targets whose build and in-game tests pass. Install the matching mod JAR, Fabric Loader, and Fabric API in the target instance. Automatic installation and conversion of vanilla instances to Fabric are not implemented.
 
 ### Combined Voidcraft + Android game engine
 

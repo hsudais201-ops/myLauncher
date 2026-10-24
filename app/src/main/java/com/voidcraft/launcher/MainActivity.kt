@@ -608,7 +608,7 @@ private fun VoidcraftApp() {
                     onEquip = { id ->
                         equippedCosmetic = id
                         prefs.edit().putString("equipped_cosmetic_id", id).apply()
-                        scope.launch { snackbarHostState.showSnackbar("Cosmetic equipped for your launcher profile.") }
+                        scope.launch { snackbarHostState.showSnackbar("Cosmetic equipped. The matching Fabric mod must be installed in the selected instance.") }
                     },
                     onUnequip = {
                         equippedCosmetic = null
@@ -656,6 +656,8 @@ private fun VoidcraftApp() {
                                         )
                                     }
                                     ?.let { engineIntent.putExtra("voidcraft.renderer", it) }
+                                // The integrated engine writes this ID to the game config directory.
+                                engineIntent.putExtra("voidcraft.cosmetic_id", equippedCosmetic ?: "none")
                                 context.startActivity(engineIntent)
                             } catch (_: ActivityNotFoundException) {
                                 selectedTab = 1

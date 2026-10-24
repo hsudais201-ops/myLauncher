@@ -27,9 +27,9 @@ private data class CosmeticOption(val id: String, val name: String, val descript
 
 private val cosmeticOptions = listOf(
     CosmeticOption("void-aura", "Void Aura", "Signature violet energy effect.", Color(0xFF9C7BFF)),
-    CosmeticOption("neon-mint", "Neon Mint", "Bright mint profile effect.", Color(0xFF63E8C1)),
-    CosmeticOption("arctic-ice", "Arctic Ice", "Cool cyan profile effect.", Color(0xFF63E8ED)),
-    CosmeticOption("solar-ember", "Solar Ember", "Warm orange profile effect.", Color(0xFFFF966B))
+    CosmeticOption("neon-mint", "Neon Mint", "Bright mint in-game halo.", Color(0xFF63E8C1)),
+    CosmeticOption("arctic-ice", "Arctic Ice", "Cool cyan in-game halo.", Color(0xFF63E8ED)),
+    CosmeticOption("solar-ember", "Solar Ember", "Warm orange in-game halo.", Color(0xFFFF966B))
 )
 
 @Composable
@@ -42,10 +42,10 @@ fun CosmeticStoreScreen(
     Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
         OutlinedButton(onClick = onBack) { Text("← BACK") }
         Text("Cosmetic Store", fontSize = 28.sp, fontWeight = FontWeight.ExtraBold)
-        Text("Choose an original VoidCraft launcher-profile effect. Your selection is stored on this device.", color = VoidMuted, fontSize = 13.sp)
+        Text("Client-side halo cosmetics for the tested Minecraft targets listed below. Equip a style here; the matching version-specific Fabric mod must also be installed in the game instance.", color = VoidMuted, fontSize = 13.sp)
         Card(shape = RoundedCornerShape(18.dp), colors = CardDefaults.cardColors(containerColor = VoidSurface)) {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Text("PROFILE PREVIEW", color = equippedId?.let { id -> cosmeticOptions.find { it.id == id }?.color } ?: VoidMuted, fontWeight = FontWeight.Black, letterSpacing = 1.sp)
+                Text("IN-GAME COSMETIC", color = equippedId?.let { id -> cosmeticOptions.find { it.id == id }?.color } ?: VoidMuted, fontWeight = FontWeight.Black, letterSpacing = 1.sp)
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
                     Box(Modifier.height(56.dp).background(equippedId?.let { id -> cosmeticOptions.find { it.id == id }?.color } ?: Color(0xFF30364B), CircleShape).padding(8.dp)) {
                         Box(Modifier.height(40.dp).background(Color(0xFFF4F5FF), CircleShape).padding(5.dp)) {
@@ -80,6 +80,6 @@ fun CosmeticStoreScreen(
                 }
             }
         }
-        Text("These are launcher profile effects only. Applying a cosmetic does not modify a Minecraft skin, game files, or multiplayer appearance.", color = VoidMuted, fontSize = 11.sp)
+        Text("Build-tested targets: 1.17.1, 1.18.2, 1.19.4, 1.20.1–1.20.6, and 1.21–1.21.7 (selected releases only). Install the exact matching VoidCraft Cosmetics JAR, Fabric Loader, and Fabric API in the selected instance. VoidCraft saves your equip choice and passes it to the engine, but does not install Fabric or the mod automatically yet. Other players see the halo only if their clients also run a compatible mod.", color = VoidMuted, fontSize = 11.sp)
     }
 }
