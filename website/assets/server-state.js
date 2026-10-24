@@ -105,11 +105,12 @@
     };
     if (data && typeof data.icon === "string" && /^data:image\/png;base64,[a-zA-Z0-9+/=]+$/.test(data.icon)) {
       image.src = data.icon;
-    } else if (data) {
-      image.src = STATUS_API_PATH + "?resource=icon&address=" + encodeURIComponent(server.address) + "&edition=" + encodeURIComponent(server.edition);
     } else {
-      image.src = "assets/logo.svg";
-      image.alt = "Server icon not loaded yet";
+      // Load the icon independently from the status response. This lets the
+      // card still show a server icon when the status lookup is temporarily
+      // unavailable or the provider omits an inline icon.
+      image.src = STATUS_API_PATH + "?resource=icon&address=" + encodeURIComponent(server.address) + "&edition=" + encodeURIComponent(server.edition);
+      image.alt = server.address + " server icon";
     }
   }
 
@@ -152,6 +153,23 @@
       details.append(el("p", "server-hint", "Check this server to load its icon, live state, player count, version and MOTD."));
     } else if (result.state === "error") {
       details.append(el("p", "server-error-text", result.message || "The status service could not check this server."));
+      // Keep the card's information layout stable after a failed status query.
+      // Users can still see where player count/version/MOTD data would appear.
+      const metrics = el("div", "server-metrics");
+      metrics.append(
+        el("span", "server-metric", "Players: unavailable"),
+        el("span", "server-metric", "Version: unavailable")
+      );
+      details.append(metrics);
+      const motdBox = el("div", "server-motd");
+      motdBox.append(
+        el("div", "server-section-label", "MESSAGE OF THE DAY"),
+        el("p", "server-hint", "MOTD unavailable because this status check failed.")
+      );
+      details.append(motdBox);
+      if (result.checkedAt) {
+        details.append(el("p", "server-checked-at", "Last checked " + new Date(result.checkedAt).toLocaleTimeString()));
+      }
     } else {
       const data = result.data || {};
       const online = result.state === "online";
@@ -244,12 +262,20 @@
 
     try {
       const endpoint = STATUS_API_PATH + "?address=" + encodeURIComponent(server.address) + "&edition=" + encodeURIComponent(server.edition);
-      const response = await fetch(endpoint, {
-        method: "GET",
-        cache: "no-store",
-        credentials: "same-origin",
-        headers: { "Accept": "application/json" }
-      });
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 12000);
+      let response;
+      try {
+        response = await fetch(endpoint, {
+          method: "GET",
+          cache: "no-store",
+          credentials: "same-origin",
+          headers: { "Accept": "application/json" },
+          signal: controller.signal
+        });
+      } finally {
+        clearTimeout(timeoutId);
+      }
       let data = null;
       try { data = await response.json(); } catch (_) {}
       if (!response.ok) {
@@ -270,8 +296,10 @@
       render();
       setNotice("Checked " + server.address + ". Status comes from mcsrvstat.us and may be cached by the provider.");
     } catch (error) {
-      const message = error && error.message ? error.message :
-        (navigator.onLine === false ? "You appear to be offline. Reconnect and try again." : "Could not reach the status service.");
+      const message = error && error.name === "AbortError"
+        ? "The status check timed out after 12 seconds. The provider may be slow or unreachable; please retry."
+        : (error && error.message ? error.message :
+          (navigator.onLine === false ? "You appear to be offline. Reconnect and try again." : "Could not reach the status service."));
       results.set(key, { state: "error", data: null, checkedAt: Date.now(), message });
       render();
       setNotice("Could not check " + server.address + ". " + message);
