@@ -608,7 +608,7 @@ private fun VoidcraftApp() {
                     onEquip = { id ->
                         equippedCosmetic = id
                         prefs.edit().putString("equipped_cosmetic_id", id).apply()
-                        scope.launch { snackbarHostState.showSnackbar("Cosmetic equipped for your launcher profile.") }
+                        scope.launch { snackbarHostState.showSnackbar("Cosmetic equipped. The matching Fabric mod must be installed in the selected instance.") }
                     },
                     onUnequip = {
                         equippedCosmetic = null

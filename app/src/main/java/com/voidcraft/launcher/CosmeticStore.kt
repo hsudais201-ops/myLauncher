@@ -27,9 +27,9 @@ private data class CosmeticOption(val id: String, val name: String, val descript
 
 private val cosmeticOptions = listOf(
     CosmeticOption("void-aura", "Void Aura", "Signature violet energy effect.", Color(0xFF9C7BFF)),
-    CosmeticOption("neon-mint", "Neon Mint", "Bright mint profile effect.", Color(0xFF63E8C1)),
-    CosmeticOption("arctic-ice", "Arctic Ice", "Cool cyan profile effect.", Color(0xFF63E8ED)),
-    CosmeticOption("solar-ember", "Solar Ember", "Warm orange profile effect.", Color(0xFFFF966B))
+    CosmeticOption("neon-mint", "Neon Mint", "Bright mint in-game halo.", Color(0xFF63E8C1)),
+    CosmeticOption("arctic-ice", "Arctic Ice", "Cool cyan in-game halo.", Color(0xFF63E8ED)),
+    CosmeticOption("solar-ember", "Solar Ember", "Warm orange in-game halo.", Color(0xFFFF966B))
 )
 
 @Composable

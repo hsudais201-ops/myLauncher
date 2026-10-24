@@ -148,16 +148,34 @@ COSMETIC_HANDOFF_METHOD = """    private void applyVoidcraftCosmetic() {
         ).contains(requestedId)) requestedId = "none";
 
         try {
-            if (Tools.DIR_GAME_HOME == null || Tools.DIR_GAME_HOME.isEmpty()) {
-                throw new IllegalStateException("Minecraft game directory is not initialized.");
+            // Save to the selected profile's actual game directory, not the launcher's
+            // global storage root. Separate instances can each have their own config.
+            LauncherProfiles.load();
+            java.util.Map<String, MinecraftProfile> profiles = LauncherProfiles.mainProfileJson.profiles;
+            String profileId = LauncherPreferences.DEFAULT_PREF.getString(
+                    LauncherPreferences.PREF_KEY_CURRENT_PROFILE, "");
+            if (profileId == null || !profiles.containsKey(profileId)) {
+                if (profiles.isEmpty()) {
+                    throw new IllegalStateException("No Minecraft profile is available.");
+                }
+                profileId = profiles.keySet().iterator().next();
+                LauncherPreferences.DEFAULT_PREF.edit()
+                        .putString(LauncherPreferences.PREF_KEY_CURRENT_PROFILE, profileId).apply();
             }
-            File configDirectory = new File(Tools.DIR_GAME_HOME, "config");
+            MinecraftProfile profile = profiles.get(profileId);
+            if (profile == null) {
+                throw new IllegalStateException("The selected Minecraft profile could not be loaded.");
+            }
+            File gameDirectory = Tools.getGameDirPath(profile);
+            if (gameDirectory == null) {
+                throw new IllegalStateException("The selected profile's game directory is not initialized.");
+            }
+            File configDirectory = new File(gameDirectory, "config");
             if (!configDirectory.isDirectory() && !configDirectory.mkdirs()) {
                 throw new java.io.IOException("Could not create Minecraft config directory.");
             }
             File cosmeticConfig = new File(configDirectory, "voidcraft-cosmetics.json");
-            String requestedMinecraftVersion = getIntent() == null ? null :
-                    getIntent().getStringExtra("voidcraft.selected_version");
+            String requestedMinecraftVersion = profile.lastVersionId;
             if (requestedMinecraftVersion == null ||
                     !requestedMinecraftVersion.matches("^[A-Za-z0-9._-]{1,100}$")) {
                 requestedMinecraftVersion = "unknown";
