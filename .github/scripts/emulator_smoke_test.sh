@@ -79,8 +79,12 @@ adb_limited 20 shell pm grant com.mf.mylauncher.debug android.permission.POST_NO
 adb_limited 20 shell am force-stop com.mf.mylauncher.debug
 adb_limited 45 shell monkey -p com.mf.mylauncher.debug -c android.intent.category.LAUNCHER 1
 
-# CI's software-rendered emulator can take longer on a cold start. Wait for
-# LauncherActivity to resume AND for Android's temporary splash window to go away.
+# On a fresh install, the manifest launcher component TestStorageActivity
+# intentionally redirects to MissingStorageActivity until the user chooses a
+# game-storage location. That is a valid first-run screen, not a launch failure.
+# Accept the home screen or either storage-setup activity, but require Android
+# to report the activity window drawn and the temporary splash to be gone.
+visible_activity_re='com[.]mf[.]mylauncher[.]debug/net[.]kdt[.]pojavlaunch[.](LauncherActivity|MissingStorageActivity|TestStorageActivity)'
 launcher_ready=0
 for attempt in $(seq 1 12); do
     sleep 5
@@ -97,8 +101,11 @@ for attempt in $(seq 1 12); do
         break
     fi
 
-    if grep -Eq 'ResumedActivity:.*com[.]mf[.]mylauncher[.]debug/net[.]kdt[.]pojavlaunch[.]LauncherActivity|mFocusedApp=.*com[.]mf[.]mylauncher[.]debug/net[.]kdt[.]pojavlaunch[.]LauncherActivity' upstream/mylauncher-activities.txt \
+    if grep -Eq "ResumedActivity:.*${visible_activity_re}|mFocusedApp=.*${visible_activity_re}" upstream/mylauncher-activities.txt \
+       && grep -Eq 'reportedDrawn=true reportedVisible=true' upstream/mylauncher-activities.txt \
+       && grep -Eq "Window\\{[^}]+ ${visible_activity_re//\\//\\/}" upstream/mylauncher-windows.txt \
        && ! grep -Fq 'Splash Screen com.mf.mylauncher.debug' upstream/mylauncher-windows.txt; then
+        echo "[smoke] first-run or launcher activity is resumed, drawn, and visible"
         launcher_ready=1
         break
     fi
@@ -117,12 +124,12 @@ if [ "$launcher_ready" -ne 1 ]; then
         sleep 2
         adb_limited 15 logcat -d > upstream/mylauncher-emulator-logcat.txt || true
     fi
-    echo "LauncherActivity did not draw its first frame before the smoke-test timeout." >&2
+    echo "LauncherActivity or the first-run storage screen did not draw before the smoke-test timeout." >&2
     echo "Inspect mylauncher-activities.txt, mylauncher-windows.txt, and mylauncher-emulator-logcat.txt." >&2
     exit 1
 fi
 
-grep -E 'ResumedActivity:.*com[.]mf[.]mylauncher[.]debug/net[.]kdt[.]pojavlaunch[.]LauncherActivity|mFocusedApp=.*com[.]mf[.]mylauncher[.]debug/net[.]kdt[.]pojavlaunch[.]LauncherActivity' upstream/mylauncher-activities.txt
+grep -E "ResumedActivity:.*${visible_activity_re}|mFocusedApp=.*${visible_activity_re}" upstream/mylauncher-activities.txt
 if grep -F 'Process: com.mf.mylauncher.debug' upstream/mylauncher-emulator-logcat.txt; then
     echo "Detected an Android runtime crash during launcher smoke test." >&2
     exit 1
