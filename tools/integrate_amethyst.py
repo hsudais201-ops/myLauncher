@@ -188,6 +188,54 @@ RENDERER_HANDOFF_METHOD = """    private void applyVoidcraftSelectedRenderer() {
 
 """
 
+COSMETIC_HANDOFF_METHOD = """    private void applyVoidcraftCosmetic() {
+        String cosmeticId = getIntent() == null ? "" :
+                getIntent().getStringExtra("voidcraft.cosmetic_id");
+        if (cosmeticId == null) cosmeticId = "";
+        if (!java.util.Arrays.asList("", "void-aura", "neon-mint", "arctic-ice", "solar-ember").contains(cosmeticId)) {
+            cosmeticId = "";
+        }
+        try {
+            if (Tools.DIR_GAME_NEW == null || Tools.DIR_GAME_NEW.isEmpty()) throw new IllegalStateException("Game directory is not initialized.");
+            File gameDirectory = new File(Tools.DIR_GAME_NEW);
+            File configDirectory = new File(gameDirectory, "config");
+            if (!configDirectory.isDirectory() && !configDirectory.mkdirs()) throw new java.io.IOException("Cannot create config directory.");
+            org.json.JSONObject config = new org.json.JSONObject().put("equippedId", cosmeticId);
+            try (java.io.FileOutputStream output = new java.io.FileOutputStream(new File(configDirectory, "voidcraft-cosmetics.json"))) {
+                output.write(config.toString().getBytes(java.nio.charset.StandardCharsets.UTF_8));
+                output.getFD().sync();
+            }
+
+            String selectedVersion = "";
+            try {
+                LauncherProfiles.load();
+                String profileId = LauncherPreferences.DEFAULT_PREF.getString(LauncherPreferences.PREF_KEY_CURRENT_PROFILE, "");
+                MinecraftProfile profile = LauncherProfiles.mainProfileJson.profiles.get(profileId);
+                if (profile != null) selectedVersion = profile.lastVersionId == null ? "" : profile.lastVersionId;
+            } catch (Exception ignored) { }
+
+            if (!"1.21.1".equals(selectedVersion)) {
+                Toast.makeText(this, "Cosmetic choice synced. In-game rendering targets Fabric Minecraft 1.21.1.", Toast.LENGTH_LONG).show();
+                return;
+            }
+            File modsDirectory = new File(gameDirectory, "mods");
+            if (!modsDirectory.isDirectory() && !modsDirectory.mkdirs()) throw new java.io.IOException("Cannot create mods directory.");
+            File modJar = new File(modsDirectory, "voidcraft-cosmetics-fabric-0.1.0.jar");
+            try (java.io.InputStream input = getAssets().open("voidcraft/voidcraft-cosmetics-fabric-1.21.1.jar");
+                 java.io.FileOutputStream output = new java.io.FileOutputStream(modJar)) {
+                byte[] buffer = new byte[32768];
+                int count;
+                while ((count = input.read(buffer)) != -1) output.write(buffer, 0, count);
+                output.getFD().sync();
+            }
+            Toast.makeText(this, "Cosmetic synced. Launch Minecraft 1.21.1 with Fabric Loader and Fabric API for the local in-game effect.", Toast.LENGTH_LONG).show();
+        } catch (Exception exception) {
+            Toast.makeText(this, "Could not sync VoidCraft cosmetics to the Minecraft game directory.", Toast.LENGTH_LONG).show();
+        }
+    }
+
+""" 
+
 def replace_once(source: str, old: str, new: str, label: str) -> str:
     count = source.count(old)
     if count != 1:
@@ -198,13 +246,13 @@ def patch_launcher_activity(source: str) -> str:
     source = replace_once(
         source,
         "        bindViews();\n        checkNotificationPermission();",
-        "        bindViews();\n        applyVoidcraftSelectedVersion();\n        applyVoidcraftSelectedRenderer();\n        checkNotificationPermission();",
+        "        bindViews();\n        applyVoidcraftSelectedVersion();\n        applyVoidcraftSelectedRenderer();\n        applyVoidcraftCosmetic();\n        checkNotificationPermission();",
         "Voidcraft selected-version handoff call"
     )
     return replace_once(
         source,
         "    @Override\n    protected void onResume() {",
-        VERSION_HANDOFF_METHOD + RENDERER_HANDOFF_METHOD + "    @Override\n    protected void onResume() {",
+        VERSION_HANDOFF_METHOD + RENDERER_HANDOFF_METHOD + COSMETIC_HANDOFF_METHOD + "    @Override\n    protected void onResume() {",
         "Voidcraft selected-version handoff method"
     )
 
