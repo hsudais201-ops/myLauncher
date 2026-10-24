@@ -1780,7 +1780,7 @@ document.addEventListener("click", (event) => {
       if (event.key === "Escape") closeMenu();
     });
     window.addEventListener("resize", () => {
-      if (window.matchMedia("(min-width: 901px)").matches) closeMenu();
+      if (window.matchMedia("(min-width: 1061px)").matches) closeMenu();
     }, { passive: true });
   }
 
