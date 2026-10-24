@@ -656,6 +656,7 @@ private fun VoidcraftApp() {
                                         )
                                     }
                                     ?.let { engineIntent.putExtra("voidcraft.renderer", it) }
+                                engineIntent.putExtra("voidcraft.cosmetic_id", equippedCosmetic ?: "")
                                 context.startActivity(engineIntent)
                             } catch (_: ActivityNotFoundException) {
                                 selectedTab = 1
