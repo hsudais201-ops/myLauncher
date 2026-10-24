@@ -111,3 +111,44 @@ test("returns 504 and a clear message when the provider times out", async () => 
     globalThis.setTimeout = originalSetTimeout;
   }
 });
+
+
+test("returns 504 when the status provider stalls after sending response headers", async () => {
+  const originalSetTimeout = globalThis.setTimeout;
+  globalThis.setTimeout = (callback, _delay, ...args) => originalSetTimeout(callback, 10, ...args);
+  try {
+    await withFetch(async (_url, options) => new Response(new ReadableStream({
+      start(controller) {
+        const abort = () => controller.error(new DOMException("Aborted", "AbortError"));
+        if (options.signal.aborted) abort();
+        else options.signal.addEventListener("abort", abort, { once: true });
+      }
+    }), { status: 200, headers: { "content-type": "application/json" } }), async () => {
+      const response = await callStatus("?address=body-slow.example.net");
+      assert.equal(response.status, 504);
+      assert.match((await response.json()).error, /timed out/);
+    });
+  } finally {
+    globalThis.setTimeout = originalSetTimeout;
+  }
+});
+
+test("returns 504 when a server icon response body stalls", async () => {
+  const originalSetTimeout = globalThis.setTimeout;
+  globalThis.setTimeout = (callback, _delay, ...args) => originalSetTimeout(callback, 10, ...args);
+  try {
+    await withFetch(async (_url, options) => new Response(new ReadableStream({
+      start(controller) {
+        const abort = () => controller.error(new DOMException("Aborted", "AbortError"));
+        if (options.signal.aborted) abort();
+        else options.signal.addEventListener("abort", abort, { once: true });
+      }
+    }), { status: 200, headers: { "content-type": "image/png" } }), async () => {
+      const response = await callStatus("?resource=icon&address=icon-slow.example.net");
+      assert.equal(response.status, 504);
+      assert.match((await response.json()).error, /timed out/);
+    });
+  } finally {
+    globalThis.setTimeout = originalSetTimeout;
+  }
+});

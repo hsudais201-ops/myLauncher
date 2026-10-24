@@ -57,15 +57,15 @@ export async function onRequest({ request }) {
       }
     });
   } catch (error) {
+    clearTimeout(timeoutId);
     if (error && error.name === "AbortError") {
       return jsonResponse({ error: "The Minecraft status provider timed out. Please retry in a moment." }, 504, "no-store");
     }
     return jsonResponse({ error: "The Minecraft status provider could not be reached. Please retry later." }, 502, "no-store");
-  } finally {
-    clearTimeout(timeoutId);
   }
 
   if (!upstream.ok) {
+    clearTimeout(timeoutId);
     const status = upstream.status === 429 ? 429 : 502;
     const error = upstream.status === 429
       ? "The Minecraft status provider is rate-limiting checks. Wait briefly and retry."
@@ -76,9 +76,21 @@ export async function onRequest({ request }) {
   if (resource === "icon") {
     const contentType = upstream.headers.get("content-type") || "image/png";
     if (!contentType.toLowerCase().startsWith("image/")) {
+      clearTimeout(timeoutId);
       return jsonResponse({ error: "The provider did not return a server icon." }, 502, "no-store");
     }
-    return new Response(upstream.body, {
+    let iconBody;
+    try {
+      iconBody = await upstream.arrayBuffer();
+    } catch (error) {
+      clearTimeout(timeoutId);
+      if (controller.signal.aborted || (error && error.name === "AbortError")) {
+        return jsonResponse({ error: "The Minecraft status provider timed out. Please retry in a moment." }, 504, "no-store");
+      }
+      return jsonResponse({ error: "The provider's server icon response could not be read." }, 502, "no-store");
+    }
+    clearTimeout(timeoutId);
+    return new Response(iconBody, {
       status: 200,
       headers: {
         "Content-Type": contentType,
@@ -91,9 +103,14 @@ export async function onRequest({ request }) {
   let data;
   try {
     data = await upstream.json();
-  } catch (_) {
+  } catch (error) {
+    clearTimeout(timeoutId);
+    if (controller.signal.aborted || (error && error.name === "AbortError")) {
+      return jsonResponse({ error: "The Minecraft status provider timed out. Please retry in a moment." }, 504, "no-store");
+    }
     return jsonResponse({ error: "The Minecraft status provider returned invalid JSON." }, 502, "no-store");
   }
+  clearTimeout(timeoutId);
   if (!data || typeof data.online !== "boolean") {
     return jsonResponse({ error: "The Minecraft status provider returned an unexpected response." }, 502, "no-store");
   }
