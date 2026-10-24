@@ -56,6 +56,22 @@ public final class VoidCraftCosmeticFeatureRenderer
         };
     }
 
+    private static void transformHead(ModelPart head, MatrixStack matrices) {
+        // The render-state API shipped across several 1.21 releases while the
+        // ModelPart transform method name changed between 1.21.4 and 1.21.5.
+        try {
+            try {
+                ModelPart.class.getMethod("applyTransform", MatrixStack.class).invoke(head, matrices);
+                return;
+            } catch (NoSuchMethodException ignored) {
+                // Minecraft 1.21.2–1.21.4 exposes rotate(MatrixStack) instead.
+            }
+            ModelPart.class.getMethod("rotate", MatrixStack.class).invoke(head, matrices);
+        } catch (ReflectiveOperationException exception) {
+            throw new IllegalStateException("Unsupported Minecraft player-head transform API.", exception);
+        }
+    }
+
     @Override
     public void render(
         MatrixStack matrices,
@@ -67,7 +83,7 @@ public final class VoidCraftCosmeticFeatureRenderer
     ) {
         if ("none".equals(EQUIPPED_ID)) return;
         matrices.push();
-        getContextModel().head.applyTransform(matrices);
+        transformHead(getContextModel().head, matrices);
         VertexConsumer vertices = vertexConsumers.getBuffer(
             RenderLayer.getEntityTranslucent(VoidCraftCosmeticsClient.HALO_TEXTURE)
         );
