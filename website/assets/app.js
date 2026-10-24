@@ -559,16 +559,19 @@ if (profileCard) {
 
   function actionFor(item, detailMode = false) {
     const group = make("div", detailMode ? "store-purchase-buttons store-purchase-buttons-detail" : "store-purchase-buttons");
-    const isFreeDownload = item.availability === "available" && item.packageUrl && Number(item.priceCents) === 0;
-    const isPaidPurchase = item.availability === "available" && item.packageAvailable && item.priceCents !== null && Number(item.priceCents) > 0;
+    const freeUrl = safeAssetUrl(item.packageUrl);
+    const isFreeDownload = item.availability === "available" && freeUrl && Number(item.priceCents) === 0;
+    const isPaidPurchase = item.availability === "available" && item.packageAvailable &&
+      item.priceCents !== null && item.priceCents !== undefined && Number(item.priceCents) > 0;
 
+    // The same commerce actions are present for every catalog listing.
+    // Free releases use a direct download; previews keep purchase actions disabled.
     if (isFreeDownload) {
       const link = make("a", "btn store-action-primary", "Download free");
-      link.href = safeAssetUrl(item.packageUrl);
+      link.href = freeUrl;
       link.rel = "noopener noreferrer";
       link.setAttribute("aria-label", "Download free package: " + item.name);
       group.append(link);
-      return group;
     }
 
     const add = make("button", "btn secondary store-add-to-cart", "Add to cart");
@@ -577,21 +580,29 @@ if (profileCard) {
     const buy = make("button", "btn store-action-primary store-buy-now", "Buy now");
     buy.type = "button";
     buy.setAttribute("aria-label", "Buy " + item.name + " now");
+
     if (isPaidPurchase) {
       add.dataset.cartAdd = item.id;
       buy.dataset.buyNow = item.id;
     } else {
       add.disabled = true;
       buy.disabled = true;
-      add.title = "This listing is a preview or has no released paid package yet.";
-      buy.title = "This listing cannot be purchased yet.";
       add.setAttribute("aria-disabled", "true");
       buy.setAttribute("aria-disabled", "true");
-      group.title = "Add to cart and Buy now unlock after an approved paid package is available.";
+      const reason = isFreeDownload
+        ? "This listing is free. Use Download free; checkout is not required."
+        : item.availability === "coming_soon"
+          ? "This listing is coming soon and cannot be purchased yet."
+          : "This is a preview or has no released purchasable package yet.";
+      add.title = reason;
+      buy.title = reason;
+      group.title = reason;
     }
+
     group.append(add, buy);
     return group;
   }
+
   function renderCatalog() {
     const needle = (searchInput?.value || "").trim().toLowerCase();
     const status = availabilityFilter?.value || "all";
