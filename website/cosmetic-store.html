@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="theme-color" content="#090914">
-<meta name="description" content="Browse VoidCraft original profile effects and cosmetic releases in one clean storefront.">
+<meta name="description" content="Browse VoidCraft cosmetic listings and equip purchased cosmetics after verified checkout.">
 <title>Cosmetic Store — VoidCraft</title>
 <link rel="icon" href="assets/logo.svg">
 <link rel="stylesheet" href="assets/styles.css">
@@ -33,17 +33,17 @@
     <div class="cosmetics-hero-copy">
       <span class="cosmetics-kicker">VoidCraft · Cosmetic collection</span>
       <h1 id="cosmetics-title">Make your look feel <span>like yours.</span></h1>
-      <p>Discover original VoidCraft profile effects and released cosmetic listings. Search once, preview the collection, and equip a local profile effect from one place.</p>
+      <p>Discover released VoidCraft cosmetic listings. The Equip option unlocks only after your account has a confirmed purchase. Search once, preview the collection, and equip the looks you own.</p>
       <div class="cosmetics-hero-links">
         <a class="btn" href="#cosmetic-collection">Explore collection <span aria-hidden="true">&nbsp;↓</span></a>
-        <a class="btn secondary" href="feature-store.html#cosmetic-store-feature-title">Store install settings</a>
+        <a class="btn secondary" href="#cosmetic-ownership">How unlocks work</a>
       </div>
     </div>
     <div class="cosmetics-art" aria-hidden="true">
       <div class="cosmetics-art-ring"></div>
       <div class="cosmetics-art-orb"></div>
-      <div class="cosmetics-mini-chip cosmetics-mini-one"><span class="mini-dot"></span><span><strong>Void Aura</strong><small>VoidCraft original</small></span></div>
-      <div class="cosmetics-mini-chip cosmetics-mini-two"><span><strong>Profile effects</strong><small>Saved on this browser</small></span></div>
+      <div class="cosmetics-mini-chip cosmetics-mini-one"><span class="mini-dot"></span><span><strong>Cosmetic catalog</strong><small>Browse original looks</small></span></div>
+      <div class="cosmetics-mini-chip cosmetics-mini-two"><span><strong>Purchase verified</strong><small>Equip unlocks on ownership</small></span></div>
     </div>
   </section>
 
@@ -63,7 +63,7 @@
       <label class="cosmetics-field" for="cosmetic-filter">Show
         <select id="cosmetic-filter">
           <option value="all">All cosmetics</option>
-          <option value="profile">Profile effects</option>
+          <option value="profile">Owned cosmetics</option>
           <option value="available">Available downloads</option>
           <option value="preview">Previews and coming soon</option>
         </select>
@@ -76,18 +76,18 @@
     <p class="cosmetics-feed-status" id="cosmetic-result-count" aria-live="polite">Loading collection…</p>
 
     <div class="cosmetics-grid" id="cosmetic-grid" aria-live="polite" aria-busy="true">
-      <div class="cosmetics-empty"><strong>Preparing your collection…</strong><p>Loading the original VoidCraft profile effects.</p></div>
+      <div class="cosmetics-empty"><strong>Preparing your collection…</strong><p>Loading the cosmetic catalog and your confirmed purchases.</p></div>
     </div>
     <p class="cosmetics-footer-line">Online listings are supplied by the VoidCraft catalog. A listing preview does not automatically mean an asset is downloadable or usable in Minecraft.</p>
   </section>
 
   <div class="notice cosmetics-commerce-note"><strong>Checkout status:</strong> Paid checkout is not configured yet. Add to cart saves eligible item IDs to this browser; Buy now opens the checkout review, but no payment will be taken until secure checkout is configured. Free downloads do not require checkout.</div>
 
-  <aside class="cosmetics-note" aria-label="Cosmetic capability notice">
+  <aside class="cosmetics-note" id="cosmetic-ownership" aria-label="Cosmetic capability notice">
     <div class="cosmetics-note-icon" aria-hidden="true">i</div>
     <div>
-      <h3>What equipping means today</h3>
-      <p>Void Aura, Neon Mint, Arctic Ice and Solar Ember are browser profile effects saved locally on this device. They do not change Minecraft player models and are not visible to other players. In-game cosmetics require a compatible Minecraft client renderer; multiplayer visibility also requires compatible server/client support.</p>
+      <h3>Purchase first, then equip</h3>
+      <p>Cosmetic cards show Equip only after the store confirms payment and records ownership on your account. The current Equip control applies the purchased cosmetic to this website profile; it does not yet render on a Minecraft player model or make the cosmetic visible to multiplayer players. In-game visibility requires a compatible Minecraft client renderer and, for multiplayer, compatible server support.</p>
     </div>
   </aside>
 </main>
