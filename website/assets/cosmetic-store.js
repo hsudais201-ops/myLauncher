@@ -88,8 +88,8 @@
   }
 
   function canBuy(item) {
-    return !item.localProfile && item.availability === "available" && Boolean(item.packageAvailable) &&
-      item.priceCents !== null && item.priceCents !== undefined && Number(item.priceCents) > 0;
+    return !item.localProfile && item.checkoutEnabled === true && item.availability === "available" &&
+      Boolean(item.packageAvailable) && item.priceCents !== null && item.priceCents !== undefined && Number(item.priceCents) > 0;
   }
 
   function getSearchText(item) {
@@ -213,9 +213,11 @@
         buy.setAttribute("aria-disabled", "true");
         const reason = freeDownload
           ? "This listing is free. Use Download free; checkout is not required."
-          : item.availability === "coming_soon"
-            ? "This listing is coming soon and cannot be purchased yet."
-            : "This is a preview or has no released purchasable package yet.";
+          : item.checkoutEnabled !== true
+            ? "Secure checkout is not configured yet. No charge will be made."
+            : item.availability === "coming_soon"
+              ? "This listing is coming soon and cannot be purchased yet."
+              : "This is a preview or has no released purchasable package yet.";
         add.title = reason;
         buy.title = reason;
       }
