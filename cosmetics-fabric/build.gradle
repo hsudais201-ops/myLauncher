@@ -1,12 +1,12 @@
 plugins {
-    id 'fabric-loom' version '1.9.2'
+    id 'fabric-loom' version "${loom_version}"
 }
 
 version = project.mod_version
 group = project.maven_group
 
 base {
-    archivesName = project.archives_base_name
+    archivesName = "${project.archives_base_name}-mc${project.minecraft_version}"
 }
 
 dependencies {
@@ -19,8 +19,14 @@ dependencies {
 
 processResources {
     inputs.property "version", project.version
+    inputs.property "minecraft_version", project.minecraft_version
+    inputs.property "java_dependency", project.java_dependency
     filesMatching("fabric.mod.json") {
-        expand "version": project.version
+        expand(
+            "version": project.version,
+            "minecraft_version": project.minecraft_version,
+            "java_dependency": project.java_dependency
+        )
     }
 }
 
@@ -30,7 +36,7 @@ java {
 }
 
 tasks.withType(JavaCompile).configureEach {
-    it.options.release = 21
+    it.options.release = project.java_bytecode_version.toInteger()
 }
 
 test {
