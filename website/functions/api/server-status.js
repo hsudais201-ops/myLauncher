@@ -39,6 +39,9 @@ export async function onRequest({ request }) {
     : (edition === "bedrock" ? "/bedrock/3/" : "/3/") + encodeURIComponent(address);
   const upstreamUrl = new URL(path, API_ORIGIN);
 
+  // Do not let a slow third-party status service hold the browser request open.
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 8000);
   let upstream;
   try {
     upstream = await fetch(upstreamUrl.toString(), {
@@ -47,13 +50,19 @@ export async function onRequest({ request }) {
         "Accept": resource === "icon" ? "image/png,image/*;q=0.8,*/*;q=0.5" : "application/json",
         "User-Agent": "VoidCraftServerStatus/1.0 (+https://voidcraft-launcher.pages.dev)"
       },
+      signal: controller.signal,
       cf: {
         cacheEverything: true,
         cacheTtl: resource === "icon" ? 300 : 60
       }
     });
-  } catch (_) {
+  } catch (error) {
+    if (error && error.name === "AbortError") {
+      return jsonResponse({ error: "The Minecraft status provider timed out. Please retry in a moment." }, 504, "no-store");
+    }
     return jsonResponse({ error: "The Minecraft status provider could not be reached. Please retry later." }, 502, "no-store");
+  } finally {
+    clearTimeout(timeoutId);
   }
 
   if (!upstream.ok) {
