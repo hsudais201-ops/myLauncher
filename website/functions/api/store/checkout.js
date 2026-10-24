@@ -8,7 +8,7 @@ export async function onRequestPost({ request, env }) {
   if (!env?.VOIDCRAFT_AUTH) {
     return json({ error: "The account service is not connected.", code: "AUTH_DB_NOT_BOUND" }, 503);
   }
-  if (!env?.STRIPE_SECRET_KEY) {
+  if (!env?.STRIPE_SECRET_KEY || !env?.STRIPE_WEBHOOK_SECRET) {
     return json({
       error: "Secure payments are not configured yet. No charge has been made, and no cosmetic has been unlocked.",
       code: "STRIPE_NOT_CONFIGURED"
