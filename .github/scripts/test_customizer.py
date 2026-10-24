@@ -999,7 +999,7 @@ class BuildWorkflowTests(unittest.TestCase):
         self.assertIn("adb_limited 12 shell dumpsys window windows > upstream/mylauncher-windows.txt", smoke_test)
         self.assertIn('timeout --foreground "${seconds}s" adb "$@"', smoke_test)
         self.assertIn("adb_limited 180 wait-for-device", smoke_test)
-        self.assertIn("adb_limited 90 install -r", smoke_test)
+        self.assertIn('adb_limited 240 install -r "$APK_PATH"', smoke_test)
         self.assertIn("ResumedActivity:.*com[.]mf[.]mylauncher[.]debug/net[.]kdt[.]pojavlaunch[.]LauncherActivity", smoke_test)
         self.assertIn("! grep -Fq 'Splash Screen com.mf.mylauncher.debug' upstream/mylauncher-windows.txt", smoke_test)
         self.assertIn("adb_limited 10 shell run-as com.mf.mylauncher.debug kill -3", smoke_test)
