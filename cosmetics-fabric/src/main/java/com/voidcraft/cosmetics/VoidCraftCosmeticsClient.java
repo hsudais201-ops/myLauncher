@@ -14,9 +14,32 @@ import net.minecraft.util.Identifier;
 public final class VoidCraftCosmeticsClient implements ClientModInitializer {
     public static final String MOD_ID = "voidcraft_cosmetics";
     public static final EntityModelLayer HALO_LAYER =
-        new EntityModelLayer(Identifier.of(MOD_ID, "halo"), "main");
+        new EntityModelLayer(identifier(MOD_ID, "halo"), "main");
     public static final Identifier HALO_TEXTURE =
-        Identifier.ofVanilla("textures/block/white_concrete.png");
+        identifier("minecraft", "textures/block/white_concrete.png");
+
+    /**
+     * Identifier constructors/factories differ across Minecraft release lines.
+     * Reflection keeps the common renderer source compatible with pre-1.21
+     * releases as well as newer 1.21 targets.
+     */
+    public static Identifier identifier(String namespace, String path) {
+        try {
+            java.lang.reflect.Method factory =
+                Identifier.class.getMethod("of", String.class, String.class);
+            return (Identifier) factory.invoke(null, namespace, path);
+        } catch (ReflectiveOperationException ignored) {
+            // Older versions expose the two-argument constructor instead.
+        }
+        try {
+            java.lang.reflect.Constructor<Identifier> constructor =
+                Identifier.class.getDeclaredConstructor(String.class, String.class);
+            constructor.setAccessible(true);
+            return constructor.newInstance(namespace, path);
+        } catch (ReflectiveOperationException exception) {
+            throw new IllegalStateException("This Minecraft version has no supported Identifier factory.", exception);
+        }
+    }
 
     @Override
     public void onInitializeClient() {
