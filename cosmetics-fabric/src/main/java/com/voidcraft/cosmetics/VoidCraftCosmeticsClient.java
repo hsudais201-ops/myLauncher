@@ -16,7 +16,7 @@ public final class VoidCraftCosmeticsClient implements ClientModInitializer {
     public static final EntityModelLayer HALO_LAYER =
         new EntityModelLayer(Identifier.of(MOD_ID, "halo"), "main");
     public static final Identifier HALO_TEXTURE =
-        Identifier.of(MOD_ID, "textures/cosmetic/white.png");
+        Identifier.ofVanilla("textures/block/white_concrete.png");
 
     @Override
     public void onInitializeClient() {
