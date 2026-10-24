@@ -57,3 +57,28 @@ test("returns a readable 504 when the Social Hub Worker times out", async () => 
     globalThis.setTimeout = originalSetTimeout;
   }
 });
+
+test("returns a readable 504 when the Social Hub Worker response body stalls", async () => {
+  const originalSetTimeout = globalThis.setTimeout;
+  globalThis.setTimeout = (callback, _delay, ...args) => originalSetTimeout(callback, 10, ...args);
+  try {
+    await withFetch(async (upstreamRequest) => new Response(new ReadableStream({
+      start(controller) {
+        const abort = () => controller.error(new DOMException("Aborted", "AbortError"));
+        if (upstreamRequest.signal.aborted) abort();
+        else upstreamRequest.signal.addEventListener("abort", abort, { once: true });
+      }
+    }), {
+      status: 200,
+      headers: { "content-type": "application/json" }
+    }), async () => {
+      const request = new Request("https://voidcraft-launcher.pages.dev/social-api/api/messages");
+      const response = await onRequest({ request });
+      assert.equal(response.status, 504);
+      assert.match((await response.json()).error, /timed out/);
+      assert.equal(response.headers.get("cache-control"), "no-store");
+    });
+  } finally {
+    globalThis.setTimeout = originalSetTimeout;
+  }
+});
