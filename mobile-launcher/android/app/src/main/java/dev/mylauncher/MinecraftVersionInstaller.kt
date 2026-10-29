@@ -24,6 +24,8 @@ data class ClientDownloadResult(
 object MinecraftVersionInstaller {
     suspend fun downloadClientJar(context: Context, version: MinecraftVersion): ClientDownloadResult =
         withContext(Dispatchers.IO) {
+            require(version.id.matches(Regex("[A-Za-z0-9._-]{1,100}"))) { "The version ID is invalid." }
+            require(version.url.startsWith("https://")) { "Refusing non-HTTPS version metadata." }
             val manifestConnection = (URL(version.url).openConnection() as HttpURLConnection).apply {
                 requestMethod = "GET"
                 connectTimeout = 15_000
@@ -62,11 +64,12 @@ object MinecraftVersionInstaller {
             }
 
             try {
+                val responseCode = connection.responseCode
                 if (connection.url.protocol != "https") {
                     throw SecurityException("Refusing a client download redirected away from HTTPS.")
                 }
-                if (connection.responseCode !in 200..299) {
-                    throw IllegalStateException("Client download returned HTTP ${connection.responseCode}")
+                if (responseCode !in 200..299) {
+                    throw IllegalStateException("Client download returned HTTP $responseCode")
                 }
                 val digest = MessageDigest.getInstance("SHA-1")
                 connection.inputStream.use { rawInput ->
