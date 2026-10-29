@@ -16,6 +16,7 @@ import android.widget.FrameLayout
  */
 class MainActivity : Activity() {
     private lateinit var webView: WebView
+    private lateinit var launcherBridge: LauncherJavascriptBridge
 
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -35,8 +36,10 @@ class MainActivity : Activity() {
             webChromeClient = WebChromeClient()
             isVerticalScrollBarEnabled = false
             isHorizontalScrollBarEnabled = false
-            loadUrl("file:///android_asset/index.html")
         }
+        launcherBridge = LauncherJavascriptBridge(webView)
+        webView.addJavascriptInterface(launcherBridge, "HyperLauncherNative")
+        webView.loadUrl("file:///android_asset/index.html")
 
         setContentView(
             FrameLayout(this).apply {
@@ -61,6 +64,7 @@ class MainActivity : Activity() {
     }
 
     override fun onDestroy() {
+        if (::launcherBridge.isInitialized) launcherBridge.close()
         if (::webView.isInitialized) {
             webView.stopLoading()
             webView.destroy()
