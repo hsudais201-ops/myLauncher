@@ -32,6 +32,9 @@ jobs:
         with:
           gradle-version: "8.13"
 
+      - name: Run planner unit tests
+        run: gradle -p mobile-launcher/android :app:testDebugUnitTest
+
       - name: Assemble debug APK
         run: gradle -p mobile-launcher/android :app:assembleDebug
 
