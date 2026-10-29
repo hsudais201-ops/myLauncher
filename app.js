@@ -61,9 +61,14 @@ function saveSettings() {
 }
 function updateVersionSummary() {
   const selected = versionSelect.options[versionSelect.selectedIndex];
-  const isSnapshot = versionSelect.value === "snapshot";
-  versionTitle.textContent = isSnapshot ? "Latest Snapshot" : (selected.textContent.split(" — ")[1] || "Minecraft Java");
-  versionPill.textContent = isSnapshot ? "SNAPSHOT" : versionSelect.value;
+  const isSnapshot = versionSelect.value === "snapshot" ||
+    (selected && selected.textContent.toLowerCase().includes("snapshot"));
+  const isOfficialManifestOption = selected &&
+    (selected.textContent.endsWith(" — Release") || selected.textContent.endsWith(" — Snapshot"));
+  const summary = isSnapshot ? "Snapshot" :
+    (isOfficialManifestOption ? "Java Release" : (selected.textContent.split(" — ")[1] || "Minecraft Java"));
+  versionTitle.textContent = summary;
+  versionPill.textContent = versionSelect.value === "snapshot" ? "SNAPSHOT" : versionSelect.value;
 }
 function updateMemorySummary() {
   memoryValue.textContent = memorySlider.value + " GB";
