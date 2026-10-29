@@ -55,7 +55,7 @@ object MinecraftNativeLibraryInstaller {
                 val excludeArray = library.optJSONObject("extract")?.optJSONArray("exclude")
                 if (excludeArray != null) {
                     for (j in 0 until excludeArray.length()) {
-                        val value = excludeArray.optString(j)
+                        val value = excludeArray.optString(j).trimEnd('/')
                         if (safeRelativePath(value)) exclusions += value
                     }
                 }
