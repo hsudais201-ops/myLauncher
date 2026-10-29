@@ -216,6 +216,8 @@ private fun LauncherPage(
     var downloadingVersion by remember { mutableStateOf<String?>(null) }
     var installingAssetsVersion by remember { mutableStateOf<String?>(null) }
     var assetMessage by remember { mutableStateOf<String?>(null) }
+    var installingLibrariesVersion by remember { mutableStateOf<String?>(null) }
+    var libraryMessage by remember { mutableStateOf<String?>(null) }
     var downloadMessage by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
 
@@ -301,7 +303,7 @@ private fun LauncherPage(
                     latestRelease?.let { version ->
                         OutlinedButton(
                             onClick = {
-                                if (installingAssetsVersion == null && downloadingVersion == null) {
+                                if (installingAssetsVersion == null && installingLibrariesVersion == null && downloadingVersion == null) {
                                     scope.launch {
                                         installingAssetsVersion = version.id
                                         assetMessage = null
@@ -316,7 +318,7 @@ private fun LauncherPage(
                                     }
                                 }
                             },
-                            enabled = installingAssetsVersion == null && downloadingVersion == null,
+                            enabled = installingAssetsVersion == null && installingLibrariesVersion == null && downloadingVersion == null,
                             modifier = Modifier.fillMaxWidth().height(50.dp),
                             shape = RoundedCornerShape(14.dp)
                         ) {
@@ -329,6 +331,38 @@ private fun LauncherPage(
                         }
                     }
                     assetMessage?.let { InfoCard("Asset download status", "SHA-1 checked", it) }
+                    latestRelease?.let { version ->
+                        OutlinedButton(
+                            onClick = {
+                                if (installingLibrariesVersion == null && installingAssetsVersion == null && downloadingVersion == null) {
+                                    scope.launch {
+                                        installingLibrariesVersion = version.id
+                                        libraryMessage = null
+                                        try {
+                                            val plan = MinecraftInstallPlanRepository.fetch(version)
+                                            val result = MinecraftLibraryInstaller.install(context, plan.libraries)
+                                            libraryMessage = "Libraries: downloaded ${result.downloaded}, reused ${result.alreadyValid}, ${result.bytes / (1024 * 1024)} MB downloaded. Native classifiers and version rules still need handling."
+                                        } catch (error: Exception) {
+                                            libraryMessage = error.message ?: "Library download failed."
+                                        } finally {
+                                            installingLibrariesVersion = null
+                                        }
+                                    }
+                                }
+                            },
+                            enabled = installingLibrariesVersion == null && installingAssetsVersion == null && downloadingVersion == null,
+                            modifier = Modifier.fillMaxWidth().height(50.dp),
+                            shape = RoundedCornerShape(14.dp)
+                        ) {
+                            if (installingLibrariesVersion == version.id) {
+                                CircularProgressIndicator(modifier = Modifier.size(18.dp), color = Accent, strokeWidth = 2.dp)
+                                Text("  DOWNLOADING LIBRARIES")
+                            } else {
+                                Text("DOWNLOAD / VERIFY LIBRARIES")
+                            }
+                        }
+                    }
+                    libraryMessage?.let { InfoCard("Library download status", "SHA-1 checked", it) }
                     latestSnapshot?.let { InfoCard("Latest snapshot", it.id, "Snapshot build · Selectable metadata only; not installed.") }
                     Text("RECENT VERSIONS", color = Muted, fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 2.sp)
                     versions.filter { it.id != latestRelease?.id }.take(12).forEach { version ->
