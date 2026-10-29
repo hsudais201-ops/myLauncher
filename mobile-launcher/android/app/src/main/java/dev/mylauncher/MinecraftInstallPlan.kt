@@ -78,7 +78,7 @@ object MinecraftInstallPlanParser {
                 }
                 if (os.has("version")) {
                     val pattern = os.optString("version")
-                    val matches = try { Regex(pattern).matches("") } catch (_: Exception) { false }
+                    val matches = try { Regex(pattern).matches(System.getProperty("os.version", "")) } catch (_: Exception) { false }
                     if (!matches) continue
                 }
             }
