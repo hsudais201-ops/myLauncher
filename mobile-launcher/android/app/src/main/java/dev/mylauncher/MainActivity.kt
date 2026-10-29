@@ -1,0 +1,218 @@
+package dev.mylauncher
+
+import android.os.Bundle
+import android.widget.Toast
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.setContent
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Extension
+import androidx.compose.material.icons.filled.Gamepad
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Terminal
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+
+private val Background = Color(0xFF10120F)
+private val Panel = Color(0xFF1B2019)
+private val Accent = Color(0xFFB6E36A)
+private val Muted = Color(0xFFA0A69A)
+
+class MainActivity : ComponentActivity() {
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContent {
+            MaterialTheme {
+                Surface(modifier = Modifier.fillMaxSize(), color = Background) {
+                    LauncherHome(
+                        onStart = {
+                            Toast.makeText(
+                                this,
+                                "Game launching is not connected yet.",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                        },
+                        onOpen = { page ->
+                            Toast.makeText(this, "$page is coming soon.", Toast.LENGTH_SHORT).show()
+                        }
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun LauncherHome(
+    onStart: () -> Unit,
+    onOpen: (String) -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Background)
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 20.dp, vertical = 18.dp),
+        verticalArrangement = Arrangement.spacedBy(20.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Column {
+                Text("MYLAUNCHER", color = Accent, fontSize = 12.sp, fontWeight = FontWeight.Bold, letterSpacing = 2.sp)
+                Text("Your world, your way.", color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.Bold)
+            }
+            Box(
+                modifier = Modifier
+                    .size(46.dp)
+                    .background(Panel, CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(Icons.Default.Gamepad, contentDescription = "MyLauncher", tint = Accent)
+            }
+        }
+
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(28.dp),
+            colors = CardDefaults.cardColors(containerColor = Panel)
+        ) {
+            Column(modifier = Modifier.padding(22.dp)) {
+                Text("JAVA EDITION • MOBILE", color = Accent, fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.5.sp)
+                Spacer(Modifier.height(12.dp))
+                Text("Ready for\na new adventure?", color = Color.White, fontSize = 30.sp, lineHeight = 35.sp, fontWeight = FontWeight.ExtraBold)
+                Spacer(Modifier.height(10.dp))
+                Text("A mobile-first home for your Minecraft Java profiles.", color = Muted, fontSize = 14.sp, lineHeight = 20.sp)
+                Spacer(Modifier.height(22.dp))
+                Button(
+                    onClick = onStart,
+                    modifier = Modifier.fillMaxWidth().height(54.dp),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = Accent, contentColor = Background)
+                ) {
+                    Icon(Icons.Default.Gamepad, contentDescription = null)
+                    Text("  START GAME", fontWeight = FontWeight.ExtraBold, letterSpacing = 1.sp)
+                }
+                Spacer(Modifier.height(10.dp))
+                Text("Prototype only · Game runtime not connected", color = Muted, fontSize = 11.sp)
+            }
+        }
+
+        Text("QUICK ACCESS", color = Muted, fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 2.sp)
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
+            QuickTile("Versions", "Manage builds", Icons.Default.Terminal, Modifier.weight(1f)) { onOpen("Versions") }
+            QuickTile("Features", "Add tools", Icons.Default.Extension, Modifier.weight(1f)) { onOpen("Features") }
+            QuickTile("Settings", "Tune launcher", Icons.Default.Settings, Modifier.weight(1f)) { onOpen("Settings") }
+        }
+
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(22.dp),
+            colors = CardDefaults.cardColors(containerColor = Panel)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(18.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(14.dp)
+            ) {
+                Box(
+                    modifier = Modifier.size(44.dp).background(Color(0xFF303B26), RoundedCornerShape(14.dp)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(Icons.Default.Gamepad, contentDescription = null, tint = Accent)
+                }
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("Local profile", color = Color.White, fontWeight = FontWeight.Bold)
+                    Text("Offline mode · No account linked", color = Muted, fontSize = 12.sp)
+                }
+                Text("ACTIVE", color = Accent, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+            }
+        }
+
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
+                Text("FEATURE STORE", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                Text("COMING SOON", color = Accent, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+            }
+            FeatureRow("Social Hub", "Friends and community links", "Optional")
+            FeatureRow("Theme Customizer", "Personalize your launcher", "Optional")
+        }
+
+        Text("MyLauncher 0.1.0 · Built for mobile", color = Muted, fontSize = 11.sp, modifier = Modifier.align(Alignment.CenterHorizontally).padding(bottom = 10.dp))
+    }
+}
+
+@Composable
+private fun QuickTile(
+    title: String,
+    subtitle: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit
+) {
+    Card(
+        modifier = modifier.clickable(onClick = onClick),
+        shape = RoundedCornerShape(18.dp),
+        colors = CardDefaults.cardColors(containerColor = Panel)
+    ) {
+        Column(modifier = Modifier.padding(13.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Icon(icon, contentDescription = null, tint = Accent, modifier = Modifier.size(21.dp))
+            Text(title, color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+            Text(subtitle, color = Muted, fontSize = 10.sp)
+        }
+    }
+}
+
+@Composable
+private fun FeatureRow(title: String, description: String, status: String) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(18.dp),
+        colors = CardDefaults.cardColors(containerColor = Panel)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Box(Modifier.size(38.dp).background(Color(0xFF303B26), RoundedCornerShape(12.dp)), contentAlignment = Alignment.Center) {
+                Icon(Icons.Default.Extension, contentDescription = null, tint = Accent, modifier = Modifier.size(18.dp))
+            }
+            Column(modifier = Modifier.weight(1f)) {
+                Text(title, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                Text(description, color = Muted, fontSize = 11.sp)
+            }
+            Text(status, color = Muted, fontSize = 10.sp)
+        }
+    }
+}
