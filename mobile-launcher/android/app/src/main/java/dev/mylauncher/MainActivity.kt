@@ -218,6 +218,8 @@ private fun LauncherPage(
     var assetMessage by remember { mutableStateOf<String?>(null) }
     var installingLibrariesVersion by remember { mutableStateOf<String?>(null) }
     var libraryMessage by remember { mutableStateOf<String?>(null) }
+    var installingNativesVersion by remember { mutableStateOf<String?>(null) }
+    var nativeMessage by remember { mutableStateOf<String?>(null) }
     var downloadMessage by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
 
@@ -334,7 +336,7 @@ private fun LauncherPage(
                     latestRelease?.let { version ->
                         OutlinedButton(
                             onClick = {
-                                if (installingLibrariesVersion == null && installingAssetsVersion == null && downloadingVersion == null) {
+                                if (installingLibrariesVersion == null && installingAssetsVersion == null && installingNativesVersion == null && downloadingVersion == null) {
                                     scope.launch {
                                         installingLibrariesVersion = version.id
                                         libraryMessage = null
@@ -350,7 +352,7 @@ private fun LauncherPage(
                                     }
                                 }
                             },
-                            enabled = installingLibrariesVersion == null && installingAssetsVersion == null && downloadingVersion == null,
+                            enabled = installingLibrariesVersion == null && installingAssetsVersion == null && installingNativesVersion == null && downloadingVersion == null,
                             modifier = Modifier.fillMaxWidth().height(50.dp),
                             shape = RoundedCornerShape(14.dp)
                         ) {
@@ -363,6 +365,37 @@ private fun LauncherPage(
                         }
                     }
                     libraryMessage?.let { InfoCard("Library download status", "SHA-1 checked", it) }
+                    latestRelease?.let { version ->
+                        OutlinedButton(
+                            onClick = {
+                                if (installingNativesVersion == null && installingLibrariesVersion == null && installingAssetsVersion == null && downloadingVersion == null) {
+                                    scope.launch {
+                                        installingNativesVersion = version.id
+                                        nativeMessage = null
+                                        try {
+                                            val result = MinecraftNativeLibraryInstaller.install(context, version)
+                                            nativeMessage = "Native archives extracted: ${result.extracted}; already present: ${result.reused}; files written: ${result.files}; downloaded: ${result.bytesDownloaded / (1024 * 1024)} MB. Experimental Linux ARM64 metadata target only; this does not enable launching."
+                                        } catch (error: Exception) {
+                                            nativeMessage = error.message ?: "Native library installation failed."
+                                        } finally {
+                                            installingNativesVersion = null
+                                        }
+                                    }
+                                }
+                            },
+                            enabled = installingNativesVersion == null && installingLibrariesVersion == null && installingAssetsVersion == null && downloadingVersion == null,
+                            modifier = Modifier.fillMaxWidth().height(50.dp),
+                            shape = RoundedCornerShape(14.dp)
+                        ) {
+                            if (installingNativesVersion == version.id) {
+                                CircularProgressIndicator(modifier = Modifier.size(18.dp), color = Accent, strokeWidth = 2.dp)
+                                Text("  EXTRACTING NATIVE LIBRARIES")
+                            } else {
+                                Text("DOWNLOAD / EXTRACT NATIVE LIBRARIES")
+                            }
+                        }
+                    }
+                    nativeMessage?.let { InfoCard("Native library status", "Archive SHA-1 checked · safe extraction", it) }
                     latestSnapshot?.let { InfoCard("Latest snapshot", it.id, "Snapshot build · Selectable metadata only; not installed.") }
                     Text("RECENT VERSIONS", color = Muted, fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 2.sp)
                     versions.filter { it.id != latestRelease?.id }.take(12).forEach { version ->
