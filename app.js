@@ -30,33 +30,80 @@ dialog.addEventListener("click", event => {
 
 const versionSelect = document.querySelector("#version-select");
 const memorySlider = document.querySelector("#memory-slider");
+const memoryValue = document.querySelector("#memory-value");
+const versionTitle = document.querySelector(".world-title-row h2");
+const versionPill = document.querySelector(".version-pill");
+const profileName = document.querySelector(".profile-name");
+const storageKey = "hyper-launcher-mobile-settings-v1";
+
+function readSettings() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(storageKey) || "{}");
+    if (saved.version && Array.from(versionSelect.options).some(option => option.value === saved.version)) {
+      versionSelect.value = saved.version;
+    }
+    if (Number.isInteger(saved.memory) && saved.memory >= 2 && saved.memory <= 8) {
+      memorySlider.value = String(saved.memory);
+    }
+  } catch (error) {
+    // Storage can be unavailable in private or restricted browser contexts.
+  }
+}
+function saveSettings() {
+  try {
+    localStorage.setItem(storageKey, JSON.stringify({
+      version: versionSelect.value,
+      memory: Number(memorySlider.value)
+    }));
+  } catch (error) {
+    // Keep the controls usable even when storage is unavailable.
+  }
+}
+function updateVersionSummary() {
+  const selected = versionSelect.options[versionSelect.selectedIndex];
+  const isSnapshot = versionSelect.value === "snapshot";
+  versionTitle.textContent = isSnapshot ? "Latest Snapshot" : (selected.textContent.split(" — ")[1] || "Minecraft Java");
+  versionPill.textContent = isSnapshot ? "SNAPSHOT" : versionSelect.value;
+}
+function updateMemorySummary() {
+  memoryValue.textContent = memorySlider.value + " GB";
+}
+readSettings();
+updateVersionSummary();
+updateMemorySummary();
+
+versionSelect.addEventListener("change", () => {
+  updateVersionSummary();
+  saveSettings();
+});
 memorySlider.addEventListener("input", () => {
-  document.querySelector("#memory-value").textContent = memorySlider.value + " GB";
+  updateMemorySummary();
+  saveSettings();
 });
 
 document.querySelector("#play-button").addEventListener("click", () => {
   const version = versionSelect.value === "snapshot" ? "Latest Snapshot" : versionSelect.value;
   showDialog(
-    "Your adventure is queued.",
-    "Selected version: " + version + ". Memory allocation: " + memorySlider.value + " GB. This mobile UI is a prototype: it cannot download or run Minecraft yet. The Android launcher engine, Java runtime support, Microsoft sign-in, and local profile flow still need to be built.",
-    "UNDERSTOOD"
+    "Launcher engine not connected",
+    "Your setup is saved on this device. Selected version: " + version + ". Memory target: " + memorySlider.value + " GB. This is still a browser UI prototype; it cannot download or launch Minecraft. The next major step is the Android app shell, compatible Java runtime, game libraries, and process launch integration.",
+    "GOT IT"
   );
 });
 
 document.querySelector("#account-button").addEventListener("click", () => {
   showDialog(
     "Your player profile",
-    "Offline Player is a profile placeholder for this preview. Profile creation and saving, and Microsoft account authentication, are not connected yet.",
+    "Offline Player is a local preview label only. It is not a Minecraft account and does not authenticate with Microsoft. Account sign-in and profile storage need to be implemented in the Android app.",
     "OK"
   );
 });
 
 function showFeature(feature) {
   const messages = {
-    "Instances": "Your game instances will live here. Creating, importing, and installing separate Minecraft versions is planned for a later build.",
-    "Mods & packs": "A place for mods and modpacks is planned. Mod loader support and safe downloads are not connected yet.",
-    "Mods": "A place for mods and modpacks is planned. Mod loader support and safe downloads are not connected yet.",
-    "Settings": "This preview lets you select a version and adjust the memory setting. Device detection and saving preferences are not implemented yet.",
+    "Instances": "Instance management is planned. The current preview does not install game versions or create separate game directories.",
+    "Mods & packs": "Mod and modpack management is planned. No mod downloads or loader installation are connected yet.",
+    "Mods": "Mod and modpack management is planned. No mod downloads or loader installation are connected yet.",
+    "Settings": "Choose a version and memory target on Home. These preferences are saved in this browser when local storage is available. Actual device RAM detection and Android settings are not implemented yet.",
     "Home": "You're already on the Home screen."
   };
   showDialog(feature === "Home" ? "Welcome home." : feature, messages[feature] || "This section is planned for a future build.", feature === "Home" ? "GOT IT" : "BACK TO HOME", () => {
