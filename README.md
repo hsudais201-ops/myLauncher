@@ -1,38 +1,41 @@
-# Hyper Launcher — Mobile UI
+# Hyper Launcher — Android + Mobile UI
 
-A mobile-first interface prototype for a future Android launcher for Minecraft Java Edition, inspired by the clean, game-focused Hyper Launcher look.
+A mobile-first launcher prototype for Minecraft Java Edition. The repository now contains both the browser preview and an initial native Android app shell.
 
-## Preview
+## Current working pieces
 
-Open [index.html](./index.html) in a mobile browser, or enable GitHub Pages to publish the static preview. The layout is designed for touch screens and includes safe-area spacing.
+- Mobile-first Hyper Launcher home screen and touch-friendly navigation.
+- Version selector and memory target controls.
+- Browser-local preference persistence where storage is available.
+- Android Gradle project using Kotlin and a WebView that loads the UI bundled in the APK.
+- GitHub Actions workflow to build a debug APK and publish it as a workflow artifact.
 
-## Working preview features
+## Build the Android preview
 
-- Phone-first home screen and fixed bottom navigation.
-- Pixel-inspired landscape and featured Minecraft instance card.
-- Version selector with an updated version summary.
-- Memory target slider with a live value.
-- Version and memory preferences saved in browser local storage when available.
-- Offline Player profile placeholder and clear prototype-status dialogs.
+Pushes to `main`, pull requests, and manual workflow runs trigger the Android build workflow. When it succeeds, download the **hyper-launcher-debug-apk** artifact from the workflow run on GitHub Actions.
 
-## Important status
+The Android project uses JDK 17, Gradle 8.9, Android Gradle Plugin 8.7.3, and compile SDK 35.
 
-This is a **static browser UI prototype**, not an installable Android app and not a functioning Minecraft launcher. The Play button does not start Minecraft. Browser storage saves only the selected version and memory target; it does not install or run game files.
+## Important status — not a finished Minecraft launcher
 
-To become a real Android Java Edition launcher, the next phases need to implement:
+The native app shell is only a first milestone. It **does not download, install, authenticate, or launch Minecraft yet**. A successful Android APK build would verify the shell compiles, not prove Minecraft gameplay works.
 
-1. An Android app shell and device/architecture checks.
-2. Game-version manifests, asset/library downloads, and integrity checks.
-3. A compatible Java runtime for Android, complete classpath assembly, and process launching.
-4. Microsoft account authentication for licensed accounts.
-5. Any offline/local profile mode with clear limits; it must not bypass Minecraft authentication or licensing.
-6. Instance storage, device-aware memory limits, logs, and error handling.
+Remaining engineering milestones:
 
-## Files
+1. Device and CPU architecture detection, storage planning, and memory limits.
+2. Fetch and validate official version manifests, libraries, assets, and client files.
+3. Integrate a Java runtime that works on supported Android devices and configure native library loading.
+4. Construct the correct game classpath, JVM arguments, game arguments, and process lifecycle.
+5. Implement secure Microsoft account sign-in for licensed accounts.
+6. Support local/offline profile UI without bypassing Minecraft authentication or licensing.
+7. Add instance management, mod-loader integration, logs, crash reporting, and device testing across Android versions.
 
-- `index.html` — mobile-first UI
-- `mobile.css` — phone layout, touch controls, and safe-area styling
-- `app.js` — preview interactions and local preference persistence
-- `styles.css` — previous desktop UI styling (not loaded by the mobile entry page)
+## Repository layout
 
-The `main` branch is preserved.
+- `index.html`, `mobile.css`, `app.js` — browser preview source
+- `app/src/main/assets/` — UI files bundled into Android
+- `app/src/main/java/com/hyperlauncher/mobile/MainActivity.kt` — native WebView host
+- `app/build.gradle.kts`, `build.gradle.kts`, `settings.gradle.kts` — Android Gradle configuration
+- `.github/workflows/android-build.yml` — automated debug APK build
+
+The existing `main` branch is preserved.
