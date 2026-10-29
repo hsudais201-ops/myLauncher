@@ -15,14 +15,14 @@ An Android-first launcher project for Minecraft: Java Edition, with a mobile UI 
 2. Open the `mobile-launcher/android` folder in Android Studio.
 3. Allow Gradle to sync, then run the `app` configuration on an Android device or emulator.
 
-The project uses JDK 17, Android Gradle Plugin 8.10.1, Kotlin 2.1.20, compile SDK 35, and minimum Android API 26. GitHub Actions is configured to build a debug APK; the latest confirmed build for commit `0cf3293abafb1cc2f4b89b35c53c2e3d5b081fea` succeeded; check the Actions page for newer commits.
+The project uses JDK 17, Android Gradle Plugin 8.10.1, Kotlin 2.1.20, compile SDK 35, and minimum Android API 26. GitHub Actions builds a debug APK on pushes to `main`. The latest confirmed successful run is [run 40932664219](https://github.com/hsudais201-ops/myLauncher/actions/runs/40932664219), for commit `809e1913f26043318d67bb63efa232ec26ae9574`. A later commit may not have its own run yet; check Actions before treating an APK as matching the latest source.
 
 ## Roadmap
 
 1. Native mobile launcher UI and navigation. (Initial scaffold added.)
 2. Local offline profile creation and profile management. (Basic saved player name added.)
 3. Minecraft version metadata, downloads, assets, libraries, and integrity verification. (Manifest reader, checksum-verified client JAR download, validated install-plan parser, and SHA-1-verified ordinary library artifact downloader added. Asset index/object and ordinary library download/verification actions are available from the Versions screen. Asset indexes marked virtual or map_to_resources now also materialize the corresponding virtual/resource file layouts after hash verification. Libraries are stored at validated Maven-relative paths. Settings reports local artifact counts and blockers, but file presence alone does not prove integrity. An experimental Linux ARM64 native classifier downloader/extractor is now available from the Versions screen; it verifies archive SHA-1 hashes, applies each library's exclusion list, and rejects unsafe archive paths. This is not yet a complete integrated installation, does not guarantee device compatibility, and does not enable runtime launching. The version parser evaluates basic ordered Mojang rules for a Linux ARM64 target; test this against actual device metadata before relying on it.)
-4. Java runtime integration and correct JVM/classpath argument assembly.
+4. Java runtime integration and correct JVM/classpath argument assembly. See [runtime integration design and validation gates](RUNTIME_INTEGRATION.md).
 5. Microsoft sign-in using the genuine approved OAuth/Xbox/Minecraft authentication flow.
 6. Optional feature store with explicit install/uninstall and integrity checks.
 7. Touch controls, renderer integration, and device compatibility testing.
