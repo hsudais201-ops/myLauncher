@@ -21,7 +21,7 @@ The project uses JDK 17, Android Gradle Plugin 8.10.1, Kotlin 2.1.20, compile SD
 
 1. Native mobile launcher UI and navigation. (Initial scaffold added.)
 2. Local offline profile creation and profile management. (Basic saved player name added.)
-3. Minecraft version metadata, downloads, assets, libraries, and integrity verification. (Manifest reader, checksum-verified client JAR download, validated install-plan parser, and SHA-1-verified ordinary library artifact downloader added. An asset index/object downloader with SHA-1 checks is available from the Versions screen. Platform-specific native libraries, version rule evaluation, a complete integrated installation flow, and runtime launching remain pending.)
+3. Minecraft version metadata, downloads, assets, libraries, and integrity verification. (Manifest reader, checksum-verified client JAR download, validated install-plan parser, and SHA-1-verified ordinary library artifact downloader added. Asset index/object and ordinary library download/verification actions are available from the Versions screen. Libraries are stored at validated Maven-relative paths. Platform-specific native classifiers, version rule evaluation, a complete integrated installation flow, and runtime launching remain pending.)
 4. Java runtime integration and correct JVM/classpath argument assembly.
 5. Microsoft sign-in using the genuine approved OAuth/Xbox/Minecraft authentication flow.
 6. Optional feature store with explicit install/uninstall and integrity checks.
