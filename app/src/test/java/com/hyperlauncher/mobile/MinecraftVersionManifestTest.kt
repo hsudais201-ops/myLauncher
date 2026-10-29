@@ -1,27 +1,34 @@
 package com.hyperlauncher.mobile
 
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertTrue
+import org.junit.Assert.assertThrows
 import org.junit.Test
 
 class MinecraftVersionManifestTest {
     @Test
-    fun versionIdsUseExpectedSafeShape() {
-        val validIds = listOf("1.21.4", "1.20.1", "24w14a", "1.21-pre1")
-        val invalidIds = listOf("", "../latest", "1.21/../../bad", " spaces ")
+    fun parsesReleaseAndSnapshotAndSkipsUnsafeEntries() {
+        val json = """
+            {
+              "versions": [
+                {"id":"1.21.4","type":"release","releaseTime":"2024-12-03T00:00:00+00:00"},
+                {"id":"24w14a","type":"snapshot","releaseTime":"2024-04-02T00:00:00+00:00"},
+                {"id":"../bad","type":"release","releaseTime":"ignored"},
+                {"id":"1.19.4","type":"old_beta","releaseTime":"ignored"}
+              ]
+            }
+        """.trimIndent()
 
-        validIds.forEach {
-            assertTrue("Expected valid version ID: $it", it.matches(Regex("^[0-9][A-Za-z0-9._-]{0,63}$")))
-        }
-        invalidIds.forEach {
-            assertTrue("Expected invalid version ID: $it", !it.matches(Regex("^[0-9][A-Za-z0-9._-]{0,63}$")))
-        }
+        val versions = MinecraftVersionManifest.parseManifest(json)
+
+        assertEquals(2, versions.size)
+        assertEquals(MinecraftVersion("1.21.4", "release", "2024-12-03T00:00:00+00:00"), versions[0])
+        assertEquals(MinecraftVersion("24w14a", "snapshot", "2024-04-02T00:00:00+00:00"), versions[1])
     }
 
     @Test
-    fun onlyKnownManifestTypesAreAccepted() {
-        assertEquals(listOf("release", "snapshot").filter { it == "release" || it == "snapshot" },
-            listOf("release", "snapshot"))
-        assertTrue("unknown".let { it != "release" && it != "snapshot" })
+    fun rejectsManifestWithNoUsableVersions() {
+        assertThrows(IllegalStateException::class.java) {
+            MinecraftVersionManifest.parseManifest("""{"versions":[{"id":"../bad","type":"release"}]}""")
+        }
     }
 }
