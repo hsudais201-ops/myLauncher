@@ -36,8 +36,6 @@ object MinecraftNativeLibraryInstaller {
             var reused = 0
             var files = 0
             var bytesDownloaded = 0L
-            val exclusions = mutableSetOf<String>()
-
             for (i in 0 until libraries.length()) {
                 val library = libraries.getJSONObject(i)
                 if (!allowedOnLinuxArm64(library)) continue
@@ -53,6 +51,7 @@ object MinecraftNativeLibraryInstaller {
                 if (!url.startsWith("https://") || !hash.matches(Regex("[a-f0-9]{40}"))) continue
                 if (!safeRelativePath(relativePath)) continue
 
+                val exclusions = mutableSetOf<String>()
                 val excludeArray = library.optJSONObject("extract")?.optJSONArray("exclude")
                 if (excludeArray != null) {
                     for (j in 0 until excludeArray.length()) {
