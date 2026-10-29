@@ -4,9 +4,10 @@ import android.content.Context
 import java.io.File
 
 data class LaunchReadinessReport(
-    val verifiedClientCandidates: Int,
+    val clientJarsPresent: Int,
     val savedVersionMetadata: Int,
     val assetIndexes: Int,
+    val assetObjects: Int,
     val libraryJars: Int,
     val blockers: List<String>
 ) {
@@ -14,9 +15,10 @@ data class LaunchReadinessReport(
 
     fun summary(): String = buildString {
         appendLine("Launch status: ${if (canLaunch) "Ready" else "Blocked"}")
-        appendLine("Client JARs present: $verifiedClientCandidates")
+        appendLine("Client JARs present: $clientJarsPresent")
         appendLine("Saved version metadata files: $savedVersionMetadata")
         appendLine("Asset indexes present: $assetIndexes")
+        appendLine("Asset objects present: $assetObjects")
         appendLine("Library JARs present: $libraryJars")
         if (blockers.isNotEmpty()) {
             appendLine("Still required:")
@@ -47,17 +49,24 @@ object LaunchReadiness {
         }
         val indexes = File(minecraft, "assets/indexes").listFiles()
             ?.count { it.isFile && it.extension.equals("json", ignoreCase = true) } ?: 0
+        val assetObjects = countFiles(File(minecraft, "assets/objects"))
         val libraries = countFilesWithExtension(File(minecraft, "libraries"), "jar")
         val blockers = buildList {
             if (clients == 0) add("Download a Minecraft client JAR.")
             if (metadata == 0) add("Save official version metadata.")
-            if (indexes == 0) add("Download the asset index and objects.")
+            if (indexes == 0) add("Download the asset index.")
+            if (assetObjects == 0) add("Download the asset objects.")
             if (libraries == 0) add("Download required library artifacts.")
             add("Install and select a compatible Android Java runtime.")
             add("Resolve native libraries, classpath, JVM arguments, and game launch integration.")
             add("Verify every required artifact for the selected version before launch.")
         }
-        return LaunchReadinessReport(clients, metadata, indexes, libraries, blockers)
+        return LaunchReadinessReport(clients, metadata, indexes, assetObjects, libraries, blockers)
+    }
+
+    private fun countFiles(directory: File): Int {
+        if (!directory.isDirectory) return 0
+        return directory.walkTopDown().count { it.isFile }
     }
 
     private fun countFilesWithExtension(directory: File, extension: String): Int {
