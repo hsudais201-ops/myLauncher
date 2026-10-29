@@ -21,6 +21,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Extension
 import androidx.compose.material.icons.filled.Gamepad
 import androidx.compose.material.icons.filled.Settings
@@ -31,12 +32,18 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -52,18 +59,21 @@ class MainActivity : ComponentActivity() {
         setContent {
             MaterialTheme {
                 Surface(modifier = Modifier.fillMaxSize(), color = Background) {
-                    LauncherHome(
-                        onStart = {
-                            Toast.makeText(
-                                this,
-                                "Game launching is not connected yet.",
-                                Toast.LENGTH_SHORT
-                            ).show()
-                        },
-                        onOpen = { page ->
-                            Toast.makeText(this, "$page is coming soon.", Toast.LENGTH_SHORT).show()
-                        }
-                    )
+                    var page by remember { mutableStateOf("Home") }
+                    if (page == "Home") {
+                        LauncherHome(
+                            onStart = {
+                                Toast.makeText(
+                                    this,
+                                    "Game launching is not connected yet.",
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                            },
+                            onOpen = { selected -> page = selected }
+                        )
+                    } else {
+                        LauncherPage(title = page, onBack = { page = "Home" })
+                    }
                 }
             }
         }
@@ -93,9 +103,7 @@ private fun LauncherHome(
                 Text("Your world, your way.", color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.Bold)
             }
             Box(
-                modifier = Modifier
-                    .size(46.dp)
-                    .background(Panel, CircleShape),
+                modifier = Modifier.size(46.dp).background(Panel, CircleShape),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(Icons.Default.Gamepad, contentDescription = "MyLauncher", tint = Accent)
@@ -173,10 +181,64 @@ private fun LauncherHome(
 }
 
 @Composable
+private fun LauncherPage(title: String, onBack: () -> Unit) {
+    Column(
+        modifier = Modifier.fillMaxSize().background(Background).verticalScroll(rememberScrollState()).padding(20.dp),
+        verticalArrangement = Arrangement.spacedBy(18.dp)
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            OutlinedButton(onClick = onBack, shape = RoundedCornerShape(14.dp)) {
+                Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = Accent)
+                Text("  BACK", color = Color.White)
+            }
+            Text(title.uppercase(), color = Accent, fontSize = 12.sp, fontWeight = FontWeight.Bold, letterSpacing = 2.sp)
+        }
+
+        when (title) {
+            "Versions" -> {
+                Text("Game versions", color = Color.White, fontSize = 28.sp, fontWeight = FontWeight.ExtraBold)
+                Text("Choose and install a Minecraft Java version. Version metadata and downloads are not connected yet.", color = Muted, fontSize = 14.sp, lineHeight = 21.sp)
+                InfoCard("Latest release", "Not installed", "The version manifest installer is a planned next step.")
+                InfoCard("Snapshots", "Not available yet", "Snapshot selection will be added after the release installer.")
+            }
+            "Features" -> {
+                Text("Feature store", color = Color.White, fontSize = 28.sp, fontWeight = FontWeight.ExtraBold)
+                Text("Optional add-ons will be installed only after you choose them. This prototype does not download or execute add-ons.", color = Muted, fontSize = 14.sp, lineHeight = 21.sp)
+                InfoCard("Social Hub", "Coming soon", "Community links and social shortcuts.")
+                InfoCard("Theme Customizer", "Coming soon", "Change accent colors and launcher appearance.")
+                InfoCard("Server Status", "Coming soon", "Optional server status cards.")
+            }
+            else -> {
+                Text("Launcher settings", color = Color.White, fontSize = 28.sp, fontWeight = FontWeight.ExtraBold)
+                Text("Basic launcher options will appear here as the native app develops.", color = Muted, fontSize = 14.sp, lineHeight = 21.sp)
+                InfoCard("Account", "Offline profile", "Microsoft authentication is not configured yet.")
+                InfoCard("Runtime", "Not configured", "A compatible Java runtime and game launch pipeline are still required.")
+                InfoCard("Safety", "Downloads disabled", "The app does not download game files or run third-party code yet.")
+            }
+        }
+    }
+}
+
+@Composable
+private fun InfoCard(title: String, status: String, description: String) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = Panel)
+    ) {
+        Column(modifier = Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+            Text(title, color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+            Text(status, color = Accent, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+            Text(description, color = Muted, fontSize = 13.sp, lineHeight = 19.sp)
+        }
+    }
+}
+
+@Composable
 private fun QuickTile(
     title: String,
     subtitle: String,
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    icon: ImageVector,
     modifier: Modifier = Modifier,
     onClick: () -> Unit
 ) {
