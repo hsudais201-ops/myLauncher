@@ -36,7 +36,7 @@ object MinecraftArgumentPlanner {
             require(legacy.isNotBlank()) { "Version metadata contains no supported argument format." }
             game += tokenizeLegacy(legacy).map { substitute(it, placeholders) }
             // A conservative baseline; version-specific JVM flags are not guessed.
-            jvm += listOf("-Djava.library.path=${natives_directory}")
+            jvm += listOf("-Djava.library.path=\${natives_directory}")
         }
         return MinecraftArgumentPlan(mainClass, jvm, game, javaMajor)
     }
