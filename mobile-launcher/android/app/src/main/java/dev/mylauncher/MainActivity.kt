@@ -33,12 +33,14 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -59,7 +61,10 @@ class MainActivity : ComponentActivity() {
         setContent {
             MaterialTheme {
                 Surface(modifier = Modifier.fillMaxSize(), color = Background) {
-                    var page by remember { mutableStateOf("Home") }
+                    var page by rememberSaveable { mutableStateOf("Home") }
+                    var profileName by rememberSaveable {
+                        mutableStateOf(getSharedPreferences("mylauncher", MODE_PRIVATE).getString("profile_name", "Player") ?: "Player")
+                    }
                     if (page == "Home") {
                         LauncherHome(
                             onStart = {
@@ -69,10 +74,19 @@ class MainActivity : ComponentActivity() {
                                     Toast.LENGTH_SHORT
                                 ).show()
                             },
+                            profileName = profileName,
                             onOpen = { selected -> page = selected }
                         )
                     } else {
-                        LauncherPage(title = page, onBack = { page = "Home" })
+                        LauncherPage(
+                            title = page,
+                            profileName = profileName,
+                            onProfileNameChange = { updated ->
+                                profileName = updated
+                                getSharedPreferences("mylauncher", MODE_PRIVATE).edit().putString("profile_name", updated).apply()
+                            },
+                            onBack = { page = "Home" }
+                        )
                     }
                 }
             }
@@ -83,6 +97,7 @@ class MainActivity : ComponentActivity() {
 @Composable
 private fun LauncherHome(
     onStart: () -> Unit,
+    profileName: String,
     onOpen: (String) -> Unit
 ) {
     Column(
@@ -160,8 +175,8 @@ private fun LauncherHome(
                     Icon(Icons.Default.Gamepad, contentDescription = null, tint = Accent)
                 }
                 Column(modifier = Modifier.weight(1f)) {
-                    Text("Local profile", color = Color.White, fontWeight = FontWeight.Bold)
-                    Text("Offline mode · No account linked", color = Muted, fontSize = 12.sp)
+                    Text(profileName.ifBlank { "Player" }, color = Color.White, fontWeight = FontWeight.Bold)
+                    Text("Offline profile · Stored on this device", color = Muted, fontSize = 12.sp)
                 }
                 Text("ACTIVE", color = Accent, fontSize = 10.sp, fontWeight = FontWeight.Bold)
             }
@@ -181,7 +196,12 @@ private fun LauncherHome(
 }
 
 @Composable
-private fun LauncherPage(title: String, onBack: () -> Unit) {
+private fun LauncherPage(
+    title: String,
+    profileName: String,
+    onProfileNameChange: (String) -> Unit,
+    onBack: () -> Unit
+) {
     Column(
         modifier = Modifier.fillMaxSize().background(Background).verticalScroll(rememberScrollState()).padding(20.dp),
         verticalArrangement = Arrangement.spacedBy(18.dp)
@@ -210,7 +230,30 @@ private fun LauncherPage(title: String, onBack: () -> Unit) {
             }
             else -> {
                 Text("Launcher settings", color = Color.White, fontSize = 28.sp, fontWeight = FontWeight.ExtraBold)
-                Text("Basic launcher options will appear here as the native app develops.", color = Muted, fontSize = 14.sp, lineHeight = 21.sp)
+                Text("Set the local player name saved on this device. This does not sign you into Microsoft or authenticate online play.", color = Muted, fontSize = 14.sp, lineHeight = 21.sp)
+                var draftName by rememberSaveable(profileName) { mutableStateOf(profileName) }
+                OutlinedTextField(
+                    value = draftName,
+                    onValueChange = { draftName = it.take(16) },
+                    label = { Text("Player name") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(14.dp)
+                )
+                Text("Use 1–16 letters, numbers, or underscores for a simple offline name.", color = Muted, fontSize = 12.sp)
+                Button(
+                    onClick = {
+                        val cleanName = draftName.trim()
+                        if (cleanName.matches(Regex("[A-Za-z0-9_]{1,16}"))) {
+                            onProfileNameChange(cleanName)
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth().height(50.dp),
+                    shape = RoundedCornerShape(14.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = Accent, contentColor = Background)
+                ) {
+                    Text("SAVE PROFILE", fontWeight = FontWeight.Bold)
+                }
                 InfoCard("Account", "Offline profile", "Microsoft authentication is not configured yet.")
                 InfoCard("Runtime", "Not configured", "A compatible Java runtime and game launch pipeline are still required.")
                 InfoCard("Safety", "Downloads disabled", "The app does not download game files or run third-party code yet.")
