@@ -435,7 +435,8 @@ private fun LauncherPage(
                     Text("SAVE PROFILE", fontWeight = FontWeight.Bold)
                 }
                 InfoCard("Account", "Offline profile", "Microsoft authentication is not configured yet.")
-                InfoCard("Runtime diagnostics", "Device information", "${RuntimeDiagnostics.summary()}. A compatible game runtime and launch pipeline are still required.")
+                InfoCard("Runtime diagnostics", "Device information", "${RuntimeDiagnostics.summary()}.")
+                InfoCard("Launch readiness", "Diagnostic only · launching is blocked", LaunchReadiness.inspect(context).summary())
                 InfoCard("Safety", "Verified downloads", "Client JARs and asset files are downloaded only from HTTPS sources and checked against official SHA-1 hashes. Game launching is not connected.")
             }
         }
