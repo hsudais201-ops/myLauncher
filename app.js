@@ -2,18 +2,28 @@ const dialog = document.querySelector("#app-dialog");
 const dialogTitle = document.querySelector("#dialog-title");
 const dialogMessage = document.querySelector("#dialog-message");
 const dialogAction = document.querySelector("#dialog-action");
+let actionAfterDialog = null;
 
-function showDialog(title, message, action = "GOT IT") {
+function showDialog(title, message, action = "GOT IT", callback = null) {
   dialogTitle.textContent = title;
   dialogMessage.textContent = message;
   dialogAction.firstChild.textContent = action + " ";
+  actionAfterDialog = callback;
   if (typeof dialog.showModal === "function") dialog.showModal();
   else window.alert(title + "\n\n" + message);
 }
-function closeDialog() { if (dialog.open) dialog.close(); }
-
+function closeDialog() {
+  if (dialog.open) dialog.close();
+}
 document.querySelector("#dialog-close").addEventListener("click", closeDialog);
-dialogAction.addEventListener("click", closeDialog);
+dialogAction.addEventListener("click", () => {
+  closeDialog();
+  if (actionAfterDialog) {
+    const callback = actionAfterDialog;
+    actionAfterDialog = null;
+    callback();
+  }
+});
 dialog.addEventListener("click", event => {
   if (event.target === dialog) closeDialog();
 });
@@ -24,60 +34,44 @@ memorySlider.addEventListener("input", () => {
   document.querySelector("#memory-value").textContent = memorySlider.value + " GB";
 });
 
-function playPreview() {
+document.querySelector("#play-button").addEventListener("click", () => {
   const version = versionSelect.value === "snapshot" ? "Latest Snapshot" : versionSelect.value;
   showDialog(
     "Your adventure is queued.",
-    "Selected version: " + version + ". Memory allocation: " + memorySlider.value + " GB. This is currently a UI prototype: the Minecraft runtime, downloads, Microsoft sign-in, and offline profile flow still need to be implemented before Play can launch the game.",
+    "Selected version: " + version + ". Memory allocation: " + memorySlider.value + " GB. This mobile UI is a prototype: it cannot download or run Minecraft yet. The Android launcher engine, Java runtime support, Microsoft sign-in, and local profile flow still need to be built.",
     "UNDERSTOOD"
   );
-}
-document.querySelector("#hero-play").addEventListener("click", playPreview);
-document.querySelector("#card-play").addEventListener("click", playPreview);
-
-const pageNames = {
-  home: "HOME",
-  instances: "INSTANCES",
-  mods: "MODS & PACKS",
-  settings: "SETTINGS"
-};
-const pageCopy = {
-  instances: ["Your instances.", "Manage separate game versions, mod loaders, and profiles here. Instance creation and installation are planned for a later build."],
-  mods: ["Make it your world.", "A dedicated place for mods and modpacks is coming. Mod downloads and loader integration are not connected yet."],
-  settings: ["Tune your setup.", "Choose a game version and adjust the preview memory setting. System detection and persistent launcher preferences are not implemented yet."]
-};
-function selectPage(page) {
-  document.querySelectorAll(".nav-item").forEach(item => item.classList.toggle("active", item.dataset.page === page));
-  document.querySelector("#crumb-page").textContent = pageNames[page] || "HOME";
-  if (page !== "home") {
-    const copy = pageCopy[page];
-    showDialog(copy[0], copy[1], "BACK TO HOME");
-    dialogAction.onclick = () => {
-      dialogAction.onclick = null;
-      closeDialog();
-      selectPage("home");
-    };
-  } else {
-    dialogAction.onclick = null;
-  }
-}
-document.querySelectorAll(".nav-item").forEach(item => {
-  item.addEventListener("click", () => selectPage(item.dataset.page));
 });
-document.querySelector("#explore-button").addEventListener("click", () => selectPage("instances"));
-document.querySelector("#all-instances").addEventListener("click", () => selectPage("instances"));
 
 document.querySelector("#account-button").addEventListener("click", () => {
   showDialog(
-    "Choose your player profile.",
-    "The current UI shows a local offline profile named Offline Player. You can use a local profile in a future build, but authentication and offline profile saving are not wired up yet.",
+    "Your player profile",
+    "Offline Player is a profile placeholder for this preview. Profile creation and saving, and Microsoft account authentication, are not connected yet.",
     "OK"
   );
 });
-document.querySelector("#about-button").addEventListener("click", () => {
-  showDialog(
-    "Hyper Launcher · Preview 0.1.0",
-    "A desktop-first Minecraft Java launcher UI prototype. This build includes responsive navigation, version selection, a memory slider, and preview dialogs. It does not yet download or launch Minecraft.",
-    "NICE"
-  );
+
+function showFeature(feature) {
+  const messages = {
+    "Instances": "Your game instances will live here. Creating, importing, and installing separate Minecraft versions is planned for a later build.",
+    "Mods & packs": "A place for mods and modpacks is planned. Mod loader support and safe downloads are not connected yet.",
+    "Mods": "A place for mods and modpacks is planned. Mod loader support and safe downloads are not connected yet.",
+    "Settings": "This preview lets you select a version and adjust the memory setting. Device detection and saving preferences are not implemented yet.",
+    "Home": "You're already on the Home screen."
+  };
+  showDialog(feature === "Home" ? "Welcome home." : feature, messages[feature] || "This section is planned for a future build.", feature === "Home" ? "GOT IT" : "BACK TO HOME", () => {
+    document.querySelectorAll(".bottom-item").forEach(item => item.classList.toggle("active", item.dataset.tab === "Home"));
+    window.scrollTo({top: 0, behavior: "smooth"});
+  });
+}
+document.querySelectorAll(".feature-row").forEach(button => {
+  button.addEventListener("click", () => showFeature(button.dataset.feature));
+});
+document.querySelectorAll(".bottom-item").forEach(button => {
+  button.addEventListener("click", () => {
+    const tab = button.dataset.tab;
+    document.querySelectorAll(".bottom-item").forEach(item => item.classList.toggle("active", item === button));
+    if (tab === "Home") window.scrollTo({top: 0, behavior: "smooth"});
+    else showFeature(tab);
+  });
 });
