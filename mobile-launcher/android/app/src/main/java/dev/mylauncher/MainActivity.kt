@@ -207,8 +207,9 @@ private fun LauncherPage(
     var versions by remember { mutableStateOf<List<MinecraftVersion>>(emptyList()) }
     var versionsLoading by remember { mutableStateOf(false) }
     var versionsError by remember { mutableStateOf<String?>(null) }
+    var refreshToken by remember { mutableStateOf(0) }
 
-    LaunchedEffect(title) {
+    LaunchedEffect(title, refreshToken) {
         if (title == "Versions" && versions.isEmpty() && !versionsLoading) {
             versionsLoading = true
             versionsError = null
@@ -246,7 +247,7 @@ private fun LauncherPage(
                 }
                 versionsError?.let { message ->
                     InfoCard("Could not load versions", "Check your connection", message)
-                    OutlinedButton(onClick = { versionsError = null; versions = emptyList() }) {
+                    OutlinedButton(onClick = { versionsError = null; versions = emptyList(); refreshToken += 1 }) {
                         Text("TRY AGAIN", color = Color.White)
                     }
                 }
