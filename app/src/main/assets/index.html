@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#10110f">
+  <meta name="description" content="Hyper Launcher mobile — a mobile-first home for your Minecraft Java worlds.">
+  <title>Hyper Launcher — Mobile</title>
+  <link rel="stylesheet" href="mobile.css">
+</head>
+<body>
+  <div class="phone-app">
+    <header class="topbar">
+      <a class="brand" href="#" aria-label="Hyper Launcher home"><span class="brand-mark"><i></i><i></i><i></i><i></i></span><span>HYPER<small>LAUNCHER</small></span></a>
+      <button class="profile-button" id="account-button" aria-label="Player profile"><span class="avatar">H</span><span class="profile-name">Offline Player</span><span class="chevron">⌄</span></button>
+    </header>
+
+    <main>
+      <section class="welcome">
+        <div class="eyebrow"><span></span> YOUR WORLD AWAITS</div>
+        <h1>Ready to<br><em>play?</em></h1>
+        <p>Your next adventure is only one tap away.</p>
+      </section>
+
+      <section class="world-card" aria-label="Featured Minecraft world">
+        <div class="world-art">
+          <div class="art-sun"></div><div class="art-cloud cloud-a"></div><div class="art-cloud cloud-b"></div>
+          <div class="art-mountain mountain-a"></div><div class="art-mountain mountain-b"></div>
+          <div class="art-ground"></div><div class="art-tree tree-a"><i></i></div><div class="art-tree tree-b"><i></i></div>
+          <div class="world-badge"><span></span> FEATURED INSTANCE</div>
+          <div class="world-art-bottom">OVERWORLD <span>•</span> SURVIVAL STARTS HERE</div>
+        </div>
+        <div class="world-info">
+          <div class="world-title-row"><div><div class="tag">VANILLA JAVA</div><h2>Latest Release</h2></div><div class="version-pill">1.21.4</div></div>
+          <p>A brand-new world is waiting for you.</p>
+          <div class="world-meta"><span><i></i> Ready to play</span><span>Java Edition</span></div>
+          <button class="play-button" id="play-button"><span class="play-symbol">▶</span><span>PLAY MINECRAFT</span><b>↗</b></button>
+        </div>
+      </section>
+
+      <section class="settings-section">
+        <div class="section-heading"><div><span class="section-kicker">QUICK SETUP</span><h2>Your setup</h2></div><span class="spark">✦</span></div>
+        <div class="setting-card">
+          <label for="version-select">GAME VERSION</label>
+          <div class="select-wrap"><select id="version-select"><option value="1.21.4">1.21.4 — Latest Release</option><option value="1.21.1">1.21.1 — Stable</option><option value="1.20.1">1.20.1 — Modded favorite</option><option value="snapshot">Latest Snapshot</option></select><span>⌄</span></div>
+          <div class="setting-divider"></div>
+          <div class="memory-heading"><div><label for="memory-slider">MEMORY ALLOCATION</label><strong id="memory-value">4 GB</strong></div><span class="ram-chip">RAM</span></div>
+          <input id="memory-slider" type="range" min="2" max="8" value="4" step="1" aria-label="Memory allocation in gigabytes">
+          <div class="range-labels"><span>2 GB</span><span>8 GB</span></div>
+        </div>
+        <div class="tip-card"><span class="tip-icon">✦</span><div><strong>Make room for adventure.</strong><p>Modded setups may need extra memory for a smoother experience.</p></div></div>
+      </section>
+
+      <section class="coming-section">
+        <div class="section-heading"><div><span class="section-kicker">YOUR LAUNCHER</span><h2>More to explore</h2></div></div>
+        <div class="feature-list">
+          <button class="feature-row" data-feature="Instances"><span class="feature-icon">▣</span><span><strong>Instances</strong><small>Keep game versions organized</small></span><b>→</b></button>
+          <button class="feature-row" data-feature="Mods & packs"><span class="feature-icon">✣</span><span><strong>Mods & packs</strong><small>Customize your next world</small></span><b>→</b></button>
+        </div>
+      </section>
+    </main>
+
+    <nav class="bottom-nav" aria-label="Main navigation">
+      <button class="bottom-item active" data-tab="Home"><span>⌂</span><small>Home</small></button>
+      <button class="bottom-item" data-tab="Instances"><span>▣</span><small>Instances</small></button>
+      <button class="bottom-item" data-tab="Mods"><span>✣</span><small>Mods</small></button>
+      <button class="bottom-item" data-tab="Settings"><span>⚙</span><small>Settings</small></button>
+    </nav>
+    <footer class="footer"><span class="status-dot"></span> HYPER LAUNCHER <span>PREVIEW 0.2.0</span></footer>
+  </div>
+
+  <dialog id="app-dialog" class="app-dialog"><button class="dialog-close" id="dialog-close" aria-label="Close dialog">×</button><div class="dialog-mark">✦</div><h2 id="dialog-title">Ready when you are.</h2><p id="dialog-message"></p><button class="dialog-action" id="dialog-action">GOT IT <span>→</span></button></dialog>
+  <script src="app.js"></script>
+</body>
+</html>
