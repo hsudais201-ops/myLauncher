@@ -19,7 +19,7 @@ class MinecraftPlannerTest {
     fun legacyArgumentsHandleEscapedQuotesAndEmptyTokens() {
         assertEquals(
             listOf("--name", "Alex \"The Builder\"", ""),
-            MinecraftArgumentPlanner.tokenizeLegacy("""--name "Alex \"The Builder\"" """)
+            MinecraftArgumentPlanner.tokenizeLegacy("--name \"Alex \\\"The Builder\\\"\" \"\"")
         )
     }
 
