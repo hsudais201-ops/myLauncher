@@ -77,4 +77,41 @@ class MinecraftPlannerTest {
             root.deleteRecursively()
         }
     }
+
+    @Test
+    fun modernArgumentPlannerSubstitutesPlaceholdersAndReadsJavaVersion() {
+        val json = """{
+          "mainClass":"net.minecraft.client.main.Main",
+          "javaVersion":{"majorVersion":21},
+          "arguments":{
+            "jvm":["-Xmx2G","-Duser.home=${'$'}{game_directory}"],
+            "game":["--username","${'$'}{auth_player_name}",{"rules":[{"action":"allow","os":{"name":"linux"}}],"value":["--width","854"]}]
+          }
+        }"""
+        val result = MinecraftArgumentPlanner.parse(
+            json,
+            mapOf("game_directory" to "/data/game", "auth_player_name" to "Alex")
+        )
+        assertEquals("net.minecraft.client.main.Main", result.mainClass)
+        assertEquals(21, result.javaMajorVersion)
+        assertEquals(listOf("-Xmx2G", "-Duser.home=/data/game"), result.jvmArguments)
+        assertEquals(listOf("--username", "Alex", "--width", "854"), result.gameArguments)
+    }
+
+    @Test
+    fun modernArgumentPlannerDefaultsRulesToDeniedUntilAllowed() {
+        val json = """{
+          "mainClass":"example.Main",
+          "arguments":{
+            "jvm":[
+              {"rules":[{"action":"allow","os":{"name":"windows"}}],"value":"-Dwindows=true"},
+              {"rules":[{"action":"allow","os":{"name":"linux"}},{"action":"disallow","os":{"name":"linux"}}],"value":"-Dblocked=true"},
+              {"rules":[{"action":"allow","os":{"name":"linux"}}],"value":"-Dlinux=true"}
+            ],
+            "game":[]
+          }
+        }"""
+        val result = MinecraftArgumentPlanner.parse(json, emptyMap())
+        assertEquals(listOf("-Dlinux=true"), result.jvmArguments)
+    }
 }
