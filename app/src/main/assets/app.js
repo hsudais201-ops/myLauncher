@@ -122,3 +122,57 @@ document.querySelectorAll(".bottom-item").forEach(button => {
     else showFeature(tab);
   });
 });
+
+const refreshVersionsButton = document.querySelector("#refresh-versions");
+const versionStatus = document.querySelector("#version-status");
+
+window.onNativeMinecraftVersions = function (result) {
+  refreshVersionsButton.disabled = false;
+  if (!result || !result.ok || !Array.isArray(result.versions) || result.versions.length === 0) {
+    versionStatus.textContent = "Could not sync official versions. Built-in options remain available.";
+    return;
+  }
+
+  const previousVersion = versionSelect.value;
+  const versions = result.versions
+    .filter(version => version && typeof version.id === "string" &&
+      /^[0-9][A-Za-z0-9._-]{0,63}$/.test(version.id) &&
+      (version.type === "release" || version.type === "snapshot"))
+    .slice(0, 120);
+
+  if (!versions.length) {
+    versionStatus.textContent = "The version service returned no supported entries.";
+    return;
+  }
+
+  versionSelect.replaceChildren();
+  versions.forEach(version => {
+    const option = document.createElement("option");
+    option.value = version.id;
+    option.textContent = version.id + (version.type === "snapshot" ? " — Snapshot" : " — Release");
+    versionSelect.appendChild(option);
+  });
+
+  const preserved = versions.some(version => version.id === previousVersion);
+  if (preserved) {
+    versionSelect.value = previousVersion;
+  } else {
+    const latestRelease = versions.find(version => version.type === "release");
+    versionSelect.value = latestRelease ? latestRelease.id : versions[0].id;
+  }
+  updateVersionSummary();
+  saveSettings();
+  versionStatus.textContent = "Synced " + versions.length + " official versions from Mojang.";
+};
+
+function requestOfficialVersions() {
+  if (!window.HyperLauncherNative || typeof window.HyperLauncherNative.refreshVersions !== "function") {
+    versionStatus.textContent = "Official version sync is available in the Android app.";
+    return;
+  }
+  refreshVersionsButton.disabled = true;
+  versionStatus.textContent = "Contacting Mojang version service…";
+  window.HyperLauncherNative.refreshVersions();
+}
+refreshVersionsButton.addEventListener("click", requestOfficialVersions);
+if (window.HyperLauncherNative) requestOfficialVersions();
