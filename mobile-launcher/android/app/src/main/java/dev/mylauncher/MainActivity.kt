@@ -1,5 +1,6 @@
 package dev.mylauncher
 
+import android.content.Context
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
@@ -42,6 +43,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -51,6 +53,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.launch
 
 private val Background = Color(0xFF10120F)
 private val Panel = Color(0xFF1B2019)
@@ -82,6 +85,7 @@ class MainActivity : ComponentActivity() {
                     } else {
                         LauncherPage(
                             title = page,
+                            context = applicationContext,
                             profileName = profileName,
                             onProfileNameChange = { updated ->
                                 profileName = updated
@@ -200,6 +204,7 @@ private fun LauncherHome(
 @Composable
 private fun LauncherPage(
     title: String,
+    context: Context,
     profileName: String,
     onProfileNameChange: (String) -> Unit,
     onBack: () -> Unit
@@ -208,6 +213,9 @@ private fun LauncherPage(
     var versionsLoading by remember { mutableStateOf(false) }
     var versionsError by remember { mutableStateOf<String?>(null) }
     var refreshToken by remember { mutableStateOf(0) }
+    var downloadingVersion by remember { mutableStateOf<String?>(null) }
+    var downloadMessage by remember { mutableStateOf<String?>(null) }
+    val scope = rememberCoroutineScope()
 
     LaunchedEffect(title, refreshToken) {
         if (title == "Versions" && versions.isEmpty() && !versionsLoading) {
@@ -254,7 +262,40 @@ private fun LauncherPage(
                 if (versions.isNotEmpty()) {
                     val latestRelease = versions.firstOrNull { it.type == "release" }
                     val latestSnapshot = versions.firstOrNull { it.type == "snapshot" }
-                    latestRelease?.let { InfoCard("Latest release", it.id, "Official release · Selectable metadata only; not installed.") }
+                    latestRelease?.let { version ->
+                        InfoCard("Latest release", version.id, "Official release · Client JAR download can be verified; this is not a complete installation.")
+                        Button(
+                            onClick = {
+                                if (downloadingVersion == null) {
+                                    scope.launch {
+                                        downloadingVersion = version.id
+                                        downloadMessage = null
+                                        try {
+                                            val result = MinecraftVersionInstaller.downloadClientJar(context, version)
+                                            val sizeMb = result.bytes / (1024.0 * 1024.0)
+                                            downloadMessage = "Verified ${result.versionId} client JAR saved (${"%.1f".format(sizeMb)} MB). Libraries, assets and runtime are still missing."
+                                        } catch (error: Exception) {
+                                            downloadMessage = error.message ?: "Download failed."
+                                        } finally {
+                                            downloadingVersion = null
+                                        }
+                                    }
+                                }
+                            },
+                            enabled = downloadingVersion == null,
+                            modifier = Modifier.fillMaxWidth().height(50.dp),
+                            shape = RoundedCornerShape(14.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = Accent, contentColor = Background)
+                        ) {
+                            if (downloadingVersion == version.id) {
+                                CircularProgressIndicator(modifier = Modifier.size(18.dp), color = Background, strokeWidth = 2.dp)
+                                Text("  DOWNLOADING CLIENT JAR", fontWeight = FontWeight.Bold)
+                            } else {
+                                Text("DOWNLOAD CLIENT JAR", fontWeight = FontWeight.Bold)
+                            }
+                        }
+                    }
+                    downloadMessage?.let { InfoCard("Download status", "Client JAR only", it) }
                     latestSnapshot?.let { InfoCard("Latest snapshot", it.id, "Snapshot build · Selectable metadata only; not installed.") }
                     Text("RECENT VERSIONS", color = Muted, fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 2.sp)
                     versions.take(12).forEach { version ->
