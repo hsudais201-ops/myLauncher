@@ -30,6 +30,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -37,6 +38,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -202,6 +204,24 @@ private fun LauncherPage(
     onProfileNameChange: (String) -> Unit,
     onBack: () -> Unit
 ) {
+    var versions by remember { mutableStateOf<List<MinecraftVersion>>(emptyList()) }
+    var versionsLoading by remember { mutableStateOf(false) }
+    var versionsError by remember { mutableStateOf<String?>(null) }
+
+    LaunchedEffect(title) {
+        if (title == "Versions" && versions.isEmpty() && !versionsLoading) {
+            versionsLoading = true
+            versionsError = null
+            try {
+                versions = MinecraftVersionRepository.fetchVersions()
+            } catch (error: Exception) {
+                versionsError = error.message ?: "Could not load Minecraft versions."
+            } finally {
+                versionsLoading = false
+            }
+        }
+    }
+
     Column(
         modifier = Modifier.fillMaxSize().background(Background).verticalScroll(rememberScrollState()).padding(20.dp),
         verticalArrangement = Arrangement.spacedBy(18.dp)
@@ -217,9 +237,29 @@ private fun LauncherPage(
         when (title) {
             "Versions" -> {
                 Text("Game versions", color = Color.White, fontSize = 28.sp, fontWeight = FontWeight.ExtraBold)
-                Text("Choose and install a Minecraft Java version. Version metadata and downloads are not connected yet.", color = Muted, fontSize = 14.sp, lineHeight = 21.sp)
-                InfoCard("Latest release", "Not installed", "The version manifest installer is a planned next step.")
-                InfoCard("Snapshots", "Not available yet", "Snapshot selection will be added after the release installer.")
+                Text("Live version metadata from the official Mojang version manifest. Downloads and installation are not enabled yet.", color = Muted, fontSize = 14.sp, lineHeight = 21.sp)
+                if (versionsLoading) {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        CircularProgressIndicator(color = Accent, modifier = Modifier.size(22.dp), strokeWidth = 2.dp)
+                        Text("Loading official version list…", color = Muted, fontSize = 13.sp)
+                    }
+                }
+                versionsError?.let { message ->
+                    InfoCard("Could not load versions", "Check your connection", message)
+                    OutlinedButton(onClick = { versionsError = null; versions = emptyList() }) {
+                        Text("TRY AGAIN", color = Color.White)
+                    }
+                }
+                if (versions.isNotEmpty()) {
+                    val latestRelease = versions.firstOrNull { it.type == "release" }
+                    val latestSnapshot = versions.firstOrNull { it.type == "snapshot" }
+                    latestRelease?.let { InfoCard("Latest release", it.id, "Official release · Selectable metadata only; not installed.") }
+                    latestSnapshot?.let { InfoCard("Latest snapshot", it.id, "Snapshot build · Selectable metadata only; not installed.") }
+                    Text("RECENT VERSIONS", color = Muted, fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 2.sp)
+                    versions.take(12).forEach { version ->
+                        InfoCard(version.id, version.type.uppercase(), "Released: " + version.releaseTime.take(10))
+                    }
+                }
             }
             "Features" -> {
                 Text("Feature store", color = Color.White, fontSize = 28.sp, fontWeight = FontWeight.ExtraBold)
