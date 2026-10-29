@@ -43,6 +43,8 @@
         <div class="setting-card">
           <label for="version-select">GAME VERSION</label>
           <div class="select-wrap"><select id="version-select"><option value="1.21.4">1.21.4 — Latest Release</option><option value="1.21.1">1.21.1 — Stable</option><option value="1.20.1">1.20.1 — Modded favorite</option><option value="snapshot">Latest Snapshot</option></select><span>⌄</span></div>
+          <button class="refresh-versions" id="refresh-versions" type="button">SYNC OFFICIAL VERSIONS <span>↻</span></button>
+          <p class="version-status" id="version-status" aria-live="polite">Showing built-in versions</p>
           <div class="setting-divider"></div>
           <div class="memory-heading"><div><label for="memory-slider">MEMORY ALLOCATION</label><strong id="memory-value">4 GB</strong></div><span class="ram-chip">RAM</span></div>
           <input id="memory-slider" type="range" min="2" max="8" value="4" step="1" aria-label="Memory allocation in gigabytes">
