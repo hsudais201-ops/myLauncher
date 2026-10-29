@@ -6,7 +6,8 @@ data class LibraryArtifact(
     val name: String,
     val url: String,
     val sha1: String,
-    val size: Long
+    val size: Long,
+    val relativePath: String
 )
 
 data class MinecraftInstallPlan(
@@ -35,8 +36,10 @@ object MinecraftInstallPlanParser {
             val artifact = lib.optJSONObject("downloads")?.optJSONObject("artifact") ?: continue
             val url = artifact.optString("url")
             val hash = artifact.optString("sha1").lowercase()
+            val relativePath = artifact.optString("path")
             if (!url.startsWith("https://") || !hash.matches(Regex("[a-f0-9]{40}"))) continue
-            libraries += LibraryArtifact(lib.optString("name"), url, hash, artifact.optLong("size", -1))
+            if (!isSafeRelativePath(relativePath)) continue
+            libraries += LibraryArtifact(lib.optString("name"), url, hash, artifact.optLong("size", -1), relativePath)
         }
         return MinecraftInstallPlan(
             versionId = expectedId,
@@ -48,5 +51,11 @@ object MinecraftInstallPlanParser {
             clientJarSha1 = client.getString("sha1").lowercase().also { require(it.matches(Regex("[a-f0-9]{40}"))) },
             libraries = libraries
         )
+    }
+
+    private fun isSafeRelativePath(path: String): Boolean {
+        if (path.isBlank() || path.startsWith("/") || path.startsWith("\\")) return false
+        if (path.contains("\\") || path.split("/").any { it.isBlank() || it == "." || it == ".." }) return false
+        return path.matches(Regex("[A-Za-z0-9._+/-]{1,500}"))
     }
 }
