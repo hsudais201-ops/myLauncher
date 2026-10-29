@@ -9,7 +9,8 @@ import java.net.URL
 data class MinecraftVersion(
     val id: String,
     val type: String,
-    val releaseTime: String
+    val releaseTime: String,
+    val url: String
 )
 
 object MinecraftVersionRepository {
@@ -39,7 +40,8 @@ object MinecraftVersionRepository {
                         MinecraftVersion(
                             id = item.getString("id"),
                             type = item.getString("type"),
-                            releaseTime = item.optString("releaseTime", "")
+                            releaseTime = item.optString("releaseTime", ""),
+                            url = item.getString("url")
                         )
                     )
                 }
