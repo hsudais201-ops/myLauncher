@@ -101,8 +101,8 @@ object MinecraftAssetInstaller {
     private fun isSafeAssetName(name: String): Boolean =
         name.isNotBlank() &&
             !name.startsWith("/") &&
-            !name.startsWith("\\\\") &&
-            !name.contains("\\\\") &&
+            !name.startsWith("\\") &&
+            !name.contains("\\") &&
             name.split("/").all { it.isNotBlank() && it != "." && it != ".." } &&
             name.matches(Regex("[A-Za-z0-9._+/-]{1,1000}"))
 
