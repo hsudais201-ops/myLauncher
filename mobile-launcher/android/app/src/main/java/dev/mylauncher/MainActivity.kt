@@ -298,7 +298,7 @@ private fun LauncherPage(
                     downloadMessage?.let { InfoCard("Download status", "Client JAR only", it) }
                     latestSnapshot?.let { InfoCard("Latest snapshot", it.id, "Snapshot build · Selectable metadata only; not installed.") }
                     Text("RECENT VERSIONS", color = Muted, fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 2.sp)
-                    versions.take(12).forEach { version ->
+                    versions.filter { it.id != latestRelease?.id }.take(12).forEach { version ->
                         InfoCard(version.id, version.type.uppercase(), "Released: " + version.releaseTime.take(10))
                         val clientJar = java.io.File(context.filesDir, "minecraft/versions/${version.id}/${version.id}.jar")
                         val isDownloading = downloadingVersion == version.id
