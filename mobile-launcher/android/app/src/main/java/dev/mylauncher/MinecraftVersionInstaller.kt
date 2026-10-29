@@ -7,6 +7,7 @@ import org.json.JSONObject
 import java.io.File
 import java.net.HttpURLConnection
 import java.net.URL
+import java.security.DigestInputStream
 import java.security.MessageDigest
 
 data class ClientDownloadResult(
@@ -61,16 +62,20 @@ object MinecraftVersionInstaller {
             }
 
             try {
+                if (connection.url.protocol != "https") {
+                    throw SecurityException("Refusing a client download redirected away from HTTPS.")
+                }
                 if (connection.responseCode !in 200..299) {
                     throw IllegalStateException("Client download returned HTTP ${connection.responseCode}")
                 }
-                connection.inputStream.use { input ->
-                    temporary.outputStream().use { output -> input.copyTo(output) }
+                val digest = MessageDigest.getInstance("SHA-1")
+                connection.inputStream.use { rawInput ->
+                    DigestInputStream(rawInput, digest).use { input ->
+                        temporary.outputStream().use { output -> input.copyTo(output) }
+                    }
                 }
 
-                val actualSha1 = MessageDigest.getInstance("SHA-1")
-                    .digest(temporary.readBytes())
-                    .joinToString("") { "%02x".format(it) }
+                val actualSha1 = digest.digest().joinToString("") { "%02x".format(it) }
                 if (actualSha1 != expectedSha1) {
                     temporary.delete()
                     throw SecurityException("Client JAR checksum mismatch. The file was rejected.")
