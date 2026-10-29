@@ -300,6 +300,37 @@ private fun LauncherPage(
                     Text("RECENT VERSIONS", color = Muted, fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 2.sp)
                     versions.take(12).forEach { version ->
                         InfoCard(version.id, version.type.uppercase(), "Released: " + version.releaseTime.take(10))
+                        val clientJar = java.io.File(context.filesDir, "minecraft/versions/${version.id}/${version.id}.jar")
+                        val isDownloading = downloadingVersion == version.id
+                        OutlinedButton(
+                            onClick = {
+                                if (downloadingVersion == null) {
+                                    scope.launch {
+                                        downloadingVersion = version.id
+                                        downloadMessage = null
+                                        try {
+                                            val result = MinecraftVersionInstaller.downloadClientJar(context, version)
+                                            val sizeMb = result.bytes / (1024.0 * 1024.0)
+                                            downloadMessage = "Verified ${result.versionId} client JAR saved (${"%.1f".format(sizeMb)} MB). Libraries, assets and runtime are still missing."
+                                        } catch (error: Exception) {
+                                            downloadMessage = error.message ?: "Download failed."
+                                        } finally {
+                                            downloadingVersion = null
+                                        }
+                                    }
+                                }
+                            },
+                            enabled = downloadingVersion == null,
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            if (isDownloading) {
+                                CircularProgressIndicator(modifier = Modifier.size(16.dp), color = Accent, strokeWidth = 2.dp)
+                                Text("  DOWNLOADING ${version.id}")
+                            } else {
+                                Text(if (clientJar.isFile) "DOWNLOAD AGAIN · ${version.id}" else "DOWNLOAD CLIENT JAR · ${version.id}")
+                            }
+                        }
                     }
                 }
             }
