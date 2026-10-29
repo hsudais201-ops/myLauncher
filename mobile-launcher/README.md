@@ -15,7 +15,7 @@ An Android-first launcher project for Minecraft: Java Edition, with a mobile UI 
 2. Open the `mobile-launcher/android` folder in Android Studio.
 3. Allow Gradle to sync, then run the `app` configuration on an Android device or emulator.
 
-The project uses JDK 17, Android Gradle Plugin 8.10.1, Kotlin 2.1.20, compile SDK 35, and minimum Android API 26. GitHub Actions is configured to build a debug APK; check the workflow page for the current result.
+The project uses JDK 17, Android Gradle Plugin 8.10.1, Kotlin 2.1.20, compile SDK 35, and minimum Android API 26. GitHub Actions is configured to build a debug APK; the latest confirmed build for commit `0cf3293abafb1cc2f4b89b35c53c2e3d5b081fea` succeeded; check the Actions page for newer commits.
 
 ## Roadmap
 
