@@ -6,7 +6,7 @@ An Android-first launcher project for Minecraft: Java Edition, with a mobile UI 
 
 - `index.html` is a browser-based UI preview.
 - `android/` is the first native Android app scaffold, built with Kotlin and Jetpack Compose.
-- The native app includes a home screen, section navigation, and a local offline player-name setting saved on-device. The Start Game action displays a notice; it does **not** launch Minecraft yet.
+- The native app includes a home screen, section navigation, a local offline player name saved on-device, and a Versions screen that reads the official Mojang version manifest. The Start Game action displays a notice; it does **not** launch Minecraft yet.
 - The existing repository files outside `mobile-launcher/` have not been removed.
 
 ## Open the native app
@@ -21,7 +21,7 @@ The project uses JDK 17, Android Gradle Plugin 8.10.1, Kotlin 2.1.20, compile SD
 
 1. Native mobile launcher UI and navigation. (Initial scaffold added.)
 2. Local offline profile creation and profile management. (Basic saved player name added.)
-3. Minecraft version metadata, downloads, assets, libraries, and integrity verification.
+3. Minecraft version metadata, downloads, assets, libraries, and integrity verification. (Official version list reader added; installation is still pending.)
 4. Java runtime integration and correct JVM/classpath argument assembly.
 5. Microsoft sign-in using the genuine approved OAuth/Xbox/Minecraft authentication flow.
 6. Optional feature store with explicit install/uninstall and integrity checks.
