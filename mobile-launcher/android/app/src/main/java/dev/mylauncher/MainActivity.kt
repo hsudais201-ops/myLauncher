@@ -309,7 +309,7 @@ private fun LauncherPage(
                                         assetMessage = null
                                         try {
                                             val result = MinecraftAssetInstaller.install(context, version)
-                                            assetMessage = "Assets for ${result.indexId}: downloaded ${result.downloaded}, reused ${result.reused}, ${result.bytesDownloaded / (1024 * 1024)} MB downloaded."
+                                            assetMessage = "Assets for ${result.indexId}: downloaded ${result.downloaded}, reused ${result.reused}, ${result.bytesDownloaded / (1024 * 1024)} MB. Virtual files: ${result.virtualFilesMaterialized}; resource files: ${result.resourceFilesMaterialized}."
                                         } catch (error: Exception) {
                                             assetMessage = error.message ?: "Asset download failed."
                                         } finally {
