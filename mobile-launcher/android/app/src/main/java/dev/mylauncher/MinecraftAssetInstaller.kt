@@ -14,10 +14,12 @@ data class AssetInstallResult(
     val indexId: String,
     val downloaded: Int,
     val reused: Int,
-    val bytesDownloaded: Long
+    val bytesDownloaded: Long,
+    val virtualFilesMaterialized: Int,
+    val resourceFilesMaterialized: Int
 )
 
-/** Downloads the official asset index and hash-addressed objects into app-private storage. */
+/** Downloads hash-addressed assets and creates legacy virtual/resource layouts when requested by Mojang metadata. */
 object MinecraftAssetInstaller {
     suspend fun install(context: Context, version: MinecraftVersion): AssetInstallResult =
         withContext(Dispatchers.IO) {
@@ -38,16 +40,23 @@ object MinecraftAssetInstaller {
             val assetsRoot = File(context.filesDir, "minecraft/assets")
             val indexesDir = File(assetsRoot, "indexes")
             check(indexesDir.mkdirs() || indexesDir.isDirectory)
-            File(indexesDir, "$indexId.json").writeBytes(indexBytes)
+            writeAtomically(File(indexesDir, "$indexId.json"), indexBytes)
 
-            val objects = JSONObject(String(indexBytes, Charsets.UTF_8)).getJSONObject("objects")
+            val indexJson = JSONObject(String(indexBytes, Charsets.UTF_8))
+            val objects = indexJson.getJSONObject("objects")
+            val isVirtual = indexJson.optBoolean("virtual", false)
+            val mapToResources = indexJson.optBoolean("map_to_resources", false)
             val objectsRoot = File(assetsRoot, "objects")
             var downloaded = 0
             var reused = 0
             var totalBytes = 0L
+            var virtualCount = 0
+            var resourcesCount = 0
             val iterator = objects.keys()
             while (iterator.hasNext()) {
-                val entry = objects.getJSONObject(iterator.next())
+                val objectName = iterator.next()
+                require(isSafeAssetName(objectName)) { "Unsafe asset name in official index." }
+                val entry = objects.getJSONObject(objectName)
                 val hash = entry.getString("hash").lowercase()
                 require(hash.matches(Regex("[a-f0-9]{40}")))
                 val folder = File(objectsRoot, hash.substring(0, 2))
@@ -55,23 +64,83 @@ object MinecraftAssetInstaller {
                 val target = File(folder, hash)
                 if (target.isFile && sha1(target) == hash) {
                     reused++
-                    continue
+                } else {
+                    val part = File(folder, "$hash.part")
+                    try {
+                        val url = "https://resources.download.minecraft.net/${hash.substring(0, 2)}/$hash"
+                        val bytes = downloadVerified(url, hash)
+                        part.writeBytes(bytes)
+                        if (target.exists() && !target.delete()) error("Could not replace asset object.")
+                        check(part.renameTo(target)) { "Could not finalize asset object." }
+                        downloaded++
+                        totalBytes += bytes.size
+                    } finally {
+                        if (part.exists()) part.delete()
+                    }
                 }
-                val part = File(folder, "$hash.part")
-                try {
-                    val url = "https://resources.download.minecraft.net/${hash.substring(0, 2)}/$hash"
-                    val bytes = downloadVerified(url, hash)
-                    part.writeBytes(bytes)
-                    if (target.exists() && !target.delete()) error("Could not replace asset object.")
-                    check(part.renameTo(target)) { "Could not finalize asset object." }
-                    downloaded++
-                    totalBytes += bytes.size
-                } finally {
-                    if (part.exists()) part.delete()
+
+                if (isVirtual) {
+                    val virtualRoot = File(assetsRoot, "virtual/$indexId")
+                    val virtualFile = safeChild(virtualRoot, objectName)
+                    if (!virtualFile.isFile || sha1(virtualFile) != hash) {
+                        copyAtomically(target, virtualFile)
+                        virtualCount++
+                    }
+                }
+                if (mapToResources) {
+                    val resourceFile = File(assetsRoot, "resources/$hash")
+                    if (!resourceFile.isFile || sha1(resourceFile) != hash) {
+                        copyAtomically(target, resourceFile)
+                        resourcesCount++
+                    }
                 }
             }
-            AssetInstallResult(indexId, downloaded, reused, totalBytes)
+            AssetInstallResult(indexId, downloaded, reused, totalBytes, virtualCount, resourcesCount)
         }
+
+    private fun isSafeAssetName(name: String): Boolean =
+        name.isNotBlank() &&
+            !name.startsWith("/") &&
+            !name.startsWith("\\\\") &&
+            !name.contains("\\\\") &&
+            name.split("/").all { it.isNotBlank() && it != "." && it != ".." } &&
+            name.matches(Regex("[A-Za-z0-9._+/-]{1,1000}"))
+
+    private fun safeChild(root: File, relativePath: String): File {
+        val child = File(root, relativePath)
+        require(child.canonicalFile.toPath().startsWith(root.canonicalFile.toPath())) {
+            "Asset path escapes storage directory."
+        }
+        return child
+    }
+
+    private fun copyAtomically(source: File, destination: File) {
+        val parent = destination.parentFile ?: error("Invalid asset destination.")
+        check(parent.mkdirs() || parent.isDirectory)
+        val canonicalRoot = parent.canonicalFile
+        require(destination.canonicalFile.toPath().startsWith(canonicalRoot.toPath()))
+        val part = File(parent, destination.name + ".part")
+        try {
+            source.inputStream().use { input -> part.outputStream().use { output -> input.copyTo(output) } }
+            if (destination.exists() && !destination.delete()) error("Could not replace materialized asset.")
+            check(part.renameTo(destination)) { "Could not finalize materialized asset." }
+        } finally {
+            if (part.exists()) part.delete()
+        }
+    }
+
+    private fun writeAtomically(destination: File, bytes: ByteArray) {
+        val parent = destination.parentFile ?: error("Invalid asset index destination.")
+        check(parent.mkdirs() || parent.isDirectory)
+        val part = File(parent, destination.name + ".part")
+        try {
+            part.writeBytes(bytes)
+            if (destination.exists() && !destination.delete()) error("Could not replace asset index.")
+            check(part.renameTo(destination)) { "Could not finalize asset index." }
+        } finally {
+            if (part.exists()) part.delete()
+        }
+    }
 
     private fun fetchText(url: String): String = String(fetch(url), Charsets.UTF_8)
 
