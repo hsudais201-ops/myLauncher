@@ -27,13 +27,17 @@ object MinecraftLibraryInstaller {
             for (library in libraries) {
                 require(library.url.startsWith("https://")) { "Refusing non-HTTPS library URL." }
                 require(library.sha1.matches(Regex("[a-f0-9]{40}"))) { "Invalid library checksum." }
-                val filename = library.url.substringAfterLast('/').substringBefore('?')
-                require(filename.isNotBlank() && filename.matches(Regex("[A-Za-z0-9._+-]{1,180}"))) {
-                    "Unsafe library filename."
-                }
-                val target = File(root, "${library.sha1.take(2)}/${library.sha1}/$filename")
+                require(library.relativePath.isNotBlank() && !library.relativePath.startsWith("/") && !library.relativePath.contains("\\\\"))
+                val pathParts = library.relativePath.split("/")
+                require(pathParts.all { it.isNotBlank() && it != "." && it != ".." })
+                require(library.relativePath.matches(Regex("[A-Za-z0-9._+/-]{1,500}"))) { "Unsafe library path." }
+                val target = File(root, library.relativePath)
+                val canonicalRoot = root.canonicalFile
+                val canonicalTarget = target.canonicalFile
+                require(canonicalTarget.toPath().startsWith(canonicalRoot.toPath())) { "Library path escapes storage directory." }
                 val parent = target.parentFile ?: error("Invalid library path.")
                 check(parent.mkdirs() || parent.isDirectory)
+                val filename = target.name
                 if (target.isFile && sha1(target) == library.sha1) {
                     valid++
                     continue
