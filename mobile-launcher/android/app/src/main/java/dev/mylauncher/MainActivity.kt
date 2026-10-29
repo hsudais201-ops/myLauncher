@@ -343,7 +343,7 @@ private fun LauncherPage(
                                         try {
                                             val plan = MinecraftInstallPlanRepository.fetch(version)
                                             val result = MinecraftLibraryInstaller.install(context, plan.libraries)
-                                            libraryMessage = "Libraries: downloaded ${result.downloaded}, reused ${result.alreadyValid}, ${result.bytes / (1024 * 1024)} MB downloaded. Native classifiers and version rules still need handling."
+                                            libraryMessage = "Libraries: downloaded ${result.downloaded}, reused ${result.alreadyValid}, ${result.bytes / (1024 * 1024)} MB downloaded. Native classifiers are experimental and downloaded separately; runtime and launch integration are still missing."
                                         } catch (error: Exception) {
                                             libraryMessage = error.message ?: "Library download failed."
                                         } finally {
