@@ -43,7 +43,9 @@ object MinecraftVersionInstaller {
                 manifestConnection.disconnect()
             }
 
-            val client = JSONObject(metadataText)
+            val metadata = JSONObject(metadataText)
+            require(metadata.optString("id") == version.id) { "The version metadata ID does not match the selected version." }
+            val client = metadata
                 .getJSONObject("downloads")
                 .getJSONObject("client")
             val downloadUrl = client.getString("url")
@@ -91,6 +93,20 @@ object MinecraftVersionInstaller {
                 if (!temporary.renameTo(destination)) {
                     temporary.delete()
                     throw IllegalStateException("Could not finalize the verified client JAR.")
+                }
+
+                val metadataFile = File(versionDir, "${version.id}.json")
+                val metadataTemporary = File(versionDir, "${version.id}.json.part")
+                try {
+                    metadataTemporary.writeText(metadataText, Charsets.UTF_8)
+                    if (metadataFile.exists() && !metadataFile.delete()) {
+                        throw IllegalStateException("Could not replace saved version metadata.")
+                    }
+                    if (!metadataTemporary.renameTo(metadataFile)) {
+                        throw IllegalStateException("Could not save version metadata.")
+                    }
+                } finally {
+                    if (metadataTemporary.exists()) metadataTemporary.delete()
                 }
 
                 ClientDownloadResult(version.id, destination, destination.length())
