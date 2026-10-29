@@ -2,17 +2,17 @@ package com.hyperlauncher.mobile
 
 import android.annotation.SuppressLint
 import android.app.Activity
+import android.graphics.Color
 import android.os.Bundle
-import android.view.View
 import android.webkit.WebChromeClient
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.FrameLayout
 
 /**
- * Android host for the local Hyper Launcher UI.
+ * Native Android host for the bundled Hyper Launcher UI.
  *
- * This is the native app shell only. It does not yet download or launch Minecraft.
+ * This shell is not yet a Minecraft runtime and does not launch game processes.
  */
 class MainActivity : Activity() {
     private lateinit var webView: WebView
@@ -20,14 +20,11 @@ class MainActivity : Activity() {
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
-        window.decorView.systemUiVisibility = (
-            View.SYSTEM_UI_FLAG_LAYOUT_STABLE or
-            View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
-        )
+        window.statusBarColor = Color.rgb(16, 17, 15)
+        window.navigationBarColor = Color.rgb(16, 17, 15)
 
         webView = WebView(this).apply {
-            setBackgroundColor(android.graphics.Color.rgb(16, 17, 15))
+            setBackgroundColor(Color.rgb(16, 17, 15))
             settings.javaScriptEnabled = true
             settings.domStorageEnabled = true
             settings.allowFileAccess = true
