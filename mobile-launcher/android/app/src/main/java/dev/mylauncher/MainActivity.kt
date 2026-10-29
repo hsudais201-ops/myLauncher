@@ -214,6 +214,8 @@ private fun LauncherPage(
     var versionsError by remember { mutableStateOf<String?>(null) }
     var refreshToken by remember { mutableStateOf(0) }
     var downloadingVersion by remember { mutableStateOf<String?>(null) }
+    var installingAssetsVersion by remember { mutableStateOf<String?>(null) }
+    var assetMessage by remember { mutableStateOf<String?>(null) }
     var downloadMessage by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
 
@@ -246,7 +248,7 @@ private fun LauncherPage(
         when (title) {
             "Versions" -> {
                 Text("Game versions", color = Color.White, fontSize = 28.sp, fontWeight = FontWeight.ExtraBold)
-                Text("Live version metadata from the official Mojang version manifest. Downloads and installation are not enabled yet.", color = Muted, fontSize = 14.sp, lineHeight = 21.sp)
+                Text("Browse official Minecraft versions, download verified client JARs, and fetch verified game assets. Java runtime and game launching are not connected yet.", color = Muted, fontSize = 14.sp, lineHeight = 21.sp)
                 if (versionsLoading) {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         CircularProgressIndicator(color = Accent, modifier = Modifier.size(22.dp), strokeWidth = 2.dp)
@@ -296,6 +298,37 @@ private fun LauncherPage(
                         }
                     }
                     downloadMessage?.let { InfoCard("Download status", "Client JAR only", it) }
+                    latestRelease?.let { version ->
+                        OutlinedButton(
+                            onClick = {
+                                if (installingAssetsVersion == null && downloadingVersion == null) {
+                                    scope.launch {
+                                        installingAssetsVersion = version.id
+                                        assetMessage = null
+                                        try {
+                                            val result = MinecraftAssetInstaller.install(context, version)
+                                            assetMessage = "Assets for ${result.indexId}: downloaded ${result.downloaded}, reused ${result.reused}, ${result.bytesDownloaded / (1024 * 1024)} MB downloaded."
+                                        } catch (error: Exception) {
+                                            assetMessage = error.message ?: "Asset download failed."
+                                        } finally {
+                                            installingAssetsVersion = null
+                                        }
+                                    }
+                                }
+                            },
+                            enabled = installingAssetsVersion == null && downloadingVersion == null,
+                            modifier = Modifier.fillMaxWidth().height(50.dp),
+                            shape = RoundedCornerShape(14.dp)
+                        ) {
+                            if (installingAssetsVersion == version.id) {
+                                CircularProgressIndicator(modifier = Modifier.size(18.dp), color = Accent, strokeWidth = 2.dp)
+                                Text("  DOWNLOADING ASSETS")
+                            } else {
+                                Text("DOWNLOAD / VERIFY GAME ASSETS")
+                            }
+                        }
+                    }
+                    assetMessage?.let { InfoCard("Asset download status", "SHA-1 checked", it) }
                     latestSnapshot?.let { InfoCard("Latest snapshot", it.id, "Snapshot build · Selectable metadata only; not installed.") }
                     Text("RECENT VERSIONS", color = Muted, fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 2.sp)
                     versions.filter { it.id != latestRelease?.id }.take(12).forEach { version ->
@@ -369,7 +402,7 @@ private fun LauncherPage(
                 }
                 InfoCard("Account", "Offline profile", "Microsoft authentication is not configured yet.")
                 InfoCard("Runtime", "Not configured", "A compatible Java runtime and game launch pipeline are still required.")
-                InfoCard("Safety", "Downloads disabled", "The app does not download game files or run third-party code yet.")
+                InfoCard("Safety", "Verified downloads", "Client JARs and asset files are downloaded only from HTTPS sources and checked against official SHA-1 hashes. Game launching is not connected.")
             }
         }
     }
