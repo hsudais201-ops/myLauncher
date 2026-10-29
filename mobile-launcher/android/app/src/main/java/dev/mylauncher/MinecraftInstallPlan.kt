@@ -1,0 +1,52 @@
+package dev.mylauncher
+
+import org.json.JSONObject
+
+data class LibraryArtifact(
+    val name: String,
+    val url: String,
+    val sha1: String,
+    val size: Long
+)
+
+data class MinecraftInstallPlan(
+    val versionId: String,
+    val mainClass: String,
+    val assetIndexId: String,
+    val assetIndexUrl: String,
+    val assetIndexSha1: String,
+    val clientJarUrl: String,
+    val clientJarSha1: String,
+    val libraries: List<LibraryArtifact>
+)
+
+/** Reads the official version JSON and extracts validated download metadata. */
+object MinecraftInstallPlanParser {
+    fun parse(jsonText: String, expectedId: String): MinecraftInstallPlan {
+        require(expectedId.matches(Regex("[A-Za-z0-9._-]{1,100}")))
+        val root = JSONObject(jsonText)
+        require(root.optString("id") == expectedId) { "Version metadata ID mismatch." }
+        val asset = root.getJSONObject("assetIndex")
+        val client = root.getJSONObject("downloads").getJSONObject("client")
+        val libraries = mutableListOf<LibraryArtifact>()
+        val entries = root.getJSONArray("libraries")
+        for (i in 0 until entries.length()) {
+            val lib = entries.getJSONObject(i)
+            val artifact = lib.optJSONObject("downloads")?.optJSONObject("artifact") ?: continue
+            val url = artifact.optString("url")
+            val hash = artifact.optString("sha1").lowercase()
+            if (!url.startsWith("https://") || !hash.matches(Regex("[a-f0-9]{40}"))) continue
+            libraries += LibraryArtifact(lib.optString("name"), url, hash, artifact.optLong("size", -1))
+        }
+        return MinecraftInstallPlan(
+            versionId = expectedId,
+            mainClass = root.optString("mainClass"),
+            assetIndexId = asset.getString("id"),
+            assetIndexUrl = asset.getString("url").also { require(it.startsWith("https://")) },
+            assetIndexSha1 = asset.getString("sha1").lowercase().also { require(it.matches(Regex("[a-f0-9]{40}"))) },
+            clientJarUrl = client.getString("url").also { require(it.startsWith("https://")) },
+            clientJarSha1 = client.getString("sha1").lowercase().also { require(it.matches(Regex("[a-f0-9]{40}"))) },
+            libraries = libraries
+        )
+    }
+}
