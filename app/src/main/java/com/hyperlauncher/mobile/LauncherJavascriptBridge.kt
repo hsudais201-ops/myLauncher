@@ -17,6 +17,7 @@ class LauncherJavascriptBridge(
 ) {
     private val executor = Executors.newSingleThreadExecutor()
     private val installCancelled = AtomicBoolean(false)
+    private val installationActive = AtomicBoolean(false)
 
     @JavascriptInterface
     fun refreshVersions() {
@@ -52,9 +53,12 @@ class LauncherJavascriptBridge(
             )
             return
         }
-        if (!installCancelled.compareAndSet(false, false)) return
+        if (!installationActive.compareAndSet(false, true)) {
+            postInstallEvent(JSONObject().put("state", "error").put("error", "An installation is already running"))
+            return
+        }
+        installCancelled.set(false)
         executor.execute {
-            installCancelled.set(false)
             try {
                 postInstallEvent(
                     JSONObject().put("state", "planning").put("version", versionId)
@@ -96,6 +100,8 @@ class LauncherJavascriptBridge(
                         .put("version", versionId)
                         .put("error", error.message ?: "Installation failed")
                 )
+            } finally {
+                installationActive.set(false)
             }
         }
     }
