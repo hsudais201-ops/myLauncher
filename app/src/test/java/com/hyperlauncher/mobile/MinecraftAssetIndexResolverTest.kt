@@ -38,5 +38,10 @@ class MinecraftAssetIndexResolverTest {
         assertThrows(IllegalArgumentException::class.java) {
             MinecraftAssetIndexResolver.parse("19", """{"id":"19","objects":{"ok":{"hash":"bad","size":10}}}""")
         }
+        assertThrows(IllegalArgumentException::class.java) {
+            MinecraftAssetIndexResolver.parse("19", """{"id":"19","objects":{"minecraft/../escape":{"hash":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","size":10}}}""")
+        }
+        //
+        }
     }
 }
