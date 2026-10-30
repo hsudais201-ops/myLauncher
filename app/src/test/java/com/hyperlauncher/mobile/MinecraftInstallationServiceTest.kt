@@ -23,6 +23,7 @@ class MinecraftInstallationServiceTest {
             clientJar = planned,
             assetIndexFile = planned.copy(relativePath = "assets/indexes/test.json", kind = "asset-index"),
             assetIndex = MinecraftAssetIndex("test", emptyList(), 0L),
+            libraries = emptyList(),
             assets = emptyList(),
             totalAssetBytes = 0L
         )
