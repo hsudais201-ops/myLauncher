@@ -39,8 +39,7 @@ object MinecraftInstallationService {
         }
         var completedBytes = 0L
         var completedFiles = 0
-        val allFiles = files + plan.nativeLibraries
-        val installed = ArrayList<File>(allFiles.size)
+        val installed = ArrayList<File>(files.size)
 
         onProgress?.invoke(
             MinecraftInstallProgress(0, files.size, 0L, totalBytes, files.firstOrNull()?.relativePath)
