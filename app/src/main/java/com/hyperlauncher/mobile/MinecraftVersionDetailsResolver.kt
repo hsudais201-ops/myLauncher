@@ -13,6 +13,7 @@ data class MinecraftVersionDetails(
     val id: String,
     val mainClass: String,
     val client: MinecraftDownload,
+    val assetIndexId: String?,
     val assetIndex: MinecraftDownload?
 )
 
@@ -47,10 +48,12 @@ object MinecraftVersionDetailsResolver {
         val clientObject = root.getJSONObject("downloads").getJSONObject("client")
         val client = parseDownload(clientObject)
         val assetObject = root.optJSONObject("assetIndex")
+        val assetIndexId = assetObject?.optString("id")?.takeIf { it.isNotBlank() }
         val assetIndex = assetObject?.let { parseDownload(it) }
+        require((assetIndex == null) == (assetIndexId == null)) { "Asset index metadata is incomplete" }
         val mainClass = root.optString("mainClass")
         require(mainClass.isNotBlank() && mainClass.length <= 256) { "Version metadata has no valid main class" }
-        return MinecraftVersionDetails(actualId, mainClass, client, assetIndex)
+        return MinecraftVersionDetails(actualId, mainClass, client, assetIndexId, assetIndex)
     }
 
     private fun parseDownload(item: JSONObject): MinecraftDownload {
