@@ -29,6 +29,19 @@ class MinecraftStoragePreflightTest {
     }
 
     @Test
+    fun includesAdditionalExtractionSpaceInPreflight() {
+        assertThrows(IllegalStateException::class.java) {
+            MinecraftStoragePreflight.check(
+                storageRoot = File("build/test-launcher-storage"),
+                requiredDownloadBytes = 100L,
+                availableBytes = 150L,
+                reserveBytes = 50L,
+                additionalRequiredBytes = 1L
+            )
+        }
+    }
+
+    @Test
     fun roundsVeryLargeStorageShortfallWithoutOverflow() {
         val error = assertThrows(IllegalStateException::class.java) {
             MinecraftStoragePreflight.check(
