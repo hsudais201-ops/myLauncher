@@ -53,7 +53,9 @@ object MinecraftAssetIndexResolver {
         val keys = source.keys()
         while (keys.hasNext()) {
             val name = keys.next()
-            require(safeNamePattern.matches(name)) { "Asset index contains an unsafe object name" }
+            require(safeNamePattern.matches(name) && name.split("/").none { it == "." || it == ".." || it.isBlank() }) {
+                "Asset index contains an unsafe object name"
+            }
             val item = source.getJSONObject(name)
             val hash = item.optString("hash").lowercase()
             val size = item.optLong("size", -1L)
