@@ -7,7 +7,7 @@ A mobile-first launcher prototype for Minecraft Java Edition. The repository con
 - Mobile-first Hyper Launcher home screen and touch-friendly navigation.
 - Version selector and memory target controls.
 - Browser-local preference persistence where storage is available.
-- Native Android Kotlin app shell that loads the UI bundled inside the APK.
+- Native Android Kotlin app shell that loads the UI bundled inside the APK, restricts top-level WebView navigation to bundled assets, and disables file-URL cross-origin access so the JavaScript bridge is not exposed to remote pages.
 - Android-side reader for Mojang's public version manifest, with a UI control to sync official release and snapshot version IDs.
 - Manifest size limits, network timeouts, HTTPS host allowlists, SHA-1 validation, and unit tests for parsing/filtering version metadata.
 - Per-version metadata resolver that verifies the official metadata SHA-1 and extracts client JAR and asset-index download descriptors.
