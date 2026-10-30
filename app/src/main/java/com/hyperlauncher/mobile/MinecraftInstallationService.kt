@@ -15,9 +15,10 @@ data class MinecraftInstallProgress(
  * Executes the currently supported portion of an install plan.
  *
  * Runs synchronously on the calling thread: callers must use a worker thread.
- * This stage installs the asset index, client JAR, and indexed asset objects;
- * libraries, native classifiers, Java runtime setup, and game launch are not
- * included yet.
+ * This stage installs the asset index, client JAR, standard libraries, indexed
+ * assets, and declared native classifiers. Native archives are extracted into
+ * the selected version's private natives directory. Java runtime setup and
+ * game launch are not included yet.
  */
 object MinecraftInstallationService {
     fun install(
@@ -31,13 +32,15 @@ object MinecraftInstallationService {
             add(plan.clientJar)
             addAll(plan.libraries)
             addAll(plan.assets)
+            addAll(plan.nativeLibraries)
         }
         val totalBytes = files.fold(0L) { total, file ->
             Math.addExact(total, file.descriptor.size)
         }
         var completedBytes = 0L
         var completedFiles = 0
-        val installed = ArrayList<File>(files.size)
+        val allFiles = files + plan.nativeLibraries
+        val installed = ArrayList<File>(allFiles.size)
 
         onProgress?.invoke(
             MinecraftInstallProgress(0, files.size, 0L, totalBytes, files.firstOrNull()?.relativePath)
@@ -78,6 +81,13 @@ object MinecraftInstallationService {
                     files.getOrNull(completedFiles)?.relativePath
                 )
             )
+        }
+        val nativeArchives = plan.nativeLibraries.map { planned ->
+            File(storageRoot, planned.relativePath).canonicalFile
+        }
+        if (nativeArchives.isNotEmpty()) {
+            val nativeDirectory = File(storageRoot, "versions/${plan.versionId}/${plan.versionId}-natives")
+            installed += MinecraftNativeExtractor.extract(nativeArchives, nativeDirectory, shouldCancel)
         }
         return installed
     }
