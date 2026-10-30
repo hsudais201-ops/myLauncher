@@ -132,7 +132,12 @@ object VerifiedMinecraftFileDownloader {
                 setRequestProperty("User-Agent", "HyperLauncher/0.1.0 (Android)")
                 setRequestProperty("Accept", "application/octet-stream")
             }
-            val code = connection.responseCode
+            val code = try {
+                connection.responseCode
+            } catch (error: Exception) {
+                connection.disconnect()
+                throw error
+            }
             if (code in listOf(301, 302, 303, 307, 308)) {
                 val location = connection.getHeaderField("Location")
                 connection.disconnect()
