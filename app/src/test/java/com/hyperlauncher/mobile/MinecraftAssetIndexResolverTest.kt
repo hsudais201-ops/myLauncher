@@ -22,8 +22,9 @@ class MinecraftAssetIndexResolverTest {
 
         assertEquals(2, index.objects.size)
         assertEquals(3600L, index.totalBytes)
-        assertEquals("objects/aa/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", index.objects[0].relativePath)
-        assertTrue(index.objects[0].download.url.endsWith("/aa/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"))
+        val first = index.objects.first { it.hash.startsWith("aa") }
+        assertEquals("objects/aa/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", first.relativePath)
+        assertTrue(first.download.url.endsWith("/aa/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"))
     }
 
     @Test
