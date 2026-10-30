@@ -21,7 +21,8 @@ object MinecraftStoragePreflight {
         val requiredWithReserve = Math.addExact(requiredDownloadBytes, reserveBytes)
         if (availableBytes < requiredWithReserve) {
             val missing = requiredWithReserve - availableBytes
-            val missingMiB = (missing + 1024L * 1024L - 1L) / (1024L * 1024L)
+            val mebibyte = 1024L * 1024L
+            val missingMiB = missing / mebibyte + if (missing % mebibyte == 0L) 0L else 1L
             throw IllegalStateException(
                 "Not enough free storage. Free at least $missingMiB MiB, then try again."
             )
