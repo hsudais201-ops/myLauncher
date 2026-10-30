@@ -1,19 +1,22 @@
 package com.hyperlauncher.mobile
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertThrows
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class MinecraftVersionManifestTest {
     @Test
-    fun parsesReleaseAndSnapshotAndSkipsUnsafeEntries() {
+    fun parsesOfficialEntriesAndSkipsUnsafeMetadata() {
         val json = """
             {
               "versions": [
-                {"id":"1.21.4","type":"release","releaseTime":"2024-12-03T00:00:00+00:00"},
-                {"id":"24w14a","type":"snapshot","releaseTime":"2024-04-02T00:00:00+00:00"},
-                {"id":"../bad","type":"release","releaseTime":"ignored"},
-                {"id":"1.19.4","type":"old_beta","releaseTime":"ignored"}
+                {"id":"1.21.4","type":"release","releaseTime":"2024-12-03T00:00:00+00:00","url":"https://piston-meta.mojang.com/v1/packages/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/1.21.4.json","sha1":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"},
+                {"id":"24w14a","type":"snapshot","releaseTime":"2024-04-02T00:00:00+00:00","url":"https://launchermeta.mojang.com/v1/packages/bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb/24w14a.json","sha1":"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"},
+                {"id":"../bad","type":"release","url":"https://piston-meta.mojang.com/bad","sha1":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"},
+                {"id":"1.19.4","type":"old_beta","url":"https://piston-meta.mojang.com/old","sha1":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"},
+                {"id":"1.20.1","type":"release","url":"http://evil.example/file","sha1":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}
               ]
             }
         """.trimIndent()
@@ -21,8 +24,18 @@ class MinecraftVersionManifestTest {
         val versions = MinecraftVersionManifest.parseManifest(json)
 
         assertEquals(2, versions.size)
-        assertEquals(MinecraftVersion("1.21.4", "release", "2024-12-03T00:00:00+00:00"), versions[0])
-        assertEquals(MinecraftVersion("24w14a", "snapshot", "2024-04-02T00:00:00+00:00"), versions[1])
+        assertEquals("1.21.4", versions[0].id)
+        assertEquals("release", versions[0].type)
+        assertEquals("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", versions[0].metadataSha1)
+        assertEquals("24w14a", versions[1].id)
+    }
+
+    @Test
+    fun onlyAllowsHttpsMojangMetadataHosts() {
+        assertTrue(MinecraftVersionManifest.isTrustedMojangUrl("https://piston-meta.mojang.com/file"))
+        assertTrue(MinecraftVersionManifest.isTrustedMojangUrl("https://launchermeta.mojang.com/file"))
+        assertFalse(MinecraftVersionManifest.isTrustedMojangUrl("http://piston-meta.mojang.com/file"))
+        assertFalse(MinecraftVersionManifest.isTrustedMojangUrl("https://evil.example/file"))
     }
 
     @Test
