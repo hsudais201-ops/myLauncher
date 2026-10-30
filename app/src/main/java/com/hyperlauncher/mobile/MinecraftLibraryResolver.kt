@@ -67,13 +67,15 @@ object MinecraftLibraryResolver {
             val matches = os == null || (
                 (os.optString("name").isBlank() || os.optString("name") == "linux") &&
                 (os.optString("arch").isBlank() || runCatching {
-                    Regex(os.optString("arch")).containsMatchIn("aarch64")
+                    Regex(os.optString("arch")).containsMatchIn(osArch)
                 }.getOrDefault(false)) &&
                 (os.optString("version").isBlank() || runCatching {
-                    Regex(os.optString("version")).containsMatchIn(System.getProperty("os.version").orEmpty())
+                    Regex(os.optString("version")).containsMatchIn(osVersion)
                 }.getOrDefault(false))
             )
-            if (matches) allowed = rule.optString("action") == "allow"
+            val features = rule.optJSONObject("features)
+            val featureMatches = features == null || features.keys().asSequence().all { key -> !features.optBoolean(key) }
+            if (matches && featureMatches) allowed = rule.optString("action") == "allow"
         }
         return allowed
     }
