@@ -13,7 +13,7 @@ A mobile-first launcher prototype for Minecraft Java Edition. The repository con
 - Per-version metadata resolver that verifies the official metadata SHA-1 and extracts client JAR and asset-index download descriptors.
 - App-private file downloader foundation with trusted-host redirect checks, path-traversal protection, exact-size checks, SHA-1 verification, temporary files, and atomic finalization.
 - Asset-index parser that validates object hashes and sizes and builds content-addressed asset paths.
-- Install planner that includes the asset-index JSON, client JAR, Linux ARM64-compatible Maven library artifacts, and indexed asset objects with their expected sizes and SHA-1 hashes.
+- Install planner that includes the asset-index JSON, client JAR, Linux/device-architecture-matched Maven library artifacts, and indexed asset objects with their expected sizes and SHA-1 hashes.
 - Library resolver that applies Mojang OS/architecture allow/disallow rules, validates Maven artifact paths, and accepts only trusted HTTPS download hosts. Native classifiers are not resolved yet.
 - Android install controls connected to the native bridge, with progress reporting and a cancel action. The bridge resolves the selected official version, builds the plan, and runs the cancellable installation service on a worker thread.
 - Cancellable installation service that downloads the planned asset index, client JAR, standard library artifacts, and assets into app-private storage, reporting byte/file progress.
@@ -28,7 +28,7 @@ The Android project uses JDK 17, Gradle 8.9, Android Gradle Plugin 8.7.3, and co
 
 ## Important status — not a finished Minecraft launcher
 
-The Android app is still an early prototype. In the Android app, the install button can now resolve an official version and download/verify its asset-index JSON, client JAR, and indexed asset objects into app-private storage, with progress and cancellation. Downloads run on a worker thread owned by the activity bridge; this is not yet a durable Android foreground/background service, so leaving the app or Android reclaiming its process can interrupt the operation. It does **not** resolve/download native classifiers, authenticate Microsoft accounts, configure a Java runtime, or launch Minecraft. Library rule handling currently targets Linux ARM64 and is not yet a complete cross-platform rules engine.
+The Android app is still an early prototype. In the Android app, the install button can now resolve an official version and download/verify its asset-index JSON, client JAR, and indexed asset objects into app-private storage, with progress and cancellation. Downloads run on a worker thread owned by the activity bridge; this is not yet a durable Android foreground/background service, so leaving the app or Android reclaiming its process can interrupt the operation. It does **not** resolve/download native classifiers, authenticate Microsoft accounts, configure a Java runtime, or launch Minecraft. Library rule handling currently targets Linux and uses the running device's reported architecture; Windows/macOS rules and native classifiers are not implemented yet.
 
 Remaining milestones:
 
