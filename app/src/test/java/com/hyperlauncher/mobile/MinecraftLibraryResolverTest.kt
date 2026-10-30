@@ -62,4 +62,20 @@ class MinecraftLibraryResolverTest {
             MinecraftLibraryResolver.parse("1.20.1", unsafeHost)
         }
     }
+    @Test
+    fun usesSuppliedArchitectureAndSkipsUnavailableFeatureRules() {
+        val json = """
+            {"libraries":[
+              {"name":"org.example:arm:1","rules":[{"action":"allow","os":{"name":"linux","arch":"aarch64"}}],
+               "downloads":{"artifact":{"path":"org/example/arm/1/arm.jar","url":"https://libraries.minecraft.net/arm.jar","sha1":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","size":10}}},
+              {"name":"org.example:feature:1","rules":[{"action":"allow","features":{"is_demo_user":true}}],
+               "downloads":{"artifact":{"path":"org/example/feature/1/feature.jar","url":"https://libraries.minecraft.net/feature.jar","sha1":"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb","size":10}}}
+            ]}
+        """.trimIndent()
+
+        val libraries = MinecraftLibraryResolver.parse("1.20.1", json, osArch = "aarch64")
+        assertEquals(1, libraries.size)
+        assertEquals("org.example:arm:1", libraries.single().name)
+    }
+
 }
