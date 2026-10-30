@@ -41,7 +41,15 @@ object MinecraftInstallationService {
             throw CancellationException("Minecraft installation cancelled")
         }
         storageRoot.mkdirs()
-        MinecraftStoragePreflight.check(storageRoot, totalBytes)
+        MinecraftStoragePreflight.check(
+            storageRoot = storageRoot,
+            requiredDownloadBytes = totalBytes,
+            additionalRequiredBytes = if (plan.nativeLibraries.isNotEmpty()) {
+                MinecraftNativeExtractor.MAX_TOTAL_EXTRACTED_BYTES
+            } else {
+                0L
+            }
+        )
         var completedBytes = 0L
         var completedFiles = 0
         val installed = ArrayList<File>(files.size)
