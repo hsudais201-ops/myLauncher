@@ -57,7 +57,7 @@ object MinecraftLibraryResolver {
             segments.last().contains('.')
     }
 
-    private fun isAllowedByRules(
+    internal fun isAllowedByRules(
         rules: JSONArray?,
         osName: String,
         osArch: String,
