@@ -37,6 +37,11 @@ object MinecraftInstallationService {
         val totalBytes = files.fold(0L) { total, file ->
             Math.addExact(total, file.descriptor.size)
         }
+        if (shouldCancel?.invoke() == true) {
+            throw CancellationException("Minecraft installation cancelled")
+        }
+        storageRoot.mkdirs()
+        MinecraftStoragePreflight.check(storageRoot, totalBytes)
         var completedBytes = 0L
         var completedFiles = 0
         val installed = ArrayList<File>(files.size)
