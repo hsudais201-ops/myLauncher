@@ -6,7 +6,7 @@ data class MinecraftInstallPlan(
     val assetIndexFile: PlannedMinecraftFile,
     val assetIndex: MinecraftAssetIndex,
     val libraries: List<PlannedMinecraftFile>,
-    val nativeLibraries: List<PlannedMinecraftFile>,
+    val nativeLibraries: List<PlannedMinecraftFile> = emptyList(),
     val assets: List<PlannedMinecraftFile>,
     val totalAssetBytes: Long
 )
@@ -18,8 +18,7 @@ data class PlannedMinecraftFile(
 )
 
 /**
- * Builds a download plan for the client JAR and all indexed assets.
- * Library/native resolution and execution are separate future stages.
+ * Builds a verified download plan for client, libraries, assets, and native classifiers.
  */
 object MinecraftInstallPlanner {
     fun create(version: MinecraftVersion): MinecraftInstallPlan {
