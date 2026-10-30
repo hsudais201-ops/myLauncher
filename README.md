@@ -23,9 +23,9 @@ A mobile-first launcher prototype for Minecraft Java Edition. The repository con
 
 ## Build the Android preview
 
-Pushes to `main` that change the Android project, pull requests, and manual workflow runs trigger the Android build workflow. When it succeeds, download the **hyper-launcher-debug-apk** artifact from that workflow run on GitHub Actions. A debug APK has now been built and uploaded successfully by CI; the workflow is being extended to run the JVM unit-test suite before packaging.
+Pushes to `main` that change the Android project, pull requests, and manual workflow runs trigger the Android build workflow. When it succeeds, download the **hyper-launcher-debug-apk** artifact from that workflow run on GitHub Actions. The debug APK has been built and uploaded successfully by CI. The expanded CI workflow has also completed the JVM unit-test suite and APK packaging successfully; newer storage-preflight changes are being rechecked by CI.
 
-The Android project uses JDK 17, Gradle 8.9, Android Gradle Plugin 8.7.3, and compile SDK 35. The Android debug build has been verified successful in GitHub Actions. The newer CI workflow also runs `testDebugUnitTest`; that expanded test-and-build job is awaiting its first result.
+The Android project uses JDK 17, Gradle 8.9, Android Gradle Plugin 8.7.3, and compile SDK 35. The Android debug build has been verified successful in GitHub Actions. The CI workflow runs `testDebugUnitTest` before `assembleDebug`; a complete test-and-build run has passed.
 
 ## Important status — not a finished Minecraft launcher
 
