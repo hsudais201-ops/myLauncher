@@ -9,7 +9,9 @@ A mobile-first launcher prototype for Minecraft Java Edition. The repository con
 - Browser-local preference persistence where storage is available.
 - Native Android Kotlin app shell that loads the UI bundled inside the APK.
 - Android-side reader for Mojang's public version manifest, with a UI control to sync official release and snapshot version IDs.
-- Manifest size limits, network timeouts, basic version-ID validation, and unit tests for parsing/filtering version metadata.
+- Manifest size limits, network timeouts, HTTPS host allowlists, SHA-1 validation, and unit tests for parsing/filtering version metadata.
+- Per-version metadata resolver that verifies the official metadata SHA-1 and extracts the client JAR and asset-index download descriptors; actual file downloads are not implemented yet.
+- Unit tests for version metadata and trusted download URL validation.
 - GitHub Actions workflow to build a debug APK and upload it as an artifact.
 
 ## Build the Android preview
@@ -25,7 +27,7 @@ The Android app is still an early prototype. It **does not download/install game
 Remaining milestones:
 
 1. Device and CPU architecture detection, storage planning, and device-aware memory limits.
-2. Fetch and validate version-specific metadata, client JARs, libraries, assets, and native dependencies with hashes and safe download handling.
+2. Download and verify client JARs, libraries, assets, and native dependencies from the validated metadata; currently only metadata resolution is implemented.
 3. Integrate a Java runtime compatible with supported Android devices and configure native library loading.
 4. Build correct classpaths, JVM/game arguments, and process lifecycle handling for selected versions.
 5. Implement secure Microsoft sign-in for licensed accounts.
@@ -36,8 +38,8 @@ Remaining milestones:
 
 - `index.html`, `mobile.css`, `app.js` — browser preview source
 - `app/src/main/assets/` — UI files bundled into Android
-- `app/src/main/java/com/hyperlauncher/mobile/` — native Android host, manifest reader, and JavaScript bridge
-- `app/src/test/` — version metadata parser tests
+- `app/src/main/java/com/hyperlauncher/mobile/` — native Android host, manifest reader, version-details resolver, and JavaScript bridge
+- `app/src/test/` — version metadata and resolver tests
 - `app/build.gradle.kts`, `build.gradle.kts`, `settings.gradle.kts` — Android Gradle configuration
 - `.github/workflows/android-build.yml` — automated debug APK build
 
