@@ -29,6 +29,7 @@ object MinecraftInstallationService {
         val files = buildList {
             add(plan.assetIndexFile)
             add(plan.clientJar)
+            addAll(plan.libraries)
             addAll(plan.assets)
         }
         val totalBytes = files.fold(0L) { total, file ->
