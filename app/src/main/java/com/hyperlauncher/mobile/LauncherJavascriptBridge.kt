@@ -49,7 +49,7 @@ class LauncherJavascriptBridge(
         if (!Regex("^[0-9][A-Za-z0-9._-]{0,63}$").matches(versionId)) {
             postToUi(
                 "onNativeMinecraftInstall",
-                JSONObject().put("ok", false).put("error", "Invalid Minecraft version ID").toString()
+                JSONObject().put("state", "error").put("error", "Invalid Minecraft version ID").toString()
             )
             return
         }
