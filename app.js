@@ -90,7 +90,7 @@ document.querySelector("#play-button").addEventListener("click", () => {
   const version = versionSelect.value === "snapshot" ? "Latest Snapshot" : versionSelect.value;
   showDialog(
     "Launcher engine not connected",
-    "Your setup is saved on this device. Selected version: " + version + ". Memory target: " + memorySlider.value + " GB. This is still a browser UI prototype; it cannot download or launch Minecraft. The next major step is the Android app shell, compatible Java runtime, game libraries, and process launch integration.",
+    "Your setup is saved on this device. Selected version: " + version + ". Memory target: " + memorySlider.value + " GB. The client JAR and indexed assets can be downloaded with the Download & Install button, but this build still cannot launch Minecraft. Version libraries, native files, Microsoft sign-in, a compatible Java runtime, and process launch integration are still missing.",
     "GOT IT"
   );
 });
