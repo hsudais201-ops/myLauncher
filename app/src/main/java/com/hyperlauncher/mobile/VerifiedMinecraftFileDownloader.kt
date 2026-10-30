@@ -46,7 +46,8 @@ object VerifiedMinecraftFileDownloader {
         try {
             val digest = MessageDigest.getInstance("SHA-1")
             var downloaded = 0L
-            openResponse(descriptor.url).use { connection ->
+            val connection = openResponse(descriptor.url)
+            try {
                 val response = connection.responseCode
                 require(response == HttpURLConnection.HTTP_OK) {
                     "Download server returned HTTP $response"
@@ -73,6 +74,8 @@ object VerifiedMinecraftFileDownloader {
                         output.fd.sync()
                     }
                 }
+            } finally {
+                connection.disconnect()
             }
 
             require(downloaded == descriptor.size) {
