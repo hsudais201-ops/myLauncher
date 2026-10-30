@@ -32,8 +32,11 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      # GitHub-hosted Ubuntu runners already include Android command-line tools.
-      # Avoid setup-android's legacy attempt to install the removed tools package.
+      # Use the command-line tools preinstalled on the GitHub Ubuntu runner.
+      - name: Configure Android SDK tools
+        run: |
+          echo "$ANDROID_HOME/cmdline-tools/16.0/bin" >> "$GITHUB_PATH"
+          yes | "$ANDROID_HOME/cmdline-tools/16.0/bin/sdkmanager" --licenses || true
 
       - name: Install Android platform packages
         run: sdkmanager "platforms;android-35" "build-tools;35.0.0"
