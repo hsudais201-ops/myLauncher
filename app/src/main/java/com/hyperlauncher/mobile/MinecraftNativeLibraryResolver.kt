@@ -18,7 +18,6 @@ object MinecraftNativeLibraryResolver {
             "Invalid Minecraft version ID"
         }
         val architecture = when (osArch.lowercase()) {
-            "aarch64", "arm64", "armv8", "armv8l" -> "64"
             "x86_64", "amd64" -> "64"
             "x86", "i386", "i686" -> "32"
             else -> return emptyList()
