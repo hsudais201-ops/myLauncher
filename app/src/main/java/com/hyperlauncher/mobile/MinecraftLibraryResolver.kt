@@ -11,7 +11,7 @@ data class MinecraftLibrary(val name: String, val artifact: PlannedMinecraftFile
  * stage; this resolver never guesses a classifier or downloads arbitrary URLs.
  */
 object MinecraftLibraryResolver {
-    fun parse(versionId: String, json: String): List<MinecraftLibrary> {
+    fun parse(\n        versionId: String,\n        json: String,\n        osName: String = "linux",\n        osArch: String = System.getProperty("os.arch").orEmpty(),\n        osVersion: String = System.getProperty("os.version").orEmpty()\n    ): List<MinecraftLibrary> {
         require(Regex("^[0-9][A-Za-z0-9._-]{0,63}$").matches(versionId)) {
             "Invalid Minecraft version ID"
         }
@@ -19,7 +19,7 @@ object MinecraftLibraryResolver {
         val result = ArrayList<MinecraftLibrary>()
         for (index in 0 until libraries.length()) {
             val library = libraries.getJSONObject(index)
-            if (!isAllowedByRules(library.optJSONArray("rules"))) continue
+            if (!isAllowedByRules(library.optJSONArray("rules"), osName, osArch, osVersion)) continue
             val name = library.optString("name")
             require(name.isNotBlank() && name.length <= 512) { "Library has an invalid Maven name" }
             val downloads = library.optJSONObject("downloads") ?: continue
@@ -58,7 +58,7 @@ object MinecraftLibraryResolver {
             segments.last().contains('.')
     }
 
-    private fun isAllowedByRules(rules: JSONArray?): Boolean {
+    private fun isAllowedByRules(rules: JSONArray?, osName: String, osArch: String, osVersion: String): Boolean {
         if (rules == null || rules.length() == 0) return true
         var allowed = (0 until rules.length()).none { rules.getJSONObject(it).optString("action") == "allow" }
         for (index in 0 until rules.length()) {
