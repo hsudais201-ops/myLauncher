@@ -7,6 +7,7 @@ import java.net.URL
 import java.nio.file.Files
 import java.nio.file.StandardCopyOption
 import java.security.MessageDigest
+import java.util.concurrent.CancellationException
 
 /**
  * Downloads one metadata-described file into app-private storage.
@@ -32,9 +33,10 @@ object VerifiedMinecraftFileDownloader {
         descriptor: MinecraftDownload,
         relativePath: String,
         storageRoot: File,
-        onProgress: ((downloaded: Long, total: Long) -> Unit)? = null
+        onProgress: ((downloaded: Long, total: Long) -> Unit)? = null,
+        shouldCancel: (() -> Boolean)? = null
     ): File {
-        require(descriptor.size > 0L) { "Download size must be positive" }
+        require(descriptor.size >= 0L) { "Download size must not be negative" }
         require(Regex("^[a-fA-F0-9]{40}$").matches(descriptor.sha1)) {
             "Download SHA-1 is invalid"
         }
@@ -61,6 +63,7 @@ object VerifiedMinecraftFileDownloader {
                     FileOutputStream(temporary).use { output ->
                         val buffer = ByteArray(BUFFER_SIZE)
                         while (true) {
+                            if (shouldCancel?.invoke() == true) throw CancellationException("Minecraft download cancelled")
                             val count = input.read(buffer)
                             if (count < 0) break
                             downloaded += count
@@ -71,6 +74,7 @@ object VerifiedMinecraftFileDownloader {
                             output.write(buffer, 0, count)
                             onProgress?.invoke(downloaded, descriptor.size)
                         }
+                        if (shouldCancel?.invoke() == true) throw CancellationException("Minecraft download cancelled")
                         output.fd.sync()
                     }
                 }
