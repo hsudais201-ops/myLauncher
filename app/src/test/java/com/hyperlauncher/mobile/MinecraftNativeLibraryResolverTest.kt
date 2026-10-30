@@ -13,7 +13,7 @@ class MinecraftNativeLibraryResolverTest {
         val json = """
             {"libraries":[{
               "name":"org.example:native:1.0",
-              "natives":{"linux":"natives-linux-${arch}"},
+              "natives":{"linux":"natives-linux-${'"},
               "downloads":{"classifiers":{"natives-linux-64":{
                 "path":"org/example/native/1.0/native-1.0-natives-linux.jar",
                 "url":"https://libraries.minecraft.net/org/example/native/1.0/native.jar",
@@ -21,7 +21,7 @@ class MinecraftNativeLibraryResolverTest {
               }}}
             }]}
         """.trimIndent()
-        val result = MinecraftNativeLibraryResolver.parse("1.21.4", json, osArch = "aarch64")
+        val result = MinecraftNativeLibraryResolver.parse("1.21.4", json, osArch = "x86_64")
         assertEquals(1, result.size)
         assertEquals("native-library", result.single().kind)
         assertEquals(42L, result.single().descriptor.size)
@@ -57,6 +57,112 @@ class MinecraftNativeLibraryResolverTest {
             {"libraries":[{
               "name":"org.example:native:1.0",
               "natives":{"linux":"natives-linux-${arch}"},
+              "downloads":{"classifiers":{"natives-linux-64":{
+                "path":"org/example/native/1.0/native.jar",
+                "url":"https://libraries.minecraft.net/native.jar",
+                "sha1":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","size":42
+              }}}
+            }]}
+        """.trimIndent()
+        assertEquals(0, MinecraftNativeLibraryResolver.parse("1.21.4", json, osArch = "aarch64").size)
+    }
+
+}
+}{arch}"},
+              "downloads":{"classifiers":{"natives-linux-64":{
+                "path":"org/example/native/1.0/native-1.0-natives-linux.jar",
+                "url":"https://libraries.minecraft.net/org/example/native/1.0/native.jar",
+                "sha1":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","size":42
+              }}}
+            }]}
+        """.trimIndent()
+        val result = MinecraftNativeLibraryResolver.parse("1.21.4", json, osArch = "aarch64")
+        assertEquals(1, result.size)
+        assertEquals("native-library", result.single().kind)
+        assertEquals(42L, result.single().descriptor.size)
+    }
+
+    @Test
+    fun skipsWhenNoMatchingNativeClassifierExists() {
+        val json = """{"libraries":[{"name":"org.example:native:1","natives":{"linux":"natives-linux-${'"},"downloads":{"classifiers":{}}}]}"""
+        assertEquals(0, MinecraftNativeLibraryResolver.parse("1.20.1", json, osArch = "aarch64").size)
+    }
+
+    @Test
+    fun rejectsArchiveTraversalEntries() {
+        val archive = File.createTempFile("hyper-native", ".zip")
+        ZipOutputStream(archive.outputStream()).use { zip ->
+            zip.putNextEntry(ZipEntry("../escape.so"))
+            zip.write(byteArrayOf(1, 2, 3))
+            zip.closeEntry()
+        }
+        val destination = File(archive.parentFile, "hyper-native-out-${'$'}{System.nanoTime()}")
+        try {
+            assertThrows(IllegalArgumentException::class.java) {
+                MinecraftNativeExtractor.extract(listOf(archive), destination)
+            }
+        } finally {
+            archive.delete()
+            destination.deleteRecursively()
+        }
+    }
+    @Test
+    fun doesNotSelectX64NativeClassifierForArm64Device() {
+        val json = """
+            {"libraries":[{
+              "name":"org.example:native:1.0",
+              "natives":{"linux":"natives-linux-${arch}"},
+              "downloads":{"classifiers":{"natives-linux-64":{
+                "path":"org/example/native/1.0/native.jar",
+                "url":"https://libraries.minecraft.net/native.jar",
+                "sha1":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","size":42
+              }}}
+            }]}
+        """.trimIndent()
+        assertEquals(0, MinecraftNativeLibraryResolver.parse("1.21.4", json, osArch = "aarch64").size)
+    }
+
+}
+}{arch}"},"downloads":{"classifiers":{}}}]}"""
+        assertEquals(0, MinecraftNativeLibraryResolver.parse("1.20.1", json, osArch = "aarch64").size)
+    }
+
+    @Test
+    fun rejectsArchiveTraversalEntries() {
+        val archive = File.createTempFile("hyper-native", ".zip")
+        ZipOutputStream(archive.outputStream()).use { zip ->
+            zip.putNextEntry(ZipEntry("../escape.so"))
+            zip.write(byteArrayOf(1, 2, 3))
+            zip.closeEntry()
+        }
+        val destination = File(archive.parentFile, "hyper-native-out-${'$'}{System.nanoTime()}")
+        try {
+            assertThrows(IllegalArgumentException::class.java) {
+                MinecraftNativeExtractor.extract(listOf(archive), destination)
+            }
+        } finally {
+            archive.delete()
+            destination.deleteRecursively()
+        }
+    }
+    @Test
+    fun doesNotSelectX64NativeClassifierForArm64Device() {
+        val json = """
+            {"libraries":[{
+              "name":"org.example:native:1.0",
+              "natives":{"linux":"natives-linux-${'"},
+              "downloads":{"classifiers":{"natives-linux-64":{
+                "path":"org/example/native/1.0/native.jar",
+                "url":"https://libraries.minecraft.net/native.jar",
+                "sha1":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","size":42
+              }}}
+            }]}
+        """.trimIndent()
+        assertEquals(0, MinecraftNativeLibraryResolver.parse("1.21.4", json, osArch = "aarch64").size)
+    }
+
+}
+}{arch}"},
               "downloads":{"classifiers":{"natives-linux-64":{
                 "path":"org/example/native/1.0/native.jar",
                 "url":"https://libraries.minecraft.net/native.jar",
