@@ -60,7 +60,7 @@ object MinecraftLibraryResolver {
 
     private fun isAllowedByRules(rules: JSONArray?): Boolean {
         if (rules == null || rules.length() == 0) return true
-        var allowed = false
+        var allowed = (0 until rules.length()).none { rules.getJSONObject(it).optString("action") == "allow" }
         for (index in 0 until rules.length()) {
             val rule = rules.getJSONObject(index)
             val os = rule.optJSONObject("os")
@@ -68,6 +68,9 @@ object MinecraftLibraryResolver {
                 (os.optString("name").isBlank() || os.optString("name") == "linux") &&
                 (os.optString("arch").isBlank() || runCatching {
                     Regex(os.optString("arch")).containsMatchIn("aarch64")
+                }.getOrDefault(false)) &&
+                (os.optString("version").isBlank() || runCatching {
+                    Regex(os.optString("version")).containsMatchIn(System.getProperty("os.version").orEmpty())
                 }.getOrDefault(false))
             )
             if (matches) allowed = rule.optString("action") == "allow"
