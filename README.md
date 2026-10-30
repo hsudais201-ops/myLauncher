@@ -17,7 +17,7 @@ A mobile-first launcher prototype for Minecraft Java Edition. The repository con
 - Library and native-classifier resolvers that apply the supported Linux rules, select only explicitly declared architecture classifiers, validate artifact paths, and accept only trusted HTTPS download hosts.
 - Native ZIP extraction into a version-specific private directory, with path-traversal checks, cancellation checks, and per-entry/total extraction limits.
 - Android install controls connected to the native bridge, with progress reporting and a cancel action. The bridge resolves the selected official version, builds the plan, and runs the cancellable installation service on a worker thread.
-- Cancellable installation service that downloads the planned asset index, client JAR, standard libraries, native classifiers, and assets into app-private storage, extracts native archives, and reports download byte/file progress.
+- Cancellable installation service that checks free app-storage space before downloading, then downloads the planned asset index, client JAR, standard libraries, native classifiers, and assets, extracts native archives, and reports download byte/file progress. The preflight reserves 32 MiB for filesystem and temporary-file overhead.
 - Unit tests for version metadata, asset-index parsing, trusted download URLs, downloader path safety, and cancellation before the first download.
 - GitHub Actions workflow to build a debug APK and upload it as an artifact.
 
