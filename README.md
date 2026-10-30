@@ -14,7 +14,7 @@ A mobile-first launcher prototype for Minecraft Java Edition. The repository con
 - App-private file downloader foundation with trusted-host redirect checks, path-traversal protection, exact-size checks, SHA-1 verification, temporary files, and atomic finalization.
 - Asset-index parser that validates object hashes and sizes and builds content-addressed asset paths.
 - Initial install planner that combines the selected version's client JAR and asset-index objects into a download plan. It is not yet wired to a UI install action and does not resolve libraries or natives.
-- Unit tests for version metadata and trusted download URL validation.
+- Unit tests for version metadata, asset-index parsing, trusted download URLs, and downloader path safety.
 - GitHub Actions workflow to build a debug APK and upload it as an artifact.
 
 ## Build the Android preview
