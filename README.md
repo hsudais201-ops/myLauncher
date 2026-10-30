@@ -19,13 +19,13 @@ A mobile-first launcher prototype for Minecraft Java Edition. The repository con
 - Android install controls connected to the native bridge, with progress reporting and a cancel action. The bridge resolves the selected official version, builds the plan, and runs the cancellable installation service on a worker thread.
 - Cancellable installation service that checks free app-storage space before downloading, then downloads the planned asset index, client JAR, standard libraries, native classifiers, and assets, extracts native archives, and reports download byte/file progress. The preflight reserves 32 MiB for filesystem and temporary-file overhead.
 - Unit tests for version metadata, asset-index parsing, trusted download URLs, downloader path safety, and cancellation before the first download.
-- GitHub Actions workflow to build a debug APK and upload it as an artifact.
+- GitHub Actions workflow to run JVM unit tests, build a debug APK, and upload it as an artifact.
 
 ## Build the Android preview
 
-Pushes to `main` that change the Android project, pull requests, and manual workflow runs trigger the Android build workflow. When it succeeds, download the **hyper-launcher-debug-apk** artifact from that workflow run on GitHub Actions.
+Pushes to `main` that change the Android project, pull requests, and manual workflow runs trigger the Android build workflow. When it succeeds, download the **hyper-launcher-debug-apk** artifact from that workflow run on GitHub Actions. A debug APK has now been built and uploaded successfully by CI; the workflow is being extended to run the JVM unit-test suite before packaging.
 
-The Android project uses JDK 17, Gradle 8.9, Android Gradle Plugin 8.7.3, and compile SDK 35. The build has been configured in the repository; a successful CI result has not yet been verified in this conversation.
+The Android project uses JDK 17, Gradle 8.9, Android Gradle Plugin 8.7.3, and compile SDK 35. The Android debug build has been verified successful in GitHub Actions. The newer CI workflow also runs `testDebugUnitTest`; that expanded test-and-build job is awaiting its first result.
 
 ## Important status — not a finished Minecraft launcher
 
