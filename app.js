@@ -181,7 +181,7 @@ window.onNativeMinecraftInstall = function (event) {
   }
   if (event.state === "complete") {
     installProgressBar.style.width = "100%";
-    installStatus.textContent = "Downloaded " + event.installedFiles + " verified files for " + event.version + ". Libraries and Java runtime are not included yet.";
+    installStatus.textContent = "Downloaded " + event.installedFiles + " verified files for " + event.version + ". Native libraries and Java runtime are not included yet.";
     setInstallationRunning(false);
     cancelInstallButton.disabled = false;
     return;
