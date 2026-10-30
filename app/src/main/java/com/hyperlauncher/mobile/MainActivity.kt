@@ -5,6 +5,7 @@ import android.app.Activity
 import android.graphics.Color
 import android.os.Bundle
 import android.webkit.WebChromeClient
+import android.webkit.WebResourceRequest
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.FrameLayout
@@ -31,9 +32,21 @@ class MainActivity : Activity() {
             settings.domStorageEnabled = true
             settings.allowFileAccess = true
             settings.allowContentAccess = false
+            settings.allowFileAccessFromFileURLs = false
+            settings.allowUniversalAccessFromFileURLs = false
             settings.javaScriptCanOpenWindowsAutomatically = false
             settings.setSupportMultipleWindows(false)
-            webViewClient = WebViewClient()
+            webViewClient = object : WebViewClient() {
+                override fun shouldOverrideUrlLoading(
+                    view: WebView,
+                    request: WebResourceRequest
+                ): Boolean {
+                    val uri = request.url
+                    val isBundledLauncherAsset = uri.scheme == "file" &&
+                        uri.path?.startsWith("/android_asset/") == true
+                    return !isBundledLauncherAsset
+                }
+            }
             webChromeClient = WebChromeClient()
             isVerticalScrollBarEnabled = false
             isHorizontalScrollBarEnabled = false
