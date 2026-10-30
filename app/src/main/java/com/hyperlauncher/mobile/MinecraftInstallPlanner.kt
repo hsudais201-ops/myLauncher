@@ -6,6 +6,7 @@ data class MinecraftInstallPlan(
     val assetIndexFile: PlannedMinecraftFile,
     val assetIndex: MinecraftAssetIndex,
     val libraries: List<PlannedMinecraftFile>,
+    val nativeLibraries: List<PlannedMinecraftFile>,
     val assets: List<PlannedMinecraftFile>,
     val totalAssetBytes: Long
 )
@@ -52,6 +53,7 @@ object MinecraftInstallPlanner {
             assetIndexFile = indexFile,
             assetIndex = assetIndex,
             libraries = details.libraries.map { it.artifact },
+            nativeLibraries = details.nativeLibraries,
             assets = assets,
             totalAssetBytes = assetIndex.totalBytes
         )
