@@ -38,7 +38,7 @@ object MinecraftNativeLibraryResolver {
                 ?.optJSONObject("classifiers")
                 ?.optJSONObject(classifierName) ?: continue
             val path = classifier.optString("path")
-            require(MinecraftLibraryResolver.isSafeClassifierPath(path)) {
+            require(isSafePath(path)) {
                 "Native classifier path is unsafe"
             }
             val descriptor = MinecraftDownload(
@@ -55,6 +55,12 @@ object MinecraftNativeLibraryResolver {
             result += PlannedMinecraftFile(descriptor, "libraries/$path", "native-library")
         }
         return result.distinctBy { it.relativePath }
+    }
+
+    private fun isSafePath(path: String): Boolean {
+        if (path.isBlank() || path.length > 1024 || path.startsWith("/") || path.startsWith("\\\\") || path.contains('\\\\')) return false
+        val parts = path.split('/')
+        return parts.all { it.isNotBlank() && it != "." && it != ".." } && parts.last().contains('.')
     }
 
     private fun isAllowed(rules: org.json.JSONArray?, osName: String): Boolean {
