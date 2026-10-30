@@ -3,6 +3,7 @@ package com.hyperlauncher.mobile
 data class MinecraftInstallPlan(
     val versionId: String,
     val clientJar: PlannedMinecraftFile,
+    val assetIndexFile: PlannedMinecraftFile,
     val assetIndex: MinecraftAssetIndex,
     val assets: List<PlannedMinecraftFile>,
     val totalAssetBytes: Long
@@ -26,6 +27,11 @@ object MinecraftInstallPlanner {
         val indexId = details.assetIndexId
             ?: throw IllegalStateException("Selected Minecraft version has no asset index ID")
         val assetIndex = MinecraftAssetIndexResolver.fetch(indexDescriptor, indexId)
+        val indexFile = PlannedMinecraftFile(
+            descriptor = indexDescriptor,
+            relativePath = "assets/indexes/$indexId.json",
+            kind = "asset-index"
+        )
 
         val client = PlannedMinecraftFile(
             descriptor = details.client,
@@ -42,6 +48,7 @@ object MinecraftInstallPlanner {
         return MinecraftInstallPlan(
             versionId = version.id,
             clientJar = client,
+            assetIndexFile = indexFile,
             assetIndex = assetIndex,
             assets = assets,
             totalAssetBytes = assetIndex.totalBytes
