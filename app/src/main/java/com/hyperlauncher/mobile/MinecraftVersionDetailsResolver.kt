@@ -24,6 +24,8 @@ object MinecraftVersionDetailsResolver {
     private val sha1Pattern = Regex("^[a-fA-F0-9]{40}$")
     private val allowedDownloadHosts = setOf(
         "piston-data.mojang.com",
+        "piston-meta.mojang.com",
+        "launchermeta.mojang.com",
         "launcher.mojang.com",
         "resources.download.minecraft.net",
         "libraries.minecraft.net"
