@@ -128,6 +128,77 @@ document.querySelectorAll(".bottom-item").forEach(button => {
   });
 });
 
+const installButton = document.querySelector("#install-button");
+const installPanel = document.querySelector("#install-panel");
+const installStatus = document.querySelector("#install-status");
+const installProgressBar = document.querySelector("#install-progress-bar");
+const cancelInstallButton = document.querySelector("#cancel-install-button");
+let installationRunning = false;
+
+function setInstallationRunning(running) {
+  installationRunning = running;
+  installButton.disabled = running;
+  installButton.textContent = running ? "INSTALLATION IN PROGRESS" : "DOWNLOAD & INSTALL VERSION ↓";
+  cancelInstallButton.hidden = !running;
+}
+
+installButton.addEventListener("click", () => {
+  if (!window.HyperLauncherNative || typeof window.HyperLauncherNative.installVersion !== "function") {
+    showDialog("Android app required", "Version installation is available in the Android app. The browser preview cannot write Minecraft files to device storage.", "GOT IT");
+    return;
+  }
+  const versionId = versionSelect.value;
+  installPanel.hidden = false;
+  installStatus.textContent = "Preparing " + versionId + " installation plan…";
+  installProgressBar.style.width = "0%";
+  setInstallationRunning(true);
+  window.HyperLauncherNative.installVersion(versionId);
+});
+
+cancelInstallButton.addEventListener("click", () => {
+  if (window.HyperLauncherNative && typeof window.HyperLauncherNative.cancelInstallation === "function") {
+    window.HyperLauncherNative.cancelInstallation();
+    installStatus.textContent = "Cancelling after the current network read…";
+    cancelInstallButton.disabled = true;
+  }
+});
+
+window.onNativeMinecraftInstall = function (event) {
+  if (!event || typeof event.state !== "string") return;
+  installPanel.hidden = false;
+  if (event.state === "planning") {
+    installStatus.textContent = "Reading official metadata for " + event.version + "…";
+    return;
+  }
+  if (event.state === "downloading") {
+    const total = Number(event.totalBytes) || 0;
+    const done = Number(event.completedBytes) || 0;
+    const percent = total > 0 ? Math.min(100, Math.floor(done / total * 100)) : 0;
+    installProgressBar.style.width = percent + "%";
+    const current = event.currentPath ? " — " + event.currentPath : "";
+    installStatus.textContent = percent + "% · " + event.completedFiles + "/" + event.totalFiles + " files" + current;
+    return;
+  }
+  if (event.state === "complete") {
+    installProgressBar.style.width = "100%";
+    installStatus.textContent = "Downloaded " + event.installedFiles + " verified files for " + event.version + ". Libraries and Java runtime are not included yet.";
+    setInstallationRunning(false);
+    cancelInstallButton.disabled = false;
+    return;
+  }
+  if (event.state === "cancelled") {
+    installStatus.textContent = "Installation cancelled. Verified files already completed are kept.";
+    setInstallationRunning(false);
+    cancelInstallButton.disabled = false;
+    return;
+  }
+  if (event.state === "error") {
+    installStatus.textContent = "Installation failed: " + (event.error || "Unknown error");
+    setInstallationRunning(false);
+    cancelInstallButton.disabled = false;
+  }
+};
+
 const refreshVersionsButton = document.querySelector("#refresh-versions");
 const versionStatus = document.querySelector("#version-status");
 
