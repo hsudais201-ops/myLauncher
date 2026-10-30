@@ -1,5 +1,6 @@
 package com.hyperlauncher.mobile
 
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertThrows
 import org.junit.Test
 import java.io.File
@@ -25,6 +26,22 @@ class MinecraftStoragePreflightTest {
                 reserveBytes = 50L
             )
         }
+    }
+
+    @Test
+    fun roundsVeryLargeStorageShortfallWithoutOverflow() {
+        val error = assertThrows(IllegalStateException::class.java) {
+            MinecraftStoragePreflight.check(
+                storageRoot = File("build/test-launcher-storage"),
+                requiredDownloadBytes = Long.MAX_VALUE,
+                availableBytes = 0L,
+                reserveBytes = 0L
+            )
+        }
+        assertEquals(
+            "Not enough free storage. Free at least 8796093022208 MiB, then try again.",
+            error.message
+        )
     }
 
     @Test
