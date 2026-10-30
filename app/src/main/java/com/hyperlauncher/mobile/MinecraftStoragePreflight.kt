@@ -14,11 +14,17 @@ object MinecraftStoragePreflight {
         storageRoot: File,
         requiredDownloadBytes: Long,
         availableBytes: Long = storageRoot.usableSpace,
-        reserveBytes: Long = MINIMUM_RESERVE_BYTES
+        reserveBytes: Long = MINIMUM_RESERVE_BYTES,
+        additionalRequiredBytes: Long = 0L
     ) {
         require(requiredDownloadBytes >= 0L) { "Required storage size cannot be negative" }
-        require(availableBytes >= 0L && reserveBytes >= 0L) { "Storage values cannot be negative" }
-        val requiredWithReserve = Math.addExact(requiredDownloadBytes, reserveBytes)
+        require(availableBytes >= 0L && reserveBytes >= 0L && additionalRequiredBytes >= 0L) {
+            "Storage values cannot be negative"
+        }
+        val requiredWithReserve = Math.addExact(
+            Math.addExact(requiredDownloadBytes, additionalRequiredBytes),
+            reserveBytes
+        )
         if (availableBytes < requiredWithReserve) {
             val missing = requiredWithReserve - availableBytes
             val mebibyte = 1024L * 1024L
