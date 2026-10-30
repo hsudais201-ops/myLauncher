@@ -12,7 +12,11 @@ data class MinecraftLibrary(val name: String, val artifact: PlannedMinecraftFile
  */
 object MinecraftLibraryResolver {
     fun parse(
-        versionId: String,\n        json: String,\n        osName: String = "linux",\n        osArch: String = System.getProperty("os.arch").orEmpty(),\n        osVersion: String = System.getProperty("os.version").orEmpty()\n    ): List<MinecraftLibrary> {
+        versionId: String,
+        json: String,
+        osName: String = "linux",
+        osArch: String = System.getProperty("os.arch").orEmpty(),
+        osVersion: String = System.getProperty("os.version").orEmpty()\n    ): List<MinecraftLibrary> {
         require(Regex("^[0-9][A-Za-z0-9._-]{0,63}$").matches(versionId)) {
             "Invalid Minecraft version ID"
         }
