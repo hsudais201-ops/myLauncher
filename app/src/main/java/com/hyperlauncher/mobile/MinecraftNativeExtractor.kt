@@ -8,7 +8,7 @@ import java.util.zip.ZipInputStream
 /** Safely extracts verified native ZIPs into a version-private directory. */
 object MinecraftNativeExtractor {
     private const val MAX_ENTRY_BYTES = 256L * 1024L * 1024L
-    private const val MAX_TOTAL_BYTES = 512L * 1024L * 1024L
+    const val MAX_TOTAL_EXTRACTED_BYTES = 512L * 1024L * 1024L
 
     fun extract(archives: List<File>, destination: File, shouldCancel: (() -> Boolean)? = null): List<File> {
         val root = destination.canonicalFile
@@ -42,7 +42,7 @@ object MinecraftNativeExtractor {
                             if (count < 0) break
                             entryBytes = Math.addExact(entryBytes, count.toLong())
                             total = Math.addExact(total, count.toLong())
-                            require(entryBytes <= MAX_ENTRY_BYTES && total <= MAX_TOTAL_BYTES) {
+                            require(entryBytes <= MAX_ENTRY_BYTES && total <= MAX_TOTAL_EXTRACTED_BYTES) {
                                 "Native archive exceeds extraction limits"
                             }
                             output.write(buffer, 0, count)
