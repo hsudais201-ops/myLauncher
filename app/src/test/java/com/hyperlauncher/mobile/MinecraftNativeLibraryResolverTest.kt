@@ -51,4 +51,20 @@ class MinecraftNativeLibraryResolverTest {
             destination.deleteRecursively()
         }
     }
+    @Test
+    fun doesNotSelectX64NativeClassifierForArm64Device() {
+        val json = """
+            {"libraries":[{
+              "name":"org.example:native:1.0",
+              "natives":{"linux":"natives-linux-${arch}"},
+              "downloads":{"classifiers":{"natives-linux-64":{
+                "path":"org/example/native/1.0/native.jar",
+                "url":"https://libraries.minecraft.net/native.jar",
+                "sha1":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","size":42
+              }}}
+            }]}
+        """.trimIndent()
+        assertEquals(0, MinecraftNativeLibraryResolver.parse("1.21.4", json, osArch = "aarch64").size)
+    }
+
 }
