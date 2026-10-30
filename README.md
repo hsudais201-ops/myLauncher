@@ -14,7 +14,8 @@ A mobile-first launcher prototype for Minecraft Java Edition. The repository con
 - App-private file downloader foundation with trusted-host redirect checks, path-traversal protection, exact-size checks, SHA-1 verification, temporary files, and atomic finalization.
 - Asset-index parser that validates object hashes and sizes and builds content-addressed asset paths.
 - Install planner that includes the asset-index JSON, client JAR, and indexed asset objects with their expected sizes and SHA-1 hashes.
-- Cancellable installation service that downloads the planned asset index, client JAR, and assets into app-private storage, reporting byte/file progress. It must be called from a worker thread and is not yet connected to the UI.
+- Android install controls connected to the native bridge, with progress reporting and a cancel action. The bridge resolves the selected official version, builds the plan, and runs the cancellable installation service on a worker thread.
+- Cancellable installation service that downloads the planned asset index, client JAR, and assets into app-private storage, reporting byte/file progress.
 - Unit tests for version metadata, asset-index parsing, trusted download URLs, downloader path safety, and cancellation before the first download.
 - GitHub Actions workflow to build a debug APK and upload it as an artifact.
 
@@ -26,12 +27,12 @@ The Android project uses JDK 17, Gradle 8.9, Android Gradle Plugin 8.7.3, and co
 
 ## Important status — not a finished Minecraft launcher
 
-The Android app is still an early prototype. The installation service can download and verify the asset-index JSON, client JAR, and indexed asset objects when called by code, but it is not yet connected to an install button or background UI workflow. It does **not** resolve/download version libraries or native classifiers, authenticate Microsoft accounts, configure a Java runtime, or launch Minecraft. Syncing official version IDs remains metadata-only.
+The Android app is still an early prototype. In the Android app, the install button can now resolve an official version and download/verify its asset-index JSON, client JAR, and indexed asset objects into app-private storage, with progress and cancellation. Downloads run on a worker thread owned by the activity bridge; this is not yet a durable Android foreground/background service, so leaving the app or Android reclaiming its process can interrupt the operation. It does **not** resolve/download version libraries or native classifiers, authenticate Microsoft accounts, configure a Java runtime, or launch Minecraft.
 
 Remaining milestones:
 
 1. Device and CPU architecture detection, storage planning, and device-aware memory limits.
-2. Connect the cancellable installation service to a background manager and UI with lifecycle-safe progress/cancel controls; then resolve/download version libraries and native classifiers.
+2. Add a durable Android foreground installation service with lifecycle-safe progress/cancel controls; then resolve/download version libraries and native classifiers.
 3. Integrate a Java runtime compatible with supported Android devices and configure native library loading.
 4. Build correct classpaths, JVM/game arguments, and process lifecycle handling for selected versions.
 5. Implement secure Microsoft sign-in for licensed accounts.
