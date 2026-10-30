@@ -58,7 +58,7 @@ object MinecraftNativeLibraryResolver {
     }
 
     private fun isSafePath(path: String): Boolean {
-        if (path.isBlank() || path.length > 1024 || path.startsWith("/") || path.startsWith("\\\\") || path.contains('\\\\')) return false
+        if (path.isBlank() || path.length > 1024 || path.startsWith("/") || path.startsWith("\\") || path.contains('\\')) return false
         val parts = path.split('/')
         return parts.all { it.isNotBlank() && it != "." && it != ".." } && parts.last().contains('.')
     }
