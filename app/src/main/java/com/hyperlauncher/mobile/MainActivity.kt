@@ -8,6 +8,7 @@ import android.webkit.WebChromeClient
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.FrameLayout
+import java.io.File
 
 /**
  * Native Android host for the bundled Hyper Launcher UI.
@@ -37,7 +38,7 @@ class MainActivity : Activity() {
             isVerticalScrollBarEnabled = false
             isHorizontalScrollBarEnabled = false
         }
-        launcherBridge = LauncherJavascriptBridge(webView)
+        launcherBridge = LauncherJavascriptBridge(webView, File(filesDir, "minecraft"))
         webView.addJavascriptInterface(launcherBridge, "HyperLauncherNative")
         webView.loadUrl("file:///android_asset/index.html")
 
