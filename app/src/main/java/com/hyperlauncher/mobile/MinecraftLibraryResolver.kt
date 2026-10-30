@@ -65,7 +65,7 @@ object MinecraftLibraryResolver {
             val rule = rules.getJSONObject(index)
             val os = rule.optJSONObject("os")
             val matches = os == null || (
-                (os.optString("name").isBlank() || os.optString("name") == "linux") &&
+                (os.optString("name").isBlank() || os.optString("name") == osName) &&
                 (os.optString("arch").isBlank() || runCatching {
                     Regex(os.optString("arch")).containsMatchIn(osArch)
                 }.getOrDefault(false)) &&
@@ -73,7 +73,7 @@ object MinecraftLibraryResolver {
                     Regex(os.optString("version")).containsMatchIn(osVersion)
                 }.getOrDefault(false))
             )
-            val features = rule.optJSONObject("features)
+            val features = rule.optJSONObject("features")
             val featureMatches = features == null || features.keys().asSequence().all { key -> !features.optBoolean(key) }
             if (matches && featureMatches) allowed = rule.optString("action") == "allow"
         }
