@@ -26,7 +26,7 @@ object MinecraftNativeLibraryResolver {
         val result = ArrayList<PlannedMinecraftFile>()
         for (index in 0 until libraries.length()) {
             val library = libraries.getJSONObject(index)
-            if (!isAllowed(library.optJSONArray("rules"), osName)) continue
+            if (!MinecraftLibraryResolver.isAllowedByRules(library.optJSONArray("rules"), osName, osArch, System.getProperty("os.version").orEmpty())) continue
             val nativeKey = library.optJSONObject("natives")?.optString(osName).orEmpty()
             if (nativeKey.isBlank()) continue
             val classifierName = nativeKey.replace("${'$'}{arch}", architecture)
@@ -62,17 +62,4 @@ object MinecraftNativeLibraryResolver {
         return parts.all { it.isNotBlank() && it != "." && it != ".." } && parts.last().contains('.')
     }
 
-    private fun isAllowed(rules: org.json.JSONArray?, osName: String): Boolean {
-        if (rules == null || rules.length() == 0) return true
-        var allowed = (0 until rules.length()).none {
-            rules.getJSONObject(it).optString("action") == "allow"
-        }
-        for (index in 0 until rules.length()) {
-            val rule = rules.getJSONObject(index)
-            val os = rule.optJSONObject("os")
-            val matches = os == null || os.optString("name").let { it.isBlank() || it == osName }
-            if (matches) allowed = rule.optString("action") == "allow"
-        }
-        return allowed
-    }
 }
