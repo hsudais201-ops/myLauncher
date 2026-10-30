@@ -22,7 +22,7 @@ class MinecraftVersionDetailsResolverTest {
 
         assertEquals("net.minecraft.client.main.Main", details.mainClass)
         assertEquals(123456L, details.client.size)
-        assertEquals("19", details.assetIndex?.url?.substringAfterLast("/"))
+        assertTrue(details.assetIndex?.url?.endsWith("/19.json") == true)
     }
 
     @Test
