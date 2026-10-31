@@ -50,3 +50,10 @@ The current candidate for a real Android Minecraft runtime is [Amethyst-Android]
 - `.github/workflows/android-build.yml` — automated debug APK build
 
 The existing `main` branch is preserved.
+
+
+#### Upstream runtime integration findings (31 October 2026)
+
+A deeper inspection of Amethyst's `v3_openjdk` source confirms that its runtime support is not a standalone Java-runtime library. Its Android app module contains many bundled native AARs (including SDL, graphics backends, OpenAL, and LWJGL native bundles), a JNI/NDK build, Java runtime management code, and Git submodules such as MioLibPatcher and androidnsbypass. Its runtime manager stores each runtime as a directory with a `release` descriptor and a `bin/java` executable; it checks the Java major version and architecture metadata before selecting a runtime. External Android JRE archives are downloaded per Java major version and device architecture.
+
+This means copying `NewJREUtil.java` or adding a generic Maven dependency would not integrate a working runtime. The viable route is a deliberate upstream module/fork integration that carries the matching native libraries, graphics bridge, JNI build, submodules, and LGPL-3.0 compliance. Until that is done, Hyper Launcher must continue to report runtime readiness as unavailable rather than infer it from CPU architecture or downloaded desktop libraries.
