@@ -25,7 +25,7 @@ object ModPlatformBrowser {
     private const val MINECRAFT_GAME_ID = 432
     private const val MAX_RESPONSE_BYTES = 2 * 1024 * 1024
     private const val MAX_MOD_FILE_BYTES = 2L * 1024L * 1024L * 1024L
-    private val projectTypes = setOf("mod", "modpack", "resourcepack", "shader", "datapack")
+    private val projectTypes = setOf("mod", "modpack", "resourcepack", "shader", "datapack", "plugin", "world")
     private val loaders = setOf("any", "fabric", "forge", "neoforge", "quilt")
     private val versionPattern = Regex("^[0-9][A-Za-z0-9._-]{0,31}$")
     private val cachedClassIds = mutableMapOf<String, Int>()
@@ -42,6 +42,7 @@ object ModPlatformBrowser {
     ): JSONObject {
         require(source == "modrinth" || source == "curseforge") { "Choose Modrinth or CurseForge" }
         require(projectTypes.contains(projectType)) { "Unsupported project type" }
+        require(source != "modrinth" || projectType != "world") { "World downloads are available through CurseForge." }
         require(loaders.contains(loader)) { "Unsupported mod loader" }
         require(query.length <= 80) { "Search text is too long" }
         require(offset in 0..10_000) { "Search page is out of range" }
@@ -115,6 +116,8 @@ object ModPlatformBrowser {
                 "resourcepack" -> "resourcepacks"
                 "shader" -> "shaderpacks"
                 "datapack" -> "datapacks"
+                "plugin" -> "plugins"
+                "world" -> "worlds"
                 "modpack" -> "modpacks"
                 else -> "mods"
             }
@@ -260,7 +263,7 @@ object ModPlatformBrowser {
         sort: String,
         offset: Int
     ): JSONObject {
-        val facets = JSONArray().put(JSONArray().put(if (type == "datapack") "all_project_types:datapack" else "project_type:" + type))
+        val facets = JSONArray().put(JSONArray().put(if (type == "datapack" || type == "plugin") "all_project_types:" + type else "project_type:" + type))
         if (version.isNotEmpty()) facets.put(JSONArray().put("versions:" + version))
         if (loader != "any") facets.put(JSONArray().put("categories:" + loader))
         val index = when (sort) {
@@ -284,6 +287,7 @@ object ModPlatformBrowser {
                 "resourcepack" -> "resourcepack"
                 "shader" -> "shader"
                 "datapack" -> "datapack"
+                "plugin" -> "plugin"
                 else -> "mod"
             }
             results.put(
@@ -407,6 +411,8 @@ object ModPlatformBrowser {
             "resourcepack" -> setOf("resource packs", "texture packs", "resourcepack", "texturepack")
             "shader" -> setOf("shaders", "shader packs", "shaderpacks")
             "datapack" -> setOf("data packs", "datapacks")
+            "plugin" -> setOf("bukkit plugins", "plugins")
+            "world" -> setOf("worlds")
             else -> emptySet()
         }
         return name in accepted
@@ -434,6 +440,8 @@ object ModPlatformBrowser {
             "resourcepack" -> "texture-packs"
             "shader" -> "shaders"
             "datapack" -> "data-packs"
+            "plugin" -> "bukkit-plugins"
+            "world" -> "worlds"
             else -> "mc-mods"
         }
         return "https://www.curseforge.com/minecraft/" + path + "/" + slug
