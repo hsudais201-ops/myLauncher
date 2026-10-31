@@ -40,7 +40,7 @@ object ModPlatformBrowser {
         return if (source == "modrinth") {
             searchModrinth(query.trim(), projectType, version, loader, sort)
         } else {
-            searchCurseForge(query.trim(), projectType, version, sort, curseForgeKey)
+            searchCurseForge(query.trim(), projectType, version, loader, sort, curseForgeKey)
         }
     }
 
@@ -100,6 +100,7 @@ object ModPlatformBrowser {
         query: String,
         type: String,
         version: String,
+        loader: String,
         sort: String,
         apiKey: String?
     ): JSONObject {
@@ -108,6 +109,10 @@ object ModPlatformBrowser {
             "CurseForge requires your own API key. Add it in the CurseForge section to search."
         }
         val classId = resolveCurseForgeClass(type, key)
+        val loaderType = curseForgeLoaderType(loader)
+        require(loaderType == null || version.isNotEmpty()) {
+            "Choose a Minecraft version when filtering CurseForge by mod loader."
+        }
         val sortField = when (sort) {
             "downloads" -> 2
             "updated" -> 3
@@ -117,6 +122,7 @@ object ModPlatformBrowser {
             "&classId=" + classId +
             "&searchFilter=" + encode(query) +
             (if (version.isNotEmpty()) "&gameVersion=" + encode(version) else "") +
+            (if (loaderType != null) "&modLoaderType=" + loaderType else "") +
             "&sortField=" + sortField + "&sortOrder=desc&pageSize=24&index=0"
         val body = requestJson(url, "api.curseforge.com", key)
         val hits = body.optJSONArray("data") ?: JSONArray()
@@ -126,7 +132,7 @@ object ModPlatformBrowser {
             val id = item.optLong("id", 0L)
             if (id <= 0L) continue
             val links = item.optJSONObject("links")
-            val website = safeCurseForgePage(links?.optString("websiteUrl").orEmpty(), item.optString("slug"))
+            val website = safeCurseForgePage(links?.optString("websiteUrl").orEmpty(), item.optString("slug"), type)
             val logo = item.optJSONObject("logo")
             val authors = item.optJSONArray("authors")
             val author = authors?.optJSONObject(0)?.optString("name").orEmpty()
@@ -183,18 +189,30 @@ object ModPlatformBrowser {
         return resolved
     }
 
-    private fun safeCurseForgePage(candidate: String, slug: String): String {
+    internal fun curseForgeLoaderType(loader: String): Int? = when (loader) {
+        "any" -> null
+        "forge" -> 1
+        "fabric" -> 4
+        "quilt" -> 5
+        "neoforge" -> 6
+        else -> throw IllegalArgumentException("Unsupported CurseForge mod loader")
+    }
+
+    private fun safeCurseForgePage(candidate: String, slug: String, type: String): String {
         val safe = safeHttpsUrl(candidate)
         if (safe.startsWith("https://www.curseforge.com/") ||
             safe.startsWith("https://curseforge.com/")) return safe
+        if (slug.isBlank()) return "https://www.curseforge.com/minecraft/search"
         require(slug.matches(Regex("^[A-Za-z0-9._-]{1,100}$"))) {
-            "CurseForge returned an invalid project link"
+            "CurseForge returned an invalid project slug"
         }
-        val section = "minecraft/" + when {
-            slug.isBlank() -> "search"
-            else -> "search"
+        val path = when (type) {
+            "modpack" -> "modpacks"
+            "resourcepack" -> "texture-packs"
+            "shader" -> "shaders"
+            else -> "mc-mods"
         }
-        return "https://www.curseforge.com/" + section + "?search=" + encode(slug)
+        return "https://www.curseforge.com/minecraft/" + path + "/" + slug
     }
 
     private fun safeHttpsUrl(value: String): String {
