@@ -40,6 +40,72 @@
         </div>
       </section>
 
+      <section class="mods-browser" id="mods-browser" hidden>
+        <div class="section-heading">
+          <div><span class="section-kicker">MOD CATALOGS</span><h2>Discover content</h2></div>
+          <span class="spark">✦</span>
+        </div>
+        <div class="browser-panel">
+          <label for="mod-source">CONTENT SOURCE</label>
+          <div class="select-wrap">
+            <select id="mod-source">
+              <option value="modrinth">Modrinth</option>
+              <option value="curseforge">CurseForge</option>
+            </select><span>⌄</span>
+          </div>
+          <div class="curseforge-key-panel" id="curseforge-key-panel" hidden>
+            <label for="curseforge-api-key">CURSEFORGE API KEY</label>
+            <input id="curseforge-api-key" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Paste your CurseForge API key">
+            <div class="key-actions">
+              <button id="save-curseforge-key" type="button">CONNECT KEY</button>
+              <button id="clear-curseforge-key" type="button">CLEAR</button>
+            </div>
+            <p id="curseforge-key-status">CurseForge requires an approved API key. The key stays in memory for this app session and is not saved to disk.</p>
+            <a class="api-key-link" href="https://console.curseforge.com/" data-native-open>Get an API key from CurseForge for Studios ↗</a>
+          </div>
+          <div class="search-field">
+            <label for="mod-search">SEARCH MODS, MODPACKS, SHADERS &amp; MORE</label>
+            <input id="mod-search" type="search" maxlength="80" placeholder="Search Minecraft content…">
+          </div>
+          <div class="browser-filter-grid">
+            <div>
+              <label for="mod-type">CONTENT TYPE</label>
+              <select id="mod-type">
+                <option value="mod">Mods</option>
+                <option value="modpack">Modpacks</option>
+                <option value="resourcepack">Resource packs</option>
+                <option value="shader">Shaders</option>
+              </select>
+            </div>
+            <div>
+              <label for="mod-version">GAME VERSION</label>
+              <input id="mod-version" type="text" inputmode="decimal" maxlength="32" placeholder="Any version">
+            </div>
+            <div>
+              <label for="mod-loader">MOD LOADER</label>
+              <select id="mod-loader">
+                <option value="any">Any loader</option>
+                <option value="fabric">Fabric</option>
+                <option value="forge">Forge</option>
+                <option value="neoforge">NeoForge</option>
+                <option value="quilt">Quilt</option>
+              </select>
+            </div>
+            <div>
+              <label for="mod-sort">SORT BY</label>
+              <select id="mod-sort">
+                <option value="relevance">Relevance</option>
+                <option value="downloads">Most downloaded</option>
+                <option value="updated">Recently updated</option>
+              </select>
+            </div>
+          </div>
+          <button class="search-mods-button" id="search-mods" type="button">SEARCH CATALOG <span>⌕</span></button>
+          <p class="mod-status" id="mod-status" role="status" aria-live="polite">Choose a source and search the Minecraft catalog.</p>
+        </div>
+        <div class="mod-results" id="mod-results" aria-live="polite"></div>
+      </section>
+
       <section class="settings-section">
         <div class="section-heading"><div><span class="section-kicker">QUICK SETUP</span><h2>Your setup</h2></div><span class="spark">✦</span></div>
         <div class="setting-card">
