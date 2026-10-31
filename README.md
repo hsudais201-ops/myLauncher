@@ -5,6 +5,7 @@ A mobile-first launcher prototype for Minecraft Java Edition. The repository con
 ## Current working pieces
 
 - Mobile-first Hyper Launcher home screen and touch-friendly navigation.
+- Native instance manager with persistent profiles, create/select/rename/delete controls, a preserved Default profile that keeps the legacy game folder, and separate app-private game/content directories per new instance.
 - Version selector and memory target controls, with Android-side CPU ABI, RAM, and free app-storage reporting plus a conservative device-specific suggested memory range. The memory target is stored as a preference and is not yet applied to a running game process.
 - Browser-local preference persistence where storage is available.
 - Native Android Kotlin app shell that loads the UI bundled inside the APK, restricts top-level WebView navigation to bundled assets, and disables file-URL cross-origin access so the JavaScript bridge is not exposed to remote pages.
@@ -40,7 +41,7 @@ Remaining milestones:
 4. Build correct classpaths, JVM/game arguments, and process lifecycle handling for selected versions.
 5. Implement secure Microsoft sign-in for licensed accounts.
 6. Support local/offline profile UI without bypassing Minecraft authentication or licensing.
-7. Add mod-loader installation, mod dependency resolution, automatic modpack import, and per-instance mod/resource-pack/shader isolation.
+7. Add mod-loader installation, mod dependency resolution, automatic modpack import, and per-world datapack placement.
 8. Add instance management, logs, crash reporting, and real-device tests across Android versions.
 
 ## Repository layout
