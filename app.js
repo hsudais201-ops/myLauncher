@@ -35,6 +35,8 @@ const versionTitle = document.querySelector(".world-title-row h2");
 const versionPill = document.querySelector(".version-pill");
 const profileName = document.querySelector(".profile-name");
 const deviceInfoStatus = document.querySelector("#device-info");
+const runtimeInstallStatus = document.querySelector("#runtime-install-status");
+let runtimeInstallRunning = false;
 const memoryRangeMin = document.querySelector("#memory-range-min");
 const memoryRangeMax = document.querySelector("#memory-range-max");
 const storageKey = "hyper-launcher-mobile-settings-v1";
@@ -140,12 +142,9 @@ if (window.HyperLauncherNative && typeof window.HyperLauncherNative.refreshDevic
 
 const runtimeInstallButton = document.querySelector("#install-runtime-button");
 const runtimeInstallPanel = document.querySelector("#runtime-install-panel");
-const runtimeInstallStatus = document.querySelector("#runtime-install-status");
 const runtimeInstallMessage = document.querySelector("#runtime-install-message");
 const runtimeInstallProgress = document.querySelector("#runtime-install-progress-bar");
 const cancelRuntimeInstallButton = document.querySelector("#cancel-runtime-install-button");
-let runtimeInstallRunning = false;
-
 function setRuntimeInstallRunning(running) {
   runtimeInstallRunning = running;
   runtimeInstallButton.disabled = running;
