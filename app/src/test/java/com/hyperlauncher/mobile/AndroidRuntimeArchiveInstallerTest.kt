@@ -174,4 +174,68 @@ class AndroidRuntimeArchiveInstallerTest {
         val linkTarget: String? = null,
         val linkType: Byte = TarConstants.LF_NORMAL
     )
+
+    @Test
+    fun rejectsArchiveAttemptToSupplyLauncherProvenanceMarker() {
+        val archive = createArchive(
+            validEntries() + ArchiveEntry(
+                "hyperlauncher-runtime.properties",
+                "platform=android\\nabi=x86_64\\n".toByteArray(),
+                0b110100100
+            )
+        )
+        val root = Files.createTempDirectory("hyper-runtime-marker").toFile()
+        val staging = File(root, "staging")
+        try {
+            org.junit.Assert.assertThrows(IllegalArgumentException::class.java) {
+                AndroidRuntimeArchiveExtractor.extract(
+                    archive, staging, 17, "x86_64", "e".repeat(64), "https://github.com/runtime"
+                )
+            }
+            assertFalse(staging.exists())
+        } finally {
+            archive.delete()
+            root.deleteRecursively()
+        }
+    }
+
+    @Test
+    fun acceptsSafeInternalSymbolicAndHardLinks() {
+        val archive = createArchive(
+            validEntries() + listOf(
+                ArchiveEntry("lib/source.so", byteArrayOf(4, 5, 6), 0b110100100),
+                ArchiveEntry(
+                    "lib/symbolic.so",
+                    null,
+                    0b111111111,
+                    linkTarget = "../bin/java",
+                    linkType = TarConstants.LF_SYMLINK
+                ),
+                ArchiveEntry(
+                    "lib/hard.so",
+                    null,
+                    0b110100100,
+                    linkTarget = "lib/source.so",
+                    linkType = TarConstants.LF_LINK
+                )
+            )
+        )
+        val root = Files.createTempDirectory("hyper-runtime-links").toFile()
+        val staging = File(root, "staging")
+        try {
+            val result = AndroidRuntimeArchiveExtractor.extract(
+                archive, staging, 17, "x86_64", "f".repeat(64), "https://github.com/runtime"
+            )
+            assertEquals(17, result.javaMajor)
+            assertTrue(Files.isSymbolicLink(File(staging, "lib/symbolic.so").toPath()))
+            assertTrue(File(staging, "lib/hard.so").isFile)
+            assertEquals(
+                File(staging, "lib/source.so").readBytes().toList(),
+                File(staging, "lib/hard.so").readBytes().toList()
+            )
+        } finally {
+            archive.delete()
+            root.deleteRecursively()
+        }
+    }
 }
