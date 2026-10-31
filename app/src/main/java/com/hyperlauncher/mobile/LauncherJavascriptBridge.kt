@@ -1,7 +1,11 @@
 package com.hyperlauncher.mobile
 
+import android.app.ActivityManager
+import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import android.os.Build
+import android.os.StatFs
 import android.webkit.JavascriptInterface
 import android.webkit.WebView
 import org.json.JSONArray
@@ -25,6 +29,54 @@ class LauncherJavascriptBridge(
     private val modInstallActive = AtomicBoolean(false)
     private val modInstallCancelled = AtomicBoolean(false)
     @Volatile private var curseForgeApiKey: String? = null
+
+
+    @JavascriptInterface
+    fun refreshDeviceInfo() {
+        try {
+            val activityManager = webView.context.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
+            val memoryInfo = ActivityManager.MemoryInfo()
+            activityManager.getMemoryInfo(memoryInfo)
+            val range = DeviceMemoryPolicy.calculate(memoryInfo.totalMem)
+            if (!storageRoot.exists() && !storageRoot.mkdirs()) {
+                throw IllegalStateException("Could not inspect launcher storage")
+            }
+            val storageInfo = StatFs(storageRoot.absolutePath)
+            val abis = Build.SUPPORTED_ABIS.toList()
+            val primaryAbi = abis.firstOrNull().orEmpty()
+            val architecture = when (primaryAbi) {
+                "arm64-v8a" -> "ARM64"
+                "armeabi-v7a" -> "ARM32"
+                "x86_64" -> "x86_64"
+                "x86" -> "x86"
+                else -> primaryAbi.ifBlank { "Unknown" }
+            }
+            val model = (Build.MANUFACTURER + " " + Build.MODEL).trim()
+            postToUi(
+                "onNativeDeviceInfo",
+                JSONObject()
+                    .put("ok", true)
+                    .put("deviceModel", model)
+                    .put("architecture", architecture)
+                    .put("supportedAbis", JSONArray(abis))
+                    .put("androidSdk", Build.VERSION.SDK_INT)
+                    .put("totalMemoryBytes", memoryInfo.totalMem)
+                    .put("availableMemoryBytes", memoryInfo.availMem)
+                    .put("availableStorageBytes", storageInfo.availableBytes)
+                    .put("minimumMemoryGb", range.minimumGb)
+                    .put("maximumMemoryGb", range.maximumGb)
+                    .put("recommendedMemoryGb", range.recommendedGb)
+                    .toString()
+            )
+        } catch (error: Exception) {
+            postToUi(
+                "onNativeDeviceInfo",
+                JSONObject().put("ok", false)
+                    .put("error", error.message ?: "Could not inspect this device")
+                    .toString()
+            )
+        }
+    }
 
     @JavascriptInterface
     fun refreshVersions() {
