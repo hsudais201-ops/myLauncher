@@ -228,9 +228,9 @@ class LauncherJavascriptBridge(
         executor.execute {
             try {
                 postInstallEvent(
-                    JSONObject().put("state", "planning").put("version", versionId)
+                    JSONObject().put("state", "planning").put("version", version.id)
                 )
-                val version = MinecraftVersionManifest.fetch().firstOrNull { it.id == versionId }
+                val version = MinecraftVersionManifest.findVersion(MinecraftVersionManifest.fetch(), versionId)
                     ?: throw IllegalArgumentException("Selected version was not found in Mojang's official manifest")
                 val plan = MinecraftInstallPlanner.create(version)
                 if (installCancelled.get()) throw java.util.concurrent.CancellationException()
@@ -242,7 +242,7 @@ class LauncherJavascriptBridge(
                         postInstallEvent(
                             JSONObject()
                                 .put("state", "downloading")
-                                .put("version", versionId)
+                                .put("version", version.id)
                                 .put("completedFiles", progress.completedFiles)
                                 .put("totalFiles", progress.totalFiles)
                                 .put("completedBytes", progress.completedBytes)
@@ -254,12 +254,12 @@ class LauncherJavascriptBridge(
                 postInstallEvent(
                     JSONObject()
                         .put("state", "complete")
-                        .put("version", versionId)
+                        .put("version", version.id)
                         .put("installedFiles", installed.size)
                         .put("storagePath", targetStorageRoot.absolutePath)
                 )
             } catch (error: java.util.concurrent.CancellationException) {
-                postInstallEvent(JSONObject().put("state", "cancelled").put("version", versionId))
+                postInstallEvent(JSONObject().put("state", "cancelled").put("version", version.id))
             } catch (error: Exception) {
                 postInstallEvent(
                     JSONObject()
