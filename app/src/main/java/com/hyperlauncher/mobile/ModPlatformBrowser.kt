@@ -206,7 +206,7 @@ object ModPlatformBrowser {
         require(loaderType == null || version.isNotEmpty()) {
             "Choose a Minecraft version when filtering CurseForge by mod loader."
         }
-        val endpoint = "$CURSEFORGE_BASE/mods/$projectId/files?gameId=$MINECRAFT_GAME_ID" +
+        val endpoint = "$CURSEFORGE_BASE/mods/$projectId/files?" +
             (if (version.isNotEmpty()) "&gameVersion=" + encode(version) else "") +
             (if (loaderType != null) "&modLoaderType=$loaderType" else "") +
             "&pageSize=24&index=0"
