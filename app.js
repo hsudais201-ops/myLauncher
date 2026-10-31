@@ -267,6 +267,14 @@ window.onNativeMinecraftVersions = function (result) {
   }
 
   versionSelect.replaceChildren();
+  const latestReleaseOption = document.createElement("option");
+  latestReleaseOption.value = "release";
+  latestReleaseOption.textContent = "Latest Release";
+  versionSelect.appendChild(latestReleaseOption);
+  const latestSnapshotOption = document.createElement("option");
+  latestSnapshotOption.value = "snapshot";
+  latestSnapshotOption.textContent = "Latest Snapshot";
+  versionSelect.appendChild(latestSnapshotOption);
   versions.forEach(version => {
     const option = document.createElement("option");
     option.value = version.id;
@@ -274,12 +282,12 @@ window.onNativeMinecraftVersions = function (result) {
     versionSelect.appendChild(option);
   });
 
-  const preserved = versions.some(version => version.id === previousVersion);
+  const preserved = previousVersion === "release" || previousVersion === "snapshot" ||
+    versions.some(version => version.id === previousVersion);
   if (preserved) {
     versionSelect.value = previousVersion;
   } else {
-    const latestRelease = versions.find(version => version.type === "release");
-    versionSelect.value = latestRelease ? latestRelease.id : versions[0].id;
+    versionSelect.value = "release";
   }
   updateVersionSummary();
   saveSettings();
@@ -786,7 +794,13 @@ function renderInstancesState(state) {
     ? Array.from(state.instances) : [];
   const selected = records.find(item => item.id === state.selectedId);
   if (selected) {
-    const option = Array.from(versionSelect.options).find(item => item.value === selected.version);
+    let option = Array.from(versionSelect.options).find(item => item.value === selected.version);
+    if (!option && /^[0-9][A-Za-z0-9._-]{0,63}$/.test(String(selected.version))) {
+      option = document.createElement("option");
+      option.value = selected.version;
+      option.textContent = selected.version + " — Saved instance version";
+      versionSelect.appendChild(option);
+    }
     if (option && versionSelect.value !== selected.version) {
       versionSelect.value = selected.version;
       updateVersionSummary();
