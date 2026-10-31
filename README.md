@@ -5,7 +5,7 @@ A mobile-first launcher prototype for Minecraft Java Edition. The repository con
 ## Current working pieces
 
 - Mobile-first Hyper Launcher home screen and touch-friendly navigation.
-- Version selector and memory target controls.
+- Version selector and memory target controls, with Android-side CPU ABI, RAM, and free app-storage reporting plus a conservative device-specific suggested memory range. The memory target is stored as a preference and is not yet applied to a running game process.
 - Browser-local preference persistence where storage is available.
 - Native Android Kotlin app shell that loads the UI bundled inside the APK, restricts top-level WebView navigation to bundled assets, and disables file-URL cross-origin access so the JavaScript bridge is not exposed to remote pages.
 - Android-side reader for Mojang's public version manifest, with a UI control to sync official release and snapshot version IDs.
@@ -34,7 +34,7 @@ The Android app is still an early prototype. In the Android app, the install but
 
 Remaining milestones:
 
-1. Device and CPU architecture detection, storage planning, and device-aware memory limits.
+1. Validate the new CPU ABI, RAM, and free-storage reporting and conservative memory-target policy on the supported Android devices; complete device-aware storage planning.
 2. Add a durable Android foreground installation service with lifecycle-safe progress/cancel controls, and validate complete library rule handling on supported Android devices.
 3. Integrate a Java runtime compatible with supported Android devices and configure native library loading.
 4. Build correct classpaths, JVM/game arguments, and process lifecycle handling for selected versions.
