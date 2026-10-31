@@ -83,4 +83,27 @@ class AndroidRuntimeInventoryTest {
             root.deleteRecursively()
         }
     }
+
+    @Test
+    fun ignoresIncompleteRuntimeStagingDirectories() {
+        val root = Files.createTempDirectory("runtime-staging-inventory").toFile()
+        try {
+            val staging = root.resolve(".install-abandoned")
+            staging.resolve("bin").mkdirs()
+            staging.resolve("bin/java").apply { writeText("runtime"); setExecutable(true) }
+            staging.resolve("release").writeText(
+                "JAVA_VERSION=\"21.0.2\"\nOS_ARCH=\"aarch64\"\n"
+            )
+            staging.resolve("hyperlauncher-runtime.properties").writeText(
+                "platform=android\nabi=arm64-v8a\njavaMajor=21\n"
+            )
+
+            val result = AndroidRuntimeInventory.inspect(root, "arm64-v8a")
+
+            assertEquals(0, result.discoveredRuntimeCount)
+            assertNull(result.compatibleRuntime)
+        } finally {
+            root.deleteRecursively()
+        }
+    }
 }
