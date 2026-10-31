@@ -208,7 +208,7 @@ class LauncherJavascriptBridge(
 
     @JavascriptInterface
     fun installVersion(versionId: String) {
-        if (!Regex("^[0-9][A-Za-z0-9._-]{0,63}$").matches(versionId)) {
+        if (versionId != "release" && versionId != "snapshot" && !Regex("^[0-9][A-Za-z0-9._-]{0,63}$").matches(versionId)) {
             postToUi(
                 "onNativeMinecraftInstall",
                 JSONObject().put("state", "error").put("error", "Invalid Minecraft version ID").toString()
