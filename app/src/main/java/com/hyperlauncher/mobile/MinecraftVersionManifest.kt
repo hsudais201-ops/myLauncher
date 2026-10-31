@@ -30,6 +30,14 @@ object MinecraftVersionManifest {
         return parseManifest(downloadJson(MANIFEST_URL, MAX_MANIFEST_BYTES))
     }
 
+    internal fun findVersion(versions: List<MinecraftVersion>, requestedId: String): MinecraftVersion? {
+        return when (requestedId) {
+            "release" -> versions.firstOrNull { it.type == "release" }
+            "snapshot" -> versions.firstOrNull { it.type == "snapshot" }
+            else -> versions.firstOrNull { it.id == requestedId }
+        }
+    }
+
     internal fun parseManifest(json: String): List<MinecraftVersion> {
         val versions = JSONObject(json).getJSONArray("versions")
         val result = ArrayList<MinecraftVersion>(versions.length())
