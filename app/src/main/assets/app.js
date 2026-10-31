@@ -331,7 +331,7 @@ function createModCard(project) {
   const downloads = document.createElement("span");
   downloads.textContent = formatDownloadCount(project.downloads) + " downloads";
   const kind = document.createElement("span");
-  const kinds = {mod: "MOD", modpack: "MODPACK", resourcepack: "RESOURCE PACK", shader: "SHADER"};
+  const kinds = {mod: "MOD", modpack: "MODPACK", resourcepack: "RESOURCE PACK", shader: "SHADER", datapack: "DATA PACK"};
   kind.textContent = kinds[project.type] || "PROJECT";
   meta.append(downloads, kind);
   const link = document.createElement("a");
@@ -366,7 +366,7 @@ function renderModResults(projects) {
   projects.forEach(project => modResults.appendChild(createModCard(project)));
 }
 async function searchModrinthInBrowser(requestId, query, type, gameVersion, loader, sort) {
-  const groups = [["project_type:" + type]];
+  const groups = [[type === "datapack" ? "all_project_types:datapack" : "project_type:" + type]];
   if (gameVersion) groups.push(["versions:" + gameVersion]);
   if (loader !== "any") groups.push(["categories:" + loader]);
   const order = sort === "downloads" || sort === "updated" ? sort : "relevance";
@@ -383,7 +383,7 @@ async function searchModrinthInBrowser(requestId, query, type, gameVersion, load
     author: item.author,
     downloads: item.downloads,
     iconUrl: item.icon_url,
-    url: "https://modrinth.com/" + (type === "modpack" ? "modpack" : type === "resourcepack" ? "resourcepack" : type) + "/" + item.slug,
+    url: "https://modrinth.com/" + (type === "modpack" ? "modpack" : type === "resourcepack" ? "resourcepack" : type === "datapack" ? "datapack" : type) + "/" + item.slug,
     source: "Modrinth",
     type
   }));
