@@ -372,17 +372,17 @@ object ModPlatformBrowser {
             apiKey
         ).optJSONArray("data") ?: JSONArray()
         val target = when (type) {
-            "modpack" -> listOf("modpack")
-            "resourcepack" -> listOf("resource pack", "texture pack", "resourcepack")
-            "shader" -> listOf("shader")
-            else -> listOf("mods", "mod")
+            "modpack" -> setOf("modpacks", "mod packs", "modpacks")
+            "resourcepack" -> setOf("resource packs", "texture packs", "resourcepack", "texturepack")
+            "shader" -> setOf("shaders", "shader packs", "shaderpacks")
+            else -> setOf("mods")
         }
         var resolved = 0
         for (i in 0 until categories.length()) {
             val item = categories.optJSONObject(i) ?: continue
             if (!item.optBoolean("isClass", false)) continue
             val name = item.optString("name").lowercase()
-            if (target.any { name == it || name.contains(it) }) {
+            if (name in target) {
                 resolved = item.optInt("id", 0)
                 if (resolved > 0) break
             }
