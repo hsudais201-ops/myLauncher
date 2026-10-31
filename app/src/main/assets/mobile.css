@@ -51,3 +51,25 @@
 .mod-open-link{display:flex;align-items:center;justify-content:center;min-height:35px;margin-top:10px;border:1px solid #465239;border-radius:4px;color:var(--lime);text-decoration:none;font:8px 'DM Mono',monospace;letter-spacing:.6px}
 .mod-empty{padding:18px;border:1px dashed #3b4033;border-radius:6px;color:#a4aa96;font-size:10px;line-height:1.7;text-align:center}
 @media(max-width:350px){.browser-filter-grid{grid-template-columns:1fr}.mod-source-chip{display:none}}
+
+
+.mod-versions-button{display:flex;align-items:center;justify-content:center;width:100%;min-height:34px;margin-top:7px;border:1px solid #414b33;border-radius:4px;background:#23291d;color:var(--lime);font:8px 'DM Mono',monospace;letter-spacing:.6px}
+.project-versions{margin-top:13px;padding:14px;background:#171913;border:1px solid #3b4030;border-radius:7px;scroll-margin-top:12px}
+.project-versions[hidden]{display:none}
+.versions-heading{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.versions-heading h3{margin:5px 0 0;font-size:15px;overflow-wrap:anywhere}
+.versions-heading button{flex:0 0 31px;width:31px;height:31px;border:1px solid #3e4336;border-radius:5px;background:#252820;color:#dfe3d4;font-size:20px}
+.versions-status{margin:9px 0;color:#959b87;font-size:9px;line-height:1.6}
+.project-version-list{display:grid;gap:8px}
+.project-version-card{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px;background:#20231c;border:1px solid #353a2d;border-radius:5px}
+.project-version-details{flex:1;min-width:0}
+.project-version-details strong{display:block;color:#e7eadf;font-size:10px;line-height:1.5;overflow-wrap:anywhere}
+.project-version-details p{margin:4px 0;color:#a7ac9b;font-size:9px;overflow-wrap:anywhere}
+.project-version-details small{color:#808777;font-size:8px}
+.install-mod-file{flex:0 0 auto;min-width:77px;min-height:33px;padding:0 9px;border:1px solid #5d7042;border-radius:4px;background:#2b3520;color:var(--lime);font:8px 'DM Mono',monospace}
+.install-mod-file:disabled{opacity:.55}
+.mod-download-panel{margin-top:10px;padding:12px;border:1px solid #465039;border-radius:5px;background:#131610}
+.mod-download-panel[hidden]{display:none}
+.mod-download-panel p{margin:0 0 9px;color:#c2c8b4;font-size:9px;line-height:1.6;overflow-wrap:anywhere}
+#cancel-mod-download{margin-top:9px;padding:7px 9px;border:1px solid #555b47;border-radius:4px;background:#22251e;color:#d8ddca;font:8px 'DM Mono',monospace;letter-spacing:.6px}
+@media(max-width:350px){.project-version-card{align-items:flex-start;flex-direction:column}.install-mod-file{width:100%}}
