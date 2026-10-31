@@ -43,15 +43,27 @@ class AndroidRuntimeArchiveInstallerTest {
         javaMajor: Int = 17,
         architecture: String = "amd64",
         javaBytes: ByteArray = byteArrayOf(1, 2, 3)
-    ) = listOf(
-        ArchiveEntry(
-            "release",
-            "JAVA_VERSION=\"$javaMajor.0.1\"\nOS_ARCH=\"$architecture\"\n".toByteArray(),
-            0b110100100
-        ),
-        // Deliberately no explicit bin/ directory header.
-        ArchiveEntry("bin/java", javaBytes, 0b111101101)
-    )
+    ): List<ArchiveEntry> {
+        val libraryRoot = "lib/$architecture"
+        return listOf(
+            ArchiveEntry(
+                "release",
+                "JAVA_VERSION=\"$javaMajor.0.1\"\nOS_ARCH=\"$architecture\"\n".toByteArray(),
+                0b110100100
+            ),
+            // Deliberately no explicit bin/ directory header.
+            ArchiveEntry("bin/java", javaBytes, 0b111101101)
+        ) + listOf(
+            "$libraryRoot/server/libjvm.so",
+            "$libraryRoot/jli/libjli.so",
+            "$libraryRoot/libjava.so",
+            "$libraryRoot/libverify.so",
+            "$libraryRoot/libnet.so",
+            "$libraryRoot/libnio.so"
+        ).map { path ->
+            ArchiveEntry(path, byteArrayOf(1), 0b110100100)
+        }
+    }
 
     @Test
     fun extractsRuntimeAndWritesVerifiedAndroidProvenanceMarker() {
