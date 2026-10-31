@@ -90,10 +90,6 @@ memorySlider.addEventListener("input", () => {
 });
 
 
-const deviceInfoStatus = document.querySelector("#device-info");
-const memoryRangeMin = document.querySelector("#memory-range-min");
-const memoryRangeMax = document.querySelector("#memory-range-max");
-
 window.onNativeDeviceInfo = function (info) {
   if (!info || !info.ok) {
     deviceInfoStatus.textContent = info && info.error
