@@ -129,9 +129,10 @@
           <button class="refresh-versions" id="refresh-versions" type="button">SYNC OFFICIAL VERSIONS <span>↻</span></button>
           <p class="version-status" id="version-status" aria-live="polite">Showing built-in versions</p>
           <div class="setting-divider"></div>
-          <div class="memory-heading"><div><label for="memory-slider">MEMORY ALLOCATION</label><strong id="memory-value">4 GB</strong></div><span class="ram-chip">RAM</span></div>
+          <div class="memory-heading"><div><label for="memory-slider">MEMORY TARGET</label><strong id="memory-value">4 GB</strong></div><span class="ram-chip">RAM</span></div>
           <input id="memory-slider" type="range" min="2" max="8" value="4" step="1" aria-label="Memory allocation in gigabytes">
-          <div class="range-labels"><span>2 GB</span><span>8 GB</span></div>
+          <div class="range-labels"><span id="memory-range-min">2 GB</span><span id="memory-range-max">8 GB</span></div>
+          <p class="device-info" id="device-info" role="status" aria-live="polite">Device memory and CPU details appear in the Android app. This is a saved memory target, not active JVM allocation yet.</p>
         </div>
         <div class="tip-card"><span class="tip-icon">✦</span><div><strong>Make room for adventure.</strong><p>Modded setups may need extra memory for a smoother experience.</p></div></div>
       </section>
