@@ -31,6 +31,17 @@ class VerifiedMinecraftFileDownloaderTest {
     }
 
     @Test
+    fun allowsModCdnOnlyWhenExplicitlyPassed() {
+        assertFalse(VerifiedMinecraftFileDownloader.isTrustedUrl("https://cdn.modrinth.com/file.jar"))
+        assertTrue(
+            VerifiedMinecraftFileDownloader.isTrustedUrl(
+                "https://cdn.modrinth.com/file.jar",
+                setOf("cdn.modrinth.com")
+            )
+        )
+    }
+
+    @Test
     fun onlyAcceptsHttpsDownloadsFromAllowlistedHosts() {
         assertTrue(VerifiedMinecraftFileDownloader.isTrustedUrl("https://piston-data.mojang.com/client.jar"))
         assertTrue(VerifiedMinecraftFileDownloader.isTrustedUrl("https://libraries.minecraft.net/library.jar"))
