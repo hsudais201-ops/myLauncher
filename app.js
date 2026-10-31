@@ -237,7 +237,7 @@ document.querySelector("#play-button").addEventListener("click", () => {
   const version = versionSelect.value === "snapshot" ? "Latest Snapshot" : versionSelect.value;
   showDialog(
     "Launcher engine not connected",
-    "Your setup is saved on this device. Selected version: " + version + ". Memory target: " + memorySlider.value + " GB. The client JAR and indexed assets can be downloaded with the Download & Install button, but this build still cannot launch Minecraft. Version libraries, native files, Microsoft sign-in, a compatible Java runtime, and process launch integration are still missing.",
+    "Your setup is saved on this device. Selected version: " + version + ". Memory target: " + memorySlider.value + " GB. Install the verified Minecraft files and use the separate Java runtime installer when needed. Minecraft still cannot launch here: Android graphics/LWJGL, input, Microsoft sign-in, and game-process integration are unfinished.",
     "GOT IT"
   );
 });
@@ -333,7 +333,7 @@ window.onNativeMinecraftInstall = function (event) {
   }
   if (event.state === "complete") {
     installProgressBar.style.width = "100%";
-    installStatus.textContent = "Downloaded " + event.installedFiles + " verified files for " + event.version + ". Native libraries and Java runtime are not included yet.";
+    installStatus.textContent = "Downloaded " + event.installedFiles + " verified Minecraft files for " + event.version + ". Install Java separately when needed; graphics and game launch are not integrated yet.";
     setInstallationRunning(false);
     cancelInstallButton.disabled = false;
     return;
