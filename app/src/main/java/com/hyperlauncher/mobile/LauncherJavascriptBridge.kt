@@ -21,6 +21,9 @@ class LauncherJavascriptBridge(
     private val installCancelled = AtomicBoolean(false)
     private val installationActive = AtomicBoolean(false)
     private val modSearchExecutor = Executors.newFixedThreadPool(2)
+    private val modInstallExecutor = Executors.newSingleThreadExecutor()
+    private val modInstallActive = AtomicBoolean(false)
+    private val modInstallCancelled = AtomicBoolean(false)
     @Volatile private var curseForgeApiKey: String? = null
 
     @JavascriptInterface
@@ -165,6 +168,106 @@ class LauncherJavascriptBridge(
         }
     }
 
+
+    @JavascriptInterface
+    fun listModVersions(
+        source: String,
+        projectId: String,
+        projectType: String,
+        gameVersion: String,
+        loader: String,
+        requestId: String
+    ) {
+        val safeRequestId = requestId.take(40)
+        modSearchExecutor.execute {
+            val payload = try {
+                ModPlatformBrowser.listProjectVersions(
+                    source, projectId, projectType, gameVersion, loader, curseForgeApiKey
+                ).put("requestId", safeRequestId).put("projectId", projectId)
+            } catch (error: Exception) {
+                JSONObject()
+                    .put("ok", false)
+                    .put("source", source)
+                    .put("requestId", safeRequestId)
+                    .put("error", error.message ?: "Could not load compatible files")
+            }
+            postToUi("onNativeModVersions", payload.toString())
+        }
+    }
+
+    @JavascriptInterface
+    fun installModFile(
+        source: String,
+        projectId: String,
+        fileId: String,
+        fileName: String,
+        projectType: String,
+        gameVersion: String,
+        loader: String,
+        requestId: String
+    ) {
+        if (!modInstallActive.compareAndSet(false, true)) {
+            postToUi(
+                "onNativeModInstall",
+                JSONObject().put("state", "error").put("error", "Another mod file is already downloading").toString()
+            )
+            return
+        }
+        modInstallCancelled.set(false)
+        val safeRequestId = requestId.take(40)
+        modInstallExecutor.execute {
+            try {
+                postModInstallEvent(
+                    JSONObject().put("state", "resolving").put("requestId", safeRequestId).put("fileName", fileName)
+                )
+                val file = ModPlatformBrowser.resolveFileDownload(
+                    source, projectId, fileId, fileName, projectType, gameVersion, loader, curseForgeApiKey
+                )
+                MinecraftStoragePreflight.check(storageRoot, file.descriptor.size)
+                if (modInstallCancelled.get()) throw java.util.concurrent.CancellationException()
+                postModInstallEvent(
+                    JSONObject().put("state", "downloading").put("requestId", safeRequestId)
+                        .put("fileName", file.fileName).put("downloadedBytes", 0).put("totalBytes", file.descriptor.size)
+                )
+                val installed = VerifiedMinecraftFileDownloader.download(
+                    descriptor = file.descriptor,
+                    relativePath = file.relativePath,
+                    storageRoot = storageRoot,
+                    onProgress = { downloaded, total ->
+                        postModInstallEvent(
+                            JSONObject().put("state", "downloading").put("requestId", safeRequestId)
+                                .put("fileName", file.fileName).put("downloadedBytes", downloaded).put("totalBytes", total)
+                        )
+                    },
+                    shouldCancel = { modInstallCancelled.get() },
+                    additionalTrustedHosts = ModPlatformBrowser.modDownloadHosts
+                )
+                postModInstallEvent(
+                    JSONObject().put("state", "complete").put("requestId", safeRequestId)
+                        .put("fileName", file.fileName).put("path", installed.relativeTo(storageRoot).invariantSeparatorsPath)
+                )
+            } catch (error: java.util.concurrent.CancellationException) {
+                postModInstallEvent(JSONObject().put("state", "cancelled").put("requestId", safeRequestId))
+            } catch (error: Exception) {
+                postModInstallEvent(
+                    JSONObject().put("state", "error").put("requestId", safeRequestId)
+                        .put("error", error.message ?: "Mod download failed")
+                )
+            } finally {
+                modInstallActive.set(false)
+            }
+        }
+    }
+
+    @JavascriptInterface
+    fun cancelModInstall() {
+        modInstallCancelled.set(true)
+    }
+
+    private fun postModInstallEvent(event: JSONObject) {
+        postToUi("onNativeModInstall", event.toString())
+    }
+
     @JavascriptInterface
     fun openProjectUrl(value: String) {
         try {
@@ -218,6 +321,8 @@ class LauncherJavascriptBridge(
         installCancelled.set(true)
         curseForgeApiKey = null
         modSearchExecutor.shutdownNow()
+        modInstallCancelled.set(true)
+        modInstallExecutor.shutdownNow()
         executor.shutdownNow()
     }
 }
