@@ -20,6 +20,9 @@ class AndroidRuntimeInventoryTest {
             runtime.resolve("release").writeText(
                 "JAVA_VERSION=\"21.0.2\"\nOS_ARCH=\"aarch64\"\n"
             )
+            runtime.resolve("hyperlauncher-runtime.properties").writeText(
+                "platform=android\nabi=arm64-v8a\n"
+            )
 
             val result = AndroidRuntimeInventory.inspect(root, "arm64-v8a")
 
@@ -41,6 +44,9 @@ class AndroidRuntimeInventoryTest {
             wrongAbi.resolve("bin/java").apply { writeText("not executable") ; setExecutable(true) }
             wrongAbi.resolve("release").writeText(
                 "JAVA_VERSION=\"17.0.9\"\nOS_ARCH=\"amd64\"\n"
+            )
+            wrongAbi.resolve("hyperlauncher-runtime.properties").writeText(
+                "platform=android\nabi=x86_64\n"
             )
 
             val noJava = root.resolve("missing-java")
@@ -69,10 +75,10 @@ class AndroidRuntimeInventoryTest {
                 "JAVA_VERSION=\"21\"\nOS_ARCH=\"aarch64\"\n"
             )
 
-            // The inventory is metadata validation only. Android-native provenance
-            // still must be guaranteed by the runtime installer/source before launch.
+            // Matching CPU architecture and a desktop executable are insufficient.
+            // Without a launcher-owned Android provenance manifest, reject it.
             val result = AndroidRuntimeInventory.inspect(root, "arm64-v8a")
-            assertNotNull(result.compatibleRuntime)
+            assertNull(result.compatibleRuntime)
         } finally {
             root.deleteRecursively()
         }
