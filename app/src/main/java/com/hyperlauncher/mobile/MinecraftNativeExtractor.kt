@@ -17,10 +17,36 @@ object MinecraftNativeExtractor {
         shouldCancel: (() -> Boolean)? = null
     ): List<File> {
         val root = destination.canonicalFile
-        if (!root.exists() && !root.mkdirs()) error("Could not create native directory")
         var total = 0L
         val extracted = ArrayList<File>()
+        // Only remove directories created by this invocation; never touch existing user data.
+        val createdDirectories = LinkedHashSet<File>()
+
+        fun createDirectoryTree(directory: File) {
+            require(directory == root || directory.toPath().startsWith(root.toPath())) {
+                "Native archive directory escapes destination"
+            }
+            if (directory.exists()) {
+                require(directory.isDirectory) { "Native archive parent is not a directory" }
+                return
+            }
+            val missing = ArrayList<File>()
+            var cursor: File? = directory
+            while (cursor != null && !cursor.exists()) {
+                missing += cursor
+                cursor = cursor.parentFile
+            }
+            require(cursor != null && cursor.isDirectory) {
+                "Native archive parent is not a directory"
+            }
+            if (!directory.mkdirs() && !directory.isDirectory) {
+                error("Could not create native directory")
+            }
+            createdDirectories.addAll(missing.asReversed())
+        }
+
         try {
+            createDirectoryTree(root)
             for (archive in archives) {
                 ZipInputStream(FileInputStream(archive)).use { zip ->
                     while (true) {
@@ -41,6 +67,11 @@ object MinecraftNativeExtractor {
                             throw IllegalArgumentException("Native archive contains an unsafe path")
                         }
                         if (entry.isDirectory) {
+                            val directory = File(root, pathName).canonicalFile
+                            require(directory.toPath().startsWith(root.toPath())) {
+                                "Native archive path escapes destination"
+                            }
+                            createDirectoryTree(directory)
                             zip.closeEntry()
                             continue
                         }
@@ -54,9 +85,7 @@ object MinecraftNativeExtractor {
                             "Native archives contain a duplicate output path"
                         }
                         val parent = target.parentFile ?: error("Native archive entry has no parent")
-                        if (!parent.exists() && !parent.mkdirs()) {
-                            error("Could not create native directory")
-                        }
+                        createDirectoryTree(parent)
                         // Track before writing so cancellation or an I/O error removes partial files.
                         extracted += target
                         var entryBytes = 0L
@@ -84,8 +113,13 @@ object MinecraftNativeExtractor {
             }
             return extracted
         } catch (error: Exception) {
-            // Extraction is all-or-nothing for files created by this invocation.
+            // Extraction is all-or-nothing for files and directories created here.
             extracted.asReversed().forEach { it.delete() }
+            createdDirectories.toList().asReversed().forEach { directory ->
+                if (directory.isDirectory && directory.list()?.isEmpty() == true) {
+                    directory.delete()
+                }
+            }
             throw error
         }
     }
