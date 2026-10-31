@@ -34,6 +34,9 @@ const memoryValue = document.querySelector("#memory-value");
 const versionTitle = document.querySelector(".world-title-row h2");
 const versionPill = document.querySelector(".version-pill");
 const profileName = document.querySelector(".profile-name");
+const deviceInfoStatus = document.querySelector("#device-info");
+const memoryRangeMin = document.querySelector("#memory-range-min");
+const memoryRangeMax = document.querySelector("#memory-range-max");
 const storageKey = "hyper-launcher-mobile-settings-v1";
 
 function readSettings() {
@@ -85,6 +88,44 @@ memorySlider.addEventListener("input", () => {
   updateMemorySummary();
   saveSettings();
 });
+
+
+const deviceInfoStatus = document.querySelector("#device-info");
+const memoryRangeMin = document.querySelector("#memory-range-min");
+const memoryRangeMax = document.querySelector("#memory-range-max");
+
+window.onNativeDeviceInfo = function (info) {
+  if (!info || !info.ok) {
+    deviceInfoStatus.textContent = info && info.error
+      ? info.error
+      : "Could not inspect this device.";
+    return;
+  }
+  const min = Math.max(1, Number(info.minimumMemoryGb) || 1);
+  const max = Math.max(min, Math.min(8, Number(info.maximumMemoryGb) || min));
+  memorySlider.min = String(min);
+  memorySlider.max = String(max);
+  const current = Number(memorySlider.value) || Number(info.recommendedMemoryGb) || min;
+  memorySlider.value = String(Math.min(max, Math.max(min, current)));
+  memoryRangeMin.textContent = min + " GB";
+  memoryRangeMax.textContent = max + " GB";
+  updateMemorySummary();
+  const gib = 1024 * 1024 * 1024;
+  const totalRam = (Number(info.totalMemoryBytes) || 0) / gib;
+  const availableRam = (Number(info.availableMemoryBytes) || 0) / gib;
+  const freeStorage = (Number(info.availableStorageBytes) || 0) / gib;
+  const model = String(info.deviceModel || "Android device");
+  const arch = String(info.architecture || "Unknown CPU");
+  deviceInfoStatus.textContent = model + " · " + arch + " · " +
+    totalRam.toFixed(1) + " GB RAM (" + availableRam.toFixed(1) + " GB available) · " +
+    freeStorage.toFixed(1) + " GB free launcher storage. Suggested target: " +
+    Number(info.recommendedMemoryGb || min) + " GB. This target is saved only until game launching is connected.";
+  saveSettings();
+};
+
+if (window.HyperLauncherNative && typeof window.HyperLauncherNative.refreshDeviceInfo === "function") {
+  window.HyperLauncherNative.refreshDeviceInfo();
+}
 
 document.querySelector("#play-button").addEventListener("click", () => {
   const version = versionSelect.value === "snapshot" ? "Latest Snapshot" : versionSelect.value;
