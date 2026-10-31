@@ -116,6 +116,11 @@ window.onNativeDeviceInfo = function (info) {
   const model = String(info.deviceModel || "Android device");
   const arch = String(info.architecture || "Unknown CPU");
   const runtimeWarning = String(info.runtimeWarning || "");
+  if (!runtimeInstallRunning) {
+    runtimeInstallStatus.textContent = info.runtimeReady
+      ? "Android Java " + String(info.runtimeJavaMajor || "runtime") + " is installed. Graphics and game launch remain separate."
+      : runtimeWarning || "No verified Android Java runtime is installed yet.";
+  }
   const runtimeText = info.runtimeReady
     ? " Android Java runtime detected (" + String(info.runtimeName || "unnamed") +
       ", Java " + String(info.runtimeJavaMajor || "unknown") +
@@ -132,6 +137,102 @@ window.onNativeDeviceInfo = function (info) {
 if (window.HyperLauncherNative && typeof window.HyperLauncherNative.refreshDeviceInfo === "function") {
   window.HyperLauncherNative.refreshDeviceInfo();
 }
+
+const runtimeInstallButton = document.querySelector("#install-runtime-button");
+const runtimeInstallPanel = document.querySelector("#runtime-install-panel");
+const runtimeInstallStatus = document.querySelector("#runtime-install-status");
+const runtimeInstallMessage = document.querySelector("#runtime-install-message");
+const runtimeInstallProgress = document.querySelector("#runtime-install-progress-bar");
+const cancelRuntimeInstallButton = document.querySelector("#cancel-runtime-install-button");
+let runtimeInstallRunning = false;
+
+function setRuntimeInstallRunning(running) {
+  runtimeInstallRunning = running;
+  runtimeInstallButton.disabled = running;
+  runtimeInstallButton.textContent = running
+    ? "JAVA RUNTIME INSTALLING…"
+    : "INSTALL JAVA FOR SELECTED VERSION ↓";
+  cancelRuntimeInstallButton.hidden = !running;
+}
+
+runtimeInstallButton.addEventListener("click", () => {
+  if (!window.HyperLauncherNative ||
+      typeof window.HyperLauncherNative.installRuntimeForVersion !== "function") {
+    showDialog(
+      "Android app required",
+      "Android Java runtime installation is available in the installed Android app, not the browser preview.",
+      "GOT IT"
+    );
+    return;
+  }
+  runtimeInstallPanel.hidden = false;
+  runtimeInstallMessage.textContent = "Checking official Java requirements for " + versionSelect.value + "…";
+  runtimeInstallProgress.style.width = "0%";
+  setRuntimeInstallRunning(true);
+  window.HyperLauncherNative.installRuntimeForVersion(versionSelect.value);
+});
+
+cancelRuntimeInstallButton.addEventListener("click", () => {
+  if (window.HyperLauncherNative &&
+      typeof window.HyperLauncherNative.cancelInstallation === "function") {
+    window.HyperLauncherNative.cancelInstallation();
+    runtimeInstallMessage.textContent = "Cancelling Android Java runtime installation…";
+    cancelRuntimeInstallButton.disabled = true;
+  }
+});
+
+window.onNativeRuntimeInstall = function (event) {
+  if (!event || typeof event.state !== "string") return;
+  runtimeInstallPanel.hidden = false;
+  if (event.state === "planning") {
+    runtimeInstallMessage.textContent = "Reading Java requirements for " + event.version + "…";
+    return;
+  }
+  if (event.state === "downloading") {
+    const total = Number(event.totalBytes) || 0;
+    const done = Number(event.downloadedBytes) || 0;
+    const percent = total > 0 ? Math.min(100, Math.floor(done / total * 100)) : 0;
+    runtimeInstallProgress.style.width = percent + "%";
+    runtimeInstallMessage.textContent = "Downloading Java " +
+      String(event.selectedJavaMajor || "") + " for " + String(event.abi || "Android") +
+      " · " + percent + "%";
+    return;
+  }
+  if (event.state === "extracting") {
+    runtimeInstallMessage.textContent = "Verifying and safely extracting the Android Java runtime…";
+    return;
+  }
+  if (event.state === "publishing") {
+    runtimeInstallMessage.textContent = "Final checks passed. Activating the installed Java runtime…";
+    return;
+  }
+  if (event.state === "complete") {
+    runtimeInstallProgress.style.width = "100%";
+    runtimeInstallMessage.textContent = "Java " + event.javaMajor + " installed for " +
+      String(event.abi || "Android") + ". This does not yet enable Minecraft graphics or game launch.";
+    runtimeInstallStatus.textContent = "Verified Android Java runtime installed: " + event.runtimeName;
+    setRuntimeInstallRunning(false);
+    cancelRuntimeInstallButton.disabled = false;
+    if (window.HyperLauncherNative &&
+        typeof window.HyperLauncherNative.refreshDeviceInfo === "function") {
+      window.HyperLauncherNative.refreshDeviceInfo();
+    }
+    return;
+  }
+  if (event.state === "cancelled") {
+    runtimeInstallMessage.textContent = "Java runtime installation cancelled. Incomplete files were removed.";
+    setRuntimeInstallRunning(false);
+    cancelRuntimeInstallButton.disabled = false;
+    return;
+  }
+  if (event.state === "error") {
+    runtimeInstallMessage.textContent = "Java runtime installation failed: " +
+      (event.error || "Unknown error");
+    setRuntimeInstallRunning(false);
+    cancelRuntimeInstallButton.disabled = false;
+  }
+};
+
 
 document.querySelector("#play-button").addEventListener("click", () => {
   const version = versionSelect.value === "snapshot" ? "Latest Snapshot" : versionSelect.value;
