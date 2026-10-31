@@ -26,6 +26,31 @@ class MinecraftVersionDetailsResolverTest {
         assertTrue(details.assetIndex?.url?.endsWith("/19.json") == true)
     }
 
+
+    @Test
+    fun androidVersionParsingNeverPlansDesktopLinuxNativeArchives() {
+        val json = """
+            {
+              "id":"1.21.4",
+              "mainClass":"net.minecraft.client.main.Main",
+              "downloads":{"client":{"url":"https://piston-data.mojang.com/client.jar","sha1":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","size":123}},
+              "libraries":[{
+                "name":"org.example:native:1.0",
+                "natives":{"linux":"natives-linux-64"},
+                "downloads":{"classifiers":{"natives-linux-64":{
+                  "path":"org/example/native/1.0/native.jar",
+                  "url":"https://libraries.minecraft.net/native.jar",
+                  "sha1":"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb","size":42
+                }}}
+              }]
+            }
+        """.trimIndent()
+
+        val details = MinecraftVersionDetailsResolver.parse("1.21.4", json)
+
+        assertTrue(details.nativeLibraries.isEmpty())
+    }
+
     @Test
     fun rejectsWrongVersionAndUntrustedDownloadHost() {
         val wrongVersion = """{"id":"1.20.1","mainClass":"Main","downloads":{"client":{"url":"https://piston-data.mojang.com/client.jar","sha1":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","size":1}}}"""
