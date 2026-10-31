@@ -31,6 +31,12 @@ class ModPlatformBrowserTest {
     }
 
     @Test
+    fun recognizesCurseForgeDataPackClass() {
+        assertEquals(true, ModPlatformBrowser.matchesCurseForgeClass("datapack", "Data Packs"))
+        assertEquals(false, ModPlatformBrowser.matchesCurseForgeClass("mod", "Data Packs"))
+    }
+
+    @Test
     fun acceptsOnlyOfficialModDownloadHosts() {
         assertEquals(true, ModPlatformBrowser.isTrustedModDownloadUrl("https://cdn.modrinth.com/data/project/file.jar"))
         assertEquals(true, ModPlatformBrowser.isTrustedModDownloadUrl("https://edge.forgecdn.net/files/123/file.jar"))
