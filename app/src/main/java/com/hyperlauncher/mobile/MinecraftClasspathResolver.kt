@@ -33,7 +33,7 @@ object MinecraftClasspathResolver {
 
     internal fun isSafeRelativePath(value: String): Boolean {
         if (value.isBlank() || value.length > 1024 || value.startsWith("/") ||
-            value.startsWith("\\\\") || value.contains('\\\\') || value.contains('\u0000')) return false
+            value.contains(92.toChar()) || value.contains('\u0000')) return false
         val segments = value.split('/')
         return segments.all { it.isNotBlank() && it != "." && it != ".." }
     }
