@@ -51,6 +51,7 @@ class MinecraftNativeLibraryResolverTest {
             destination.deleteRecursively()
         }
     }
+    }
 
 
     @Test
