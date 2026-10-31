@@ -21,7 +21,7 @@ class MinecraftNativeLibraryResolverTest {
               }}}
             }]}
         """.trimIndent()
-        val result = MinecraftNativeLibraryResolver.parse("1.21.4", json, osArch = "x86_64")
+        val result = MinecraftNativeLibraryResolver.parse("1.21.4", json, osArch = "x86_64", isAndroid = false)
         assertEquals(1, result.size)
         assertEquals("native-library", result.single().kind)
         assertEquals(42L, result.single().descriptor.size)
@@ -30,7 +30,7 @@ class MinecraftNativeLibraryResolverTest {
     @Test
     fun skipsWhenNoMatchingNativeClassifierExists() {
         val json = """{"libraries":[{"name":"org.example:native:1","natives":{"linux":"natives-linux-64"},"downloads":{"classifiers":{}}}]}"""
-        assertEquals(0, MinecraftNativeLibraryResolver.parse("1.20.1", json, osArch = "x86_64").size)
+        assertEquals(0, MinecraftNativeLibraryResolver.parse("1.20.1", json, osArch = "x86_64", isAndroid = false).size)
     }
 
     @Test
@@ -50,6 +50,28 @@ class MinecraftNativeLibraryResolverTest {
             archive.delete()
             destination.deleteRecursively()
         }
+    }
+
+
+    @Test
+    fun neverSelectsDesktopLinuxNativesForAndroidEvenOnX64() {
+        val json = """
+            {"libraries":[{
+              "name":"org.example:native:1.0",
+              "natives":{"linux":"natives-linux-64"},
+              "downloads":{"classifiers":{"natives-linux-64":{
+                "path":"org/example/native/1.0/native.jar",
+                "url":"https://libraries.minecraft.net/native.jar",
+                "sha1":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","size":42
+              }}}
+            }]}
+        """.trimIndent()
+        assertEquals(
+            0,
+            MinecraftNativeLibraryResolver.parse(
+                "1.21.4", json, osArch = "x86_64", isAndroid = true
+            ).size
+        )
     }
 
     @Test
