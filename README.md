@@ -40,7 +40,8 @@ Remaining milestones:
 4. Build correct classpaths, JVM/game arguments, and process lifecycle handling for selected versions.
 5. Implement secure Microsoft sign-in for licensed accounts.
 6. Support local/offline profile UI without bypassing Minecraft authentication or licensing.
-7. Add mod-loader installation, mod dependency resolution, automatic modpack import, and per-instance mod/resource-pack/shader isolation.\n8. Add instance management, logs, crash reporting, and real-device tests across Android versions.
+7. Add mod-loader installation, mod dependency resolution, automatic modpack import, and per-instance mod/resource-pack/shader isolation.
+8. Add instance management, logs, crash reporting, and real-device tests across Android versions.
 
 ## Repository layout
 
