@@ -138,7 +138,7 @@ object AndroidRuntimeArchiveExtractor {
                 directory = destination,
                 deviceAbi = expectedAbi,
                 requireProvenanceMarker = false
-            ) ?: error("Runtime archive is missing a valid Android Java runtime")
+            ) ?: throw IllegalArgumentException("Runtime archive is missing a valid Android Java runtime")
             require(descriptor.javaMajor == expectedJavaMajor) {
                 "Runtime Java version did not match the selected package"
             }
