@@ -44,4 +44,26 @@ class MinecraftVersionManifestTest {
             MinecraftVersionManifest.parseManifest("""{"versions":[{"id":"../bad","type":"release"}]}""")
         }
     }
+
+    @Test
+    fun latestReleaseAliasResolvesToFirstOfficialRelease() {
+        val versions = listOf(
+            MinecraftVersion("24w14a", "snapshot", "", "https://piston-meta.mojang.com/snapshot", "a".repeat(40)),
+            MinecraftVersion("1.21.4", "release", "", "https://piston-meta.mojang.com/release", "b".repeat(40)),
+            MinecraftVersion("1.21.3", "release", "", "https://piston-meta.mojang.com/older", "c".repeat(40))
+        )
+        assertEquals("1.21.4", MinecraftVersionManifest.findVersion(versions, "release")?.id)
+        assertEquals("24w14a", MinecraftVersionManifest.findVersion(versions, "snapshot")?.id)
+    }
+
+    @Test
+    fun explicitVersionIdDoesNotChangeToLatest() {
+        val versions = listOf(
+            MinecraftVersion("1.21.4", "release", "", "https://piston-meta.mojang.com/latest", "a".repeat(40)),
+            MinecraftVersion("1.20.1", "release", "", "https://piston-meta.mojang.com/pinned", "b".repeat(40))
+        )
+        assertEquals("1.20.1", MinecraftVersionManifest.findVersion(versions, "1.20.1")?.id)
+        assertEquals(null, MinecraftVersionManifest.findVersion(versions, "1.19.4"))
+    }
+
 }
