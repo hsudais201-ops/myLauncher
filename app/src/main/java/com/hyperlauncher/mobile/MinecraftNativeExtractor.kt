@@ -27,13 +27,13 @@ object MinecraftNativeExtractor {
                         val pathName = if (entry.isDirectory) name.removeSuffix("/") else name
                         val segments = pathName.split('/')
                         if (pathName.isBlank() || pathName.length > 1024 ||
-                            pathName.startsWith("/") || pathName.startsWith("\\\\") ||
-                            pathName.contains('\\\\') ||
+                            pathName.startsWith("/") || pathName.startsWith(92.toChar().toString()) ||
+                            pathName.contains(92.toChar()) ||
                             pathName.any { it.code < 0x20 || it.code == 0x7f } ||
                             segments.any { it.isBlank() || it == ".." || it == "." }) {
                             throw IllegalArgumentException("Native archive contains an unsafe path")
                         }
-                        if (entry.isDirectory || pathName.startsWith("META-INF/")) {
+                            pathName.startsWith("/") || pathName.startsWith(92.toChar().toString()) ||
                             zip.closeEntry()
                             continue
                         }
