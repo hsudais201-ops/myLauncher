@@ -189,6 +189,9 @@ object AndroidRuntimeArchiveExtractor {
                         require(entry.isDirectory) { "Runtime archive contains an empty file path" }
                         continue
                     }
+                    require(relativeName != "hyperlauncher-runtime.properties") {
+                        "Runtime archive cannot supply the launcher-owned provenance marker"
+                    }
                     val target = root.resolve(relativeName).normalize()
                     require(target != root && target.startsWith(root)) {
                         "Runtime archive path escapes the staging directory"
