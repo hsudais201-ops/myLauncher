@@ -31,6 +31,7 @@ object AndroidRuntimeInstaller {
         cacheDirectory: File,
         runtimeRoot: File,
         onDownloadProgress: ((downloaded: Long, total: Long) -> Unit)? = null,
+        onStage: ((stage: String) -> Unit)? = null,
         shouldCancel: (() -> Boolean)? = null
     ): AndroidRuntimeDescriptor {
         require(
@@ -71,6 +72,7 @@ object AndroidRuntimeInstaller {
         )
         val staging = File(root, ".install-${UUID.randomUUID()}")
         try {
+            onStage?.invoke("extracting")
             val stagedRuntime = AndroidRuntimeArchiveExtractor.extract(
                 archive = archive,
                 destination = staging,
@@ -83,6 +85,7 @@ object AndroidRuntimeInstaller {
             if (shouldCancel?.invoke() == true) {
                 throw CancellationException("Android runtime installation cancelled")
             }
+            onStage?.invoke("publishing")
             try {
                 Files.move(staging.toPath(), target.toPath(), StandardCopyOption.ATOMIC_MOVE)
             } catch (_: java.nio.file.AtomicMoveNotSupportedException) {
