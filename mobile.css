@@ -106,3 +106,6 @@
 .instance-rename-actions button{min-height:31px;padding:0 10px;border:1px solid #50603d;border-radius:4px;background:#29311f;color:var(--lime);font:8px 'DM Mono',monospace}
 .instance-rename-actions button+button{border-color:#414638;background:#22251e;color:#c6cbb9}
 .instance-rename-actions button:disabled{opacity:.5}
+
+#runtime-install-panel[hidden], #cancel-runtime-install-button[hidden]{display:none}
+#cancel-runtime-install-button{margin-top:10px;padding:7px 9px;border:1px solid #555b47;border-radius:4px;background:#22251e;color:#d8ddca;font:8px 'DM Mono',monospace;letter-spacing:.6px}
