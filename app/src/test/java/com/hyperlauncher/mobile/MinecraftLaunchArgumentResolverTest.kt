@@ -9,7 +9,7 @@ class MinecraftLaunchArgumentResolverTest {
         val json = """{
           "arguments":{"game":[
             "--username","Player One",
-            {"rules":[{"action":"allow","os":{"name":"linux"}}],"value":["--demo","${assets_root}"]},
+            {"rules":[{"action":"allow","os":{"name":"linux"}}],"value":["--demo","${'$'}{assets_root}"]},
             {"rules":[{"action":"allow","os":{"name":"windows"}}],"value":"--windows-only"}
           ]}
         }"""
@@ -23,7 +23,7 @@ class MinecraftLaunchArgumentResolverTest {
     fun resolvesJvmArgumentsAndPreservesUnresolvedRuntimePlaceholders() {
         val json = """{"arguments":{"jvm":[
           "-Xmx2G",
-          {"rules":[{"action":"allow","os":{"name":"linux"}}],"value":["-Djava.library.path=${natives_directory}"]}
+          {"rules":[{"action":"allow","os":{"name":"linux"}}],"value":["-Djava.library.path=${'$'}{natives_directory}"]}
         ]}}"""
         val args = MinecraftLaunchArgumentResolver.resolve(
             json, "jvm", "linux", "aarch64", "Android",
