@@ -28,7 +28,7 @@ object AndroidRuntimeInventory {
         if (deviceAbi == null || !runtimeRoot.isDirectory) {
             return AndroidRuntimeInventoryResult(null, 0)
         }
-        val directories = runtimeRoot.listFiles()?.filter { it.isDirectory }.orEmpty()
+        val directories = runtimeRoot.listFiles()?.filter { it.isDirectory && !it.name.startsWith(".install-") }.orEmpty()
         val compatible = directories.mapNotNull { directory ->
             readRuntime(directory, deviceAbi)
         }.maxByOrNull { it.javaMajor }
