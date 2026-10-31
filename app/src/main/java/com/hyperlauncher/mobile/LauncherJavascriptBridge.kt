@@ -143,6 +143,7 @@ class LauncherJavascriptBridge(
         gameVersion: String,
         loader: String,
         sort: String,
+        offset: Int,
         requestId: String
     ) {
         val safeRequestId = requestId.take(40)
@@ -155,7 +156,8 @@ class LauncherJavascriptBridge(
                     gameVersion = gameVersion,
                     loader = loader,
                     sort = sort,
-                    curseForgeKey = curseForgeApiKey
+                    curseForgeKey = curseForgeApiKey,
+                    offset = offset
                 ).put("requestId", safeRequestId)
             } catch (error: Exception) {
                 JSONObject()
