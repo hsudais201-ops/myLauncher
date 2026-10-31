@@ -145,6 +145,13 @@ class LauncherJavascriptBridge(
             }
             val storageInfo = StatFs(storageRoot.absolutePath)
             val abis = Build.SUPPORTED_ABIS.toList()
+            // Do not infer desktop-Linux compatibility from Android's Linux kernel.
+            // Runtime installation/launch integration is still pending in this app.
+            val runtimeAssessment = AndroidRuntimeCompatibility.assess(
+                androidApiLevel = Build.VERSION.SDK_INT,
+                supportedAbis = abis,
+                runtimeInstalled = false
+            )
             val primaryAbi = abis.firstOrNull().orEmpty()
             val architecture = when (primaryAbi) {
                 "arm64-v8a" -> "ARM64"
@@ -162,6 +169,9 @@ class LauncherJavascriptBridge(
                     .put("architecture", architecture)
                     .put("supportedAbis", JSONArray(abis))
                     .put("androidSdk", Build.VERSION.SDK_INT)
+                    .put("runtimeSupportedAbi", runtimeAssessment.selectedAbi ?: JSONObject.NULL)
+                    .put("runtimeReady", runtimeAssessment.runtimeUsable)
+                    .put("runtimeWarning", runtimeAssessment.warning ?: JSONObject.NULL)
                     .put("totalMemoryBytes", memoryInfo.totalMem)
                     .put("availableMemoryBytes", memoryInfo.availMem)
                     .put("availableStorageBytes", storageInfo.availableBytes)
