@@ -74,7 +74,7 @@ object MinecraftLaunchArgumentResolver {
             )
             val requiredFeatures = rule.optJSONObject("features")
             val featureMatches = requiredFeatures == null || requiredFeatures.keys().asSequence().all { key ->
-                features[key] == requiredFeatures.optBoolean(key)
+                (features[key] ?: false) == requiredFeatures.optBoolean(key)
             }
             if (osMatches && featureMatches) {
                 allowed = rule.optString("action") == "allow"
