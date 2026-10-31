@@ -1,5 +1,7 @@
 package com.hyperlauncher.mobile
 
+import android.content.Intent
+import android.net.Uri
 import android.webkit.JavascriptInterface
 import android.webkit.WebView
 import org.json.JSONArray
@@ -18,6 +20,8 @@ class LauncherJavascriptBridge(
     private val executor = Executors.newSingleThreadExecutor()
     private val installCancelled = AtomicBoolean(false)
     private val installationActive = AtomicBoolean(false)
+    private val modSearchExecutor = Executors.newFixedThreadPool(2)
+    @Volatile private var curseForgeApiKey: String? = null
 
     @JavascriptInterface
     fun refreshVersions() {
@@ -128,6 +132,6 @@ class LauncherJavascriptBridge(
 
     fun close() {
         installCancelled.set(true)
-        executor.shutdownNow()
+        curseForgeApiKey = null\n        modSearchExecutor.shutdownNow()\n        executor.shutdownNow()
     }
 }
