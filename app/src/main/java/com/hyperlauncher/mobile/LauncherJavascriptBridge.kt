@@ -145,12 +145,16 @@ class LauncherJavascriptBridge(
             }
             val storageInfo = StatFs(storageRoot.absolutePath)
             val abis = Build.SUPPORTED_ABIS.toList()
-            // Do not infer desktop-Linux compatibility from Android's Linux kernel.
-            // Runtime installation/launch integration is still pending in this app.
+            // Only a launcher-marked Android runtime bundle can count as installed.
+            // Desktop JREs with the same CPU architecture are deliberately rejected.
+            val runtimeInventory = AndroidRuntimeInventory.inspect(
+                File(storageRoot, "runtimes"),
+                abis.firstOrNull { it == "arm64-v8a" || it == "x86_64" }
+            )
             val runtimeAssessment = AndroidRuntimeCompatibility.assess(
                 androidApiLevel = Build.VERSION.SDK_INT,
                 supportedAbis = abis,
-                runtimeInstalled = false
+                runtimeInstalled = runtimeInventory.compatibleRuntime != null
             )
             val primaryAbi = abis.firstOrNull().orEmpty()
             val architecture = when (primaryAbi) {
@@ -172,6 +176,8 @@ class LauncherJavascriptBridge(
                     .put("runtimeSupportedAbi", runtimeAssessment.selectedAbi ?: JSONObject.NULL)
                     .put("runtimeReady", runtimeAssessment.runtimeUsable)
                     .put("runtimeWarning", runtimeAssessment.warning ?: JSONObject.NULL)
+                    .put("runtimeJavaMajor", runtimeInventory.compatibleRuntime?.javaMajor ?: JSONObject.NULL)
+                    .put("runtimeName", runtimeInventory.compatibleRuntime?.name ?: JSONObject.NULL)
                     .put("totalMemoryBytes", memoryInfo.totalMem)
                     .put("availableMemoryBytes", memoryInfo.availMem)
                     .put("availableStorageBytes", storageInfo.availableBytes)
