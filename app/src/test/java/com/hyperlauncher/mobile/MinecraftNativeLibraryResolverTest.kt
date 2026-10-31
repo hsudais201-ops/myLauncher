@@ -109,6 +109,7 @@ class MinecraftNativeLibraryResolverTest {
                 MinecraftNativeExtractor.extract(listOf(first, second), destination)
             }
             assertEquals(false, File(destination, "lib/example.so").exists())
+            assertEquals(false, destination.exists())
         } finally {
             first.delete()
             second.delete()
