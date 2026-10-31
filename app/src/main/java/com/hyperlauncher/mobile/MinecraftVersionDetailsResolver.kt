@@ -17,7 +17,8 @@ data class MinecraftVersionDetails(
     val assetIndex: MinecraftDownload?,
     val libraries: List<MinecraftLibrary>,
     val nativeLibraries: List<PlannedMinecraftFile>,
-    val launchArgumentsJson: String
+    val launchArgumentsJson: String,
+    val javaMajorRequirement: Int? = null
 )
 
 /**
@@ -56,6 +57,9 @@ object MinecraftVersionDetailsResolver {
         require((assetIndex == null) == (assetIndexId == null)) { "Asset index metadata is incomplete" }
         val mainClass = root.optString("mainClass")
         require(mainClass.isNotBlank() && mainClass.length <= 256) { "Version metadata has no valid main class" }
+        val javaMajorRequirement = root.optJSONObject("javaVersion")
+            ?.optInt("majorVersion", -1)
+            ?.takeIf { it > 0 }
         val libraries = MinecraftLibraryResolver.parse(actualId, json)
         val nativeLibraries = MinecraftNativeLibraryResolver.parse(actualId, json)
         val launchArguments = JSONObject()
@@ -65,7 +69,7 @@ object MinecraftVersionDetailsResolver {
         }
         return MinecraftVersionDetails(
             actualId, mainClass, client, assetIndexId, assetIndex, libraries, nativeLibraries,
-            launchArguments.toString()
+            launchArguments.toString(), javaMajorRequirement
         )
     }
 
