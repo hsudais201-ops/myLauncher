@@ -264,6 +264,9 @@ const modSort = document.querySelector("#mod-sort");
 const modSearchButton = document.querySelector("#search-mods");
 const modStatus = document.querySelector("#mod-status");
 const modResults = document.querySelector("#mod-results");
+const loadMoreModsButton = document.querySelector("#load-more-mods");
+let activeModSearchOffset = 0;
+let activeModSearchTotal = 0;
 const curseForgeKeyPanel = document.querySelector("#curseforge-key-panel");
 const curseForgeKeyInput = document.querySelector("#curseforge-api-key");
 const curseForgeKeyStatus = document.querySelector("#curseforge-key-status");
@@ -354,9 +357,10 @@ function createModCard(project) {
   card.append(top, description, meta, link, versionsButton);
   return card;
 }
-function renderModResults(projects) {
-  modResults.replaceChildren();
+function renderModResults(projects, append = false) {
+  if (!append) modResults.replaceChildren();
   if (!Array.isArray(projects) || projects.length === 0) {
+    if (append) return;
     const empty = document.createElement("div");
     empty.className = "mod-empty";
     empty.textContent = "No matching projects were found. Try a different search, version, or content type.";
@@ -365,14 +369,14 @@ function renderModResults(projects) {
   }
   projects.forEach(project => modResults.appendChild(createModCard(project)));
 }
-async function searchModrinthInBrowser(requestId, query, type, gameVersion, loader, sort) {
+async function searchModrinthInBrowser(requestId, query, type, gameVersion, loader, sort, offset, append) {
   const groups = [[type === "datapack" ? "all_project_types:datapack" : "project_type:" + type]];
   if (gameVersion) groups.push(["versions:" + gameVersion]);
   if (loader !== "any") groups.push(["categories:" + loader]);
   const order = sort === "downloads" || sort === "updated" ? sort : "relevance";
   const url = "https://api.modrinth.com/v2/search?query=" + encodeURIComponent(query) +
     "&facets=" + encodeURIComponent(JSON.stringify(groups)) +
-    "&index=" + order + "&limit=24";
+    "&index=" + order + "&limit=24&offset=" + offset;
   const response = await fetch(url, {headers: {"Accept": "application/json"}});
   if (!response.ok) throw new Error("Modrinth returned HTTP " + response.status);
   const body = await response.json();
@@ -388,10 +392,13 @@ async function searchModrinthInBrowser(requestId, query, type, gameVersion, load
     type
   }));
   if (requestId !== activeModRequest) return;
-  renderModResults(projects);
-  modStatus.textContent = "Showing " + projects.length + " of " + (body.total_hits || projects.length) + " Modrinth projects.";
+  renderModResults(projects, append);
+  activeModSearchOffset = offset + projects.length;
+  activeModSearchTotal = Number(body.total_hits) || activeModSearchOffset;
+  loadMoreModsButton.hidden = activeModSearchOffset >= activeModSearchTotal || projects.length === 0;
+  modStatus.textContent = "Showing " + activeModSearchOffset + " of " + activeModSearchTotal + " Modrinth projects.";
 }
-function runModSearch() {
+function runModSearch(offset = 0, append = false) {
   const source = modSource.value;
   const query = modSearchInput.value.trim();
   const type = modType.value;
@@ -404,23 +411,25 @@ function runModSearch() {
   }
   const requestId = String(++modRequestCounter);
   activeModRequest = requestId;
+  if (!append) { activeModSearchOffset = 0; activeModSearchTotal = 0; loadMoreModsButton.hidden = true; }
   modSearchButton.disabled = true;
   modStatus.textContent = "Searching " + (source === "modrinth" ? "Modrinth" : "CurseForge") + "…";
-  modResults.replaceChildren();
+  if (!append) modResults.replaceChildren();
+  loadMoreModsButton.disabled = true;
   if (!window.HyperLauncherNative || typeof window.HyperLauncherNative.searchMods !== "function") {
     if (source === "curseforge") {
       modSearchButton.disabled = false;
       modStatus.textContent = "CurseForge API search is available in the Android app, where the API key is kept in app memory. Modrinth search works in this browser preview.";
       return;
     }
-    searchModrinthInBrowser(requestId, query, type, gameVersion, loader, sort)
+    searchModrinthInBrowser(requestId, query, type, gameVersion, loader, sort, offset, append)
       .catch(error => {
         if (requestId === activeModRequest) modStatus.textContent = "Could not load Modrinth: " + error.message;
       })
       .finally(() => { if (requestId === activeModRequest) modSearchButton.disabled = false; });
     return;
   }
-  window.HyperLauncherNative.searchMods(source, query, type, gameVersion, loader, sort, requestId);
+  window.HyperLauncherNative.searchMods(source, query, type, gameVersion, loader, sort, offset, requestId);
 }
 window.onNativeModSearch = function (result) {
   if (!result || result.requestId !== activeModRequest) return;
@@ -430,8 +439,13 @@ window.onNativeModSearch = function (result) {
     return;
   }
   const projects = result.results && typeof result.results.length === "number" ? Array.from(result.results) : [];
-  renderModResults(projects);
-  modStatus.textContent = "Showing " + projects.length + " of " + (result.total || projects.length) + " " +
+  const offset = Number(result.offset) || 0;
+  renderModResults(projects, offset > 0);
+  activeModSearchOffset = offset + projects.length;
+  activeModSearchTotal = Number(result.total) || activeModSearchOffset;
+  loadMoreModsButton.disabled = false;
+  loadMoreModsButton.hidden = activeModSearchOffset >= activeModSearchTotal || projects.length === 0;
+  modStatus.textContent = "Showing " + activeModSearchOffset + " of " + activeModSearchTotal + " " +
     (result.source === "curseforge" ? "CurseForge" : "Modrinth") + " projects.";
 };
 window.onNativeCurseForgeKey = function (result) {
@@ -449,7 +463,8 @@ window.onNativeCurseForgeKey = function (result) {
   }
 };
 modSource.addEventListener("change", updateModSourcePanel);
-modSearchButton.addEventListener("click", runModSearch);
+modSearchButton.addEventListener("click", () => runModSearch(0, false));
+loadMoreModsButton.addEventListener("click", () => runModSearch(activeModSearchOffset, true));
 modSearchInput.addEventListener("keydown", event => {
   if (event.key === "Enter") runModSearch();
 });
