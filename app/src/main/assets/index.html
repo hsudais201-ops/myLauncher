@@ -133,6 +133,17 @@
           <input id="memory-slider" type="range" min="2" max="8" value="4" step="1" aria-label="Memory allocation in gigabytes">
           <div class="range-labels"><span id="memory-range-min">2 GB</span><span id="memory-range-max">8 GB</span></div>
           <p class="device-info" id="device-info" role="status" aria-live="polite">Device memory and CPU details appear in the Android app. This is a saved memory target, not active JVM allocation yet.</p>
+          <div class="setting-divider"></div>
+          <div class="runtime-install-section">
+            <span class="section-kicker">ANDROID JAVA RUNTIME</span>
+            <button class="refresh-versions" id="install-runtime-button" type="button">INSTALL JAVA FOR SELECTED VERSION <span>↓</span></button>
+            <p class="version-status" id="runtime-install-status" role="status" aria-live="polite">Installs the Android Java runtime required by the selected Minecraft version. Graphics and game launch are separate.</p>
+            <div class="install-panel" id="runtime-install-panel" hidden aria-live="polite">
+              <p id="runtime-install-message">Preparing Android Java runtime…</p>
+              <div class="install-progress-track"><span id="runtime-install-progress-bar"></span></div>
+              <button id="cancel-runtime-install-button" type="button" hidden>CANCEL JAVA INSTALL</button>
+            </div>
+          </div>
         </div>
         <div class="tip-card"><span class="tip-icon">✦</span><div><strong>Make room for adventure.</strong><p>Modded setups may need extra memory for a smoother experience.</p></div></div>
       </section>
