@@ -820,6 +820,12 @@ function renderInstancesState(state) {
       actions.appendChild(selectButton);
     }
     if (item.id !== "default") {
+      const renameButton = document.createElement("button");
+      renameButton.type = "button";
+      renameButton.className = "instance-select-button";
+      renameButton.textContent = "RENAME";
+      renameButton.addEventListener("click", () => showInstanceRenameEditor(item, card));
+      actions.appendChild(renameButton);
       const deleteButton = document.createElement("button");
       deleteButton.type = "button";
       deleteButton.className = "instance-delete-button";
@@ -836,6 +842,60 @@ function renderInstancesState(state) {
   }
   instancesStatus.textContent = records.length + " instance" + (records.length === 1 ? "" : "s") +
     " · Active: " + selected.name + ". Game and content downloads now target this instance.";
+}
+
+function showInstanceRenameEditor(item, card) {
+  const existing = card.querySelector(".instance-rename-editor");
+  if (existing) {
+    existing.remove();
+    return;
+  }
+  instanceList.querySelectorAll(".instance-rename-editor").forEach(editor => editor.remove());
+  const editor = document.createElement("div");
+  editor.className = "instance-rename-editor";
+  const label = document.createElement("label");
+  label.textContent = "RENAME INSTANCE";
+  const input = document.createElement("input");
+  input.type = "text";
+  input.maxLength = 32;
+  input.autocomplete = "off";
+  input.value = String(item.name || "");
+  input.setAttribute("aria-label", "New instance name");
+  const save = document.createElement("button");
+  save.type = "button";
+  save.textContent = "SAVE NAME";
+  const cancel = document.createElement("button");
+  cancel.type = "button";
+  cancel.textContent = "CANCEL";
+  const actions = document.createElement("div");
+  actions.className = "instance-rename-actions";
+  actions.append(save, cancel);
+  editor.append(label, input, actions);
+  card.appendChild(editor);
+  cancel.addEventListener("click", () => editor.remove());
+  const submit = () => {
+    const name = input.value.trim();
+    if (!name) {
+      instancesStatus.textContent = "Enter a name for this instance.";
+      input.focus();
+      return;
+    }
+    if (!window.HyperLauncherNative || typeof window.HyperLauncherNative.renameInstance !== "function") {
+      instancesStatus.textContent = "Rename instances in the Hyper Launcher Android app.";
+      return;
+    }
+    save.disabled = true;
+    cancel.disabled = true;
+    instancesStatus.textContent = "Saving instance name…";
+    window.HyperLauncherNative.renameInstance(String(item.id), name);
+  };
+  save.addEventListener("click", submit);
+  input.addEventListener("keydown", event => {
+    if (event.key === "Enter") submit();
+    if (event.key === "Escape") editor.remove();
+  });
+  input.focus();
+  input.select();
 }
 function openInstancesBrowser() {
   instancesBrowser.hidden = false;
