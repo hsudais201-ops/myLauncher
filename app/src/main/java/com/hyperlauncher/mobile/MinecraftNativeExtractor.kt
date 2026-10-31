@@ -34,7 +34,7 @@ object MinecraftNativeExtractor {
                         if (pathName.isBlank() || pathName.length > 1024 ||
                             pathName.startsWith("/") ||
                             pathName.startsWith(92.toChar().toString()) ||
-                            pathName.contains(92.toChar()) ||
+                            pathName.indexOf(92.toChar()) >= 0 ||
                             pathName.any { it.code < 0x20 || it.code == 0x7f } ||
                             segments.any { it.isBlank() || it == ".." || it == "." }
                         ) {
