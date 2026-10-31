@@ -21,8 +21,11 @@ object MinecraftNativeExtractor {
                     if (shouldCancel?.invoke() == true) throw java.util.concurrent.CancellationException("Native extraction cancelled")
                     val entry = zip.nextEntry ?: break
                     val name = entry.name
-                    if (name.isBlank() || name.startsWith("/") || name.startsWith("\\") ||
-                        name.contains('\\') || name.split('/').any { it == ".." || it == "." }) {
+                    val segments = name.split('/')
+                    if (name.isBlank() || name.length > 1024 || name.startsWith("/") ||
+                        name.startsWith("\\") || name.contains('\\') ||
+                        name.any { it.code < 0x20 || it.code == 0x7f } ||
+                        segments.any { it.isBlank() || it == ".." || it == "." }) {
                         throw IllegalArgumentException("Native archive contains an unsafe path")
                     }
                     if (entry.isDirectory || name.startsWith("META-INF/")) {
@@ -31,6 +34,9 @@ object MinecraftNativeExtractor {
                     }
                     val target = File(root, name).canonicalFile
                     require(target.toPath().startsWith(root.toPath())) { "Native archive path escapes destination" }
+                    // Never let a later archive silently replace a file extracted
+                    // from an earlier archive (or a file already in the destination).
+                    require(!target.exists()) { "Native archives contain a duplicate output path" }
                     val parent = target.parentFile ?: error("Native archive entry has no parent")
                     if (!parent.exists() && !parent.mkdirs()) error("Could not create native directory")
                     var entryBytes = 0L
