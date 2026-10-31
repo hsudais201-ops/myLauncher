@@ -65,7 +65,7 @@ object MinecraftLaunchConfigurationResolver {
             placeholders = resolvedPlaceholders, features = features
         )
         val unresolved = (jvm + game).flatMap { argument ->
-            Regex("\\\\$\\\\{([A-Za-z0-9_.-]{1,80})}").findAll(argument)
+            Regex("""\$\{([A-Za-z0-9_.-]{1,80})}""").findAll(argument)
                 .map { it.groupValues[1] }
                 .toList()
         }.toSet()
