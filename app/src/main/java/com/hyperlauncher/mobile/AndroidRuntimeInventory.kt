@@ -35,19 +35,38 @@ object AndroidRuntimeInventory {
         return AndroidRuntimeInventoryResult(compatible, directories.size)
     }
 
-    private fun readRuntime(directory: File, deviceAbi: String): AndroidRuntimeDescriptor? {
+    internal fun inspectDirectory(
+        directory: File,
+        deviceAbi: String,
+        requireProvenanceMarker: Boolean = true
+    ): AndroidRuntimeDescriptor? = readRuntime(directory, deviceAbi, requireProvenanceMarker)
+
+    private fun readRuntime(
+        directory: File,
+        deviceAbi: String,
+        requireProvenanceMarker: Boolean = true
+    ): AndroidRuntimeDescriptor? {
         val release = File(directory, "release")
         val java = File(directory, "bin/java")
         val marker = File(directory, "hyperlauncher-runtime.properties")
-        if (!release.isFile || !java.isFile || !java.canExecute() || !marker.isFile) return null
-        val markerValues = parseProperties(runCatching { marker.readText() }.getOrNull() ?: return null)
-        if (markerValues["platform"] != "android" || markerValues["abi"] != deviceAbi) return null
+        if (!release.isFile || !java.isFile || !java.canExecute()) return null
+        val markerValues = if (requireProvenanceMarker) {
+            if (!marker.isFile) return null
+            parseProperties(runCatching { marker.readText() }.getOrNull() ?: return null)
+        } else {
+            emptyMap()
+        }
+        if (requireProvenanceMarker &&
+            (markerValues["platform"] != "android" || markerValues["abi"] != deviceAbi)
+        ) return null
         val metadata = runCatching { release.readText() }.getOrNull() ?: return null
         val version = Regex("""(?m)^JAVA_VERSION="([^"]+)"$""")
             .find(metadata)?.groupValues?.getOrNull(1) ?: return null
         val architecture = Regex("""(?m)^OS_ARCH="([^"]+)"$""")
             .find(metadata)?.groupValues?.getOrNull(1) ?: return null
         val major = parseMajor(version) ?: return null
+        val markerMajor = markerValues["javaMajor"]?.toIntOrNull()
+        if (markerMajor != null && markerMajor != major) return null
         if (!matchesAbi(deviceAbi, architecture)) return null
         return AndroidRuntimeDescriptor(directory.name, major, architecture)
     }
