@@ -103,7 +103,7 @@ document.querySelector("#account-button").addEventListener("click", () => {
   );
 });
 
-function showFeature(feature) {
+function showFeature(feature) {\n  if (feature === "Mods" || feature === "Mods & packs") { openModBrowser(); return; }
   const messages = {
     "Instances": "Instance management is planned. The current preview does not install game versions or create separate game directories.",
     "Mods & packs": "Mod and modpack management is planned. No mod downloads or loader installation are connected yet.",
@@ -252,3 +252,228 @@ function requestOfficialVersions() {
 }
 refreshVersionsButton.addEventListener("click", requestOfficialVersions);
 if (window.HyperLauncherNative) requestOfficialVersions();
+
+const modsBrowser = document.querySelector("#mods-browser");
+const modSource = document.querySelector("#mod-source");
+const modSearchInput = document.querySelector("#mod-search");
+const modType = document.querySelector("#mod-type");
+const modVersion = document.querySelector("#mod-version");
+const modLoader = document.querySelector("#mod-loader");
+const modSort = document.querySelector("#mod-sort");
+const modSearchButton = document.querySelector("#search-mods");
+const modStatus = document.querySelector("#mod-status");
+const modResults = document.querySelector("#mod-results");
+const curseForgeKeyPanel = document.querySelector("#curseforge-key-panel");
+const curseForgeKeyInput = document.querySelector("#curseforge-api-key");
+const curseForgeKeyStatus = document.querySelector("#curseforge-key-status");
+let curseForgeKeyReady = false;
+let modRequestCounter = 0;
+let activeModRequest = "";
+
+function updateModSourcePanel() {
+  const isCurseForge = modSource.value === "curseforge";
+  curseForgeKeyPanel.hidden = !isCurseForge;
+  if (isCurseForge && !curseForgeKeyReady) {
+    curseForgeKeyStatus.textContent = "CurseForge requires an approved API key. The key stays in memory for this app session and is not saved to disk.";
+  }
+}
+function openModBrowser() {
+  modsBrowser.hidden = false;
+  if (!modVersion.value) modVersion.value = versionSelect.value === "snapshot" ? "" : versionSelect.value;
+  updateModSourcePanel();
+  document.querySelectorAll(".bottom-item").forEach(item => item.classList.toggle("active", item.dataset.tab === "Mods"));
+  modsBrowser.scrollIntoView({behavior: "smooth", block: "start"});
+}
+function formatDownloadCount(value) {
+  const count = Number(value) || 0;
+  try { return new Intl.NumberFormat(undefined, {notation: "compact", maximumFractionDigits: 1}).format(count); }
+  catch (error) { return String(count); }
+}
+function createModCard(project) {
+  const card = document.createElement("article");
+  card.className = "mod-card";
+  const top = document.createElement("div");
+  top.className = "mod-card-top";
+  const iconUrl = String(project.iconUrl || "");
+  if (iconUrl.startsWith("https://")) {
+    const image = document.createElement("img");
+    image.className = "mod-project-icon";
+    image.src = iconUrl;
+    image.alt = "";
+    image.loading = "lazy";
+    image.referrerPolicy = "no-referrer";
+    image.onerror = () => image.remove();
+    top.appendChild(image);
+  } else {
+    const placeholder = document.createElement("span");
+    placeholder.className = "mod-project-icon mod-project-placeholder";
+    placeholder.textContent = "✦";
+    top.appendChild(placeholder);
+  }
+  const titleArea = document.createElement("div");
+  titleArea.className = "mod-title-area";
+  const title = document.createElement("h3");
+  title.textContent = String(project.title || "Untitled project");
+  const subtitle = document.createElement("p");
+  subtitle.textContent = String(project.author || project.source || "Minecraft creator");
+  titleArea.append(title, subtitle);
+  top.appendChild(titleArea);
+  const source = document.createElement("span");
+  source.className = "mod-source-chip";
+  source.textContent = String(project.source || "Catalog");
+  top.appendChild(source);
+  const description = document.createElement("p");
+  description.className = "mod-description";
+  description.textContent = String(project.description || "No description provided.");
+  const meta = document.createElement("div");
+  meta.className = "mod-card-meta";
+  const downloads = document.createElement("span");
+  downloads.textContent = formatDownloadCount(project.downloads) + " downloads";
+  const kind = document.createElement("span");
+  const kinds = {mod: "MOD", modpack: "MODPACK", resourcepack: "RESOURCE PACK", shader: "SHADER"};
+  kind.textContent = kinds[project.type] || "PROJECT";
+  meta.append(downloads, kind);
+  const link = document.createElement("a");
+  link.className = "mod-open-link";
+  link.href = String(project.url || "");
+  link.target = "_blank";
+  link.rel = "noopener noreferrer";
+  link.textContent = "VIEW PROJECT ↗";
+  link.addEventListener("click", event => {
+    if (window.HyperLauncherNative && typeof window.HyperLauncherNative.openProjectUrl === "function") {
+      event.preventDefault();
+      window.HyperLauncherNative.openProjectUrl(link.href);
+    }
+  });
+  card.append(top, description, meta, link);
+  return card;
+}
+function renderModResults(projects) {
+  modResults.replaceChildren();
+  if (!Array.isArray(projects) || projects.length === 0) {
+    const empty = document.createElement("div");
+    empty.className = "mod-empty";
+    empty.textContent = "No matching projects were found. Try a different search, version, or content type.";
+    modResults.appendChild(empty);
+    return;
+  }
+  projects.forEach(project => modResults.appendChild(createModCard(project)));
+}
+async function searchModrinthInBrowser(requestId, query, type, gameVersion, loader, sort) {
+  const groups = [["project_type:" + type]];
+  if (gameVersion) groups.push(["versions:" + gameVersion]);
+  if (loader !== "any") groups.push(["categories:" + loader]);
+  const order = sort === "downloads" || sort === "updated" ? sort : "relevance";
+  const url = "https://api.modrinth.com/v2/search?query=" + encodeURIComponent(query) +
+    "&facets=" + encodeURIComponent(JSON.stringify(groups)) +
+    "&index=" + order + "&limit=24";
+  const response = await fetch(url, {headers: {"Accept": "application/json"}});
+  if (!response.ok) throw new Error("Modrinth returned HTTP " + response.status);
+  const body = await response.json();
+  const projects = (Array.isArray(body.hits) ? body.hits : []).map(item => ({
+    id: item.project_id,
+    title: item.title,
+    description: item.description,
+    author: item.author,
+    downloads: item.downloads,
+    iconUrl: item.icon_url,
+    url: "https://modrinth.com/" + (type === "modpack" ? "modpack" : type === "resourcepack" ? "resourcepack" : type) + "/" + item.slug,
+    source: "Modrinth",
+    type
+  }));
+  if (requestId !== activeModRequest) return;
+  renderModResults(projects);
+  modStatus.textContent = "Showing " + projects.length + " of " + (body.total_hits || projects.length) + " Modrinth projects.";
+}
+function runModSearch() {
+  const source = modSource.value;
+  const query = modSearchInput.value.trim();
+  const type = modType.value;
+  const gameVersion = modVersion.value.trim();
+  const loader = modLoader.value;
+  const sort = modSort.value;
+  if (gameVersion && !/^[0-9][A-Za-z0-9._-]{0,31}$/.test(gameVersion)) {
+    modStatus.textContent = "Enter a valid Minecraft version, for example 1.20.1, or leave it blank.";
+    return;
+  }
+  const requestId = String(++modRequestCounter);
+  activeModRequest = requestId;
+  modSearchButton.disabled = true;
+  modStatus.textContent = "Searching " + (source === "modrinth" ? "Modrinth" : "CurseForge") + "…";
+  modResults.replaceChildren();
+  if (!window.HyperLauncherNative || typeof window.HyperLauncherNative.searchMods !== "function") {
+    if (source === "curseforge") {
+      modSearchButton.disabled = false;
+      modStatus.textContent = "CurseForge API search is available in the Android app, where the API key is kept in app memory. Modrinth search works in this browser preview.";
+      return;
+    }
+    searchModrinthInBrowser(requestId, query, type, gameVersion, loader, sort)
+      .catch(error => {
+        if (requestId === activeModRequest) modStatus.textContent = "Could not load Modrinth: " + error.message;
+      })
+      .finally(() => { if (requestId === activeModRequest) modSearchButton.disabled = false; });
+    return;
+  }
+  window.HyperLauncherNative.searchMods(source, query, type, gameVersion, loader, sort, requestId);
+}
+window.onNativeModSearch = function (result) {
+  if (!result || result.requestId !== activeModRequest) return;
+  modSearchButton.disabled = false;
+  if (!result.ok) {
+    modStatus.textContent = result.error || "The catalog search failed.";
+    return;
+  }
+  const projects = result.results && typeof result.results.length === "number" ? Array.from(result.results) : [];
+  renderModResults(projects);
+  modStatus.textContent = "Showing " + projects.length + " of " + (result.total || projects.length) + " " +
+    (result.source === "curseforge" ? "CurseForge" : "Modrinth") + " projects.";
+};
+window.onNativeCurseForgeKey = function (result) {
+  if (!result || !curseForgeKeyStatus) return;
+  if (result.ok) {
+    curseForgeKeyReady = !result.cleared;
+    curseForgeKeyStatus.textContent = result.cleared
+      ? "CurseForge key cleared from app memory."
+      : "CurseForge API key connected for this app session. It is not saved to disk.";
+    if (result.cleared) modResults.replaceChildren();
+    else runModSearch();
+  } else {
+    curseForgeKeyReady = false;
+    curseForgeKeyStatus.textContent = result.error || "Could not accept that API key.";
+  }
+};
+modSource.addEventListener("change", updateModSourcePanel);
+modSearchButton.addEventListener("click", runModSearch);
+modSearchInput.addEventListener("keydown", event => {
+  if (event.key === "Enter") runModSearch();
+});
+document.querySelector("#save-curseforge-key").addEventListener("click", () => {
+  const key = curseForgeKeyInput.value.trim();
+  if (!key) {
+    curseForgeKeyStatus.textContent = "Paste your CurseForge API key first.";
+    return;
+  }
+  if (!window.HyperLauncherNative || typeof window.HyperLauncherNative.setCurseForgeApiKey !== "function") {
+    curseForgeKeyStatus.textContent = "Connect a key inside the Hyper Launcher Android app.";
+    return;
+  }
+  curseForgeKeyStatus.textContent = "Checking key format…";
+  window.HyperLauncherNative.setCurseForgeApiKey(key);
+  curseForgeKeyInput.value = "";
+});
+document.querySelector("#clear-curseforge-key").addEventListener("click", () => {
+  if (window.HyperLauncherNative && typeof window.HyperLauncherNative.clearCurseForgeApiKey === "function") {
+    window.HyperLauncherNative.clearCurseForgeApiKey();
+  } else {
+    curseForgeKeyReady = false;
+    curseForgeKeyStatus.textContent = "CurseForge key cleared from this preview.";
+  }
+});
+document.querySelectorAll("[data-native-open]").forEach(link => {
+  link.addEventListener("click", event => {
+    if (window.HyperLauncherNative && typeof window.HyperLauncherNative.openProjectUrl === "function") {
+      event.preventDefault();
+      window.HyperLauncherNative.openProjectUrl(link.href);
+    }
+  });
+});
