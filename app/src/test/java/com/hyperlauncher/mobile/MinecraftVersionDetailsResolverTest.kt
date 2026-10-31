@@ -13,6 +13,7 @@ class MinecraftVersionDetailsResolverTest {
             {
               "id":"1.21.4",
               "mainClass":"net.minecraft.client.main.Main",
+              "javaVersion":{"component":"java-runtime-gamma","majorVersion":21},
               "downloads":{"client":{"url":"https://piston-data.mojang.com/v1/objects/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/client.jar","sha1":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","size":123456}},
               "assetIndex":{"id":"19","url":"https://piston-meta.mojang.com/v1/packages/bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb/19.json","sha1":"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb","size":654321}
             }
@@ -21,6 +22,7 @@ class MinecraftVersionDetailsResolverTest {
         val details = MinecraftVersionDetailsResolver.parse("1.21.4", json)
 
         assertEquals("net.minecraft.client.main.Main", details.mainClass)
+        assertEquals(21, details.javaMajorRequirement)
         assertEquals(123456L, details.client.size)
         assertEquals("19", details.assetIndexId)
         assertTrue(details.assetIndex?.url?.endsWith("/19.json") == true)
