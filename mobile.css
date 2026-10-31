@@ -10,3 +10,44 @@
 .version-status{min-height:14px;margin:6px 1px 0;color:#858a79;font-size:9px;line-height:1.5}
 
 .install-button{display:flex;align-items:center;justify-content:space-between;width:100%;min-height:43px;margin-top:9px;padding:0 13px;border:1px solid #465239;border-radius:5px;background:#20251b;color:var(--lime);font:9px 'DM Mono',monospace;letter-spacing:.7px}.install-button:disabled{opacity:.55}.install-panel{margin-top:10px;padding:12px;background:#141610;border:1px solid #363b2d;border-radius:5px}.install-panel[hidden],#cancel-install-button[hidden]{display:none}.install-panel p{margin:0 0 9px;color:#b7bba9;font-size:10px;line-height:1.6;overflow-wrap:anywhere}.install-progress-track{height:5px;overflow:hidden;border-radius:5px;background:#303329}.install-progress-track span{display:block;width:0;height:100%;background:var(--lime);transition:width .2s}#cancel-install-button{margin-top:10px;padding:7px 9px;border:1px solid #555b47;border-radius:4px;background:#22251e;color:#d8ddca;font:8px 'DM Mono',monospace;letter-spacing:.6px}
+\n
+.mods-browser{margin-top:28px;scroll-margin-top:16px}
+.mods-browser[hidden]{display:none}
+.browser-panel{padding:16px;background:var(--panel);border:1px solid var(--line);border-radius:8px}
+.browser-panel label{display:block;margin:0 0 7px;color:#a0a393;font:8px 'DM Mono',monospace;letter-spacing:1px}
+.browser-panel .select-wrap{margin:0}
+.browser-panel .select-wrap select,.browser-filter-grid select,.browser-panel input{width:100%;min-height:42px;padding:0 11px;border:1px solid #393b31;border-radius:5px;background:#22241e;color:#e9ebdf;font:11px Manrope,Arial,sans-serif;outline:none}
+.browser-panel .select-wrap select{padding-right:32px}
+.browser-panel input::placeholder{color:#777c6d}
+.browser-panel input:focus,.browser-panel select:focus{border-color:#829c50}
+.curseforge-key-panel{margin-top:14px;padding:12px;background:#141710;border:1px solid #3b4230;border-radius:6px}
+.curseforge-key-panel input{margin-top:2px}
+.key-actions{display:flex;gap:8px;margin-top:8px}
+.key-actions button{min-height:34px;padding:0 11px;border:1px solid #48543a;border-radius:4px;background:#26301d;color:var(--lime);font:8px 'DM Mono',monospace;letter-spacing:.5px}
+.key-actions button+button{background:#22251e;color:#b8bdab;border-color:#3c4033}
+.curseforge-key-panel p{font-size:9px;line-height:1.6;color:#969b89;margin:9px 0 6px}
+.api-key-link{font-size:9px;color:var(--lime);text-decoration:none}
+.search-field{margin-top:15px}
+.browser-filter-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:13px}
+.browser-filter-grid>div{min-width:0}
+.browser-filter-grid select{appearance:none;padding-right:7px;font-size:10px}
+.browser-filter-grid input{font-size:10px}
+.search-mods-button{display:flex;align-items:center;justify-content:space-between;width:100%;min-height:45px;margin-top:15px;padding:0 13px;border:0;border-radius:5px;background:var(--lime);color:#171a10;font:800 10px Manrope,Arial,sans-serif;letter-spacing:.7px}
+.search-mods-button span{font-size:18px}
+.search-mods-button:disabled{opacity:.55}
+.mod-status{min-height:16px;margin:10px 1px 0;color:#9ba08c;font-size:9px;line-height:1.6}
+.mod-results{display:grid;gap:10px;margin-top:12px}
+.mod-card{min-width:0;padding:13px;background:#191b16;border:1px solid #34382c;border-radius:7px}
+.mod-card-top{display:flex;align-items:center;gap:10px;min-width:0}
+.mod-project-icon{flex:0 0 43px;width:43px;height:43px;object-fit:cover;border-radius:6px;background:#2a3021;border:1px solid #414936}
+.mod-project-placeholder{display:grid;place-items:center;color:var(--lime);font-size:18px}
+.mod-title-area{flex:1;min-width:0}
+.mod-title-area h3{margin:0;color:#f0f2e8;font-size:12px;line-height:1.4;overflow-wrap:anywhere}
+.mod-title-area p{margin:4px 0 0;color:#969b8c;font-size:9px}
+.mod-source-chip{flex:0 0 auto;padding:5px 6px;border:1px solid #3a4030;border-radius:4px;background:#24291d;color:var(--lime);font:7px 'DM Mono',monospace}
+.mod-description{margin:11px 0 9px;color:#abb09f;font-size:10px;line-height:1.6;overflow-wrap:anywhere}
+.mod-card-meta{display:flex;align-items:center;justify-content:space-between;gap:8px;padding-top:8px;border-top:1px solid #2c3026;color:#858b7a;font:8px 'DM Mono',monospace}
+.mod-card-meta span:last-child{color:#bdc5a9}
+.mod-open-link{display:flex;align-items:center;justify-content:center;min-height:35px;margin-top:10px;border:1px solid #465239;border-radius:4px;color:var(--lime);text-decoration:none;font:8px 'DM Mono',monospace;letter-spacing:.6px}
+.mod-empty{padding:18px;border:1px dashed #3b4033;border-radius:6px;color:#a4aa96;font-size:10px;line-height:1.7;text-align:center}
+@media(max-width:350px){.browser-filter-grid{grid-template-columns:1fr}.mod-source-chip{display:none}}
