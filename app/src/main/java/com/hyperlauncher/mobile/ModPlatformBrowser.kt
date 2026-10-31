@@ -102,7 +102,10 @@ object ModPlatformBrowser {
             val candidate = versions.getJSONObject(i)
             if (candidate.optString("fileId") != fileId ||
                 candidate.optString("fileName") != fileName) continue
-            val url = candidate.optString("downloadUrl")
+            var url = candidate.optString("downloadUrl")
+            if (!isTrustedModDownloadUrl(url) && source == "curseforge") {
+                url = resolveCurseForgeDownloadUrl(projectId, fileId, curseForgeKey)
+            }
             require(isTrustedModDownloadUrl(url)) { "This file has no supported official download URL" }
             val sha1 = candidate.optString("sha1")
             require(Regex("^[a-fA-F0-9]{40}$").matches(sha1)) {
@@ -197,6 +200,30 @@ object ModPlatformBrowser {
         return versions
     }
 
+
+    private fun resolveCurseForgeDownloadUrl(
+        projectId: String,
+        fileId: String,
+        apiKey: String?
+    ): String {
+        require(projectId.matches(Regex("^[0-9]{1,12}$")) &&
+            fileId.matches(Regex("^[0-9]{1,12}$"))) {
+            "Invalid CurseForge project or file ID"
+        }
+        val key = apiKey?.trim().orEmpty()
+        require(key.length >= 8) { "A valid CurseForge API key is required to download this file" }
+        val body = requestJson(
+            "$CURSEFORGE_BASE/mods/$projectId/files/$fileId/download-url",
+            "api.curseforge.com",
+            key
+        )
+        val value = body.optString("data")
+        require(isTrustedModDownloadUrl(value)) {
+            "CurseForge did not return a trusted HTTPS download URL for this file"
+        }
+        return value
+    }
+
     private fun listCurseForgeVersions(
         projectId: String,
         projectType: String,
@@ -213,10 +240,9 @@ object ModPlatformBrowser {
         require(loaderType == null || version.isNotEmpty()) {
             "Choose a Minecraft version when filtering CurseForge by mod loader."
         }
-        val endpoint = "$CURSEFORGE_BASE/mods/$projectId/files?" +
-            (if (version.isNotEmpty()) "&gameVersion=" + encode(version) else "") +
-            (if (loaderType != null) "&modLoaderType=$loaderType" else "") +
-            "&pageSize=24&index=0"
+        // The official file-list endpoint supports gameVersion, not modLoaderType or pagination.
+        val endpoint = "$CURSEFORGE_BASE/mods/$projectId/files" +
+            (if (version.isNotEmpty()) "?gameVersion=" + encode(version) else "")
         val body = requestJson(endpoint, "api.curseforge.com", key)
         val response = body.optJSONArray("data") ?: JSONArray()
         val versions = JSONArray()
@@ -236,8 +262,9 @@ object ModPlatformBrowser {
                 }
             }
             val size = item.optLong("fileLength", -1L)
-            if (fileId <= 0L || !isTrustedModDownloadUrl(downloadUrl) ||
-                !Regex("^[a-fA-F0-9]{40}$").matches(sha1) || size <= 0L) continue
+            if (fileId <= 0L ||
+                !Regex("^[a-fA-F0-9]{40}$").matches(sha1) ||
+                size !in 1L..MAX_MOD_FILE_BYTES) continue
             versions.put(
                 JSONObject()
                     .put("fileId", fileId.toString())
