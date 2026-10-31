@@ -97,3 +97,12 @@
 .instance-actions button{min-height:32px;padding:0 9px;border:1px solid #4d5d3b;border-radius:4px;background:#26301e;color:var(--lime);font:8px 'DM Mono',monospace}
 .instance-actions .instance-delete-button{border-color:#594039;background:#2b201b;color:#dda98e}
 @media(max-width:350px){.instance-card{align-items:flex-start;flex-direction:column}.instance-actions{width:100%}.instance-actions button{flex:1}}
+
+
+.instance-rename-editor{display:grid;gap:8px;width:100%;margin-top:11px;padding:11px;border:1px solid #414735;border-radius:5px;background:#151812}
+.instance-rename-editor label{color:#a6ad93;font:8px 'DM Mono',monospace;letter-spacing:.8px}
+.instance-rename-editor input{width:100%;min-height:36px;padding:0 9px;border:1px solid #414735;border-radius:4px;background:#20231c;color:#edf0e5;font-size:10px}
+.instance-rename-actions{display:flex;gap:7px}
+.instance-rename-actions button{min-height:31px;padding:0 10px;border:1px solid #50603d;border-radius:4px;background:#29311f;color:var(--lime);font:8px 'DM Mono',monospace}
+.instance-rename-actions button+button{border-color:#414638;background:#22251e;color:#c6cbb9}
+.instance-rename-actions button:disabled{opacity:.5}
