@@ -346,7 +346,12 @@ function createModCard(project) {
       window.HyperLauncherNative.openProjectUrl(link.href);
     }
   });
-  card.append(top, description, meta, link);
+  const versionsButton = document.createElement("button");
+  versionsButton.type = "button";
+  versionsButton.className = "mod-versions-button";
+  versionsButton.textContent = "BROWSE FILES ↓";
+  versionsButton.addEventListener("click", () => loadProjectVersions(project));
+  card.append(top, description, meta, link, versionsButton);
   return card;
 }
 function renderModResults(projects) {
@@ -477,4 +482,216 @@ document.querySelectorAll("[data-native-open]").forEach(link => {
       window.HyperLauncherNative.openProjectUrl(link.href);
     }
   });
+});
+
+const projectVersionsPanel = document.querySelector("#project-versions");
+const versionsProjectTitle = document.querySelector("#versions-project-title");
+const versionsStatus = document.querySelector("#versions-status");
+const projectVersionList = document.querySelector("#project-version-list");
+const modDownloadPanel = document.querySelector("#mod-download-panel");
+const modDownloadStatus = document.querySelector("#mod-download-status");
+const modDownloadProgressBar = document.querySelector("#mod-download-progress-bar");
+const cancelModDownloadButton = document.querySelector("#cancel-mod-download");
+let currentVersionsProject = null;
+let modVersionsRequestCounter = 0;
+let activeModVersionsRequest = "";
+let modInstallRequestCounter = 0;
+let activeModInstallRequest = "";
+let activeModInstallButton = null;
+
+function readableFileSize(value) {
+  const bytes = Number(value) || 0;
+  if (bytes < 1024) return bytes + " B";
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + " KB";
+  if (bytes < 1024 * 1024 * 1024) return (bytes / (1024 * 1024)).toFixed(1) + " MB";
+  return (bytes / (1024 * 1024 * 1024)).toFixed(2) + " GB";
+}
+function renderProjectVersions(versions) {
+  projectVersionList.replaceChildren();
+  if (!Array.isArray(versions) || versions.length === 0) {
+    versionsStatus.textContent = "No compatible files were found for the selected game version and loader.";
+    return;
+  }
+  versions.forEach(file => {
+    const card = document.createElement("article");
+    card.className = "project-version-card";
+    const details = document.createElement("div");
+    details.className = "project-version-details";
+    const title = document.createElement("strong");
+    title.textContent = String(file.name || file.versionNumber || "Project file");
+    const sub = document.createElement("p");
+    sub.textContent = String(file.fileName || "Download file") + " · " + readableFileSize(file.size);
+    const date = document.createElement("small");
+    date.textContent = file.datePublished ? new Date(file.datePublished).toLocaleDateString() : "Compatible file";
+    details.append(title, sub, date);
+    const installButton = document.createElement("button");
+    installButton.type = "button";
+    installButton.className = "install-mod-file";
+    installButton.textContent = window.HyperLauncherNative && typeof window.HyperLauncherNative.installModFile === "function"
+      ? (currentVersionsProject && currentVersionsProject.type === "modpack" ? "SAVE PACK" : "INSTALL")
+      : "GET FILE ↗";
+    installButton.addEventListener("click", () => requestModFile(file, installButton));
+    card.append(details, installButton);
+    projectVersionList.appendChild(card);
+  });
+  versionsStatus.textContent = "Showing " + versions.length + " compatible file" + (versions.length === 1 ? "" : "s") + ".";
+}
+function loadProjectVersions(project) {
+  currentVersionsProject = project;
+  projectVersionsPanel.hidden = false;
+  modDownloadPanel.hidden = true;
+  versionsProjectTitle.textContent = String(project.title || "Project") + " files";
+  versionsStatus.textContent = "Finding files for " + (modVersion.value.trim() || "all game versions") + "…";
+  projectVersionList.replaceChildren();
+  projectVersionsPanel.scrollIntoView({behavior: "smooth", block: "start"});
+  const requestId = "versions-" + (++modVersionsRequestCounter);
+  activeModVersionsRequest = requestId;
+  const gameVersion = modVersion.value.trim();
+  const loader = modLoader.value;
+  if (window.HyperLauncherNative && typeof window.HyperLauncherNative.listModVersions === "function") {
+    window.HyperLauncherNative.listModVersions(
+      project.sourceId || (project.source === "CurseForge" ? "curseforge" : "modrinth"),
+      String(project.id),
+      project.type,
+      gameVersion,
+      loader,
+      requestId
+    );
+    return;
+  }
+  if (project.source !== "Modrinth") {
+    versionsStatus.textContent = "CurseForge file browsing needs the Hyper Launcher Android app and a valid API key.";
+    return;
+  }
+  const params = new URLSearchParams();
+  if (gameVersion) params.set("game_versions", JSON.stringify([gameVersion]));
+  if (loader !== "any") params.set("loaders", JSON.stringify([loader]));
+  const endpoint = "https://api.modrinth.com/v2/project/" + encodeURIComponent(project.id) + "/version" +
+    (params.toString() ? "?" + params.toString() : "");
+  fetch(endpoint, {headers: {"Accept": "application/json"}})
+    .then(response => {
+      if (!response.ok) throw new Error("Modrinth returned HTTP " + response.status);
+      return response.json();
+    })
+    .then(data => {
+      if (requestId !== activeModVersionsRequest) return;
+      const files = [];
+      (Array.isArray(data) ? data : []).forEach(version => {
+        (Array.isArray(version.files) ? version.files : []).forEach(file => {
+          files.push({
+            fileId: version.id,
+            fileName: file.filename,
+            name: version.name || version.version_number,
+            versionNumber: version.version_number,
+            datePublished: version.date_published,
+            size: file.size,
+            sha1: file.hashes && file.hashes.sha1,
+            downloadUrl: file.url,
+            primary: !!file.primary
+          });
+        });
+      });
+      renderProjectVersions(files);
+    })
+    .catch(error => {
+      if (requestId === activeModVersionsRequest) versionsStatus.textContent = "Could not load files: " + error.message;
+    });
+}
+function requestModFile(file, button) {
+  if (!currentVersionsProject) return;
+  if (!window.HyperLauncherNative || typeof window.HyperLauncherNative.installModFile !== "function") {
+    const url = String(file.downloadUrl || "");
+    if (url.startsWith("https://cdn.modrinth.com/") || url.startsWith("https://cdn-raw.modrinth.com/")) {
+      const link = document.createElement("a");
+      link.href = url;
+      link.target = "_blank";
+      link.rel = "noopener noreferrer";
+      link.click();
+      return;
+    }
+    versionsStatus.textContent = "File downloads into Minecraft storage are available in the Android app.";
+    return;
+  }
+  if (activeModInstallButton && activeModInstallButton !== button) {
+    versionsStatus.textContent = "Finish or cancel the current file download first.";
+    return;
+  }
+  const sourceId = currentVersionsProject.source === "CurseForge" ? "curseforge" : "modrinth";
+  const requestId = "install-" + (++modInstallRequestCounter);
+  activeModInstallRequest = requestId;
+  activeModInstallButton = button;
+  button.disabled = true;
+  button.textContent = "PREPARING…";
+  modDownloadPanel.hidden = false;
+  modDownloadProgressBar.style.width = "0%";
+  modDownloadStatus.textContent = "Checking file metadata and compatibility…";
+  cancelModDownloadButton.disabled = false;
+  window.HyperLauncherNative.installModFile(
+    sourceId,
+    String(currentVersionsProject.id),
+    String(file.fileId),
+    String(file.fileName),
+    currentVersionsProject.type,
+    modVersion.value.trim(),
+    modLoader.value,
+    requestId
+  );
+}
+window.onNativeModVersions = function (result) {
+  if (!result || result.requestId !== activeModVersionsRequest) return;
+  if (!result.ok) {
+    versionsStatus.textContent = result.error || "Could not load project files.";
+    return;
+  }
+  const versions = result.versions && typeof result.versions.length === "number"
+    ? Array.from(result.versions) : [];
+  renderProjectVersions(versions);
+};
+window.onNativeModInstall = function (event) {
+  if (!event || event.requestId !== activeModInstallRequest) return;
+  modDownloadPanel.hidden = false;
+  if (event.state === "resolving") {
+    modDownloadStatus.textContent = "Checking the official file record for " + (event.fileName || "this file") + "…";
+    return;
+  }
+  if (event.state === "downloading") {
+    const total = Number(event.totalBytes) || 0;
+    const done = Number(event.downloadedBytes) || 0;
+    const percent = total > 0 ? Math.min(100, Math.floor(done / total * 100)) : 0;
+    modDownloadProgressBar.style.width = percent + "%";
+    modDownloadStatus.textContent = "Downloading " + (event.fileName || "file") + " · " + percent + "%";
+    if (activeModInstallButton) activeModInstallButton.textContent = "DOWNLOADING…";
+    return;
+  }
+  if (event.state === "complete") {
+    modDownloadProgressBar.style.width = "100%";
+    modDownloadStatus.textContent = "Verified and saved " + event.fileName + " to " + event.path + ".";
+    if (activeModInstallButton) {
+      activeModInstallButton.textContent = "SAVED ✓";
+      activeModInstallButton.disabled = false;
+    }
+    activeModInstallButton = null;
+    return;
+  }
+  if (event.state === "cancelled") {
+    modDownloadStatus.textContent = "Download cancelled. The incomplete file was removed.";
+  } else if (event.state === "error") {
+    modDownloadStatus.textContent = "Could not install file: " + (event.error || "Unknown error");
+  }
+  if (activeModInstallButton) {
+    activeModInstallButton.textContent = "RETRY";
+    activeModInstallButton.disabled = false;
+  }
+  activeModInstallButton = null;
+};
+document.querySelector("#close-project-versions").addEventListener("click", () => {
+  projectVersionsPanel.hidden = true;
+  activeModVersionsRequest = "";
+});
+cancelModDownloadButton.addEventListener("click", () => {
+  if (window.HyperLauncherNative && typeof window.HyperLauncherNative.cancelModInstall === "function") {
+    cancelModDownloadButton.disabled = true;
+    modDownloadStatus.textContent = "Cancelling download…";
+    window.HyperLauncherNative.cancelModInstall();
+  }
 });
