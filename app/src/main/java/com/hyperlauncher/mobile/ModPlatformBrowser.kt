@@ -37,18 +37,20 @@ object ModPlatformBrowser {
         gameVersion: String,
         loader: String,
         sort: String,
-        curseForgeKey: String?
+        curseForgeKey: String?,
+        offset: Int = 0
     ): JSONObject {
         require(source == "modrinth" || source == "curseforge") { "Choose Modrinth or CurseForge" }
         require(projectTypes.contains(projectType)) { "Unsupported project type" }
         require(loaders.contains(loader)) { "Unsupported mod loader" }
         require(query.length <= 80) { "Search text is too long" }
+        require(offset in 0..10_000) { "Search page is out of range" }
         val version = gameVersion.trim()
         require(version.isEmpty() || versionPattern.matches(version)) { "Enter a valid Minecraft version" }
         return if (source == "modrinth") {
-            searchModrinth(query.trim(), projectType, version, loader, sort)
+            searchModrinth(query.trim(), projectType, version, loader, sort, offset)
         } else {
-            searchCurseForge(query.trim(), projectType, version, loader, sort, curseForgeKey)
+            searchCurseForge(query.trim(), projectType, version, loader, sort, curseForgeKey, offset)
         }
     }
 
@@ -255,7 +257,8 @@ object ModPlatformBrowser {
         type: String,
         version: String,
         loader: String,
-        sort: String
+        sort: String,
+        offset: Int
     ): JSONObject {
         val facets = JSONArray().put(JSONArray().put(if (type == "datapack") "all_project_types:datapack" else "project_type:" + type))
         if (version.isNotEmpty()) facets.put(JSONArray().put("versions:" + version))
@@ -267,7 +270,7 @@ object ModPlatformBrowser {
         }
         val url = MODRINTH_BASE + "/search?query=" + encode(query) +
             "&facets=" + encode(facets.toString()) +
-            "&index=" + index + "&limit=24"
+            "&index=" + index + "&limit=24&offset=" + offset
         val body = requestJson(url, "api.modrinth.com", null)
         val hits = body.optJSONArray("hits") ?: JSONArray()
         val results = JSONArray()
@@ -300,6 +303,7 @@ object ModPlatformBrowser {
             .put("ok", true)
             .put("source", "modrinth")
             .put("total", body.optInt("total_hits", results.length()))
+            .put("offset", offset)
             .put("results", results)
     }
 
@@ -309,7 +313,8 @@ object ModPlatformBrowser {
         version: String,
         loader: String,
         sort: String,
-        apiKey: String?
+        apiKey: String?,
+        offset: Int
     ): JSONObject {
         val key = apiKey?.trim().orEmpty()
         require(key.length >= 8) {
@@ -320,13 +325,14 @@ object ModPlatformBrowser {
         require(loaderType == null || version.isNotEmpty()) {
             "Choose a Minecraft version when filtering CurseForge by mod loader."
         }
+        require(offset <= 9_976) { "CurseForge search page is out of range" }
         val sortField = curseForgeSortField(sort)
         val url = CURSEFORGE_BASE + "/mods/search?gameId=" + MINECRAFT_GAME_ID +
             "&classId=" + classId +
             "&searchFilter=" + encode(query) +
             (if (version.isNotEmpty()) "&gameVersion=" + encode(version) else "") +
             (if (loaderType != null) "&modLoaderType=" + loaderType else "") +
-            "&sortField=" + sortField + "&sortOrder=desc&pageSize=24&index=0"
+            "&sortField=" + sortField + "&sortOrder=desc&pageSize=24&index=" + offset
         val body = requestJson(url, "api.curseforge.com", key)
         val hits = body.optJSONArray("data") ?: JSONArray()
         val results = JSONArray()
@@ -357,6 +363,7 @@ object ModPlatformBrowser {
             .put("source", "curseforge")
             .put("total", body.optJSONObject("pagination")?.optInt("totalCount", results.length())
                 ?: results.length())
+            .put("offset", offset)
             .put("results", results)
     }
 
