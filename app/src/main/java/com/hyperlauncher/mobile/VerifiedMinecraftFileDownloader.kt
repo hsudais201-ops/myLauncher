@@ -34,7 +34,8 @@ object VerifiedMinecraftFileDownloader {
         relativePath: String,
         storageRoot: File,
         onProgress: ((downloaded: Long, total: Long) -> Unit)? = null,
-        shouldCancel: (() -> Boolean)? = null
+        shouldCancel: (() -> Boolean)? = null,
+        additionalTrustedHosts: Set<String> = emptySet()
     ): File {
         require(descriptor.size >= 0L) { "Download size must not be negative" }
         require(Regex("^[a-fA-F0-9]{40}$").matches(descriptor.sha1)) {
@@ -48,7 +49,7 @@ object VerifiedMinecraftFileDownloader {
         try {
             val digest = MessageDigest.getInstance("SHA-1")
             var downloaded = 0L
-            val connection = openResponse(descriptor.url)
+            val connection = openResponse(descriptor.url, additionalTrustedHosts)
             try {
                 val response = connection.responseCode
                 require(response == HttpURLConnection.HTTP_OK) {
@@ -124,10 +125,10 @@ object VerifiedMinecraftFileDownloader {
         return target
     }
 
-    private fun openResponse(initialUrl: String): HttpURLConnection {
+    private fun openResponse(initialUrl: String, additionalTrustedHosts: Set<String>): HttpURLConnection {
         var current = initialUrl
         repeat(MAX_REDIRECTS + 1) { redirectCount ->
-            require(isTrustedUrl(current)) { "Download URL is not trusted" }
+            require(isTrustedUrl(current, additionalTrustedHosts)) { "Download URL is not trusted" }
             val connection = (URL(current).openConnection() as HttpURLConnection).apply {
                 requestMethod = "GET"
                 connectTimeout = CONNECT_TIMEOUT_MS
@@ -156,10 +157,11 @@ object VerifiedMinecraftFileDownloader {
         throw IllegalStateException("Download redirect limit exceeded")
     }
 
-    internal fun isTrustedUrl(value: String): Boolean {
+    internal fun isTrustedUrl(value: String, additionalTrustedHosts: Set<String> = emptySet()): Boolean {
         return try {
             val url = URL(value)
-            url.protocol == "https" && url.host.lowercase() in allowedHosts &&
+            val host = url.host.lowercase()
+            url.protocol == "https" && (host in allowedHosts || host in additionalTrustedHosts) &&
                 url.userInfo == null && url.port in listOf(-1, 443)
         } catch (_: Exception) {
             false
