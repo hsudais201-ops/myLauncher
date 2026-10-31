@@ -7,8 +7,11 @@ data class MinecraftLaunchConfiguration(
     val jvmArguments: List<String>,
     val gameArguments: List<String>,
     val classpath: String,
-    val nativeDirectory: File
+    val nativeDirectory: File,
+    /** Mojang placeholders still requiring a real account/session value. */
+    val unresolvedPlaceholders: Set<String>
 ) {
+    val hasResolvedArguments: Boolean get() = unresolvedPlaceholders.isEmpty()
     /** Ordered arguments for ProcessBuilder: JVM options, main class, then game arguments. */
     fun processArguments(): List<String> = jvmArguments + mainClass + gameArguments
 }
@@ -61,6 +64,13 @@ object MinecraftLaunchConfigurationResolver {
             details.launchArgumentsJson, "game", osName, osArch, osVersion,
             placeholders = resolvedPlaceholders, features = features
         )
-        return MinecraftLaunchConfiguration(details.mainClass, jvm, game, classpath, expectedNativeDirectory)
+        val unresolved = (jvm + game).flatMap { argument ->
+            Regex("\\\\$\\\\{([A-Za-z0-9_.-]{1,80})}").findAll(argument)
+                .map { it.groupValues[1] }
+                .toList()
+        }.toSet()
+        return MinecraftLaunchConfiguration(
+            details.mainClass, jvm, game, classpath, expectedNativeDirectory, unresolved
+        )
     }
 }
