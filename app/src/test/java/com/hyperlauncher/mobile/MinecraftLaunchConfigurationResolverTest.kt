@@ -47,6 +47,7 @@ class MinecraftLaunchConfigurationResolverTest {
             )
 
             assertEquals("net.minecraft.client.main.Main", config.mainClass)
+            assertTrue(config.hasResolvedArguments)
             assertTrue(config.jvmArguments.containsAll(listOf("-Xmx1G", "-cp", config.classpath)))
             assertEquals(
                 listOf("--username", "Player One", "--gameDir", root.canonicalPath),
@@ -56,6 +57,10 @@ class MinecraftLaunchConfigurationResolverTest {
                 config.jvmArguments + config.mainClass + config.gameArguments,
                 config.processArguments()
             )
+
+            val withoutAccount = MinecraftLaunchConfigurationResolver.resolve(details, plan, root)
+            assertEquals(setOf("auth_player_name"), withoutAccount.unresolvedPlaceholders)
+            assertTrue(!withoutAccount.hasResolvedArguments)
         } finally {
             root.deleteRecursively()
         }
