@@ -293,6 +293,126 @@ class LauncherJavascriptBridge(
 
 
     @JavascriptInterface
+    fun installRuntimeForVersion(versionId: String) {
+        if (versionId != "release" && versionId != "snapshot" &&
+            !Regex("^[0-9][A-Za-z0-9._-]{0,63}$").matches(versionId)
+        ) {
+            postRuntimeInstallEvent(
+                JSONObject().put("state", "error").put("error", "Invalid Minecraft version ID")
+            )
+            return
+        }
+
+        val targetStorageRoot = synchronized(instanceStateLock) {
+            if (modInstallActive.get() || !installationActive.compareAndSet(false, true)) null
+            else storageRoot
+        }
+        if (targetStorageRoot == null) {
+            postRuntimeInstallEvent(
+                JSONObject().put("state", "error")
+                    .put("error", "Finish the current download before installing a Java runtime")
+            )
+            return
+        }
+
+        installCancelled.set(false)
+        executor.execute {
+            try {
+                val version = MinecraftVersionManifest.findVersion(
+                    MinecraftVersionManifest.fetch(),
+                    versionId
+                ) ?: throw IllegalArgumentException(
+                    "Selected version was not found in Mojang's official manifest"
+                )
+                postRuntimeInstallEvent(
+                    JSONObject().put("state", "planning").put("version", version.id)
+                )
+
+                val details = MinecraftVersionDetailsResolver.fetch(version)
+                val requiredJavaMajor = details.javaMajorRequirement ?: 8
+                val abi = Build.SUPPORTED_ABIS.firstOrNull {
+                    it == "arm64-v8a" || it == "x86_64"
+                } ?: throw IllegalStateException(
+                    "This device does not have a supported 64-bit Android runtime ABI"
+                )
+                val runtimePackage = AndroidRuntimePackageCatalog.compatible(
+                    requiredJavaMajor,
+                    abi
+                ) ?: throw IllegalStateException(
+                    "No verified Android Java runtime package is available for Java " +
+                        "$requiredJavaMajor on $abi"
+                )
+
+                postRuntimeInstallEvent(
+                    JSONObject()
+                        .put("state", "downloading")
+                        .put("version", version.id)
+                        .put("requiredJavaMajor", requiredJavaMajor)
+                        .put("selectedJavaMajor", runtimePackage.javaMajor)
+                        .put("abi", abi)
+                        .put("totalBytes", runtimePackage.sizeBytes)
+                        .put("downloadedBytes", 0L)
+                )
+
+                val installed = AndroidRuntimeInstaller.install(
+                    runtimePackage = runtimePackage,
+                    cacheDirectory = File(webView.context.cacheDir, "runtime-downloads"),
+                    runtimeRoot = File(targetStorageRoot, "runtimes"),
+                    onDownloadProgress = { downloaded, total ->
+                        postRuntimeInstallEvent(
+                            JSONObject()
+                                .put("state", "downloading")
+                                .put("version", version.id)
+                                .put("requiredJavaMajor", requiredJavaMajor)
+                                .put("selectedJavaMajor", runtimePackage.javaMajor)
+                                .put("abi", abi)
+                                .put("downloadedBytes", downloaded)
+                                .put("totalBytes", total)
+                        )
+                    },
+                    onStage = { stage ->
+                        postRuntimeInstallEvent(
+                            JSONObject()
+                                .put("state", stage)
+                                .put("version", version.id)
+                                .put("selectedJavaMajor", runtimePackage.javaMajor)
+                                .put("abi", abi)
+                        )
+                    },
+                    shouldCancel = { installCancelled.get() }
+                )
+
+                postRuntimeInstallEvent(
+                    JSONObject()
+                        .put("state", "complete")
+                        .put("version", version.id)
+                        .put("requiredJavaMajor", requiredJavaMajor)
+                        .put("javaMajor", installed.javaMajor)
+                        .put("abi", abi)
+                        .put("runtimeName", installed.name)
+                        .put("message", "Android Java runtime installed. Graphics and game launch are still separate.")
+                )
+                refreshDeviceInfo()
+            } catch (error: java.util.concurrent.CancellationException) {
+                postRuntimeInstallEvent(JSONObject().put("state", "cancelled").put("version", versionId))
+            } catch (error: Exception) {
+                postRuntimeInstallEvent(
+                    JSONObject()
+                        .put("state", "error")
+                        .put("version", versionId)
+                        .put("error", error.message ?: "Android Java runtime installation failed")
+                )
+            } finally {
+                installationActive.set(false)
+            }
+        }
+    }
+
+    private fun postRuntimeInstallEvent(event: JSONObject) {
+        postToUi("onNativeRuntimeInstall", event.toString())
+    }
+
+    @JavascriptInterface
     fun setCurseForgeApiKey(value: String) {
         val key = value.trim()
         if (key.length !in 8..512 || key.any { it.isWhitespace() || it.code < 33 }) {
