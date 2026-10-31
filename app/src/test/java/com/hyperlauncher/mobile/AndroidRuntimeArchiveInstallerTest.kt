@@ -140,7 +140,7 @@ class AndroidRuntimeArchiveInstallerTest {
 
     @Test
     fun rejectsJavaMajorOrArchitectureMismatch() {
-        val archive = createArchive(validEntries(javaMajor = 21, architecture = "aarch64"))
+        val archive = createArchive(validEntries(javaMajor = 21, architecture = "amd64"))
         val root = Files.createTempDirectory("hyper-runtime-mismatch").toFile()
         val staging = File(root, "staging")
         try {
