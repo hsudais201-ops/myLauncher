@@ -59,7 +59,7 @@ class AndroidRuntimeInventoryTest {
     }
 
     @Test
-    fun rejectsDesktopLinuxRuntimeWithSameCpuFamilyMetadataMismatch() {
+    fun architectureMetadataAloneDoesNotProveAndroidNativeProvenance() {
         val root = Files.createTempDirectory("runtime-inventory").toFile()
         try {
             val runtime = root.resolve("desktop")
