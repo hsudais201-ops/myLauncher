@@ -137,6 +137,21 @@
         <div class="tip-card"><span class="tip-icon">✦</span><div><strong>Make room for adventure.</strong><p>Modded setups may need extra memory for a smoother experience.</p></div></div>
       </section>
 
+      <section class="instances-browser" id="instances-browser" hidden>
+        <div class="section-heading">
+          <div><span class="section-kicker">SEPARATE GAME PROFILES</span><h2>Your instances</h2></div>
+          <span class="spark">▣</span>
+        </div>
+        <div class="browser-panel">
+          <label for="instance-name">NEW INSTANCE NAME</label>
+          <input id="instance-name" type="text" maxlength="32" autocomplete="off" placeholder="e.g. Fabric Survival">
+          <p class="instance-create-note">The new instance uses the Minecraft version selected on Home. Its game files and mod folders are stored separately.</p>
+          <button class="search-mods-button" id="create-instance" type="button">CREATE INSTANCE <span>＋</span></button>
+          <p id="instances-status" class="mod-status" role="status" aria-live="polite">Loading your saved instances…</p>
+        </div>
+        <div class="instance-list" id="instance-list" aria-live="polite"></div>
+      </section>
+
       <section class="coming-section">
         <div class="section-heading"><div><span class="section-kicker">YOUR LAUNCHER</span><h2>More to explore</h2></div></div>
         <div class="feature-list">
