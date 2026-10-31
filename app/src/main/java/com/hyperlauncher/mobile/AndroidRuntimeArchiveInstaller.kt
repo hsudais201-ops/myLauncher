@@ -145,6 +145,7 @@ object AndroidRuntimeArchiveExtractor {
             require(descriptor.javaMajor == expectedJavaMajor) {
                 "Runtime Java version did not match the selected package"
             }
+            validateRuntimeLibraries(destination, descriptor.architecture)
 
             val marker = File(destination, "hyperlauncher-runtime.properties")
             marker.writeText(
@@ -159,6 +160,32 @@ object AndroidRuntimeArchiveExtractor {
         } catch (error: Exception) {
             destination.deleteRecursively()
             throw error
+        }
+    }
+
+    private fun validateRuntimeLibraries(runtimeRoot: File, architecture: String) {
+        val architectureLibraryRoot = File(runtimeRoot, "lib/$architecture")
+        val libraryRoot = if (architectureLibraryRoot.isDirectory) {
+            architectureLibraryRoot
+        } else {
+            File(runtimeRoot, "lib")
+        }
+        require(libraryRoot.isDirectory) {
+            "Android runtime is missing its architecture library directory"
+        }
+
+        val hasJli = File(libraryRoot, "jli/libjli.so").isFile ||
+            File(libraryRoot, "libjli.so").isFile
+        require(hasJli) { "Android runtime is missing libjli.so" }
+
+        val hasJvm = File(libraryRoot, "server/libjvm.so").isFile ||
+            File(libraryRoot, "client/libjvm.so").isFile
+        require(hasJvm) { "Android runtime is missing server/client libjvm.so" }
+
+        listOf("libjava.so", "libverify.so", "libnet.so", "libnio.so").forEach { name ->
+            require(File(libraryRoot, name).isFile) {
+                "Android runtime is missing $name"
+            }
         }
     }
 
