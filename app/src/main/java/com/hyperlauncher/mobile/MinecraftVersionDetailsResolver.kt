@@ -16,7 +16,8 @@ data class MinecraftVersionDetails(
     val assetIndexId: String?,
     val assetIndex: MinecraftDownload?,
     val libraries: List<MinecraftLibrary>,
-    val nativeLibraries: List<PlannedMinecraftFile>
+    val nativeLibraries: List<PlannedMinecraftFile>,
+    val launchArgumentsJson: String
 )
 
 /**
@@ -57,7 +58,15 @@ object MinecraftVersionDetailsResolver {
         require(mainClass.isNotBlank() && mainClass.length <= 256) { "Version metadata has no valid main class" }
         val libraries = MinecraftLibraryResolver.parse(actualId, json)
         val nativeLibraries = MinecraftNativeLibraryResolver.parse(actualId, json)
-        return MinecraftVersionDetails(actualId, mainClass, client, assetIndexId, assetIndex, libraries, nativeLibraries)
+        val launchArguments = JSONObject()
+        root.optJSONObject("arguments")?.let { launchArguments.put("arguments", it) }
+        root.optString("minecraftArguments").takeIf { it.isNotBlank() }?.let {
+            launchArguments.put("minecraftArguments", it)
+        }
+        return MinecraftVersionDetails(
+            actualId, mainClass, client, assetIndexId, assetIndex, libraries, nativeLibraries,
+            launchArguments.toString()
+        )
     }
 
     private fun parseDownload(item: JSONObject): MinecraftDownload {
