@@ -24,6 +24,7 @@ object ModPlatformBrowser {
     private const val CURSEFORGE_BASE = "https://api.curseforge.com/v1"
     private const val MINECRAFT_GAME_ID = 432
     private const val MAX_RESPONSE_BYTES = 2 * 1024 * 1024
+    private const val MAX_MOD_FILE_BYTES = 2L * 1024L * 1024L * 1024L
     private val projectTypes = setOf("mod", "modpack", "resourcepack", "shader")
     private val loaders = setOf("any", "fabric", "forge", "neoforge", "quilt")
     private val versionPattern = Regex("^[0-9][A-Za-z0-9._-]{0,31}$")
@@ -104,7 +105,9 @@ object ModPlatformBrowser {
                 "The mod platform did not provide a SHA-1 checksum for this file"
             }
             val size = candidate.optLong("size", -1L)
-            require(size > 0L) { "The mod platform did not provide a valid file size" }
+            require(size in 1L..MAX_MOD_FILE_BYTES) {
+                "The mod platform returned a file size outside the supported 2 GiB limit"
+            }
             val safeName = safeModFileName(fileName)
             val folder = when (projectType) {
                 "resourcepack" -> "resourcepacks"
@@ -134,11 +137,11 @@ object ModPlatformBrowser {
     private fun safeModFileName(value: String): String {
         val fileName = value.trim()
         require(fileName.length in 1..180 &&
-            fileName.matches(Regex("^[A-Za-z0-9][A-Za-z0-9._-]{0,179}$")) &&
+            fileName.matches(Regex("^[A-Za-z0-9][A-Za-z0-9._+ -]{0,179}$")) &&
             fileName != "." && fileName != "..") {
             "The selected file has an unsafe filename"
         }
-        return fileName
+        return fileName.replace(Regex("\\s+"), "_")
     }
 
     private fun listModrinthVersions(
