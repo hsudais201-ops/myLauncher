@@ -280,6 +280,9 @@ function updateModSourcePanel() {
   const worldsOption = modType.querySelector('option[value="world"]');
   if (worldsOption) worldsOption.disabled = !isCurseForge;
   if (!isCurseForge && modType.value === "world") modType.value = "mod";
+  const loaderNotApplicable = ["plugin", "world"].includes(modType.value);
+  modLoader.disabled = loaderNotApplicable;
+  if (loaderNotApplicable) modLoader.value = "any";
   if (isCurseForge && !curseForgeKeyReady) {
     curseForgeKeyStatus.textContent = "CurseForge requires an approved API key. The key stays in memory for this app session and is not saved to disk.";
   }
@@ -476,6 +479,7 @@ window.onNativeCurseForgeKey = function (result) {
   }
 };
 modSource.addEventListener("change", updateModSourcePanel);
+modType.addEventListener("change", updateModSourcePanel);
 modSearchButton.addEventListener("click", () => runModSearch(0, false));
 loadMoreModsButton.addEventListener("click", () => runModSearch(activeModSearchOffset, true));
 modSearchInput.addEventListener("keydown", event => {
