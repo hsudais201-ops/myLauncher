@@ -318,11 +318,7 @@ object ModPlatformBrowser {
         require(loaderType == null || version.isNotEmpty()) {
             "Choose a Minecraft version when filtering CurseForge by mod loader."
         }
-        val sortField = when (sort) {
-            "downloads" -> 2
-            "updated" -> 3
-            else -> 13
-        }
+        val sortField = curseForgeSortField(sort)
         val url = CURSEFORGE_BASE + "/mods/search?gameId=" + MINECRAFT_GAME_ID +
             "&classId=" + classId +
             "&searchFilter=" + encode(query) +
@@ -371,18 +367,11 @@ object ModPlatformBrowser {
             "api.curseforge.com",
             apiKey
         ).optJSONArray("data") ?: JSONArray()
-        val target = when (type) {
-            "modpack" -> setOf("modpacks", "mod packs", "modpacks")
-            "resourcepack" -> setOf("resource packs", "texture packs", "resourcepack", "texturepack")
-            "shader" -> setOf("shaders", "shader packs", "shaderpacks")
-            else -> setOf("mods")
-        }
         var resolved = 0
         for (i in 0 until categories.length()) {
             val item = categories.optJSONObject(i) ?: continue
             if (!item.optBoolean("isClass", false)) continue
-            val name = item.optString("name").lowercase()
-            if (name in target) {
+            if (matchesCurseForgeClass(type, item.optString("name"))) {
                 resolved = item.optInt("id", 0)
                 if (resolved > 0) break
             }
@@ -392,6 +381,25 @@ object ModPlatformBrowser {
         }
         synchronized(cachedClassIds) { cachedClassIds[type] = resolved }
         return resolved
+    }
+
+
+    internal fun curseForgeSortField(sort: String): Int = when (sort) {
+        "downloads" -> 6 // TotalDownloads
+        "updated" -> 3 // LastUpdated
+        else -> 2 // Popularity / relevance
+    }
+
+    internal fun matchesCurseForgeClass(type: String, categoryName: String): Boolean {
+        val name = categoryName.trim().lowercase()
+        val accepted = when (type) {
+            "mod" -> setOf("mods")
+            "modpack" -> setOf("modpacks", "mod packs")
+            "resourcepack" -> setOf("resource packs", "texture packs", "resourcepack", "texturepack")
+            "shader" -> setOf("shaders", "shader packs", "shaderpacks")
+            else -> emptySet()
+        }
+        return name in accepted
     }
 
     internal fun curseForgeLoaderType(loader: String): Int? = when (loader) {
