@@ -81,3 +81,19 @@
 
 
 .device-info{margin:10px 1px 0;color:#8d9580;font-size:9px;line-height:1.6;overflow-wrap:anywhere}
+
+
+.instances-browser{margin-top:24px;scroll-margin-top:14px}
+.instances-browser[hidden]{display:none}
+.instance-create-note{margin:10px 0;color:#949b85;font-size:9px;line-height:1.6}
+.instance-list{display:grid;gap:9px;margin-top:12px}
+.instance-card{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:13px;background:#191b16;border:1px solid #363b2e;border-radius:7px}
+.instance-card-details{flex:1;min-width:0}
+.instance-title-row{display:flex;align-items:center;flex-wrap:wrap;gap:8px}
+.instance-title-row strong{color:#edf0e5;font-size:11px;overflow-wrap:anywhere}
+.instance-card-details p{margin:5px 0 0;color:#929986;font-size:9px}
+.instance-active-chip{padding:4px 6px;border:1px solid #596b40;border-radius:4px;background:#29321e;color:var(--lime);font:7px 'DM Mono',monospace;letter-spacing:.5px}
+.instance-actions{display:flex;align-items:center;gap:6px}
+.instance-actions button{min-height:32px;padding:0 9px;border:1px solid #4d5d3b;border-radius:4px;background:#26301e;color:var(--lime);font:8px 'DM Mono',monospace}
+.instance-actions .instance-delete-button{border-color:#594039;background:#2b201b;color:#dda98e}
+@media(max-width:350px){.instance-card{align-items:flex-start;flex-direction:column}.instance-actions{width:100%}.instance-actions button{flex:1}}
