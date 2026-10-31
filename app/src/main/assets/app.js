@@ -103,7 +103,8 @@ document.querySelector("#account-button").addEventListener("click", () => {
   );
 });
 
-function showFeature(feature) {\n  if (feature === "Mods" || feature === "Mods & packs") { openModBrowser(); return; }
+function showFeature(feature) {
+  if (feature === "Mods" || feature === "Mods & packs") { openModBrowser(); return; }
   const messages = {
     "Instances": "Instance management is planned. The current preview does not install game versions or create separate game directories.",
     "Mods & packs": "Mod and modpack management is planned. No mod downloads or loader installation are connected yet.",
