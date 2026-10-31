@@ -3,9 +3,9 @@ package com.hyperlauncher.mobile
 import org.json.JSONObject
 
 /**
- * Resolves only native classifiers explicitly declared by Mojang's version JSON.
- * Android currently uses the Linux classifier family when Mojang provides one;
- * absence of a matching classifier is not silently replaced with another OS.
+ * Resolves Mojang native classifiers for desktop platforms only.
+ * Android must not install desktop Linux archives: matching CPU architecture
+ * does not make glibc-linked desktop libraries Android-compatible.
  */
 object MinecraftNativeLibraryResolver {
     fun parse(
