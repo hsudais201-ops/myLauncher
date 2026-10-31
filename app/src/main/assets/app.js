@@ -117,8 +117,10 @@ window.onNativeDeviceInfo = function (info) {
   const arch = String(info.architecture || "Unknown CPU");
   const runtimeWarning = String(info.runtimeWarning || "");
   const runtimeText = info.runtimeReady
-    ? " Android Java runtime checks passed."
-    : " Minecraft runtime: " + (runtimeWarning || "not ready") ;
+    ? " Android Java runtime detected (" + String(info.runtimeName || "unnamed") +
+      ", Java " + String(info.runtimeJavaMajor || "unknown") +
+      "). Graphics and game launch are not yet integrated."
+    : " Minecraft runtime: " + (runtimeWarning || "not ready");
   deviceInfoStatus.textContent = model + " · " + arch + " · " +
     totalRam.toFixed(1) + " GB RAM (" + availableRam.toFixed(1) + " GB available) · " +
     freeStorage.toFixed(1) + " GB free launcher storage. Suggested target: " +
