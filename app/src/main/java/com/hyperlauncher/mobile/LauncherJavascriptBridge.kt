@@ -19,8 +19,11 @@ import java.util.concurrent.atomic.AtomicBoolean
  */
 class LauncherJavascriptBridge(
     private val webView: WebView,
-    private val storageRoot: File
+    private val baseStorageRoot: File
 ) {
+    private val instanceStore = LauncherInstanceStore(baseStorageRoot)
+    @Volatile private var storageRoot: File = baseStorageRoot
+    @Volatile private var selectedInstanceId: String = LauncherInstanceStore.DEFAULT_ID
     private val executor = Executors.newSingleThreadExecutor()
     private val installCancelled = AtomicBoolean(false)
     private val installationActive = AtomicBoolean(false)
@@ -30,6 +33,123 @@ class LauncherJavascriptBridge(
     private val modInstallCancelled = AtomicBoolean(false)
     @Volatile private var curseForgeApiKey: String? = null
 
+
+
+    init {
+        try {
+            activateInstanceState(instanceStore.list())
+        } catch (_: Exception) {
+            // Preserve the legacy default storage root if the instance registry is unavailable.
+            storageRoot = baseStorageRoot
+            selectedInstanceId = LauncherInstanceStore.DEFAULT_ID
+        }
+    }
+
+
+    @JavascriptInterface
+    fun refreshInstances() {
+        executor.execute {
+            try {
+                val state = instanceStore.list()
+                activateInstanceState(state)
+                postToUi("onNativeInstances", state.toString())
+            } catch (error: Exception) {
+                postInstanceError(error)
+            }
+        }
+    }
+
+    @JavascriptInterface
+    fun createInstance(name: String, version: String) {
+        executor.execute {
+            try {
+                ensureInstanceChangesAllowed()
+                val state = instanceStore.create(name, version)
+                activateInstanceState(state)
+                postToUi("onNativeInstances", state.toString())
+            } catch (error: Exception) {
+                postInstanceError(error)
+            }
+        }
+    }
+
+    @JavascriptInterface
+    fun selectInstance(id: String) {
+        executor.execute {
+            try {
+                ensureInstanceChangesAllowed()
+                val state = instanceStore.select(id)
+                activateInstanceState(state)
+                postToUi("onNativeInstances", state.toString())
+            } catch (error: Exception) {
+                postInstanceError(error)
+            }
+        }
+    }
+
+    @JavascriptInterface
+    fun renameInstance(id: String, name: String) {
+        executor.execute {
+            try {
+                ensureInstanceChangesAllowed()
+                val state = instanceStore.rename(id, name)
+                activateInstanceState(state)
+                postToUi("onNativeInstances", state.toString())
+            } catch (error: Exception) {
+                postInstanceError(error)
+            }
+        }
+    }
+
+    @JavascriptInterface
+    fun deleteInstance(id: String) {
+        executor.execute {
+            try {
+                ensureInstanceChangesAllowed()
+                require(id != selectedInstanceId) { "Select a different instance before deleting this one" }
+                val state = instanceStore.delete(id)
+                activateInstanceState(state)
+                postToUi("onNativeInstances", state.toString())
+            } catch (error: Exception) {
+                postInstanceError(error)
+            }
+        }
+    }
+
+    @JavascriptInterface
+    fun updateSelectedInstanceVersion(version: String) {
+        executor.execute {
+            try {
+                val state = instanceStore.updateSelectedVersion(version)
+                activateInstanceState(state)
+                postToUi("onNativeInstances", state.toString())
+            } catch (error: Exception) {
+                postInstanceError(error)
+            }
+        }
+    }
+
+    private fun ensureInstanceChangesAllowed() {
+        check(!installationActive.get() && !modInstallActive.get()) {
+            "Wait for current downloads to finish before switching or changing instances"
+        }
+    }
+
+    private fun activateInstanceState(state: JSONObject) {
+        val selectedId = state.optString("selectedId", LauncherInstanceStore.DEFAULT_ID)
+        storageRoot = instanceStore.storageRoot(selectedId)
+        selectedInstanceId = selectedId
+    }
+
+    private fun postInstanceError(error: Exception) {
+        postToUi(
+            "onNativeInstances",
+            JSONObject()
+                .put("ok", false)
+                .put("error", error.message ?: "Could not update launcher instances")
+                .toString()
+        )
+    }
 
     @JavascriptInterface
     fun refreshDeviceInfo() {
@@ -66,6 +186,7 @@ class LauncherJavascriptBridge(
                     .put("minimumMemoryGb", range.minimumGb)
                     .put("maximumMemoryGb", range.maximumGb)
                     .put("recommendedMemoryGb", range.recommendedGb)
+                    .put("selectedInstanceId", selectedInstanceId)
                     .toString()
             )
         } catch (error: Exception) {
