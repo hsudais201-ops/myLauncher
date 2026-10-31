@@ -181,4 +181,4 @@ class MinecraftNativeLibraryResolverTest {
             destination.deleteRecursively()
         }
     }
-}\n
+}
