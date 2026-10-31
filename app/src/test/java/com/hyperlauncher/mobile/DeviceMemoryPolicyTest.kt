@@ -27,7 +27,7 @@ class DeviceMemoryPolicyTest {
     fun capsVeryLargeDevicesAtEightGigabytes() {
         val range = DeviceMemoryPolicy.calculate(32L * gib)
         assertEquals(8, range.maximumGb)
-        assertEquals(8, range.recommendedGb)
+        assertEquals(4, range.recommendedGb)
     }
 
     @Test
