@@ -22,6 +22,7 @@ class LauncherJavascriptBridge(
     private val baseStorageRoot: File
 ) {
     private val instanceStore = LauncherInstanceStore(baseStorageRoot)
+    private val instanceStateLock = Any()
     @Volatile private var storageRoot: File = baseStorageRoot
     @Volatile private var selectedInstanceId: String = LauncherInstanceStore.DEFAULT_ID
     private val executor = Executors.newSingleThreadExecutor()
@@ -50,8 +51,9 @@ class LauncherJavascriptBridge(
     fun refreshInstances() {
         executor.execute {
             try {
-                val state = instanceStore.list()
-                activateInstanceState(state)
+                val state = synchronized(instanceStateLock) {
+                    instanceStore.list().also { activateInstanceState(it) }
+                }
                 postToUi("onNativeInstances", state.toString())
             } catch (error: Exception) {
                 postInstanceError(error)
@@ -61,67 +63,47 @@ class LauncherJavascriptBridge(
 
     @JavascriptInterface
     fun createInstance(name: String, version: String) {
-        executor.execute {
-            try {
-                ensureInstanceChangesAllowed()
-                val state = instanceStore.create(name, version)
-                activateInstanceState(state)
-                postToUi("onNativeInstances", state.toString())
-            } catch (error: Exception) {
-                postInstanceError(error)
-            }
+        updateInstanceProfile {
+            instanceStore.create(name, version)
         }
     }
 
     @JavascriptInterface
     fun selectInstance(id: String) {
-        executor.execute {
-            try {
-                ensureInstanceChangesAllowed()
-                val state = instanceStore.select(id)
-                activateInstanceState(state)
-                postToUi("onNativeInstances", state.toString())
-            } catch (error: Exception) {
-                postInstanceError(error)
-            }
+        updateInstanceProfile {
+            instanceStore.select(id)
         }
     }
 
     @JavascriptInterface
     fun renameInstance(id: String, name: String) {
-        executor.execute {
-            try {
-                ensureInstanceChangesAllowed()
-                val state = instanceStore.rename(id, name)
-                activateInstanceState(state)
-                postToUi("onNativeInstances", state.toString())
-            } catch (error: Exception) {
-                postInstanceError(error)
-            }
+        updateInstanceProfile {
+            instanceStore.rename(id, name)
         }
     }
 
     @JavascriptInterface
     fun deleteInstance(id: String) {
-        executor.execute {
-            try {
-                ensureInstanceChangesAllowed()
-                require(id != selectedInstanceId) { "Select a different instance before deleting this one" }
-                val state = instanceStore.delete(id)
-                activateInstanceState(state)
-                postToUi("onNativeInstances", state.toString())
-            } catch (error: Exception) {
-                postInstanceError(error)
-            }
+        updateInstanceProfile {
+            require(id != selectedInstanceId) { "Select a different instance before deleting this one" }
+            instanceStore.delete(id)
         }
     }
 
     @JavascriptInterface
     fun updateSelectedInstanceVersion(version: String) {
+        updateInstanceProfile {
+            instanceStore.updateSelectedVersion(version)
+        }
+    }
+
+    private fun updateInstanceProfile(operation: () -> JSONObject) {
         executor.execute {
             try {
-                val state = instanceStore.updateSelectedVersion(version)
-                activateInstanceState(state)
+                val state = synchronized(instanceStateLock) {
+                    ensureInstanceChangesAllowed()
+                    operation().also { activateInstanceState(it) }
+                }
                 postToUi("onNativeInstances", state.toString())
             } catch (error: Exception) {
                 postInstanceError(error)
@@ -233,8 +215,13 @@ class LauncherJavascriptBridge(
             )
             return
         }
-        if (!installationActive.compareAndSet(false, true)) {
-            postInstallEvent(JSONObject().put("state", "error").put("error", "An installation is already running"))
+        val targetStorageRoot = synchronized(instanceStateLock) {
+            if (modInstallActive.get() || !installationActive.compareAndSet(false, true)) null else storageRoot
+        }
+        if (targetStorageRoot == null) {
+            postInstallEvent(
+                JSONObject().put("state", "error").put("error", "Finish the current download before starting another installation")
+            )
             return
         }
         installCancelled.set(false)
@@ -249,7 +236,7 @@ class LauncherJavascriptBridge(
                 if (installCancelled.get()) throw java.util.concurrent.CancellationException()
                 val installed = MinecraftInstallationService.install(
                     plan = plan,
-                    storageRoot = storageRoot,
+                    storageRoot = targetStorageRoot,
                     shouldCancel = { installCancelled.get() },
                     onProgress = { progress ->
                         postInstallEvent(
@@ -269,7 +256,7 @@ class LauncherJavascriptBridge(
                         .put("state", "complete")
                         .put("version", versionId)
                         .put("installedFiles", installed.size)
-                        .put("storagePath", storageRoot.absolutePath)
+                        .put("storagePath", targetStorageRoot.absolutePath)
                 )
             } catch (error: java.util.concurrent.CancellationException) {
                 postInstallEvent(JSONObject().put("state", "cancelled").put("version", versionId))
@@ -381,10 +368,13 @@ class LauncherJavascriptBridge(
         loader: String,
         requestId: String
     ) {
-        if (!modInstallActive.compareAndSet(false, true)) {
+        val targetStorageRoot = synchronized(instanceStateLock) {
+            if (installationActive.get() || !modInstallActive.compareAndSet(false, true)) null else storageRoot
+        }
+        if (targetStorageRoot == null) {
             postToUi(
                 "onNativeModInstall",
-                JSONObject().put("state", "error").put("error", "Another mod file is already downloading").toString()
+                JSONObject().put("state", "error").put("error", "Finish the current download before starting another file").toString()
             )
             return
         }
@@ -398,7 +388,7 @@ class LauncherJavascriptBridge(
                 val file = ModPlatformBrowser.resolveFileDownload(
                     source, projectId, fileId, fileName, projectType, gameVersion, loader, curseForgeApiKey
                 )
-                MinecraftStoragePreflight.check(storageRoot, file.descriptor.size)
+                MinecraftStoragePreflight.check(targetStorageRoot, file.descriptor.size)
                 if (modInstallCancelled.get()) throw java.util.concurrent.CancellationException()
                 postModInstallEvent(
                     JSONObject().put("state", "downloading").put("requestId", safeRequestId)
@@ -407,7 +397,7 @@ class LauncherJavascriptBridge(
                 val installed = VerifiedMinecraftFileDownloader.download(
                     descriptor = file.descriptor,
                     relativePath = file.relativePath,
-                    storageRoot = storageRoot,
+                    storageRoot = targetStorageRoot,
                     onProgress = { downloaded, total ->
                         postModInstallEvent(
                             JSONObject().put("state", "downloading").put("requestId", safeRequestId)
@@ -419,7 +409,7 @@ class LauncherJavascriptBridge(
                 )
                 postModInstallEvent(
                     JSONObject().put("state", "complete").put("requestId", safeRequestId)
-                        .put("fileName", file.fileName).put("path", installed.relativeTo(storageRoot).invariantSeparatorsPath)
+                        .put("fileName", file.fileName).put("path", installed.relativeTo(targetStorageRoot).invariantSeparatorsPath)
                 )
             } catch (error: java.util.concurrent.CancellationException) {
                 postModInstallEvent(JSONObject().put("state", "cancelled").put("requestId", safeRequestId))
