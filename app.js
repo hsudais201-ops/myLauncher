@@ -83,6 +83,9 @@ updateMemorySummary();
 versionSelect.addEventListener("change", () => {
   updateVersionSummary();
   saveSettings();
+  if (window.HyperLauncherNative && typeof window.HyperLauncherNative.updateSelectedInstanceVersion === "function") {
+    window.HyperLauncherNative.updateSelectedInstanceVersion(versionSelect.value);
+  }
 });
 memorySlider.addEventListener("input", () => {
   updateMemorySummary();
@@ -142,6 +145,7 @@ document.querySelector("#account-button").addEventListener("click", () => {
 
 function showFeature(feature) {
   if (feature === "Mods" || feature === "Mods & packs") { openModBrowser(); return; }
+  if (feature === "Instances") { openInstancesBrowser(); return; }
   const messages = {
     "Instances": "Instance management is planned. The current preview does not install game versions or create separate game directories.",
     "Mods & packs": "Mod and modpack management is planned. No mod downloads or loader installation are connected yet.",
@@ -764,3 +768,146 @@ cancelModDownloadButton.addEventListener("click", () => {
     window.HyperLauncherNative.cancelModInstall();
   }
 });
+
+
+const instancesBrowser = document.querySelector("#instances-browser");
+const instanceNameInput = document.querySelector("#instance-name");
+const createInstanceButton = document.querySelector("#create-instance");
+const instancesStatus = document.querySelector("#instances-status");
+const instanceList = document.querySelector("#instance-list");
+
+function renderInstancesState(state) {
+  instanceList.replaceChildren();
+  const records = state.instances && typeof state.instances.length === "number"
+    ? Array.from(state.instances) : [];
+  const selected = records.find(item => item.id === state.selectedId);
+  if (selected) {
+    const option = Array.from(versionSelect.options).find(item => item.value === selected.version);
+    if (option && versionSelect.value !== selected.version) {
+      versionSelect.value = selected.version;
+      updateVersionSummary();
+      saveSettings();
+    }
+  }
+  records.forEach(item => {
+    const card = document.createElement("article");
+    card.className = "instance-card";
+    const details = document.createElement("div");
+    details.className = "instance-card-details";
+    const titleRow = document.createElement("div");
+    titleRow.className = "instance-title-row";
+    const title = document.createElement("strong");
+    title.textContent = String(item.name || "Unnamed instance");
+    titleRow.appendChild(title);
+    if (item.id === state.selectedId) {
+      const active = document.createElement("span");
+      active.className = "instance-active-chip";
+      active.textContent = "ACTIVE";
+      titleRow.appendChild(active);
+    }
+    const meta = document.createElement("p");
+    meta.textContent = "Minecraft " + String(item.version || "release") +
+      (item.id === "default" ? " · Existing storage" : " · Separate storage");
+    details.append(titleRow, meta);
+    const actions = document.createElement("div");
+    actions.className = "instance-actions";
+    if (item.id !== state.selectedId) {
+      const selectButton = document.createElement("button");
+      selectButton.type = "button";
+      selectButton.className = "instance-select-button";
+      selectButton.textContent = "SELECT";
+      selectButton.addEventListener("click", () => selectLauncherInstance(String(item.id)));
+      actions.appendChild(selectButton);
+    }
+    if (item.id !== "default") {
+      const deleteButton = document.createElement("button");
+      deleteButton.type = "button";
+      deleteButton.className = "instance-delete-button";
+      deleteButton.textContent = "DELETE";
+      deleteButton.addEventListener("click", () => confirmDeleteLauncherInstance(item));
+      actions.appendChild(deleteButton);
+    }
+    card.append(details, actions);
+    instanceList.appendChild(card);
+  });
+  if (!selected) {
+    instancesStatus.textContent = "The active instance could not be found. Refresh the instance list.";
+    return;
+  }
+  instancesStatus.textContent = records.length + " instance" + (records.length === 1 ? "" : "s") +
+    " · Active: " + selected.name + ". Game and content downloads now target this instance.";
+}
+function openInstancesBrowser() {
+  instancesBrowser.hidden = false;
+  if (typeof modsBrowser !== "undefined") modsBrowser.hidden = true;
+  document.querySelectorAll(".bottom-item").forEach(item => {
+    item.classList.toggle("active", item.dataset.tab === "Instances");
+  });
+  instancesBrowser.scrollIntoView({behavior: "smooth", block: "start"});
+  loadLauncherInstances();
+}
+function loadLauncherInstances() {
+  if (window.HyperLauncherNative && typeof window.HyperLauncherNative.refreshInstances === "function") {
+    instancesStatus.textContent = "Loading saved instances…";
+    createInstanceButton.disabled = true;
+    window.HyperLauncherNative.refreshInstances();
+  } else {
+    instancesStatus.textContent = "Instance directories are available in the Android app. The browser preview cannot create app-private game folders.";
+    createInstanceButton.disabled = true;
+  }
+}
+function createLauncherInstance() {
+  const name = instanceNameInput.value.trim();
+  if (!name) {
+    instancesStatus.textContent = "Enter a name for your new instance.";
+    instanceNameInput.focus();
+    return;
+  }
+  if (!window.HyperLauncherNative || typeof window.HyperLauncherNative.createInstance !== "function") {
+    instancesStatus.textContent = "Create instances in the Android app to get separate game folders.";
+    return;
+  }
+  createInstanceButton.disabled = true;
+  instancesStatus.textContent = "Creating a separate game folder…";
+  window.HyperLauncherNative.createInstance(name, versionSelect.value);
+}
+function selectLauncherInstance(id) {
+  if (!window.HyperLauncherNative || typeof window.HyperLauncherNative.selectInstance !== "function") return;
+  createInstanceButton.disabled = true;
+  instancesStatus.textContent = "Switching active instance…";
+  window.HyperLauncherNative.selectInstance(id);
+}
+function confirmDeleteLauncherInstance(item) {
+  showDialog(
+    "Delete " + String(item.name || "instance") + "?",
+    "This permanently removes this instance's app-private game files and mod folders. Select another instance first.",
+    "DELETE INSTANCE",
+    () => {
+      if (window.HyperLauncherNative && typeof window.HyperLauncherNative.deleteInstance === "function") {
+        createInstanceButton.disabled = true;
+        instancesStatus.textContent = "Removing instance files…";
+        window.HyperLauncherNative.deleteInstance(String(item.id));
+      }
+    }
+  );
+}
+window.onNativeInstances = function (state) {
+  createInstanceButton.disabled = false;
+  if (!state || !state.ok) {
+    instancesStatus.textContent = state && state.error ? state.error : "Could not load launcher instances.";
+    return;
+  }
+  if (!Array.isArray(state.instances)) {
+    instancesStatus.textContent = "The instance registry returned an invalid response.";
+    return;
+  }
+  renderInstancesState(state);
+  instanceNameInput.value = "";
+};
+createInstanceButton.addEventListener("click", createLauncherInstance);
+instanceNameInput.addEventListener("keydown", event => {
+  if (event.key === "Enter") createLauncherInstance();
+});
+if (window.HyperLauncherNative && typeof window.HyperLauncherNative.refreshInstances === "function") {
+  window.HyperLauncherNative.refreshInstances();
+}
