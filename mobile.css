@@ -73,3 +73,8 @@
 .mod-download-panel p{margin:0 0 9px;color:#c2c8b4;font-size:9px;line-height:1.6;overflow-wrap:anywhere}
 #cancel-mod-download{margin-top:9px;padding:7px 9px;border:1px solid #555b47;border-radius:4px;background:#22251e;color:#d8ddca;font:8px 'DM Mono',monospace;letter-spacing:.6px}
 @media(max-width:350px){.project-version-card{align-items:flex-start;flex-direction:column}.install-mod-file{width:100%}}
+
+
+.load-more-mods{width:100%;min-height:40px;margin-top:10px;border:1px solid #465239;border-radius:5px;background:#22281b;color:var(--lime);font:8px 'DM Mono',monospace;letter-spacing:.7px}
+.load-more-mods[hidden]{display:none}
+.load-more-mods:disabled{opacity:.55}
