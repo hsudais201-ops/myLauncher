@@ -242,16 +242,21 @@ object AndroidRuntimeArchiveExtractor {
         return segments.joinToString("/")
     }
 
-    private fun validateContainedParent(root: Path, target: Path) {
+    private fun ensureContainedParentDirectory(root: Path, target: Path) {
         val parent = target.parent ?: error("Runtime archive entry has no parent")
         val canonicalParent = parent.toFile().canonicalFile.toPath().normalize()
         require(canonicalParent.startsWith(root)) {
             "Runtime archive entry follows a link outside the staging directory"
         }
+        Files.createDirectories(parent)
+        val createdParent = parent.toFile().canonicalFile.toPath().normalize()
+        require(createdParent.startsWith(root) && Files.isDirectory(parent)) {
+            "Runtime archive parent is not a safe directory"
+        }
     }
 
     private fun createDirectory(root: Path, target: Path) {
-        validateContainedParent(root, target)
+        ensureContainedParentDirectory(root, target)
         if (Files.exists(target, LinkOption.NOFOLLOW_LINKS)) {
             require(Files.isDirectory(target, LinkOption.NOFOLLOW_LINKS)) {
                 "Runtime archive directory collides with another entry"
@@ -276,7 +281,7 @@ object AndroidRuntimeArchiveExtractor {
         require(resolvedLink.startsWith(root)) {
             "Runtime archive symbolic link escapes the staging directory"
         }
-        validateContainedParent(root, target)
+        ensureContainedParentDirectory(root, target)
         require(!Files.exists(target, LinkOption.NOFOLLOW_LINKS)) {
             "Runtime archive contains a duplicate output path"
         }
@@ -290,8 +295,8 @@ object AndroidRuntimeArchiveExtractor {
         require(hardLinkTarget != root && hardLinkTarget.startsWith(root)) {
             "Runtime archive hard link escapes the staging directory"
         }
-        validateContainedParent(root, target)
-        validateContainedParent(root, hardLinkTarget)
+        ensureContainedParentDirectory(root, target)
+        ensureContainedParentDirectory(root, hardLinkTarget)
         require(Files.isRegularFile(hardLinkTarget, LinkOption.NOFOLLOW_LINKS)) {
             "Runtime archive hard link target is missing or is not a regular file"
         }
@@ -309,7 +314,7 @@ object AndroidRuntimeArchiveExtractor {
         tar: TarArchiveInputStream,
         shouldCancel: (() -> Boolean)?
     ) {
-        validateContainedParent(root, target)
+        ensureContainedParentDirectory(root, target)
         require(!Files.exists(target, LinkOption.NOFOLLOW_LINKS)) {
             "Runtime archive contains a duplicate output path"
         }
