@@ -110,6 +110,90 @@ class LauncherJavascriptBridge(
         }
     }
 
+
+    @JavascriptInterface
+    fun setCurseForgeApiKey(value: String) {
+        val key = value.trim()
+        if (key.length !in 8..512 || key.any { it.isWhitespace() || it.code < 33 }) {
+            postToUi(
+                "onNativeCurseForgeKey",
+                JSONObject().put("ok", false).put("error", "Enter a valid CurseForge API key").toString()
+            )
+            return
+        }
+        // Keep credentials in memory only. They are not written to preferences or files.
+        curseForgeApiKey = key
+        postToUi("onNativeCurseForgeKey", JSONObject().put("ok", true).toString())
+    }
+
+    @JavascriptInterface
+    fun clearCurseForgeApiKey() {
+        curseForgeApiKey = null
+        postToUi("onNativeCurseForgeKey", JSONObject().put("ok", true).put("cleared", true).toString())
+    }
+
+    @JavascriptInterface
+    fun searchMods(
+        source: String,
+        query: String,
+        projectType: String,
+        gameVersion: String,
+        loader: String,
+        sort: String,
+        requestId: String
+    ) {
+        val safeRequestId = requestId.take(40)
+        modSearchExecutor.execute {
+            val payload = try {
+                ModPlatformBrowser.search(
+                    source = source,
+                    query = query,
+                    projectType = projectType,
+                    gameVersion = gameVersion,
+                    loader = loader,
+                    sort = sort,
+                    curseForgeKey = curseForgeApiKey
+                ).put("requestId", safeRequestId)
+            } catch (error: Exception) {
+                JSONObject()
+                    .put("ok", false)
+                    .put("source", source)
+                    .put("requestId", safeRequestId)
+                    .put("error", error.message ?: "Could not search the mod catalog")
+            }
+            postToUi("onNativeModSearch", payload.toString())
+        }
+    }
+
+    @JavascriptInterface
+    fun openProjectUrl(value: String) {
+        try {
+            val uri = Uri.parse(value)
+            val host = uri.host?.lowercase().orEmpty()
+            val allowed = host == "modrinth.com" || host == "www.modrinth.com" ||
+                host == "curseforge.com" || host == "www.curseforge.com" ||
+                host == "console.curseforge.com"
+            require(uri.scheme == "https" && allowed && uri.userInfo == null &&
+                (uri.port == -1 || uri.port == 443)) { "Blocked an untrusted project link" }
+            webView.post {
+                try {
+                    val intent = Intent(Intent.ACTION_VIEW, uri).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    webView.context.startActivity(intent)
+                } catch (_: Exception) {
+                    postToUi(
+                        "onNativeModSearch",
+                        JSONObject().put("ok", false).put("error", "No browser app is available to open this link").toString()
+                    )
+                }
+            }
+        } catch (error: Exception) {
+            postToUi(
+                "onNativeModSearch",
+                JSONObject().put("ok", false).put("error", error.message ?: "Invalid project link").toString()
+            )
+        }
+    }
+
     @JavascriptInterface
     fun cancelInstallation() {
         installCancelled.set(true)
@@ -132,6 +216,8 @@ class LauncherJavascriptBridge(
 
     fun close() {
         installCancelled.set(true)
-        curseForgeApiKey = null\n        modSearchExecutor.shutdownNow()\n        executor.shutdownNow()
+        curseForgeApiKey = null
+        modSearchExecutor.shutdownNow()
+        executor.shutdownNow()
     }
 }
