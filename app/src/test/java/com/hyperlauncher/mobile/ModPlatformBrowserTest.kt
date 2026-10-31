@@ -16,6 +16,21 @@ class ModPlatformBrowserTest {
     }
 
     @Test
+    fun mapsCurseForgeSortFieldsToDocumentedValues() {
+        assertEquals(6, ModPlatformBrowser.curseForgeSortField("downloads"))
+        assertEquals(3, ModPlatformBrowser.curseForgeSortField("updated"))
+        assertEquals(2, ModPlatformBrowser.curseForgeSortField("relevance"))
+    }
+
+    @Test
+    fun matchesCurseForgeClassesWithoutConfusingModsAndModpacks() {
+        assertEquals(true, ModPlatformBrowser.matchesCurseForgeClass("mod", "Mods"))
+        assertEquals(false, ModPlatformBrowser.matchesCurseForgeClass("mod", "Modpacks"))
+        assertEquals(true, ModPlatformBrowser.matchesCurseForgeClass("modpack", "Modpacks"))
+        assertEquals(true, ModPlatformBrowser.matchesCurseForgeClass("resourcepack", "Texture Packs"))
+    }
+
+    @Test
     fun acceptsOnlyOfficialModDownloadHosts() {
         assertEquals(true, ModPlatformBrowser.isTrustedModDownloadUrl("https://cdn.modrinth.com/data/project/file.jar"))
         assertEquals(true, ModPlatformBrowser.isTrustedModDownloadUrl("https://edge.forgecdn.net/files/123/file.jar"))
