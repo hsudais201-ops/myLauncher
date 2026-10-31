@@ -226,12 +226,14 @@ class LauncherJavascriptBridge(
         }
         installCancelled.set(false)
         executor.execute {
+            var resolvedVersionId = versionId
             try {
-                postInstallEvent(
-                    JSONObject().put("state", "planning").put("version", versionId)
-                )
                 val version = MinecraftVersionManifest.findVersion(MinecraftVersionManifest.fetch(), versionId)
                     ?: throw IllegalArgumentException("Selected version was not found in Mojang's official manifest")
+                resolvedVersionId = version.id
+                postInstallEvent(
+                    JSONObject().put("state", "planning").put("version", resolvedVersionId)
+                )
                 val plan = MinecraftInstallPlanner.create(version)
                 if (installCancelled.get()) throw java.util.concurrent.CancellationException()
                 val installed = MinecraftInstallationService.install(
