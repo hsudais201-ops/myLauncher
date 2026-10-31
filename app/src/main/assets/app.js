@@ -115,10 +115,15 @@ window.onNativeDeviceInfo = function (info) {
   const freeStorage = (Number(info.availableStorageBytes) || 0) / gib;
   const model = String(info.deviceModel || "Android device");
   const arch = String(info.architecture || "Unknown CPU");
+  const runtimeWarning = String(info.runtimeWarning || "");
+  const runtimeText = info.runtimeReady
+    ? " Android Java runtime checks passed."
+    : " Minecraft runtime: " + (runtimeWarning || "not ready") ;
   deviceInfoStatus.textContent = model + " · " + arch + " · " +
     totalRam.toFixed(1) + " GB RAM (" + availableRam.toFixed(1) + " GB available) · " +
     freeStorage.toFixed(1) + " GB free launcher storage. Suggested target: " +
-    Number(info.recommendedMemoryGb || min) + " GB. This target is saved only until game launching is connected.";
+    Number(info.recommendedMemoryGb || min) + " GB. This target is saved only until game launching is connected." +
+    runtimeText;
   saveSettings();
 };
 
