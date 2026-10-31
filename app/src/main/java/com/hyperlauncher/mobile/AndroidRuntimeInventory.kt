@@ -7,7 +7,10 @@ import java.io.File
  * It follows the multi-runtime directory convention used by Amethyst/Pojav:
  * runtime folder/release and runtime folder/bin/java.
  *
- * This check does not execute Java and does not certify graphics integration.
+ * This check does not execute Java. A launcher-owned manifest is required to
+ * distinguish Android runtime bundles from desktop JREs with the same CPU ABI.
+ * The manifest must be written only by a future verified Android-runtime installer.
+ * This still does not certify graphics integration.
  */
 data class AndroidRuntimeDescriptor(
     val name: String,
@@ -35,7 +38,10 @@ object AndroidRuntimeInventory {
     private fun readRuntime(directory: File, deviceAbi: String): AndroidRuntimeDescriptor? {
         val release = File(directory, "release")
         val java = File(directory, "bin/java")
-        if (!release.isFile || !java.isFile || !java.canExecute()) return null
+        val marker = File(directory, "hyperlauncher-runtime.properties")
+        if (!release.isFile || !java.isFile || !java.canExecute() || !marker.isFile) return null
+        val markerValues = parseProperties(runCatching { marker.readText() }.getOrNull() ?: return null)
+        if (markerValues["platform"] != "android" || markerValues["abi"] != deviceAbi) return null
         val metadata = runCatching { release.readText() }.getOrNull() ?: return null
         val version = Regex("""(?m)^JAVA_VERSION="([^"]+)"$""")
             .find(metadata)?.groupValues?.getOrNull(1) ?: return null
@@ -45,6 +51,15 @@ object AndroidRuntimeInventory {
         if (!matchesAbi(deviceAbi, architecture)) return null
         return AndroidRuntimeDescriptor(directory.name, major, architecture)
     }
+
+    private fun parseProperties(contents: String): Map<String, String> =
+        contents.lineSequence().mapNotNull { line ->
+            val trimmed = line.trim()
+            if (trimmed.isEmpty() || trimmed.startsWith("#")) return@mapNotNull null
+            val separator = trimmed.indexOf('=')
+            if (separator <= 0) return@mapNotNull null
+            trimmed.substring(0, separator).trim() to trimmed.substring(separator + 1).trim()
+        }.toMap()
 
     private fun parseMajor(version: String): Int? {
         val pieces = version.split('.')
