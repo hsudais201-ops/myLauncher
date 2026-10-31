@@ -52,7 +52,7 @@ object ModPlatformBrowser {
     }
 
 
-    private val modDownloadHosts = setOf(
+    internal val modDownloadHosts = setOf(
         "cdn.modrinth.com",
         "cdn-raw.modrinth.com",
         "edge.forgecdn.net",
