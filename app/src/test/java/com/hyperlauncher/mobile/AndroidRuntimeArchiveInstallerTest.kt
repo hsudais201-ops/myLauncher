@@ -82,7 +82,7 @@ class AndroidRuntimeArchiveInstallerTest {
 
     @Test
     fun rejectsTraversalAndDeletesStagingDirectory() {
-        val entries = validEntries() + ArchiveEntry("../escaped", byteArrayOf(9))
+        val entries = validEntries() + ArchiveEntry("../escaped", byteArrayOf(9), 0b110100100)
         val archive = createArchive(entries)
         val root = Files.createTempDirectory("hyper-runtime-traversal").toFile()
         val staging = File(root, "staging")
