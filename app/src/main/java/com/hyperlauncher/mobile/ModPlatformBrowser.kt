@@ -73,6 +73,7 @@ object ModPlatformBrowser {
         curseForgeKey: String?
     ): JSONObject {
         require(projectTypes.contains(projectType)) { "Unsupported project type" }
+        require(source != "modrinth" || projectType != "world") { "World downloads are available through CurseForge." }
         require(loaders.contains(loader)) { "Unsupported mod loader" }
         val version = gameVersion.trim()
         require(version.isEmpty() || versionPattern.matches(version)) { "Enter a valid Minecraft version" }
