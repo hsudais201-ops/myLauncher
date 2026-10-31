@@ -56,9 +56,11 @@ class LauncherInstanceStore(private val baseStorageRoot: File) {
     fun select(id: String): JSONObject = synchronized(lock) {
         val registry = readRegistry()
         require(findInstance(registry, id) != null) { "That instance does not exist" }
-        val directory = instanceDirectory(id)
-        require(directory.mkdirs() || directory.isDirectory) {
-            "Could not create the selected instance directory"
+        if (id != DEFAULT_ID) {
+            val directory = instanceDirectory(id)
+            require(directory.mkdirs() || directory.isDirectory) {
+                "Could not create the selected instance directory"
+            }
         }
         registry.put("selectedId", id)
         writeRegistry(registry)
