@@ -45,7 +45,7 @@ function readSettings() {
     if (saved.version && Array.from(versionSelect.options).some(option => option.value === saved.version)) {
       versionSelect.value = saved.version;
     }
-    if (Number.isInteger(saved.memory) && saved.memory >= 2 && saved.memory <= 8) {
+    if (Number.isInteger(saved.memory) && saved.memory >= 1 && saved.memory <= 8) {
       memorySlider.value = String(saved.memory);
     }
   } catch (error) {
