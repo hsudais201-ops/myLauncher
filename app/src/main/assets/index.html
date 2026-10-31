@@ -104,6 +104,17 @@
           <p class="mod-status" id="mod-status" role="status" aria-live="polite">Choose a source and search the Minecraft catalog.</p>
         </div>
         <div class="mod-results" id="mod-results" aria-live="polite"></div>
+        <section class="project-versions" id="project-versions" hidden>
+          <div class="versions-heading"><div><span class="section-kicker">COMPATIBLE FILES</span><h3 id="versions-project-title">Project versions</h3></div><button id="close-project-versions" type="button" aria-label="Close project versions">×</button></div>
+          <p class="versions-status" id="versions-status" role="status" aria-live="polite">Choose a project to view its files.</p>
+          <div class="project-version-list" id="project-version-list"></div>
+          <div class="mod-download-panel" id="mod-download-panel" hidden aria-live="polite">
+            <p id="mod-download-status">Preparing file…</p>
+            <div class="install-progress-track"><span id="mod-download-progress-bar"></span></div>
+            <button id="cancel-mod-download" type="button">CANCEL DOWNLOAD</button>
+          </div>
+        </section>
+
       </section>
 
       <section class="settings-section">
