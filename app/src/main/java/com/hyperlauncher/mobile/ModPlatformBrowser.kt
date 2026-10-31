@@ -8,6 +8,13 @@ import java.net.HttpURLConnection
 import java.net.URL
 import java.net.URLEncoder
 
+
+data class ModFileDownload(
+    val descriptor: MinecraftDownload,
+    val relativePath: String,
+    val fileName: String
+)
+
 /**
  * Search adapter for the official Modrinth and CurseForge APIs.
  * CurseForge credentials are supplied at runtime and are never written to disk.
@@ -42,6 +49,201 @@ object ModPlatformBrowser {
         } else {
             searchCurseForge(query.trim(), projectType, version, loader, sort, curseForgeKey)
         }
+    }
+
+
+    private val modDownloadHosts = setOf(
+        "cdn.modrinth.com",
+        "cdn-raw.modrinth.com",
+        "edge.forgecdn.net",
+        "mediafilez.forgecdn.net",
+        "media.forgecdn.net"
+    )
+
+    fun listProjectVersions(
+        source: String,
+        projectId: String,
+        projectType: String,
+        gameVersion: String,
+        loader: String,
+        curseForgeKey: String?
+    ): JSONObject {
+        require(projectTypes.contains(projectType)) { "Unsupported project type" }
+        require(loaders.contains(loader)) { "Unsupported mod loader" }
+        val version = gameVersion.trim()
+        require(version.isEmpty() || versionPattern.matches(version)) { "Enter a valid Minecraft version" }
+        val versions = when (source) {
+            "modrinth" -> listModrinthVersions(projectId, projectType, version, loader)
+            "curseforge" -> listCurseForgeVersions(projectId, projectType, version, loader, curseForgeKey)
+            else -> throw IllegalArgumentException("Choose Modrinth or CurseForge")
+        }
+        return JSONObject().put("ok", true).put("source", source).put("versions", versions)
+    }
+
+    fun resolveFileDownload(
+        source: String,
+        projectId: String,
+        fileId: String,
+        fileName: String,
+        projectType: String,
+        gameVersion: String,
+        loader: String,
+        curseForgeKey: String?
+    ): ModFileDownload {
+        val versions = listProjectVersions(
+            source, projectId, projectType, gameVersion, loader, curseForgeKey
+        ).getJSONArray("versions")
+        for (i in 0 until versions.length()) {
+            val candidate = versions.getJSONObject(i)
+            if (candidate.optString("fileId") != fileId ||
+                candidate.optString("fileName") != fileName) continue
+            val url = candidate.optString("downloadUrl")
+            require(isTrustedModDownloadUrl(url)) { "This file has no supported official download URL" }
+            val sha1 = candidate.optString("sha1")
+            require(Regex("^[a-fA-F0-9]{40}$").matches(sha1)) {
+                "The mod platform did not provide a SHA-1 checksum for this file"
+            }
+            val size = candidate.optLong("size", -1L)
+            require(size > 0L) { "The mod platform did not provide a valid file size" }
+            val safeName = safeModFileName(fileName)
+            val folder = when (projectType) {
+                "resourcepack" -> "resourcepacks"
+                "shader" -> "shaderpacks"
+                "modpack" -> "modpacks"
+                else -> "mods"
+            }
+            return ModFileDownload(
+                descriptor = MinecraftDownload(url, sha1.lowercase(), size),
+                relativePath = "$folder/$safeName",
+                fileName = safeName
+            )
+        }
+        throw IllegalArgumentException("The selected file is no longer available for these filters. Refresh the versions.")
+    }
+
+    internal fun isTrustedModDownloadUrl(value: String): Boolean {
+        return try {
+            val url = URL(value)
+            url.protocol == "https" && url.host.lowercase() in modDownloadHosts &&
+                url.userInfo == null && url.port in listOf(-1, 443)
+        } catch (_: Exception) {
+            false
+        }
+    }
+
+    private fun safeModFileName(value: String): String {
+        val fileName = value.trim()
+        require(fileName.length in 1..180 &&
+            fileName.matches(Regex("^[A-Za-z0-9][A-Za-z0-9._-]{0,179}$")) &&
+            fileName != "." && fileName != "..") {
+            "The selected file has an unsafe filename"
+        }
+        return fileName
+    }
+
+    private fun listModrinthVersions(
+        projectId: String,
+        projectType: String,
+        version: String,
+        loader: String
+    ): JSONArray {
+        require(projectId.matches(Regex("^[A-Za-z0-9_-]{1,64}$"))) { "Invalid Modrinth project ID" }
+        val filters = ArrayList<String>()
+        if (version.isNotEmpty()) filters += "game_versions=" + encode(JSONArray().put(version).toString())
+        if (loader != "any") filters += "loaders=" + encode(JSONArray().put(loader).toString())
+        val query = if (filters.isEmpty()) "" else "?" + filters.joinToString("&")
+        val endpoint = "$MODRINTH_BASE/project/$projectId/version$query"
+        val response = requestJsonArray(endpoint, "api.modrinth.com", null)
+        val versions = JSONArray()
+        for (i in 0 until response.length()) {
+            val versionItem = response.optJSONObject(i) ?: continue
+            val versionId = versionItem.optString("id")
+            if (versionId.isBlank()) continue
+            val files = versionItem.optJSONArray("files") ?: JSONArray()
+            for (j in 0 until files.length()) {
+                val file = files.optJSONObject(j) ?: continue
+                val fileName = file.optString("filename")
+                val url = file.optString("url")
+                val hashes = file.optJSONObject("hashes")
+                val sha1 = hashes?.optString("sha1").orEmpty()
+                val size = file.optLong("size", -1L)
+                if (!isTrustedModDownloadUrl(url) || !Regex("^[a-fA-F0-9]{40}$").matches(sha1) || size <= 0L) continue
+                versions.put(
+                    JSONObject()
+                        .put("fileId", versionId)
+                        .put("fileName", fileName)
+                        .put("name", versionItem.optString("name", versionItem.optString("version_number")))
+                        .put("versionNumber", versionItem.optString("version_number"))
+                        .put("datePublished", versionItem.optString("date_published"))
+                        .put("downloads", versionItem.optLong("downloads", 0L))
+                        .put("size", size)
+                        .put("sha1", sha1)
+                        .put("downloadUrl", url)
+                        .put("primary", file.optBoolean("primary", false))
+                        .put("projectType", projectType)
+                )
+            }
+        }
+        return versions
+    }
+
+    private fun listCurseForgeVersions(
+        projectId: String,
+        projectType: String,
+        version: String,
+        loader: String,
+        apiKey: String?
+    ): JSONArray {
+        require(projectId.matches(Regex("^[0-9]{1,12}$"))) { "Invalid CurseForge project ID" }
+        val key = apiKey?.trim().orEmpty()
+        require(key.length >= 8) {
+            "CurseForge requires your own API key. Add it in the CurseForge section to search."
+        }
+        val loaderType = curseForgeLoaderType(loader)
+        require(loaderType == null || version.isNotEmpty()) {
+            "Choose a Minecraft version when filtering CurseForge by mod loader."
+        }
+        val endpoint = "$CURSEFORGE_BASE/mods/$projectId/files?gameId=$MINECRAFT_GAME_ID" +
+            (if (version.isNotEmpty()) "&gameVersion=" + encode(version) else "") +
+            (if (loaderType != null) "&modLoaderType=$loaderType" else "") +
+            "&pageSize=24&index=0"
+        val body = requestJson(endpoint, "api.curseforge.com", key)
+        val response = body.optJSONArray("data") ?: JSONArray()
+        val versions = JSONArray()
+        for (i in 0 until response.length()) {
+            val item = response.optJSONObject(i) ?: continue
+            if (item.optBoolean("isAvailable", true).not()) continue
+            val fileId = item.optLong("id", 0L)
+            val fileName = item.optString("fileName")
+            val downloadUrl = item.optString("downloadUrl")
+            val hashes = item.optJSONArray("hashes")
+            var sha1 = ""
+            for (j in 0 until (hashes?.length() ?: 0)) {
+                val hash = hashes?.optJSONObject(j) ?: continue
+                if (hash.optInt("algo", -1) == 1) {
+                    sha1 = hash.optString("value")
+                    break
+                }
+            }
+            val size = item.optLong("fileLength", -1L)
+            if (fileId <= 0L || !isTrustedModDownloadUrl(downloadUrl) ||
+                !Regex("^[a-fA-F0-9]{40}$").matches(sha1) || size <= 0L) continue
+            versions.put(
+                JSONObject()
+                    .put("fileId", fileId.toString())
+                    .put("fileName", fileName)
+                    .put("name", item.optString("displayName", fileName))
+                    .put("versionNumber", item.optString("gameVersion"))
+                    .put("datePublished", item.optString("fileDate"))
+                    .put("downloads", item.optLong("downloadCount", 0L))
+                    .put("size", size)
+                    .put("sha1", sha1)
+                    .put("downloadUrl", downloadUrl)
+                    .put("primary", false)
+                    .put("projectType", projectType)
+            )
+        }
+        return versions
     }
 
     private fun searchModrinth(
@@ -226,7 +428,13 @@ object ModPlatformBrowser {
         }
     }
 
-    private fun requestJson(value: String, allowedHost: String, apiKey: String?): JSONObject {
+    private fun requestJson(value: String, allowedHost: String, apiKey: String?): JSONObject =
+        JSONObject(requestPayload(value, allowedHost, apiKey))
+
+    private fun requestJsonArray(value: String, allowedHost: String, apiKey: String?): JSONArray =
+        JSONArray(requestPayload(value, allowedHost, apiKey))
+
+    private fun requestPayload(value: String, allowedHost: String, apiKey: String?): String {
         val url = URL(value)
         require(url.protocol == "https" && url.host.equals(allowedHost, ignoreCase = true) &&
             url.userInfo == null && url.port in listOf(-1, 443)) {
@@ -269,7 +477,7 @@ object ModPlatformBrowser {
                 }
                 output.toString(Charsets.UTF_8.name())
             }
-            return JSONObject(payload)
+            return payload
         } finally {
             connection.disconnect()
         }
