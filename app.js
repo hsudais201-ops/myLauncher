@@ -165,8 +165,11 @@ document.querySelectorAll(".bottom-item").forEach(button => {
   button.addEventListener("click", () => {
     const tab = button.dataset.tab;
     document.querySelectorAll(".bottom-item").forEach(item => item.classList.toggle("active", item === button));
-    if (tab === "Home") window.scrollTo({top: 0, behavior: "smooth"});
-    else showFeature(tab);
+    if (tab === "Home") {
+      if (typeof modsBrowser !== "undefined") modsBrowser.hidden = true;
+      if (typeof instancesBrowser !== "undefined") instancesBrowser.hidden = true;
+      window.scrollTo({top: 0, behavior: "smooth"});
+    } else showFeature(tab);
   });
 });
 
@@ -330,6 +333,7 @@ function updateModSourcePanel() {
 }
 function openModBrowser() {
   modsBrowser.hidden = false;
+  if (typeof instancesBrowser !== "undefined") instancesBrowser.hidden = true;
   if (!modVersion.value) modVersion.value = versionSelect.value === "snapshot" ? "" : versionSelect.value;
   updateModSourcePanel();
   document.querySelectorAll(".bottom-item").forEach(item => item.classList.toggle("active", item.dataset.tab === "Mods"));
