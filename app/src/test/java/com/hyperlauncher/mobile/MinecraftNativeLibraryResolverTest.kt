@@ -89,4 +89,48 @@ class MinecraftNativeLibraryResolverTest {
         """.trimIndent()
         assertEquals(0, MinecraftNativeLibraryResolver.parse("1.21.4", json, osArch = "aarch64").size)
     }
+
+    @Test
+    fun rejectsDuplicateOutputAcrossNativeArchives() {
+        val first = File.createTempFile("hyper-native-first", ".zip")
+        val second = File.createTempFile("hyper-native-second", ".zip")
+        val destination = File(first.parentFile, "hyper-native-duplicate-test")
+        fun writeArchive(file: File, byte: Byte) {
+            ZipOutputStream(file.outputStream()).use { zip ->
+                zip.putNextEntry(ZipEntry("lib/example.so"))
+                zip.write(byteArrayOf(byte))
+                zip.closeEntry()
+            }
+        }
+        writeArchive(first, 1)
+        writeArchive(second, 2)
+        try {
+            assertThrows(IllegalArgumentException::class.java) {
+                MinecraftNativeExtractor.extract(listOf(first, second), destination)
+            }
+        } finally {
+            first.delete()
+            second.delete()
+            destination.deleteRecursively()
+        }
+    }
+
+    @Test
+    fun rejectsAmbiguousEmptyPathSegments() {
+        val archive = File.createTempFile("hyper-native-path", ".zip")
+        val destination = File(archive.parentFile, "hyper-native-empty-segment-test")
+        ZipOutputStream(archive.outputStream()).use { zip ->
+            zip.putNextEntry(ZipEntry("lib//example.so"))
+            zip.write(byteArrayOf(1))
+            zip.closeEntry()
+        }
+        try {
+            assertThrows(IllegalArgumentException::class.java) {
+                MinecraftNativeExtractor.extract(listOf(archive), destination)
+            }
+        } finally {
+            archive.delete()
+            destination.deleteRecursively()
+        }
+    }
 }
