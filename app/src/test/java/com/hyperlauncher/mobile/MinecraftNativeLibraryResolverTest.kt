@@ -108,6 +108,7 @@ class MinecraftNativeLibraryResolverTest {
             assertThrows(IllegalArgumentException::class.java) {
                 MinecraftNativeExtractor.extract(listOf(first, second), destination)
             }
+            assertEquals(false, File(destination, "lib/example.so").exists())
         } finally {
             first.delete()
             second.delete()
@@ -133,4 +134,51 @@ class MinecraftNativeLibraryResolverTest {
             destination.deleteRecursively()
         }
     }
-}
+
+    @Test
+    fun removesPartialFilesWhenExtractionIsCancelled() {
+        val archive = File.createTempFile("hyper-native-cancel", ".zip")
+        val destination = File(archive.parentFile, "hyper-native-cancel-test")
+        ZipOutputStream(archive.outputStream()).use { zip ->
+            zip.putNextEntry(ZipEntry("lib/example.so"))
+            zip.write(ByteArray(128) { 7 })
+            zip.closeEntry()
+            zip.putNextEntry(ZipEntry("lib/second.so"))
+            zip.write(byteArrayOf(1))
+            zip.closeEntry()
+        }
+        var checks = 0
+        try {
+            assertThrows(java.util.concurrent.CancellationException::class.java) {
+                MinecraftNativeExtractor.extract(listOf(archive), destination) {
+                    checks++ >= 3
+                }
+            }
+            assertEquals(false, File(destination, "lib/example.so").exists())
+        } finally {
+            archive.delete()
+            destination.deleteRecursively()
+        }
+    }
+
+    @Test
+    fun acceptsSafeDirectoryEntries() {
+        val archive = File.createTempFile("hyper-native-dir", ".zip")
+        val destination = File(archive.parentFile, "hyper-native-dir-test")
+        ZipOutputStream(archive.outputStream()).use { zip ->
+            zip.putNextEntry(ZipEntry("lib/"))
+            zip.closeEntry()
+            zip.putNextEntry(ZipEntry("lib/example.so"))
+            zip.write(byteArrayOf(1))
+            zip.closeEntry()
+        }
+        try {
+            val files = MinecraftNativeExtractor.extract(listOf(archive), destination)
+            assertEquals(1, files.size)
+            assertEquals(true, File(destination, "lib/example.so").exists())
+        } finally {
+            archive.delete()
+            destination.deleteRecursively()
+        }
+    }
+}\n
