@@ -12,11 +12,17 @@ object MinecraftNativeLibraryResolver {
         versionId: String,
         json: String,
         osName: String = "linux",
-        osArch: String = System.getProperty("os.arch").orEmpty()
+        osArch: String = System.getProperty("os.arch").orEmpty(),
+        isAndroid: Boolean = true
     ): List<PlannedMinecraftFile> {
         require(Regex("^[0-9][A-Za-z0-9._-]{0,63}$").matches(versionId)) {
             "Invalid Minecraft version ID"
         }
+        // Desktop Linux native archives are not Android native libraries, even
+        // when the CPU ABI is x86_64. Amethyst/Pojav-style runtime integration
+        // must provide the Android-compatible LWJGL/native bridge separately.
+        if (isAndroid) return emptyList()
+
         val architecture = when (osArch.lowercase()) {
             "x86_64", "amd64" -> "64"
             "x86", "i386", "i686" -> "32"
