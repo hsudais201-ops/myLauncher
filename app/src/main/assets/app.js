@@ -419,14 +419,23 @@ function runModSearch(offset = 0, append = false) {
   if (!window.HyperLauncherNative || typeof window.HyperLauncherNative.searchMods !== "function") {
     if (source === "curseforge") {
       modSearchButton.disabled = false;
+      loadMoreModsButton.disabled = false;
       modStatus.textContent = "CurseForge API search is available in the Android app, where the API key is kept in app memory. Modrinth search works in this browser preview.";
       return;
     }
     searchModrinthInBrowser(requestId, query, type, gameVersion, loader, sort, offset, append)
       .catch(error => {
-        if (requestId === activeModRequest) modStatus.textContent = "Could not load Modrinth: " + error.message;
+        if (requestId === activeModRequest) {
+          modStatus.textContent = "Could not load Modrinth: " + error.message;
+          loadMoreModsButton.disabled = false;
+        }
       })
-      .finally(() => { if (requestId === activeModRequest) modSearchButton.disabled = false; });
+      .finally(() => {
+        if (requestId === activeModRequest) {
+          modSearchButton.disabled = false;
+          loadMoreModsButton.disabled = false;
+        }
+      });
     return;
   }
   window.HyperLauncherNative.searchMods(source, query, type, gameVersion, loader, sort, offset, requestId);
@@ -435,6 +444,7 @@ window.onNativeModSearch = function (result) {
   if (!result || result.requestId !== activeModRequest) return;
   modSearchButton.disabled = false;
   if (!result.ok) {
+    loadMoreModsButton.disabled = false;
     modStatus.textContent = result.error || "The catalog search failed.";
     return;
   }
