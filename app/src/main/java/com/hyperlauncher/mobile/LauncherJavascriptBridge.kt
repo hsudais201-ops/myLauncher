@@ -228,7 +228,7 @@ class LauncherJavascriptBridge(
         executor.execute {
             try {
                 postInstallEvent(
-                    JSONObject().put("state", "planning").put("version", version.id)
+                    JSONObject().put("state", "planning").put("version", versionId)
                 )
                 val version = MinecraftVersionManifest.findVersion(MinecraftVersionManifest.fetch(), versionId)
                     ?: throw IllegalArgumentException("Selected version was not found in Mojang's official manifest")
@@ -259,7 +259,7 @@ class LauncherJavascriptBridge(
                         .put("storagePath", targetStorageRoot.absolutePath)
                 )
             } catch (error: java.util.concurrent.CancellationException) {
-                postInstallEvent(JSONObject().put("state", "cancelled").put("version", version.id))
+                postInstallEvent(JSONObject().put("state", "cancelled").put("version", versionId))
             } catch (error: Exception) {
                 postInstallEvent(
                     JSONObject()
