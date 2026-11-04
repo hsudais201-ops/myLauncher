@@ -14,13 +14,13 @@ Included in this milestone:
 - Separate visual areas for Modrinth/CurseForge content and launcher features.
 - Unit tests for the navigation model.
 - GitHub Actions build and test workflow.
-- Gradle 9.8.2 wrapper.
+- Gradle 9.7.0 wrapper.
 
 **Not implemented yet:** Minecraft Java runtime integration, game downloads and launching, Microsoft authentication, offline profile management, Modrinth/CurseForge APIs, cloud Feature Store installation, Social Hub services, live ServerState, or AI crash repair. The current app labels these areas as planned instead of presenting non-working controls as functional.
 
 ## Requirements
 
-- Android Studio with Android SDK Platform 37 installed.
+- Android Studio with Android SDK Platform 36 installed.
 - JDK 17 or newer.
 - Android device or emulator running Android 8.0 (API 26) or newer.
 
