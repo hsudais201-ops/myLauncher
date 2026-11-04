@@ -14,7 +14,7 @@ Included in this milestone:
 - Separate visual areas for Modrinth/CurseForge content and launcher features.
 - Unit tests for the navigation model.
 - GitHub Actions build and test workflow.
-- Gradle 9.7.0 wrapper.
+- Gradle 8.13 wrapper.
 
 **Not implemented yet:** Minecraft Java runtime integration, game downloads and launching, Microsoft authentication, offline profile management, Modrinth/CurseForge APIs, cloud Feature Store installation, Social Hub services, live ServerState, or AI crash repair. The current app labels these areas as planned instead of presenting non-working controls as functional.
 
@@ -57,7 +57,7 @@ A failed check blocks the next milestone. Fixes must be verified before proceedi
 1. Android shell and navigation.
 2. Minecraft runtime research and integration.
 3. Local profiles, offline accounts, and Microsoft authentication.
-4. Per-instance game files, version manifests, libraries, assets, and launch pipeline.
+4. Per-instance game files, libraries, assets, and launch pipeline.
 5. Device-aware performance and renderer controls.
 6. Modrinth and CurseForge content browser as a main navigation destination.
 7. Independent cloud Feature Store for official and community launcher features.
