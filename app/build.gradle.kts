@@ -6,7 +6,7 @@ plugins {
 
 android {
     namespace = "com.flame.launcher"
-    compileSdk = 37
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.flame.launcher"
