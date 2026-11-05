@@ -21,7 +21,7 @@ Amethyst is a complete Android application project, not a small Maven/AAR depend
 - Android NDK 27.3.13750724.
 - Native dependencies and submodules including SDL and renderer-related components.
 
-Therefore Flame must not pretend that adding a single Gradle dependency enables game launching. The next integration work must preserve Amethyst's native runtime packaging and lifecycle, then connect Flame's UI to the real profile, download, authentication, and launch pipeline. The existing Flame build (AGP 8.13.2 / Gradle 8.13 / SDK 36) is not yet configured for that integration.
+Therefore Flame must not pretend that adding a single Gradle dependency enables game launching. The next integration work must preserve Amethyst's native runtime packaging and lifecycle, then connect Flame's UI to the real profile, download, authentication, and launch pipeline. Flame's standalone app now builds with AGP 9.3.1, Gradle 9.6.1, JDK 21, and SDK 37, but the native engine modules and NDK 27.3.13750724 are not yet configured in the Flame build.
 
 ## License and redistribution gate
 
@@ -35,12 +35,17 @@ Flame now evaluates the real Android API level and Android's reported CPU ABI li
 
 This is a compatibility preflight only. It does **not** verify that a compatible JRE or renderer is installed, download Minecraft files, authenticate an account, or start the game. The Play screen continues to label the engine as not connected.
 
+## Toolchain status
+
+The standalone Flame build passed with AGP 9.3.1, Gradle 9.6.1, JDK 21, and Android API 37. The build has been migrated to AGP's built-in Kotlin support, removing the temporary `android.builtInKotlin=false` and `android.newDsl=false` opt-outs. The Compose compiler plugin remains applied at Kotlin 2.4.21. This is only the standalone app toolchain; it does not mean Amethyst's native modules build yet.
+
 ## Required next gates
 
-1. Bring the pinned Amethyst source and its required Git submodules into a dedicated engine area, retaining upstream provenance and license files.
-2. Integrate the engine into one Flame APK, rather than requiring a separate launcher installation.
-3. Update CI for the required Gradle, Android SDK, NDK, and recursive submodules, then build the complete native app.
-4. Connect the Flame Play/profile UI to the engine's real storage, version downloader, account, and launch lifecycle.
+1. Fetch the pinned Amethyst source shallowly and inspect all recursive submodules, native libraries, licenses, and generated runtime artifacts.
+2. Choose and implement the same-APK host integration: bring Amethyst's subprojects into the Flame Gradle build, convert its launcher application module into a consumable library module, merge its app manifest and resources, and remove the upstream launcher intent filter from the merged manifest so Flame remains the single app entry point.
+3. Add NDK 27.3.13750724 and the upstream native build/toolchain steps to CI, then build the complete APK with all native ABIs required by the supported device matrix.
+4. Connect Flame's Play/profile UI to Amethyst's real storage, version downloader, authentication, and launch lifecycle without launching a separately installed app.
 5. Validate on an actual ARM64 Android device: fresh install, runtime installation, official-account flow, local/offline profile where supported, vanilla launch, clean exit, and crash-log capture.
+6. Audit LGPL notices and every native/runtime component's redistribution terms before shipping any bundled binaries or runtime assets.
 
 A CI build alone is not evidence that Minecraft launches. The runtime milestone remains incomplete until the device-level launch checks pass.
