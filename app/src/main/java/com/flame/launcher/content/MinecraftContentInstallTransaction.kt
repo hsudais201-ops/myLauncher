@@ -3,7 +3,6 @@ package com.flame.launcher.content
 import java.io.File
 import java.io.FileOutputStream
 import java.nio.file.Files
-import java.nio.file.StandardCopyOption
 import java.security.MessageDigest
 import java.util.Locale
 
@@ -46,12 +45,9 @@ private object DefaultMinecraftInstallFileOperations : MinecraftInstallFileOpera
     }
 
     override fun moveNoReplace(source: File, destination: File) {
-        try {
-            Files.move(source.toPath(), destination.toPath(), StandardCopyOption.ATOMIC_MOVE)
-        } catch (_: java.nio.file.AtomicMoveNotSupportedException) {
-            // No REPLACE_EXISTING: a concurrent/pre-existing destination must fail closed.
-            Files.move(source.toPath(), destination.toPath())
-        }
+        // Same-directory move, deliberately without ATOMIC_MOVE or REPLACE_EXISTING.
+        // The default provider performs a same-filesystem rename and must fail if target exists.
+        Files.move(source.toPath(), destination.toPath())
     }
 
     override fun delete(file: File): Boolean = Files.deleteIfExists(file.toPath())
