@@ -2,10 +2,9 @@ package com.flame.launcher.content
 
 import org.json.JSONArray
 import org.json.JSONObject
-import java.io.BufferedReader
 import java.io.IOException
-import java.io.InputStreamReader
 import java.net.HttpURLConnection
+import java.net.URI
 import java.net.URL
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
@@ -168,9 +167,20 @@ class ModrinthContentProvider(
                 }.orEmpty()
                 throw IOException("Modrinth returned HTTP $status${if (message.isBlank()) "" else ": $message"}")
             }
-            val bytes = connection.inputStream.use { it.readNBytes(MAX_RESPONSE_BYTES + 1) }
-            if (bytes.size > MAX_RESPONSE_BYTES) {
-                throw IOException("Modrinth response exceeded the $MAX_RESPONSE_BYTES-byte safety limit.")
+            val bytes = connection.inputStream.use { input ->
+                val output = java.io.ByteArrayOutputStream()
+                val buffer = ByteArray(8 * 1024)
+                var total = 0
+                while (true) {
+                    val count = input.read(buffer)
+                    if (count < 0) break
+                    total += count
+                    if (total > MAX_RESPONSE_BYTES) {
+                        throw IOException("Modrinth response exceeded the $MAX_RESPONSE_BYTES-byte safety limit.")
+                    }
+                    output.write(buffer, 0, count)
+                }
+                output.toByteArray()
             }
             return bytes.toString(StandardCharsets.UTF_8)
         } finally {
@@ -228,9 +238,10 @@ class ModrinthContentProvider(
     }
 
     private fun isApprovedDownloadUrl(value: String): Boolean = runCatching {
-        val url = URL(value)
-        url.protocol == "https" && url.host.equals("cdn.modrinth.com", ignoreCase = true) &&
-            url.userInfo == null && url.port == -1 && url.ref == null
+        val uri = URI(value)
+        uri.scheme.equals("https", ignoreCase = true) &&
+            uri.host.equals("cdn.modrinth.com", ignoreCase = true) &&
+            uri.userInfo == null && uri.port == -1 && uri.fragment == null
     }.getOrDefault(false)
 
     companion object {
