@@ -148,14 +148,14 @@ source = source.replace(
 if "com.android.application" in source:
     fail("application plugin remains after library conversion")
 for pattern, label in (
-    (r"(?m)^\\s*applicationId\\s+", "applicationId"),
-    (r"(?m)^\\s*applicationIdSuffix\\s+", "applicationIdSuffix"),
-    (r"(?m)^\\s*targetSdkVersion\\s+", "targetSdkVersion"),
-    (r"(?m)^\\s*versionCode\\s+", "versionCode"),
-    (r"(?m)^\\s*versionName\\s+", "versionName"),
-    (r"(?m)^\\s*multiDexEnabled\\b", "multiDexEnabled"),
-    (r"(?m)^\\s*signingConfigs\\s*\\{", "signingConfigs"),
-    (r"(?m)^\\s*bundle\\s*\\{", "bundle"),
+    (r"(?m)^\s*applicationId\s+", "applicationId"),
+    (r"(?m)^\s*applicationIdSuffix\s+", "applicationIdSuffix"),
+    (r"(?m)^\s*targetSdkVersion\s+", "targetSdkVersion"),
+    (r"(?m)^\s*versionCode\s+", "versionCode"),
+    (r"(?m)^\s*versionName\s+", "versionName"),
+    (r"(?m)^\s*multiDexEnabled\b", "multiDexEnabled"),
+    (r"(?m)^\s*signingConfigs\s*\{", "signingConfigs"),
+    (r"(?m)^\s*bundle\s*\{", "bundle"),
 ):
     if re.search(pattern, source):
         fail(f"application-only Android DSL remains after conversion: {label}")
