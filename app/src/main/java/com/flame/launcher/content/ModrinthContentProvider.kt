@@ -53,7 +53,7 @@ class ModrinthContentProvider(
         )
         val json = JSONObject(get("/search", parameters))
         val hits = json.optJSONArray("hits") ?: JSONArray()
-        buildList {
+        return buildList {
             for (index in 0 until hits.length()) {
                 val hit = hits.optJSONObject(index) ?: continue
                 val projectId = hit.optString("project_id").ifBlank {
