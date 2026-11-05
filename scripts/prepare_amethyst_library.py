@@ -201,7 +201,7 @@ for gradle_file in ENGINE.rglob("build.gradle"):
     # closure explicitly from each component task instead.
     changed = changed.replace(
         "writeVersionFile(jarFile, versionFile)",
-        "rootProject.ext.writeVersionFile(jarFile, versionFile)",
+        "rootProject.ext.writeVersionFile.invoke(jarFile, versionFile)",
     )
     if changed != text:
         gradle_file.write_text(changed, encoding="utf-8")
