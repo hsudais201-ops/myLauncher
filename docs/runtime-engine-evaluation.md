@@ -49,3 +49,11 @@ The standalone Flame build passed with AGP 9.3.1, Gradle 9.6.1, JDK 21, and Andr
 6. Audit LGPL notices and every native/runtime component's redistribution terms before shipping any bundled binaries or runtime assets.
 
 A CI build alone is not evidence that Minecraft launches. The runtime milestone remains incomplete until the device-level launch checks pass.
+
+## Expanded redistribution audit
+
+The pinned source contains prebuilt AAR/JAR and native .so artifacts in addition to source code. The Amethyst top-level license is LGPL-3.0. The upstream README's ANGLE credit says "All Rights Reserved", but the actual ANGLE_LICENSE file in this pinned commit contains a BSD-style three-clause redistribution grant; the license text, not the README shorthand, is the relevant file to preserve.
+
+The pinned README also lists LWJGLX as having an unknown license and PFFFT as "ARR", while the referenced PFFFT_LICENSE file is not present in the pinned repository tree. These discrepancies remain unresolved. The AAR/JAR/native artifact inventory must be matched to its actual license and source before a public release. In particular, retain all applicable notices and make the corresponding source and relinking materials available as required by LGPL and other applicable licenses.
+
+Any APK produced by the new Amethyst CI job is an **internal integration-test artifact only**, not a release candidate and not approved for public redistribution. This is a build-validation milestone, not a license clearance.
