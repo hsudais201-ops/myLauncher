@@ -46,6 +46,8 @@ fun MinecraftContentBrowser() {
     val provider = remember { ModrinthContentProvider() }
     var query by remember { mutableStateOf("") }
     var selectedType by remember { mutableStateOf(MinecraftContentType.MOD) }
+    var targetMinecraftVersion by remember { mutableStateOf("1.20.1") }
+    var selectedLoader by remember { mutableStateOf<MinecraftLoader?>(MinecraftLoader.FABRIC) }
     var projects by remember { mutableStateOf<List<MinecraftContentProject>>(emptyList()) }
     var selectedProject by remember { mutableStateOf<MinecraftContentProject?>(null) }
     var versions by remember { mutableStateOf<List<MinecraftContentVersion>>(emptyList()) }
@@ -61,7 +63,7 @@ fun MinecraftContentBrowser() {
         scope.launch {
             try {
                 projects = withContext(Dispatchers.IO) {
-                    provider.searchProjects(query, selectedType, limit = 20)
+                    provider.searchProjects(\n                        query = query,\n                        type = selectedType,\n                        minecraftVersion = targetMinecraftVersion.takeIf(String::isNotBlank),\n                        loader = selectedLoader,\n                        limit = 20\n                    )
                 }
                 status = "Showing ${projects.size} Modrinth results."
             } catch (failure: Exception) {
@@ -81,7 +83,7 @@ fun MinecraftContentBrowser() {
         scope.launch {
             try {
                 versions = withContext(Dispatchers.IO) {
-                    provider.getProjectVersions(project.projectId)
+                    provider.getProjectVersions(\n                        projectId = project.projectId,\n                        minecraftVersion = targetMinecraftVersion.takeIf(String::isNotBlank),\n                        loader = selectedLoader\n                    )
                 }
                 status = "Found ${versions.size} versions for ${project.title}."
             } catch (failure: Exception) {
@@ -204,7 +206,7 @@ fun MinecraftContentBrowser() {
     }
 }
 
-private fun MinecraftContentType.label(): String = when (this) {
+private fun MinecraftLoader.label(): String = when (this) {\n    MinecraftLoader.FABRIC -> "Fabric"\n    MinecraftLoader.FORGE -> "Forge"\n    MinecraftLoader.NEOFORGE -> "NeoForge"\n    MinecraftLoader.QUILT -> "Quilt"\n    MinecraftLoader.UNKNOWN -> "Unknown"\n}\n\nprivate fun MinecraftContentType.label(): String = when (this) {
     MinecraftContentType.MOD -> "Mods"
     MinecraftContentType.MODPACK -> "Modpacks"
     MinecraftContentType.RESOURCE_PACK -> "Resource packs"
