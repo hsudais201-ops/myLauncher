@@ -163,7 +163,7 @@ class ModrinthContentProvider(
             val status = connection.responseCode
             if (status !in 200..299) {
                 val message = connection.errorStream?.use { stream ->
-                    stream.readNBytes(MAX_ERROR_BYTES).toString(StandardCharsets.UTF_8)
+                    readBounded(stream, MAX_ERROR_BYTES).toString(StandardCharsets.UTF_8)
                 }.orEmpty()
                 throw IOException("Modrinth returned HTTP $status${if (message.isBlank()) "" else ": $message"}")
             }
@@ -190,6 +190,19 @@ class ModrinthContentProvider(
 
     private fun String.encodeQueryComponent(): String =
         URLEncoder.encode(this, StandardCharsets.UTF_8.name())
+
+    private fun readBounded(input: java.io.InputStream, maxBytes: Int): ByteArray {
+        val output = java.io.ByteArrayOutputStream()
+        val buffer = ByteArray(2 * 1024)
+        var total = 0
+        while (total < maxBytes) {
+            val count = input.read(buffer, 0, minOf(buffer.size, maxBytes - total))
+            if (count < 0) break
+            output.write(buffer, 0, count)
+            total += count
+        }
+        return output.toByteArray()
+    }
 
     private fun JSONArray?.toStringSet(): Set<String> = buildSet {
         if (this@toStringSet == null) return@buildSet
@@ -240,7 +253,7 @@ class ModrinthContentProvider(
     private fun isApprovedDownloadUrl(value: String): Boolean = runCatching {
         val uri = URI(value)
         uri.scheme.equals("https", ignoreCase = true) &&
-            uri.host.equals("cdn.modrinth.com", ignoreCase = true) &&
+            uri.host?.equals("cdn.modrinth.com", ignoreCase = true) == true &&
             uri.userInfo == null && uri.port == -1 && uri.fragment == null
     }.getOrDefault(false)
 
