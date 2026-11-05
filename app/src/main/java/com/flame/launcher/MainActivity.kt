@@ -1,5 +1,6 @@
 package com.flame.launcher
 
+import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -417,10 +418,24 @@ private fun PlayPage() {
     )
     StatusCard(
         title = "Minecraft Java runtime",
-        status = "Not connected",
-        body = "No game files or runtime are bundled in this foundation build. The next engine milestone will establish a lawful, compatible runtime and version installer.",
+        status = if (BuildConfig.AMETHYST_ENABLED) "Engine bundled in this build" else "Not connected",
+        body = if (BuildConfig.AMETHYST_ENABLED) {
+            "Amethyst's Android runtime is merged into this Flame APK. Open runtime setup to initialize its storage and launcher components. A real Minecraft launch still requires device validation."
+        } else {
+            "The standalone foundation APK does not include the engine. Build with -PwithAmethyst=true to include the pinned Amethyst runtime."
+        },
         icon = Icons.Outlined.SportsEsports
     )
+    Button(
+        onClick = {
+            context.startActivity(
+                Intent().setClassName(context, "net.kdt.pojavlaunch.TestStorageActivity")
+            )
+        },
+        enabled = BuildConfig.AMETHYST_ENABLED
+    ) {
+        Text(if (BuildConfig.AMETHYST_ENABLED) "Open runtime setup" else "Runtime integration build required")
+    }
     StatusCard(
         title = "Game profiles",
         status = "Planned",
