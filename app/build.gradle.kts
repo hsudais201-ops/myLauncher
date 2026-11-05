@@ -64,6 +64,6 @@ dependencies {
     if (providers.gradleProperty("withAmethyst").orNull == "true") {
         implementation(project(":engine:app_pojavlauncher"))
         // Local engine AARs must be direct app dependencies; AGP forbids nesting them in an AAR.
-        implementation(fileTree(mapOf("dir" to "engine/amethyst/app_pojavlauncher/libs", "include" to listOf("*.aar"))))
+        implementation(fileTree(mapOf("dir" to rootProject.file("engine/amethyst/app_pojavlauncher/libs"), "include" to listOf("*.aar"))))
     }
 }
