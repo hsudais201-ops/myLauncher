@@ -97,7 +97,7 @@ if default_config_marker not in source:
     fail("upstream defaultConfig block changed; cannot add library VERSION_NAME")
 source = source.replace(
     default_config_marker,
-    default_config_marker + '        buildConfigField "String", "VERSION_NAME", "\\\"\${getVersionName()}\\\""\\n',
+    default_config_marker + """        buildConfigField "String", "VERSION_NAME", '"' + getVersionName() + '"'\\n""",
     1,
 )
 
