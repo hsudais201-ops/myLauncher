@@ -104,8 +104,10 @@ source = source.replace(
 
 # Resource shrinking is an APK-only operation and AGP rejects it on library modules.
 source = re.sub(r"(?m)^\\s*shrinkResources\\s+true\\s*$\\n?", "", source)
-if "shrinkResources true" in source:
-    fail("resource shrinking remains enabled in the converted Android library")
+# Code shrinking is performed by the final application, not by an Android library.
+source = source.replace("            minifyEnabled true\\n", "            minifyEnabled false\\n", 1)
+if "shrinkResources true" in source or "minifyEnabled true" in source:
+    fail("APK-only shrinking remains enabled in the converted Android library")
 
 # Resource authorities must be unique to Flame, not to a separately installed Amethyst app.
 source = source.replace("org.angelauramc.amethyst.debug", "com.flame.launcher")
