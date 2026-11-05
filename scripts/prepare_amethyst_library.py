@@ -90,6 +90,11 @@ if bundle_block not in source:
     fail("upstream bundle configuration changed; review the integration patch")
 source = source.replace(bundle_block, "", 1)
 
+# Resource shrinking is an APK-only operation and AGP rejects it on library modules.
+source = source.replace("            shrinkResources true\\n", "")
+if "shrinkResources true" in source:
+    fail("resource shrinking remains enabled in the converted Android library")
+
 # Resource authorities must be unique to Flame, not to a separately installed Amethyst app.
 source = source.replace("org.angelauramc.amethyst.debug", "com.flame.launcher")
 source = source.replace("org.angelauramc.amethyst", "com.flame.launcher")
@@ -117,6 +122,18 @@ if source == original:
     fail("no expected upstream Gradle changes were applied")
 
 app_gradle.write_text(source, encoding="utf-8")
+
+# Align the nested Android native library with the engine's pinned NDK.
+dns_gradle = ENGINE / "androidnsbypass" / "build.gradle.kts"
+if dns_gradle.is_file():
+    dns_source = dns_gradle.read_text(encoding="utf-8")
+    if 'ndkVersion = "27.3.13750724"' not in dns_source:
+        dns_source = dns_source.replace(
+            "android {\\n",
+            'android {\\n    ndkVersion = "27.3.13750724"\\n',
+            1,
+        )
+        dns_gradle.write_text(dns_source, encoding="utf-8")
 
 # Patch project paths in every engine Gradle file, including the LWJGL aggregator.
 # The engine is nested under :engine in Flame's settings.gradle.kts.
