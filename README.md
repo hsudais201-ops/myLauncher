@@ -6,7 +6,7 @@ This repository is being developed in verified milestones. The first milestone e
 
 ## Verified milestone 1: Android foundation
 
-The Android foundation passed `testDebugUnitTest` and `assembleDebug` in [GitHub Actions run 42027486681](https://github.com/hsudais201-ops/myLauncher/actions/runs/42027486681).
+The Android foundation passed `testDebugUnitTest` and `assembleDebug` in [GitHub Actions run 42027486681](https://github.com/hsudais201-ops/myLauncher/actions/runs/42027486681). Runtime preflight also passed in [run 42029229139](https://github.com/hsudais201-ops/myLauncher/actions/runs/42029229139).
 
 ## Current milestone 2: Runtime readiness and engine integration
 
@@ -21,14 +21,15 @@ Included in this milestone:
 - Unit tests for the navigation model.
 - Real-device Android API and CPU ABI compatibility preflight, with unit tests. This does not mean the game runtime is installed.
 - GitHub Actions build and test workflow.
-- Gradle 8.13 wrapper.
+- Gradle 9.6.1 wrapper, AGP 9.3.1, JDK 21, Android SDK Platform 37.
+- AGP built-in Kotlin; Compose compiler Gradle plugin remains explicitly configured.
 
 **Not implemented yet:** Minecraft Java runtime integration, game downloads and launching, Microsoft authentication, offline profile management, Modrinth/CurseForge APIs, cloud Feature Store installation, Social Hub services, live ServerState, or AI crash repair. The current app labels these areas as planned instead of presenting non-working controls as functional.
 
 ## Requirements
 
-- Android Studio with Android SDK Platform 36 installed.
-- JDK 17 or newer.
+- Android Studio with Android SDK Platform 37 and Android Build Tools 36.0.0 installed.
+- JDK 21.
 - Android device or emulator running Android 8.0 (API 26) or newer.
 
 ## Build and test
@@ -62,7 +63,7 @@ A failed check blocks the next milestone. Fixes must be verified before proceedi
 ## Planned architecture
 
 1. Android shell and navigation.
-2. Amethyst runtime integration (device preflight implemented; native engine integration still pending).
+2. Amethyst runtime integration (device preflight and source pin implemented; native engine integration still pending).
 3. Local profiles, offline accounts, and Microsoft authentication.
 4. Per-instance game files, libraries, assets, and launch pipeline.
 5. Device-aware performance and renderer controls.
