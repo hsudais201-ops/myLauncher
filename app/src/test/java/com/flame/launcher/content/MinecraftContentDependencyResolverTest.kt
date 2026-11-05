@@ -183,7 +183,7 @@ class MinecraftContentDependencyResolverTest {
 
         assertEquals(false, lookupCalled)
         assertEquals(
-            listOf("library-v2", "root"),
+            listOf("library-v2", "root-v1"),
             (result as MinecraftContentDependencyResolver.Result.Resolved)
                 .installOrder.map { it.versionId }
         )
