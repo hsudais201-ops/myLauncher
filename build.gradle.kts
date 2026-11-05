@@ -7,8 +7,26 @@ plugins {
 }
 
 if (providers.gradleProperty("withAmethyst").orNull == "true") {
-    // Reproduce the upstream Amethyst root build's component-JAR packaging when
-    // the engine is hosted as nested Gradle projects inside Flame.
+    // The upstream Groovy subproject build scripts call writeVersionFile(...)
+    // as a root-project helper. Expose the equivalent closure to those scripts.
+    extensions.extraProperties["writeVersionFile"] = { jarFile: File, versionFile: File ->
+        val digest = MessageDigest.getInstance("SHA-1")
+        jarFile.inputStream().use { input ->
+            val buffer = ByteArray(8192)
+            while (true) {
+                val count = input.read(buffer)
+                if (count < 0) break
+                digest.update(buffer, 0, count)
+            }
+        }
+        versionFile.parentFile.mkdirs()
+        versionFile.writeText(
+            digest.digest().joinToString("") { byte -> "%02x".format(byte) }
+        )
+    }
+
+    // Match upstream's root build behavior: package non-LWJGL component jars
+    // into the app assets tree and emit the matching SHA-1 version marker.
     subprojects {
         val isEngineComponent = path.startsWith(":engine:") &&
             path != ":engine:app_pojavlauncher" &&
@@ -24,22 +42,13 @@ if (providers.gradleProperty("withAmethyst").orNull == "true") {
                     )
                 )
                 doLast {
+                    val jarFile = archiveFile.get().asFile
                     val versionFile = rootProject.file(
                         "engine/amethyst/app_pojavlauncher/src/main/assets/components/$componentName/version"
                     )
-                    versionFile.parentFile.mkdirs()
-                    val digest = MessageDigest.getInstance("SHA-1")
-                    archiveFile.get().asFile.inputStream().use { input ->
-                        val buffer = ByteArray(8192)
-                        while (true) {
-                            val count = input.read(buffer)
-                            if (count < 0) break
-                            digest.update(buffer, 0, count)
-                        }
-                    }
-                    versionFile.writeText(
-                        digest.digest().joinToString("") { byte -> "%02x".format(byte) }
-                    )
+                    @Suppress("UNCHECKED_CAST")
+                    val writer = rootProject.extensions.extraProperties["writeVersionFile"] as (File, File) -> Unit
+                    writer(jarFile, versionFile)
                 }
             }
         }
