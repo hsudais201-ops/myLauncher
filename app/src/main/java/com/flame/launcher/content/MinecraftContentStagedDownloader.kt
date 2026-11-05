@@ -71,7 +71,7 @@ class MinecraftContentStagedDownloader(
             return MinecraftStagedDownloadResult.Failed("Invalid download URL")
         }
         if (!uri.protocol.equals("https", ignoreCase = true) ||
-            uri.userInfo != null ||
+            uri.toURI().userInfo != null ||
             uri.ref != null ||
             (uri.port != -1 && uri.port != 443) ||
             uri.host.lowercase(Locale.ROOT) !in trustedHosts.getValue(install.provider)
