@@ -55,6 +55,7 @@ import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -67,8 +68,11 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.platform.LocalContext
 import com.flame.launcher.navigation.FlameNavigation
 import com.flame.launcher.navigation.LauncherSection
+import com.flame.launcher.runtime.AndroidRuntimeEnvironmentProvider
+import com.flame.launcher.runtime.RuntimeCompatibilityEvaluator
 import kotlinx.coroutines.launch
 
 private val FlameBackground = Color(0xFF0B0D12)
@@ -379,9 +383,37 @@ private fun HomePage(onNavigate: (LauncherSection) -> Unit) {
 
 @Composable
 private fun PlayPage() {
+    val context = LocalContext.current
+    val runtimeReport = remember(context) {
+        RuntimeCompatibilityEvaluator.evaluate(
+            AndroidRuntimeEnvironmentProvider(context).snapshot()
+        )
+    }
+    val deviceDetails = buildString {
+        append("Android API ")
+        append(runtimeReport.androidApiLevel)
+        append(" • ABI ")
+        append(runtimeReport.primaryRuntimeAbi ?: "not supported")
+        runtimeReport.totalMemoryBytes?.let { memoryBytes ->
+            append(" • RAM ")
+            append(memoryBytes / 1024L / 1024L)
+            append(" MB")
+        }
+        if (runtimeReport.issues.isNotEmpty()) {
+            append(" • ")
+            append(runtimeReport.issues.joinToString { it.explanation })
+        }
+        append(". This is a device compatibility check only; the Java runtime and renderer are not installed or connected.")
+    }
     SectionTitle(
         title = "Play Minecraft",
         subtitle = "A real game launch is the target. This screen will only launch after the runtime and profile pipeline pass their tests."
+    )
+    StatusCard(
+        title = "Device compatibility",
+        status = if (runtimeReport.compatible) "Compatible ABI detected" else "Compatibility blocker",
+        body = deviceDetails,
+        icon = Icons.Outlined.SportsEsports
     )
     StatusCard(
         title = "Minecraft Java runtime",
