@@ -145,6 +145,14 @@ source = source.replace(
     1,
 )
 
+# Local AARs cannot be nested inside an Android library AAR under AGP 9.3.1.
+# Keep local JARs with the engine module, but resolve AARs directly in Flame's APK.
+local_aar_filetree = "implementation fileTree(dir: 'libs', include: ['*.jar', '*.aar'])"
+local_jar_filetree = "implementation fileTree(dir: 'libs', include: ['*.jar'])"
+if source.count(local_aar_filetree) != 1:
+    fail("upstream local JAR/AAR fileTree changed; review the AAR dependency relocation")
+source = source.replace(local_aar_filetree, local_jar_filetree, 1)
+
 if "com.android.application" in source:
     fail("application plugin remains after library conversion")
 for pattern, label in (
