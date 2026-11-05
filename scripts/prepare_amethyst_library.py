@@ -164,6 +164,64 @@ if source == original:
 
 app_gradle.write_text(source, encoding="utf-8")
 
+# Android library R fields are non-constant by design. Convert the six resource-ID
+# switch labels in this upstream activity to equivalent comparisons so javac can
+# compile the library without changing touch behavior.
+touch_java = ENGINE / "app_pojavlauncher" / "src" / "main" / "java" / "net" / "kdt" / "pojavlaunch" / "JavaGUILauncherActivity.java"
+if not touch_java.is_file():
+    fail("upstream JavaGUILauncherActivity.java is missing")
+touch_source = touch_java.read_text(encoding="utf-8")
+mouse_switch = """        switch (v.getId()) {
+            case R.id.installmod_mouse_pri:
+                AWTInputBridge.sendMousePress(AWTInputEvent.BUTTON1_DOWN_MASK, isDown);
+                break;
+                
+            case R.id.installmod_mouse_sec:
+                AWTInputBridge.sendMousePress(AWTInputEvent.BUTTON3_DOWN_MASK, isDown);
+                break;
+        }
+"""
+mouse_if = """        if (v.getId() == R.id.installmod_mouse_pri) {
+            AWTInputBridge.sendMousePress(AWTInputEvent.BUTTON1_DOWN_MASK, isDown);
+        } else if (v.getId() == R.id.installmod_mouse_sec) {
+            AWTInputBridge.sendMousePress(AWTInputEvent.BUTTON3_DOWN_MASK, isDown);
+        }
+"""
+window_switch = """        if(isDown) switch(v.getId()) {
+            case R.id.installmod_window_moveup:
+                AWTInputBridge.nativeMoveWindow(0, -10);
+                break;
+            case R.id.installmod_window_movedown:
+                AWTInputBridge.nativeMoveWindow(0, 10);
+                break;
+            case R.id.installmod_window_moveleft:
+                AWTInputBridge.nativeMoveWindow(-10, 0);
+                break;
+            case R.id.installmod_window_moveright:
+                AWTInputBridge.nativeMoveWindow(10, 0);
+                break;
+        }
+"""
+window_if = """        if (isDown) {
+            if (v.getId() == R.id.installmod_window_moveup) {
+                AWTInputBridge.nativeMoveWindow(0, -10);
+            } else if (v.getId() == R.id.installmod_window_movedown) {
+                AWTInputBridge.nativeMoveWindow(0, 10);
+            } else if (v.getId() == R.id.installmod_window_moveleft) {
+                AWTInputBridge.nativeMoveWindow(-10, 0);
+            } else if (v.getId() == R.id.installmod_window_moveright) {
+                AWTInputBridge.nativeMoveWindow(10, 0);
+            }
+        }
+"""
+if touch_source.count(mouse_switch) != 1:
+    fail("upstream mouse-button switch changed; review the non-final resource ID patch")
+if touch_source.count(window_switch) != 1:
+    fail("upstream window-move switch changed; review the non-final resource ID patch")
+touch_source = touch_source.replace(mouse_switch, mouse_if, 1)
+touch_source = touch_source.replace(window_switch, window_if, 1)
+touch_java.write_text(touch_source, encoding="utf-8")
+
 # Align the nested Android native library with the engine's pinned NDK.
 dns_gradle = ENGINE / "androidnsbypass" / "build.gradle.kts"
 if dns_gradle.is_file():
