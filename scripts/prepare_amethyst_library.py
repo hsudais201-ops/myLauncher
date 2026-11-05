@@ -169,17 +169,17 @@ if source.count(aar_dependency) != 1:
     fail("upstream local AAR dependency declaration changed; review packaging migration")
 source = source.replace(
     aar_dependency,
-    "    implementation fileTree(dir: 'libs', include: ['*.jar'])\\n"
+    "    implementation fileTree(dir: 'libs', include: ['*.jar'])\n"
     + '    compileOnly fileTree(dir: "$buildDir/flame-aar-compile-libs", include: [\'*.jar\'])',
     1,
 )
 
-native_packaging = "            pickFirsts += ['**/libbytehook.so']\\n"
+native_packaging = "            pickFirsts += ['**/libbytehook.so']\n"
 if source.count(native_packaging) != 1:
     fail("upstream JNI packaging block changed; cannot assign androidnsbypass ownership")
 source = source.replace(
     native_packaging,
-    native_packaging + "            excludes += ['**/libandroidnsbypass.so']\\n",
+    native_packaging + "            excludes += ['**/libandroidnsbypass.so']\n",
     1,
 )
 
@@ -206,13 +206,13 @@ local_aar_filetree = "implementation fileTree(dir: 'libs', include: ['*.jar', '*
 local_jar_filetree = "implementation fileTree(dir: 'libs', include: ['*.jar'])"
 if source.count(local_aar_filetree) != 1:
     fail("upstream local JAR/AAR fileTree changed; review the AAR dependency relocation")
-maven_dependencies = "\\n".join(
+maven_dependencies = "\n".join(
     f"    implementation 'com.flame.amethyst-local:{re.sub(r'[^A-Za-z0-9_.-]+', '-', aar.stem).lower()}:1.0.0'"
     for aar in aars
 )
 source = source.replace(
     local_aar_filetree,
-    local_jar_filetree + "\\n" + maven_dependencies,
+    local_jar_filetree + "\n" + maven_dependencies,
     1,
 )
 
