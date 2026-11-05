@@ -14,11 +14,12 @@ android {
         versionCode = 1
         versionName = "0.1.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-        buildConfigField(
-            "boolean",
-            "AMETHYST_ENABLED",
-            if (providers.gradleProperty("withAmethyst").orNull == "true") "true" else "false"
-        )
+        val withAmethyst = providers.gradleProperty("withAmethyst").orNull == "true"
+        buildConfigField("boolean", "AMETHYST_ENABLED", withAmethyst.toString())
+        manifestPlaceholders["flameApplicationClass"] =
+            if (withAmethyst) "net.kdt.pojavlaunch.PojavApplication" else "com.flame.launcher.FlameApplication"
+        manifestPlaceholders["flameApplicationTheme"] =
+            if (withAmethyst) "@style/AppTheme" else "@style/Theme.FlameLauncher"
     }
 
     buildFeatures {
