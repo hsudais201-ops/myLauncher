@@ -157,7 +157,7 @@ if dns_gradle.is_file():
     dns_source = dns_gradle.read_text(encoding="utf-8")
     if 'ndkVersion = "27.3.13750724"' not in dns_source:
         dns_source, replacements = re.subn(
-            r"(?m)^android \\{\\s*$",
+            r"(?m)^android \\{[ \\t]*$",
             'android {\\n    ndkVersion = "27.3.13750724"',
             dns_source,
             count=1,
