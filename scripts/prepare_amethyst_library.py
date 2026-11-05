@@ -196,6 +196,13 @@ for gradle_file in ENGINE.rglob("build.gradle"):
     changed = text
     for old, new in project_paths:
         changed = changed.replace(old, new)
+    # The upstream root build declares this as a static Groovy helper, which is
+    # not inherited by nested project scripts. Call Flame's root extra-property
+    # closure explicitly from each component task instead.
+    changed = changed.replace(
+        "writeVersionFile(jarFile, versionFile)",
+        "rootProject.ext.writeVersionFile(jarFile, versionFile)",
+    )
     if changed != text:
         gradle_file.write_text(changed, encoding="utf-8")
 
