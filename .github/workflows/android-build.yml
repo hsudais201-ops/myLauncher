@@ -12,6 +12,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: flame-android-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   android:
     name: Unit tests and debug build
