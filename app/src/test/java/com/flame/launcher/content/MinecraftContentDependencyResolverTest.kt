@@ -189,4 +189,93 @@ class MinecraftContentDependencyResolverTest {
         )
     }
 
+
+    @Test
+    fun transitiveRequiredDependenciesUseDependencyFirstOrder() {
+        val root = version("root", dependencies = listOf(dependency("library")))
+        val library = version("library", dependencies = listOf(dependency("core")))
+        val core = version("core")
+
+        val result = MinecraftContentDependencyResolver.resolve(listOf(root)) { _, id, _ ->
+            when (id) {
+                "library" -> library
+                "core" -> core
+                else -> null
+            }
+        }
+
+        assertEquals(
+            listOf("core", "library", "root"),
+            (result as MinecraftContentDependencyResolver.Result.Resolved)
+                .installOrder.map { it.projectId }
+        )
+    }
+
+    @Test
+    fun incompatibleDeclarationDoesNotBlockWhenConflictingProjectIsNotSelected() {
+        val root = version(
+            "root",
+            dependencies = listOf(dependency("blocked", DependencyType.INCOMPATIBLE))
+        )
+
+        val result = MinecraftContentDependencyResolver.resolve(listOf(root)) { _, _, _ -> null }
+
+        assertTrue(result is MinecraftContentDependencyResolver.Result.Resolved)
+    }
+
+    @Test
+    fun lookupExceptionFailsResolutionWithoutEscaping() {
+        val root = version("root", dependencies = listOf(dependency("library")))
+
+        val result = MinecraftContentDependencyResolver.resolve(listOf(root)) { _, _, _ ->
+            throw IllegalStateException("provider offline")
+        }
+
+        assertEquals(
+            MinecraftContentDependencyResolver.Failure.ProviderLookupFailed(
+                MinecraftContentDependencyResolver.ProjectKey(ContentProviderId.MODRINTH, "root"),
+                "library",
+                "provider offline"
+            ),
+            (result as MinecraftContentDependencyResolver.Result.Failed).reason
+        )
+    }
+
+    @Test
+    fun providerCannotSubstituteAnotherVersionForPinnedDependency() {
+        val root = version(
+            "root",
+            dependencies = listOf(dependency("library", versionId = "library-v2"))
+        )
+        val wrongLibrary = version("library", versionId = "library-v1")
+
+        val result = MinecraftContentDependencyResolver.resolve(listOf(root)) { _, _, _ ->
+            wrongLibrary
+        }
+
+        assertEquals(
+            MinecraftContentDependencyResolver.Failure.PinnedVersionMismatch(
+                MinecraftContentDependencyResolver.ProjectKey(ContentProviderId.MODRINTH, "library"),
+                "library-v2",
+                "library-v1"
+            ),
+            (result as MinecraftContentDependencyResolver.Result.Failed).reason
+        )
+    }
+
+    @Test
+    fun invalidRootVersionIsRejected() {
+        val invalid = version("root", versionId = "")
+
+        val result = MinecraftContentDependencyResolver.resolve(listOf(invalid)) { _, _, _ -> null }
+
+        assertEquals(
+            MinecraftContentDependencyResolver.Failure.InvalidVersionReference(
+                ContentProviderId.MODRINTH,
+                "root",
+                ""
+            ),
+            (result as MinecraftContentDependencyResolver.Result.Failed).reason
+        )
+    }
 }
