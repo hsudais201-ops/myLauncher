@@ -36,7 +36,7 @@ original = source
 
 source = source.replace(
     "id 'com.android.application' version '9.3.1'",
-    "id 'com.android.library' version '9.3.1'",
+    "id 'com.android.library'",
     1,
 )
 
