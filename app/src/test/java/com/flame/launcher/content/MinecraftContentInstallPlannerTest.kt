@@ -146,4 +146,22 @@ class MinecraftContentInstallPlannerTest {
             MinecraftContentInstallPlanner.plan(emptyList(), target) is MinecraftInstallPlanResult.Ready
         )
     }
+    @Test
+    fun duplicateDestinationIsRejected() {
+        val first = item(MinecraftContentType.MOD, projectId = "first")
+        val second = item(MinecraftContentType.MOD, projectId = "second")
+        val result = MinecraftContentInstallPlanner.plan(listOf(first, second), target)
+        assertTrue(result is MinecraftInstallPlanResult.Rejected)
+    }
+
+    @Test
+    fun versionFromDifferentProjectIsRejected() {
+        val selected = item(MinecraftContentType.MOD)
+        val mismatched = selected.copy(
+            version = selected.version.copy(projectId = "another-project")
+        )
+        val result = MinecraftContentInstallPlanner.plan(listOf(mismatched), target)
+        assertTrue(result is MinecraftInstallPlanResult.Rejected)
+    }
+
 }
