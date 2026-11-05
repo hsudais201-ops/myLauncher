@@ -116,6 +116,19 @@ source = source.replace(
     "apply from: rootProject.file('gradle/prefab_bypass.gradle')",
     "apply from: file('../gradle/prefab_bypass.gradle')",
 )
+build_features_block = """    buildFeatures {
+        prefab true
+        buildConfig true
+    }
+"""
+if build_features_block not in source:
+    fail("upstream buildFeatures block changed; review the library conversion")
+source = source.replace(
+    build_features_block,
+    build_features_block.replace("        buildConfig true\\n", "        buildConfig true\\n        resValues true\\n"),
+    1,
+)
+
 if "com.android.application" in source or "applicationId " in source or "signingConfigs" in source:
     fail("application-only Android DSL remains after conversion")
 if source == original:
