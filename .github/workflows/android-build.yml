@@ -16,6 +16,7 @@ jobs:
   android:
     name: Unit tests and debug build
     runs-on: ubuntu-latest
+    timeout-minutes: 90
     steps:
       - name: Check out source
         uses: actions/checkout@v5
@@ -29,19 +30,31 @@ jobs:
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
         with:
-          # The action's default "tools" package is obsolete and fails on current SDK repositories.
           packages: "platform-tools"
 
-      - name: Install Android SDK platform and build tools
-        run: sdkmanager "platforms;android-37.0" "build-tools;36.0.0"
+      - name: Install Android SDK, build tools, and NDK
+        run: |
+          sdkmanager "platforms;android-37.0" "build-tools;36.0.0" "ndk;27.3.13750724"
 
-      - name: Run unit tests and assemble debug APK
+      - name: Initialize pinned Amethyst source and nested dependencies
+        run: |
+          # Upstream's androidnsbypass submodule uses an SSH URL; CI uses public HTTPS.
+          git config --global url."https://github.com/".insteadOf "git@github.com:"
+          git submodule update --init engine/amethyst
+          git -C engine/amethyst submodule sync --recursive
+          git -C engine/amethyst submodule update --init --recursive
+          python3 scripts/prepare_amethyst_library.py
+
+      - name: Run standalone unit tests and assemble debug APK
         run: ./gradlew --no-daemon testDebugUnitTest assembleDebug
 
-      - name: Upload debug APK
+      - name: Build and test Flame with the Amethyst runtime
+        run: ./gradlew --no-daemon -PwithAmethyst=true testDebugUnitTest assembleDebug
+
+      - name: Upload integrated debug APK
         uses: actions/upload-artifact@v4
         with:
-          name: flame-launcher-debug-apk
+          name: flame-launcher-amethyst-debug-apk
           path: app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
           retention-days: 14
