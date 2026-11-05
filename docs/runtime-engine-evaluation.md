@@ -25,7 +25,7 @@ Therefore Flame must not pretend that adding a single Gradle dependency enables 
 
 ## License and redistribution gate
 
-Amethyst's top-level license is LGPL-3.0. The repository also credits components under different licenses, including MIT, zlib, BSD, GPL, and a component identified as "All Rights Reserved" (ANGLE). The integration must retain upstream copyright notices, ship the required license texts and corresponding source, and exclude or obtain separate redistribution permission for any component whose license does not allow the intended distribution. Do not copy a prebuilt runtime or native binary into Flame just because it is downloadable from upstream CI.
+Amethyst's top-level license is LGPL-3.0. The repository also credits components under different licenses, including MIT, zlib, BSD, and GPL. The upstream README lists LWJGLX as having an unknown license and PFFFT as "All Rights Reserved"; the PFFFT license file it references is absent from the pinned tree. The ANGLE_LICENSE file is BSD-style, despite the README's contradictory label. The integration must retain upstream copyright notices, ship required license texts and corresponding source, and resolve every unknown or restrictive component before distribution. Do not copy a prebuilt runtime or native binary into Flame just because it is downloadable from upstream CI.
 
 This note is an engineering assessment, not legal advice.
 
