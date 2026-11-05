@@ -57,6 +57,16 @@ jobs:
       - name: Build and test Flame with the Amethyst runtime
         run: ./gradlew --no-daemon -PwithAmethyst=true testDebugUnitTest assembleDebug
 
+      - name: Verify integrated APK identity and native engine payload
+        run: |
+          APK="app/build/outputs/apk/debug/app-debug.apk"
+          "$ANDROID_HOME/build-tools/36.0.0/aapt" dump badging "$APK" | grep -F "package: name='com.flame.launcher'"
+          unzip -Z1 "$APK" | grep -F "lib/arm64-v8a/libpojavexec.so"
+          unzip -Z1 "$APK" | grep -F "lib/arm64-v8a/libexithook.so"
+          unzip -Z1 "$APK" | grep -F "assets/components/MioLibPatcher/MioLibPatcher.jar"
+          unzip -Z1 "$APK" | grep -F "assets/components/forge_installer/forge_installer.jar"
+          unzip -Z1 "$APK" | grep -F "assets/components/lwjgl3/3.3.3/lwjgl-3.3.3-merged-modules.jar"
+
       - name: Upload integrated debug APK
         uses: actions/upload-artifact@v4
         with:
