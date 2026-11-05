@@ -168,4 +168,25 @@ class MinecraftContentDependencyResolverTest {
                 .installOrder.map { it.projectId }
         )
     }
+    @Test
+    fun explicitlySelectedRootVersionSatisfiesUnpinnedDependency() {
+        val root = version("root", dependencies = listOf(dependency("library")))
+        val selectedLibrary = version("library", versionId = "library-v2")
+        var lookupCalled = false
+
+        val result = MinecraftContentDependencyResolver.resolve(
+            listOf(root, selectedLibrary)
+        ) { _, _, _ ->
+            lookupCalled = true
+            null
+        }
+
+        assertEquals(false, lookupCalled)
+        assertEquals(
+            listOf("library-v2", "root"),
+            (result as MinecraftContentDependencyResolver.Result.Resolved)
+                .installOrder.map { it.versionId }
+        )
+    }
+
 }
