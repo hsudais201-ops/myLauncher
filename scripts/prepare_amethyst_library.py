@@ -93,7 +93,7 @@ source = source.replace(bundle_block, "", 1)
 # The Android library plugin has no application versionName; keep the value used by
 # Amethyst's crash reporting in the generated library BuildConfig.
 source, replacements = re.subn(
-    r"(?m)^    defaultConfig \\{\\s*$",
+    r"(?m)^    defaultConfig \\{[ \\t]*$",
     """    defaultConfig {
         buildConfigField "String", "VERSION_NAME", '"' + getVersionName() + '"'
 """,
