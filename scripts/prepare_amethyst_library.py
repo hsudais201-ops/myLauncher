@@ -69,6 +69,7 @@ source = source.replace(signing_block, "", 1)
 
 for line in (
     '        applicationId "org.angelauramc.amethyst"\n',
+    "        targetSdkVersion 34\n",
     "        versionCode 10000000\n",
     "        versionName getVersionName()\n",
     "        multiDexEnabled true //important\n",
