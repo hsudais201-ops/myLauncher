@@ -14,10 +14,25 @@ android {
         versionCode = 1
         versionName = "0.1.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        buildConfigField(
+            "boolean",
+            "AMETHYST_ENABLED",
+            if (providers.gradleProperty("withAmethyst").orNull == "true") "true" else "false"
+        )
     }
 
     buildFeatures {
         compose = true
+        buildConfig = true
+    }
+
+    ndkVersion = "27.3.13750724"
+
+    packaging {
+        jniLibs {
+            useLegacyPackaging = true
+            pickFirsts += setOf("**/libbytehook.so")
+        }
     }
 
     compileOptions {
@@ -44,4 +59,8 @@ dependencies {
     debugImplementation("androidx.compose.ui:ui-tooling")
 
     testImplementation(libs.junit)
+
+    if (providers.gradleProperty("withAmethyst").orNull == "true") {
+        implementation(project(":engine:app_pojavlauncher"))
+    }
 }
