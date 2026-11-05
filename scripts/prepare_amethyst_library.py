@@ -4,6 +4,7 @@
 This modifies only the checked-out submodule worktree during CI; the upstream commit remains pinned.
 """
 from pathlib import Path
+import re
 import subprocess
 import sys
 
@@ -137,9 +138,19 @@ for gradle_file in ENGINE.rglob("build.gradle"):
 
 # Fail early if any of the upstream app-only DSL or un-namespaced project paths remain.
 prepared = app_gradle.read_text(encoding="utf-8")
-for forbidden in ("com.android.application", "applicationId ", "signingConfigs", ":forge_installer", ":arc_dns_injector", ":MioLibPatcher", ":jre_lwjgl3glfw", ":androidnsbypass"):
+for forbidden in ("com.android.application", "applicationId ", "signingConfigs"):
     if forbidden in prepared:
         fail(f"unconverted upstream app Gradle token remains: {forbidden}")
+for stale_path in (
+    ":app_pojavlauncher",
+    ":forge_installer",
+    ":arc_dns_injector",
+    ":MioLibPatcher",
+    ":jre_lwjgl3glfw",
+    ":androidnsbypass",
+):
+    if re.search(rf"(?<!engine){re.escape(stale_path)}", prepared):
+        fail(f"un-namespaced upstream Gradle project path remains: {stale_path}")
 
 lwjgl_gradle = ENGINE / "jre_lwjgl3glfw" / "build.gradle"
 if lwjgl_gradle.exists() and ":engine:jre_lwjgl3glfw:" not in lwjgl_gradle.read_text(encoding="utf-8"):
