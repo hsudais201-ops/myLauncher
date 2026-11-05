@@ -5,7 +5,7 @@ package com.flame.launcher.content
  *
  * The lookup callback must return a version compatible with the target instance.
  * A null dependency versionId lets the provider choose its preferred compatible
- * version; a non-null versionId is treated as a strict pin.
+ * version; a non-blank versionId is treated as a strict pin.
  */
 object MinecraftContentDependencyResolver {
     private const val MAX_RESOLVED_PROJECTS = 256
@@ -26,8 +26,18 @@ object MinecraftContentDependencyResolver {
 
     sealed interface Failure {
         data object NoRootVersions : Failure
+        data class InvalidVersionReference(
+            val provider: ContentProviderId,
+            val projectId: String,
+            val versionId: String
+        ) : Failure
         data class InvalidReference(val owner: ProjectKey, val dependencyProjectId: String) : Failure
         data class MissingRequiredDependency(val project: ProjectKey, val dependencyProjectId: String) : Failure
+        data class ProviderLookupFailed(
+            val project: ProjectKey,
+            val dependencyProjectId: String,
+            val message: String
+        ) : Failure
         data class InvalidLookupResult(val expected: ProjectKey, val returned: ProjectKey) : Failure
         data class PinnedVersionMismatch(
             val project: ProjectKey,
@@ -59,20 +69,15 @@ object MinecraftContentDependencyResolver {
         val visited = HashSet<ProjectKey>()
         val installOrder = mutableListOf<MinecraftContentVersion>()
 
-        // Register every explicit selection first, so an unpinned dependency
-        // can reuse a version the user has already selected as another root.
-        for (root in roots) {
-            val key = ProjectKey(root.provider, root.projectId)
-            val existing = selected[key]
-            if (existing != null && existing.versionId != root.versionId) {
-                return Result.Failed(
-                    Failure.ConflictingVersions(key, existing.versionId, root.versionId)
+        fun visit(version: MinecraftContentVersion): Failure? {
+            if (version.projectId.isBlank() || version.versionId.isBlank()) {
+                return Failure.InvalidVersionReference(
+                    version.provider,
+                    version.projectId,
+                    version.versionId
                 )
             }
-            selected[key] = root
-        }
 
-        fun visit(version: MinecraftContentVersion): Failure? {
             val key = ProjectKey(version.provider, version.projectId)
             val existing = selected[key]
             if (existing != null && existing.versionId != version.versionId) {
@@ -88,56 +93,79 @@ object MinecraftContentDependencyResolver {
             visiting += key
 
             for (dependency in version.dependencies) {
-                if (dependency.type != DependencyType.REQUIRED) continue
-                if (dependency.projectId.isBlank()) {
-                    return Failure.InvalidReference(key, dependency.projectId)
-                }
+                when (dependency.type) {
+                    DependencyType.REQUIRED -> {
+                        if (dependency.projectId.isBlank()) {
+                            return Failure.InvalidReference(key, dependency.projectId)
+                        }
 
-                val dependencyKey = ProjectKey(version.provider, dependency.projectId)
-                val alreadySelected = selected[dependencyKey]
-                if (alreadySelected != null) {
-                    val pinned = dependency.versionId
-                    if (pinned != null && pinned != alreadySelected.versionId) {
-                        return Failure.ConflictingVersions(
-                            dependencyKey,
-                            alreadySelected.versionId,
-                            pinned
-                        )
-                    }
-                    if (dependencyKey in visiting) {
-                        return Failure.CircularDependency(dependencyKey)
-                    }
-                    if (dependencyKey !in visited) {
-                        val failure = visit(alreadySelected)
+                        val dependencyKey = ProjectKey(version.provider, dependency.projectId)
+                        val requestedVersionId = dependency.versionId
+                            ?.takeIf(String::isNotBlank)
+                        val alreadySelected = selected[dependencyKey]
+                        if (alreadySelected != null) {
+                            if (requestedVersionId != null &&
+                                requestedVersionId != alreadySelected.versionId
+                            ) {
+                                return Failure.ConflictingVersions(
+                                    dependencyKey,
+                                    alreadySelected.versionId,
+                                    requestedVersionId
+                                )
+                            }
+                            if (dependencyKey in visiting) {
+                                return Failure.CircularDependency(dependencyKey)
+                            }
+                            continue
+                        }
+
+                        val resolved = try {
+                            findVersion(
+                                version.provider,
+                                dependency.projectId,
+                                requestedVersionId
+                            )
+                        } catch (exception: Exception) {
+                            return Failure.ProviderLookupFailed(
+                                key,
+                                dependency.projectId,
+                                exception.message ?: exception.javaClass.simpleName
+                            )
+                        } ?: return Failure.MissingRequiredDependency(key, dependency.projectId)
+
+                        if (resolved.provider != version.provider ||
+                            resolved.projectId != dependency.projectId
+                        ) {
+                            return Failure.InvalidLookupResult(
+                                dependencyKey,
+                                ProjectKey(resolved.provider, resolved.projectId)
+                            )
+                        }
+                        if (resolved.projectId.isBlank() || resolved.versionId.isBlank()) {
+                            return Failure.InvalidVersionReference(
+                                resolved.provider,
+                                resolved.projectId,
+                                resolved.versionId
+                            )
+                        }
+                        if (requestedVersionId != null &&
+                            resolved.versionId != requestedVersionId
+                        ) {
+                            return Failure.PinnedVersionMismatch(
+                                dependencyKey,
+                                requestedVersionId,
+                                resolved.versionId
+                            )
+                        }
+
+                        val failure = visit(resolved)
                         if (failure != null) return failure
                     }
-                    continue
-                }
 
-                val resolved = findVersion(
-                    version.provider,
-                    dependency.projectId,
-                    dependency.versionId
-                ) ?: return Failure.MissingRequiredDependency(key, dependency.projectId)
-
-                if (resolved.provider != version.provider ||
-                    resolved.projectId != dependency.projectId
-                ) {
-                    return Failure.InvalidLookupResult(
-                        dependencyKey,
-                        ProjectKey(resolved.provider, resolved.projectId)
-                    )
+                    DependencyType.INCOMPATIBLE,
+                    DependencyType.OPTIONAL,
+                    DependencyType.EMBEDDED -> Unit
                 }
-                if (dependency.versionId != null && resolved.versionId != dependency.versionId) {
-                    return Failure.PinnedVersionMismatch(
-                        dependencyKey,
-                        dependency.versionId,
-                        resolved.versionId
-                    )
-                }
-
-                val failure = visit(resolved)
-                if (failure != null) return failure
             }
 
             visiting -= key
@@ -151,8 +179,8 @@ object MinecraftContentDependencyResolver {
             if (failure != null) return Result.Failed(failure)
         }
 
-        // Incompatible edges only block when the conflicting project is also
-        // part of the selected roots or their required dependency closure.
+        // An incompatible declaration blocks only when both projects are selected.
+        // Merely browsing a project must not reject it because of unrelated content.
         for ((key, version) in selected) {
             for (dependency in version.dependencies) {
                 if (dependency.type != DependencyType.INCOMPATIBLE) continue
