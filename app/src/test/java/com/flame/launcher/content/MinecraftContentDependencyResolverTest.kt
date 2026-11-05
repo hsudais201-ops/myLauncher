@@ -191,6 +191,55 @@ class MinecraftContentDependencyResolverTest {
 
 
     @Test
+    fun selectedRootDependencyStillResolvesItsTransitiveDependencies() {
+        val root = version("root", dependencies = listOf(dependency("library")))
+        val selectedLibrary = version(
+            "library",
+            versionId = "library-v2",
+            dependencies = listOf(dependency("core"))
+        )
+        val core = version("core")
+        val requested = mutableListOf<String>()
+
+        val result = MinecraftContentDependencyResolver.resolve(
+            listOf(root, selectedLibrary)
+        ) { _, id, _ ->
+            requested += id
+            if (id == "core") core else null
+        }
+
+        assertEquals(listOf("core"), requested)
+        assertEquals(
+            listOf("core", "library", "root"),
+            (result as MinecraftContentDependencyResolver.Result.Resolved)
+                .installOrder.map { it.projectId }
+        )
+    }
+
+    @Test
+    fun selectedRootVersionConflictingWithPinnedDependencyIsRejected() {
+        val root = version(
+            "root",
+            dependencies = listOf(dependency("library", versionId = "library-v1"))
+        )
+        val selectedLibrary = version("library", versionId = "library-v2")
+
+        val result = MinecraftContentDependencyResolver.resolve(
+            listOf(root, selectedLibrary)
+        ) { _, _, _ -> null }
+
+        assertEquals(
+            MinecraftContentDependencyResolver.Failure.ConflictingVersions(
+                MinecraftContentDependencyResolver.ProjectKey(ContentProviderId.MODRINTH, "library"),
+                "library-v2",
+                "library-v1"
+            ),
+            (result as MinecraftContentDependencyResolver.Result.Failed).reason
+        )
+    }
+
+
+    @Test
     fun transitiveRequiredDependenciesUseDependencyFirstOrder() {
         val root = version("root", dependencies = listOf(dependency("library")))
         val library = version("library", dependencies = listOf(dependency("core")))
