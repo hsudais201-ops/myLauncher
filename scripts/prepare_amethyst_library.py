@@ -145,8 +145,9 @@ source = source.replace(
     1,
 )
 
-if "com.android.application" in source or "applicationId " in source or "signingConfigs" in source:
-    fail("application-only Android DSL remains after conversion")
+for forbidden in ("com.android.application", "applicationId ", "targetSdkVersion", "versionCode ", "versionName ", "multiDexEnabled", "signingConfigs", "bundle {"):
+    if forbidden in source:
+        fail(f"application-only Android DSL remains after conversion: {forbidden}")
 if source == original:
     fail("no expected upstream Gradle changes were applied")
 
