@@ -281,14 +281,6 @@ private fun MinecraftLoader.label(): String = when (this) {
 }
 
 private fun MinecraftContentType.label(): String = when (this) {
-    MinecraftLoader.FABRIC -> "Fabric"
-    MinecraftLoader.FORGE -> "Forge"
-    MinecraftLoader.NEOFORGE -> "NeoForge"
-    MinecraftLoader.QUILT -> "Quilt"
-    MinecraftLoader.UNKNOWN -> "Unknown"
-}
-
-private fun MinecraftContentType.label(): String = when (this) {
     MinecraftContentType.MOD -> "Mods"
     MinecraftContentType.MODPACK -> "Modpacks"
     MinecraftContentType.RESOURCE_PACK -> "Resource packs"
