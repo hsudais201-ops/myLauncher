@@ -4,7 +4,6 @@
 This modifies only the checked-out submodule worktree during CI; the upstream commit remains pinned.
 """
 from pathlib import Path
-import re
 import subprocess
 import sys
 
@@ -118,22 +117,32 @@ if source == original:
 
 app_gradle.write_text(source, encoding="utf-8")
 
-# Patch project paths in the other upstream Gradle files without changing Java/native sources.
+# Patch project paths in every engine Gradle file, including the LWJGL aggregator.
+# The engine is nested under :engine in Flame's settings.gradle.kts.
+project_paths = (
+    (":app_pojavlauncher", ":engine:app_pojavlauncher"),
+    (":jre_lwjgl3glfw", ":engine:jre_lwjgl3glfw"),
+    (":forge_installer", ":engine:forge_installer"),
+    (":arc_dns_injector", ":engine:arc_dns_injector"),
+    (":MioLibPatcher", ":engine:MioLibPatcher"),
+    (":androidnsbypass", ":engine:androidnsbypass"),
+)
 for gradle_file in ENGINE.rglob("build.gradle"):
-    if gradle_file == app_gradle:
-        continue
     text = gradle_file.read_text(encoding="utf-8")
     changed = text
-    for old, new in (
-        (":app_pojavlauncher", ":engine:app_pojavlauncher"),
-        (":jre_lwjgl3glfw", ":engine:jre_lwjgl3glfw"),
-        (":forge_installer", ":engine:forge_installer"),
-        (":arc_dns_injector", ":engine:arc_dns_injector"),
-        (":MioLibPatcher", ":engine:MioLibPatcher"),
-        (":androidnsbypass", ":engine:androidnsbypass"),
-    ):
+    for old, new in project_paths:
         changed = changed.replace(old, new)
     if changed != text:
         gradle_file.write_text(changed, encoding="utf-8")
+
+# Fail early if any of the upstream app-only DSL or un-namespaced project paths remain.
+prepared = app_gradle.read_text(encoding="utf-8")
+for forbidden in ("com.android.application", "applicationId ", "signingConfigs", ":forge_installer", ":arc_dns_injector", ":MioLibPatcher", ":jre_lwjgl3glfw", ":androidnsbypass"):
+    if forbidden in prepared:
+        fail(f"unconverted upstream app Gradle token remains: {forbidden}")
+
+lwjgl_gradle = ENGINE / "jre_lwjgl3glfw" / "build.gradle"
+if lwjgl_gradle.exists() and ":engine:jre_lwjgl3glfw:" not in lwjgl_gradle.read_text(encoding="utf-8"):
+    fail("LWJGL aggregator still references an un-namespaced Gradle project")
 
 print(f"Prepared Amethyst {actual} as an Android library module for Flame.")
