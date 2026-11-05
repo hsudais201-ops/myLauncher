@@ -63,7 +63,13 @@ fun MinecraftContentBrowser() {
         scope.launch {
             try {
                 projects = withContext(Dispatchers.IO) {
-                    provider.searchProjects(\n                        query = query,\n                        type = selectedType,\n                        minecraftVersion = targetMinecraftVersion.takeIf(String::isNotBlank),\n                        loader = selectedLoader,\n                        limit = 20\n                    )
+                    provider.searchProjects(
+                        query = query,
+                        type = selectedType,
+                        minecraftVersion = targetMinecraftVersion.takeIf(String::isNotBlank),
+                        loader = selectedLoader,
+                        limit = 20
+                    )
                 }
                 status = "Showing ${projects.size} Modrinth results."
             } catch (failure: Exception) {
@@ -83,7 +89,11 @@ fun MinecraftContentBrowser() {
         scope.launch {
             try {
                 versions = withContext(Dispatchers.IO) {
-                    provider.getProjectVersions(\n                        projectId = project.projectId,\n                        minecraftVersion = targetMinecraftVersion.takeIf(String::isNotBlank),\n                        loader = selectedLoader\n                    )
+                    provider.getProjectVersions(
+                        projectId = project.projectId,
+                        minecraftVersion = targetMinecraftVersion.takeIf(String::isNotBlank),
+                        loader = selectedLoader
+                    )
                 }
                 status = "Found ${versions.size} versions for ${project.title}."
             } catch (failure: Exception) {
@@ -106,6 +116,34 @@ fun MinecraftContentBrowser() {
         )
         Text(
             "Live public catalog search. CurseForge and installation are not enabled in this build.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Text("Target filters", style = MaterialTheme.typography.titleSmall)
+        OutlinedTextField(
+            value = targetMinecraftVersion,
+            onValueChange = { targetMinecraftVersion = it },
+            modifier = Modifier.fillMaxWidth(),
+            label = { Text("Minecraft version (for example, 1.20.1)") },
+            singleLine = true
+        )
+        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            listOf<MinecraftLoader?>(
+                null,
+                MinecraftLoader.FABRIC,
+                MinecraftLoader.FORGE,
+                MinecraftLoader.NEOFORGE,
+                MinecraftLoader.QUILT
+            ).forEach { loader ->
+                FilterChip(
+                    selected = selectedLoader == loader,
+                    onClick = { selectedLoader = loader },
+                    label = { Text(loader?.label() ?: "Any loader") }
+                )
+            }
+        }
+        Text(
+            "These are catalog filters only; Flame is not connected to an installed instance yet.",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
@@ -206,7 +244,23 @@ fun MinecraftContentBrowser() {
     }
 }
 
-private fun MinecraftLoader.label(): String = when (this) {\n    MinecraftLoader.FABRIC -> "Fabric"\n    MinecraftLoader.FORGE -> "Forge"\n    MinecraftLoader.NEOFORGE -> "NeoForge"\n    MinecraftLoader.QUILT -> "Quilt"\n    MinecraftLoader.UNKNOWN -> "Unknown"\n}\n\nprivate fun MinecraftContentType.label(): String = when (this) {
+private fun MinecraftLoader.label(): String = when (this) {
+    MinecraftLoader.FABRIC -> "Fabric"
+    MinecraftLoader.FORGE -> "Forge"
+    MinecraftLoader.NEOFORGE -> "NeoForge"
+    MinecraftLoader.QUILT -> "Quilt"
+    MinecraftLoader.UNKNOWN -> "Unknown"
+}
+
+private fun MinecraftContentType.label(): String = when (this) {
+    MinecraftLoader.FABRIC -> "Fabric"
+    MinecraftLoader.FORGE -> "Forge"
+    MinecraftLoader.NEOFORGE -> "NeoForge"
+    MinecraftLoader.QUILT -> "Quilt"
+    MinecraftLoader.UNKNOWN -> "Unknown"
+}
+
+private fun MinecraftContentType.label(): String = when (this) {
     MinecraftContentType.MOD -> "Mods"
     MinecraftContentType.MODPACK -> "Modpacks"
     MinecraftContentType.RESOURCE_PACK -> "Resource packs"
