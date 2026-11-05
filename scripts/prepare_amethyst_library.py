@@ -216,6 +216,16 @@ for aar_path in aar_files:
 if extracted_count == 0:
     fail("no compile-time JARs were found inside Amethyst's local AAR dependencies")
 
+# androidnsbypass is built from its dedicated subproject. Remove the duplicate
+# prebuilt copy bundled in app_pojavlauncher so only the compiled project output
+# contributes libandroidnsbypass.so to the final APK.
+app_jni_dir = app_gradle.parent / "src" / "main" / "jniLibs"
+duplicate_bypass = list(app_jni_dir.rglob("libandroidnsbypass.so")) if app_jni_dir.is_dir() else []
+if not duplicate_bypass:
+    fail("expected duplicate libandroidnsbypass.so in app_pojavlauncher jniLibs was not found")
+for duplicate in duplicate_bypass:
+    duplicate.unlink()
+
 # Android library R fields are non-constant by design. Convert the six resource-ID
 # switch labels in this upstream activity to equivalent comparisons so javac can
 # compile the library without changing touch behavior.
