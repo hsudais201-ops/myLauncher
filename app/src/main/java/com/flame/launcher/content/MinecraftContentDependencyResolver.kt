@@ -69,6 +69,27 @@ object MinecraftContentDependencyResolver {
         val visited = HashSet<ProjectKey>()
         val installOrder = mutableListOf<MinecraftContentVersion>()
 
+        // Register every explicit user selection before resolving any dependencies.
+        // This prevents an unpinned dependency from silently replacing a selected version.
+        for (root in roots) {
+            if (root.projectId.isBlank() || root.versionId.isBlank()) {
+                return Result.Failed(
+                    Failure.InvalidVersionReference(root.provider, root.projectId, root.versionId)
+                )
+            }
+            val key = ProjectKey(root.provider, root.projectId)
+            val existing = selected[key]
+            if (existing != null && existing.versionId != root.versionId) {
+                return Result.Failed(
+                    Failure.ConflictingVersions(key, existing.versionId, root.versionId)
+                )
+            }
+            selected[key] = root
+            if (selected.size > MAX_RESOLVED_PROJECTS) {
+                return Result.Failed(Failure.TooManyProjects)
+            }
+        }
+
         fun visit(version: MinecraftContentVersion): Failure? {
             if (version.projectId.isBlank() || version.versionId.isBlank()) {
                 return Failure.InvalidVersionReference(
@@ -100,8 +121,7 @@ object MinecraftContentDependencyResolver {
                         }
 
                         val dependencyKey = ProjectKey(version.provider, dependency.projectId)
-                        val requestedVersionId = dependency.versionId
-                            ?.takeIf(String::isNotBlank)
+                        val requestedVersionId = dependency.versionId?.takeIf(String::isNotBlank)
                         val alreadySelected = selected[dependencyKey]
                         if (alreadySelected != null) {
                             if (requestedVersionId != null &&
@@ -116,15 +136,15 @@ object MinecraftContentDependencyResolver {
                             if (dependencyKey in visiting) {
                                 return Failure.CircularDependency(dependencyKey)
                             }
+                            if (dependencyKey !in visited) {
+                                val failure = visit(alreadySelected)
+                                if (failure != null) return failure
+                            }
                             continue
                         }
 
                         val resolved = try {
-                            findVersion(
-                                version.provider,
-                                dependency.projectId,
-                                requestedVersionId
-                            )
+                            findVersion(version.provider, dependency.projectId, requestedVersionId)
                         } catch (exception: Exception) {
                             return Failure.ProviderLookupFailed(
                                 key,
@@ -148,9 +168,7 @@ object MinecraftContentDependencyResolver {
                                 resolved.versionId
                             )
                         }
-                        if (requestedVersionId != null &&
-                            resolved.versionId != requestedVersionId
-                        ) {
+                        if (requestedVersionId != null && resolved.versionId != requestedVersionId) {
                             return Failure.PinnedVersionMismatch(
                                 dependencyKey,
                                 requestedVersionId,
