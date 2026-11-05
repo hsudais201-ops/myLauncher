@@ -5,8 +5,10 @@ This modifies only the checked-out submodule worktree during CI; the upstream co
 """
 from pathlib import Path
 import re
+import shutil
 import subprocess
 import sys
+import xml.etree.ElementTree as ET
 import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -27,6 +29,36 @@ actual = subprocess.check_output(
 ).strip()
 if actual != PINNED:
     fail(f"expected upstream commit {PINNED}, got {actual}")
+
+# Publish the upstream local AARs into a temporary Maven repository. AGP allows
+# Android libraries to depend on Maven AARs, but rejects direct file-based AAR deps
+# when bundling a library. This preserves each AAR's classes, resources, and JNI.
+local_aar_dir = ENGINE / "app_pojavlauncher" / "libs"
+maven_root = ROOT / "build" / "amethyst-maven"
+if not local_aar_dir.is_dir():
+    fail("upstream app_pojavlauncher/libs directory is missing")
+aars = sorted(local_aar_dir.glob("*.aar"))
+if not aars:
+    fail("no upstream local AARs found to publish")
+for aar in aars:
+    artifact = re.sub(r"[^A-Za-z0-9_.-]+", "-", aar.stem).lower()
+    version = "1.0.0"
+    artifact_dir = maven_root / "com" / "flame" / "amethyst-local" / artifact / version
+    artifact_dir.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(aar, artifact_dir / f"{artifact}-{version}.aar")
+    pom = ET.Element("project", xmlns="http://maven.apache.org/POM/4.0.0")
+    ET.SubElement(pom, "modelVersion").text = "4.0.0"
+    ET.SubElement(pom, "groupId").text = "com.flame.amethyst-local"
+    ET.SubElement(pom, "artifactId").text = artifact
+    ET.SubElement(pom, "version").text = version
+    ET.SubElement(pom, "packaging").text = "aar"
+    ET.SubElement(pom, "name").text = f"Amethyst bundled component: {aar.name}"
+    ET.indent(pom, space="  ")
+    ET.ElementTree(pom).write(
+        artifact_dir / f"{artifact}-{version}.pom",
+        encoding="utf-8",
+        xml_declaration=True,
+    )
 
 app_gradle = ENGINE / "app_pojavlauncher" / "build.gradle"
 if not app_gradle.is_file():
@@ -174,7 +206,24 @@ local_aar_filetree = "implementation fileTree(dir: 'libs', include: ['*.jar', '*
 local_jar_filetree = "implementation fileTree(dir: 'libs', include: ['*.jar'])"
 if source.count(local_aar_filetree) != 1:
     fail("upstream local JAR/AAR fileTree changed; review the AAR dependency relocation")
-source = source.replace(local_aar_filetree, local_jar_filetree, 1)
+maven_dependencies = "\\n".join(
+    f"    implementation 'com.flame.amethyst-local:{re.sub(r'[^A-Za-z0-9_.-]+', '-', aar.stem).lower()}:1.0.0'"
+    for aar in aars
+)
+source = source.replace(
+    local_aar_filetree,
+    local_jar_filetree + "\\n" + maven_dependencies,
+    1,
+)
+
+# The native bypass subproject is the canonical build of this library. Remove
+# duplicate prebuilt copies shipped in the app module's jniLibs source set.
+app_jni_dir = ENGINE / "app_pojavlauncher" / "src" / "main" / "jniLibs"
+duplicate_bypass = list(app_jni_dir.rglob("libandroidnsbypass.so")) if app_jni_dir.is_dir() else []
+if not duplicate_bypass:
+    fail("expected prebuilt libandroidnsbypass.so duplicate was not found in app jniLibs")
+for duplicate in duplicate_bypass:
+    duplicate.unlink()
 
 if "com.android.application" in source:
     fail("application plugin remains after library conversion")
