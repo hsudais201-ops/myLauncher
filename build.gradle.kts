@@ -1,5 +1,5 @@
 import java.security.MessageDigest
-import org.gradle.jvm.tasks.Jar
+import org.gradle.api.tasks.bundling.Jar
 
 plugins {
     alias(libs.plugins.android.application) apply false
