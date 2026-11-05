@@ -420,7 +420,7 @@ private fun PlayPage() {
         title = "Minecraft Java runtime",
         status = if (BuildConfig.AMETHYST_ENABLED) "Engine bundled in this build" else "Not connected",
         body = if (BuildConfig.AMETHYST_ENABLED) {
-            "Amethyst's Android runtime is merged into this Flame APK. Open runtime setup to initialize its storage and launcher components. A real Minecraft launch still requires device validation."
+            "Amethyst's Android runtime is packaged inside this Flame APK. This opens Amethyst's own setup and launcher screen within the same app package; Flame's native profile handoff and a verified Minecraft launch are still pending."
         } else {
             "The standalone foundation APK does not include the engine. Build with -PwithAmethyst=true to include the pinned Amethyst runtime."
         },
@@ -434,7 +434,7 @@ private fun PlayPage() {
         },
         enabled = BuildConfig.AMETHYST_ENABLED
     ) {
-        Text(if (BuildConfig.AMETHYST_ENABLED) "Open runtime setup" else "Runtime integration build required")
+        Text(if (BuildConfig.AMETHYST_ENABLED) "Open Amethyst setup" else "Runtime integration build required")
     }
     StatusCard(
         title = "Game profiles",
