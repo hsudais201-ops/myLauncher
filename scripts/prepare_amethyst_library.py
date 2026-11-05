@@ -153,11 +153,14 @@ dns_gradle = ENGINE / "androidnsbypass" / "build.gradle.kts"
 if dns_gradle.is_file():
     dns_source = dns_gradle.read_text(encoding="utf-8")
     if 'ndkVersion = "27.3.13750724"' not in dns_source:
-        dns_source = dns_source.replace(
-            "android {\\n",
-            'android {\\n    ndkVersion = "27.3.13750724"\\n',
-            1,
+        dns_source, replacements = re.subn(
+            r"(?m)^android \\{\\s*$",
+            'android {\\n    ndkVersion = "27.3.13750724"',
+            dns_source,
+            count=1,
         )
+        if replacements != 1:
+            fail("could not pin androidnsbypass to the engine NDK version")
         dns_gradle.write_text(dns_source, encoding="utf-8")
 
 # Patch project paths in every engine Gradle file, including the LWJGL aggregator.
