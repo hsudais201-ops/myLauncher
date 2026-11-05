@@ -7,6 +7,7 @@ from pathlib import Path
 import re
 import subprocess
 import sys
+import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
 ENGINE = ROOT / "engine" / "amethyst"
@@ -128,6 +129,28 @@ for old, new in (
 ):
     source = source.replace(old, new)
 
+# A library AAR cannot itself depend on local AAR files. Move those runtime
+# dependencies to Flame's final application module, while exposing their classes
+# to this library's compiler via extracted classes.jar files.
+aar_dependency = "    implementation fileTree(dir: 'libs', include: ['*.jar', '*.aar'])"
+if source.count(aar_dependency) != 1:
+    fail("upstream local AAR dependency declaration changed; review packaging migration")
+source = source.replace(
+    aar_dependency,
+    "    implementation fileTree(dir: 'libs', include: ['*.jar'])\\n"
+    + '    compileOnly fileTree(dir: "$buildDir/flame-aar-compile-libs", include: [\'*.jar\'])',
+    1,
+)
+
+native_packaging = "            pickFirsts += ['**/libbytehook.so']\\n"
+if source.count(native_packaging) != 1:
+    fail("upstream JNI packaging block changed; cannot assign androidnsbypass ownership")
+source = source.replace(
+    native_packaging,
+    native_packaging + "            excludes += ['**/libandroidnsbypass.so']\\n",
+    1,
+)
+
 source = source.replace(
     "apply from: rootProject.file('gradle/prefab_bypass.gradle')",
     "apply from: file('../gradle/prefab_bypass.gradle')",
@@ -171,6 +194,35 @@ if source == original:
     fail("no expected upstream Gradle changes were applied")
 
 app_gradle.write_text(source, encoding="utf-8")
+
+# Extract AAR compile classes for the library module. The original AARs are
+# attached directly to Flame's application module, where AGP can merge their
+# manifests, resources, assets, and native payloads correctly.
+aar_lib_dir = app_gradle.parent / "libs"
+compile_lib_dir = app_gradle.parent / "build" / "flame-aar-compile-libs"
+compile_lib_dir.mkdir(parents=True, exist_ok=True)
+aar_files = sorted(aar_lib_dir.glob("*.aar"))
+if not aar_files:
+    fail("expected upstream local AAR dependencies but found none")
+extracted_count = 0
+for aar_path in aar_files:
+    try:
+        with zipfile.ZipFile(aar_path) as archive:
+            jar_members = [
+                member for member in archive.namelist()
+                if member == "classes.jar" or (
+                    member.startswith("libs/") and member.endswith(".jar")
+                )
+            ]
+            for member in jar_members:
+                suffix = Path(member).name
+                output = compile_lib_dir / f"{aar_path.stem}-{suffix}"
+                output.write_bytes(archive.read(member))
+                extracted_count += 1
+    except (OSError, zipfile.BadZipFile) as error:
+        fail(f"could not inspect local AAR {aar_path.name}: {error}")
+if extracted_count == 0:
+    fail("no compile-time JARs were found inside Amethyst's local AAR dependencies")
 
 # Android library R fields are non-constant by design. Convert the six resource-ID
 # switch labels in this upstream activity to equivalent comparisons so javac can
