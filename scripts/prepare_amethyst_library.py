@@ -93,7 +93,7 @@ source = source.replace(bundle_block, "", 1)
 # The Android library plugin has no application versionName; keep the value used by
 # Amethyst's crash reporting in the generated library BuildConfig.
 source, replacements = re.subn(
-    r"(?m)^    defaultConfig \\{[ \\t]*$",
+    r"(?m)^    defaultConfig \{[ \t]*$",
     """    defaultConfig {
         buildConfigField "String", "VERSION_NAME", '"' + getVersionName() + '"'
 """,
@@ -104,9 +104,9 @@ if replacements != 1:
     fail("upstream defaultConfig block changed; cannot add library VERSION_NAME")
 
 # Resource shrinking is an APK-only operation and AGP rejects it on library modules.
-source = re.sub(r"(?m)^\\s*shrinkResources\\s+true\\s*$\\n?", "", source)
+source = re.sub(r"(?m)^\s*shrinkResources\s+true\s*$\n?", "", source)
 # Code shrinking is performed by the final application, not by an Android library.
-source = source.replace("            minifyEnabled true\\n", "            minifyEnabled false\\n", 1)
+source = source.replace("            minifyEnabled true\n", "            minifyEnabled false\n", 1)
 if "shrinkResources true" in source or "minifyEnabled true" in source:
     fail("APK-only shrinking remains enabled in the converted Android library")
 
@@ -140,7 +140,7 @@ if build_features_block not in source:
     fail("upstream buildFeatures block changed; review the library conversion")
 source = source.replace(
     build_features_block,
-    build_features_block.replace("        buildConfig true\\n", "        buildConfig true\\n        resValues true\\n"),
+    build_features_block.replace("        buildConfig true\n", "        buildConfig true\n        resValues true\n"),
     1,
 )
 
@@ -157,8 +157,8 @@ if dns_gradle.is_file():
     dns_source = dns_gradle.read_text(encoding="utf-8")
     if 'ndkVersion = "27.3.13750724"' not in dns_source:
         dns_source, replacements = re.subn(
-            r"(?m)^android \\{[ \\t]*$",
-            'android {\\n    ndkVersion = "27.3.13750724"',
+            r"(?m)^android \{[ \t]*$",
+            'android {\n    ndkVersion = "27.3.13750724"',
             dns_source,
             count=1,
         )
