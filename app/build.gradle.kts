@@ -32,7 +32,7 @@ android {
     packaging {
         jniLibs {
             useLegacyPackaging = true
-            pickFirsts += setOf("**/libbytehook.so")
+            pickFirsts += setOf("**/libbytehook.so", "**/libandroidnsbypass.so")
         }
     }
 
@@ -63,5 +63,7 @@ dependencies {
 
     if (providers.gradleProperty("withAmethyst").orNull == "true") {
         implementation(project(":engine:app_pojavlauncher"))
+        // Local engine AARs must be direct app dependencies; AGP forbids nesting them in an AAR.
+        implementation(fileTree(mapOf("dir" to "engine/amethyst/app_pojavlauncher/libs", "include" to listOf("*.aar"))))
     }
 }
