@@ -32,7 +32,7 @@ android {
     packaging {
         jniLibs {
             useLegacyPackaging = true
-            pickFirsts += setOf("**/libbytehook.so", "**/libandroidnsbypass.so")
+            pickFirsts += setOf("**/libbytehook.so", "**/libandroidnsbypass.so", "**/libglxshim.so")
         }
     }
 
