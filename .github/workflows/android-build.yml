@@ -68,6 +68,8 @@ jobs:
           "$ANDROID_HOME/build-tools/36.0.0/aapt" dump badging "$APK" | grep -F "package: name='com.flame.launcher'"
           unzip -Z1 "$APK" | grep -F "lib/arm64-v8a/libpojavexec.so"
           unzip -Z1 "$APK" | grep -F "lib/arm64-v8a/libexithook.so"
+          unzip -Z1 "$APK" | grep -F "lib/x86_64/libpojavexec.so"
+          unzip -Z1 "$APK" | grep -F "lib/x86_64/libexithook.so"
           unzip -Z1 "$APK" | grep -F "assets/components/MioLibPatcher/MioLibPatcher.jar"
           unzip -Z1 "$APK" | grep -F "assets/components/forge_installer/forge_installer.jar"
           unzip -Z1 "$APK" | grep -F "assets/components/lwjgl3/3.3.3/lwjgl-3.3.3-merged-modules.jar"
