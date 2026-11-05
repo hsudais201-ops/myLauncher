@@ -170,6 +170,34 @@ fun MinecraftContentBrowser() {
             }
         }
         OutlinedTextField(
+            value = targetMinecraftVersion,
+            onValueChange = { targetMinecraftVersion = it.trim() },
+            modifier = Modifier.fillMaxWidth(),
+            label = { Text("Target Minecraft version") },
+            placeholder = { Text("e.g. 1.20.1") },
+            singleLine = true
+        )
+        Text("Mod loader", style = MaterialTheme.typography.labelLarge)
+        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            FilterChip(
+                selected = selectedLoader == null,
+                onClick = { selectedLoader = null },
+                label = { Text("All") }
+            )
+            listOf(
+                MinecraftLoader.FABRIC,
+                MinecraftLoader.FORGE,
+                MinecraftLoader.NEOFORGE,
+                MinecraftLoader.QUILT
+            ).forEach { loader ->
+                FilterChip(
+                    selected = selectedLoader == loader,
+                    onClick = { selectedLoader = loader },
+                    label = { Text(loader.label()) }
+                )
+            }
+        }
+        OutlinedTextField(
             value = query,
             onValueChange = { query = it },
             modifier = Modifier.fillMaxWidth(),
