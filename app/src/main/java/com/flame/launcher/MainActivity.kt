@@ -405,26 +405,7 @@ private fun PlayPage() {
 
 @Composable
 private fun MinecraftContentPage() {
-    SectionTitle(
-        title = "Minecraft Content",
-        subtitle = "A first-class main section, separate from the Flame Feature Store."
-    )
-    ProviderCard(
-        name = "Modrinth",
-        badge = "CONTENT SOURCE",
-        detail = "Mods, modpacks, resource packs, shader packs, and datapacks with Minecraft version and loader filters."
-    )
-    ProviderCard(
-        name = "CurseForge",
-        badge = "CONTENT SOURCE",
-        detail = "Browse and install compatible Minecraft projects into the selected game profile."
-    )
-    StatusCard(
-        title = "My Downloads",
-        status = "Planned",
-        body = "Every selected item will install separately, with dependency checks, progress, updates, uninstall, and rollback.",
-        icon = Icons.Outlined.Extension
-    )
+    MinecraftContentBrowser()
 }
 
 @Composable
