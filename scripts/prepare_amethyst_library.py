@@ -177,6 +177,8 @@ project_paths = (
     (":androidnsbypass", ":engine:androidnsbypass"),
 )
 for gradle_file in ENGINE.rglob("build.gradle"):
+    if gradle_file == app_gradle:
+        continue
     text = gradle_file.read_text(encoding="utf-8")
     changed = text
     for old, new in project_paths:
