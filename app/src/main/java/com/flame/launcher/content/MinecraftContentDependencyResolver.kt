@@ -59,6 +59,19 @@ object MinecraftContentDependencyResolver {
         val visited = HashSet<ProjectKey>()
         val installOrder = mutableListOf<MinecraftContentVersion>()
 
+        // Register every explicit selection first, so an unpinned dependency
+        // can reuse a version the user has already selected as another root.
+        for (root in roots) {
+            val key = ProjectKey(root.provider, root.projectId)
+            val existing = selected[key]
+            if (existing != null && existing.versionId != root.versionId) {
+                return Result.Failed(
+                    Failure.ConflictingVersions(key, existing.versionId, root.versionId)
+                )
+            }
+            selected[key] = root
+        }
+
         fun visit(version: MinecraftContentVersion): Failure? {
             val key = ProjectKey(version.provider, version.projectId)
             val existing = selected[key]
@@ -93,6 +106,10 @@ object MinecraftContentDependencyResolver {
                     }
                     if (dependencyKey in visiting) {
                         return Failure.CircularDependency(dependencyKey)
+                    }
+                    if (dependencyKey !in visited) {
+                        val failure = visit(alreadySelected)
+                        if (failure != null) return failure
                     }
                     continue
                 }
