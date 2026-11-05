@@ -21,7 +21,13 @@ jobs:
       - name: Check out source
         uses: actions/checkout@v5
 
-      - name: Set up JDK 21
+      - name: Install JDK 8 for the upstream Java component toolchain
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "8"
+
+      - name: Set up JDK 21 for Gradle and Android Gradle Plugin
         uses: actions/setup-java@v5
         with:
           distribution: temurin
