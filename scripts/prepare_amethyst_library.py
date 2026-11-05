@@ -92,15 +92,16 @@ source = source.replace(bundle_block, "", 1)
 
 # The Android library plugin has no application versionName; keep the value used by
 # Amethyst's crash reporting in the generated library BuildConfig.
-default_config_marker = "    defaultConfig {\\n"
-if default_config_marker not in source:
-    fail("upstream defaultConfig block changed; cannot add library VERSION_NAME")
-source = source.replace(
-    default_config_marker,
-    default_config_marker + """        buildConfigField "String", "VERSION_NAME", '"' + getVersionName() + '"'
+source, replacements = re.subn(
+    r"(?m)^    defaultConfig \\{\\s*$",
+    """    defaultConfig {
+        buildConfigField "String", "VERSION_NAME", '"' + getVersionName() + '"'
 """,
-    1,
+    source,
+    count=1,
 )
+if replacements != 1:
+    fail("upstream defaultConfig block changed; cannot add library VERSION_NAME")
 
 # Resource shrinking is an APK-only operation and AGP rejects it on library modules.
 source = re.sub(r"(?m)^\\s*shrinkResources\\s+true\\s*$\\n?", "", source)
