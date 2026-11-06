@@ -45,7 +45,7 @@ class MinecraftModpackArchiveInspectorTest {
 
     @Test
     fun rejectsDuplicatePathsAndMissingManifest() {
-        val duplicate = archive("modrinth.index.json" to "{}", "assets/a.txt" to "one", "assets/a.txt" to "two")
+        val duplicate = archive("modrinth.index.json" to "{}", "assets/" to "", "assets" to "collision")
         try {
             assertTrue(
                 MinecraftModpackArchiveInspector().inspect(duplicate) is MinecraftModpackArchiveInspector.Result.Rejected
