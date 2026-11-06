@@ -78,6 +78,31 @@ class ModrinthContentProvider(
     }
 
     @Throws(IOException::class)
+    fun getProject(projectId: String): MinecraftContentProject {
+        require(projectId.matches(PROJECT_ID_PATTERN)) { "Invalid Modrinth project ID." }
+        val project = JSONObject(get("/project/$projectId", emptyMap()))
+        val type = when (project.optString("project_type")) {
+            "mod" -> MinecraftContentType.MOD
+            "modpack" -> MinecraftContentType.MODPACK
+            "resourcepack" -> MinecraftContentType.RESOURCE_PACK
+            "shader" -> MinecraftContentType.SHADER
+            "datapack" -> MinecraftContentType.DATAPACK
+            else -> throw IOException("Modrinth returned an unsupported project type.")
+        }
+        return MinecraftContentProject(
+            provider = ContentProviderId.MODRINTH,
+            projectId = project.optString("id").ifBlank { projectId },
+            slug = project.optString("slug", projectId),
+            title = project.optString("title", projectId),
+            description = project.optString("description"),
+            contentType = type,
+            author = "Unknown",
+            downloads = project.optLong("downloads", 0L).coerceAtLeast(0L),
+            iconUrl = project.optString("icon_url").takeIf(String::isNotBlank)
+        )
+    }
+
+    @Throws(IOException::class)
     fun getProjectVersions(
         projectId: String,
         minecraftVersion: String? = null,
