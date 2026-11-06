@@ -39,7 +39,8 @@ class MinecraftModpackOverrideImporter(
             is MinecraftModpackArchiveInspector.Result.Rejected ->
                 return failed("Modpack archive changed or is no longer valid: ${result.reason}")
         }
-        if (freshInspection.manifest != inspection.manifest ||
+        if (freshInspection.archiveSha256 != inspection.archiveSha256 ||
+            freshInspection.manifest != inspection.manifest ||
             freshInspection.overrideFiles != inspection.overrideFiles
         ) return failed("Modpack archive changed after inspection")
         val root = runCatching { contentDirectory.canonicalFile }.getOrNull()
