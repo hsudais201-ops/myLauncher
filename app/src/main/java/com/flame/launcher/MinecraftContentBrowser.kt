@@ -104,7 +104,7 @@ fun MinecraftContentBrowser() {
             managedEntries = emptyList()
             return
         }
-        managedEntries = when (val loaded = manifestStore.load(File(profile.contentDirectory))) {
+        managedEntries = when (val loaded = manifestStore.load(profile.contentDirectory)) {
             is MinecraftContentInstallManifestResult.Loaded -> loaded.manifest.entries
             is MinecraftContentInstallManifestResult.Failed -> {
                 installStatus = "Could not load managed content: ${loaded.reason}"
@@ -126,15 +126,14 @@ fun MinecraftContentBrowser() {
                 )
             }
             loading = false
-            if (result is MinecraftManagedContentUninstallResult.Uninstalled) {
-                refreshManagedEntries(profile)
-            }
             installStatus = when (result) {
                 is MinecraftManagedContentUninstallResult.Uninstalled ->
                     "Uninstalled ${result.entry.fileName}."
                 is MinecraftManagedContentUninstallResult.Failed -> result.reason
             }
-            refreshManagedEntries(profile)
+            if (result is MinecraftManagedContentUninstallResult.Uninstalled) {
+                refreshManagedEntries(profile)
+            }
         }
     }
 
@@ -232,6 +231,9 @@ fun MinecraftContentBrowser() {
                 return@launch
             }
             loading = false
+            if (result is MinecraftContentInstallCoordinatorResult.Installed) {
+                refreshManagedEntries(profile)
+            }
             installStatus = when (result) {
                 is MinecraftContentInstallCoordinatorResult.Installed -> {
                     val installedFiles = result.plan.items.count { it.action.name == "INSTALL_FILE" }
