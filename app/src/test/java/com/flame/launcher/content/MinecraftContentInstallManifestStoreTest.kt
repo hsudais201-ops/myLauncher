@@ -153,4 +153,59 @@ class MinecraftContentInstallManifestStoreTest {
         assertTrue(result.manifest.entries.isEmpty())
         assertEquals(0, appPrivate.listFiles()?.size ?: 0)
     }
+
+    @Test
+    fun uninstallsOnlyUnmodifiedManagedFileAndRemovesItsRecord() {
+        val appPrivate = Files.createTempDirectory("flame-manifest-uninstall-app").toFile()
+        val instance = Files.createTempDirectory("flame-manifest-uninstall-instance").toFile()
+        val plan = plan(instance)
+        val installedFile = writeInstalledFile(plan)
+        val store = MinecraftContentInstallManifestStore(appPrivate)
+        val saved = store.recordSuccessfulInstall(
+            plan,
+            MinecraftContentInstallTransactionResult.Installed(listOf(installedFile.path))
+        )
+        assertTrue(saved is MinecraftContentInstallManifestResult.Saved)
+
+        val result = store.uninstallManagedFile(instance, installedFile.path)
+
+        assertTrue("Expected uninstall, got $result", result is MinecraftManagedContentUninstallResult.Uninstalled)
+        assertFalse(installedFile.exists())
+        val loaded = store.load(instance) as MinecraftContentInstallManifestResult.Loaded
+        assertTrue(loaded.manifest.entries.isEmpty())
+    }
+
+    @Test
+    fun refusesToUninstallModifiedManagedFile() {
+        val appPrivate = Files.createTempDirectory("flame-manifest-modified-app").toFile()
+        val instance = Files.createTempDirectory("flame-manifest-modified-instance").toFile()
+        val plan = plan(instance)
+        val installedFile = writeInstalledFile(plan)
+        val store = MinecraftContentInstallManifestStore(appPrivate)
+        val saved = store.recordSuccessfulInstall(
+            plan,
+            MinecraftContentInstallTransactionResult.Installed(listOf(installedFile.path))
+        )
+        assertTrue(saved is MinecraftContentInstallManifestResult.Saved)
+        installedFile.writeText("user modified this file")
+
+        val result = store.uninstallManagedFile(instance, installedFile.path)
+
+        assertTrue(result is MinecraftManagedContentUninstallResult.Failed)
+        assertTrue(installedFile.exists())
+        val loaded = store.load(instance) as MinecraftContentInstallManifestResult.Loaded
+        assertEquals(1, loaded.manifest.entries.size)
+    }
+
+    @Test
+    fun refusesToUninstallUnmanagedFile() {
+        val appPrivate = Files.createTempDirectory("flame-manifest-unmanaged-app").toFile()
+        val instance = Files.createTempDirectory("flame-manifest-unmanaged-instance").toFile()
+        val outside = Files.createTempFile("user-owned-content", ".jar").toFile()
+        val result = MinecraftContentInstallManifestStore(appPrivate)
+            .uninstallManagedFile(instance, outside.path)
+
+        assertTrue(result is MinecraftManagedContentUninstallResult.Failed)
+        assertTrue(outside.exists())
+    }
 }
