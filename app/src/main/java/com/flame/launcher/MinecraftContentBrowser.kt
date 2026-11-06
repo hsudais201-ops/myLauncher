@@ -210,20 +210,29 @@ fun MinecraftContentBrowser() {
                     stagingDirectory = File(context.cacheDir, "minecraft-content-staging"),
                     modpackStagingDirectory = File(context.filesDir, "modpack-import-staging"),
                     findVersion = { providerId, projectId, versionId ->
-                        if (providerId != ContentProviderId.MODRINTH) {
-                            null
-                        } else {
-                            provider.getProjectVersions(
+                        val compatibleVersions = when (providerId) {
+                            ContentProviderId.MODRINTH -> provider.getProjectVersions(
                                 projectId = projectId,
                                 minecraftVersion = profile.minecraftVersion,
                                 loader = profile.loader
-                            ).firstOrNull { versionId == null || it.versionId == versionId }
+                            )
+                            ContentProviderId.CURSEFORGE -> (curseForgeProvider
+                                ?: throw IllegalStateException("Enter your CurseForge API key to resolve dependencies."))
+                                .getProjectVersions(
+                                    projectId = projectId,
+                                    minecraftVersion = profile.minecraftVersion,
+                                    loader = profile.loader
+                                )
                         }
+                        compatibleVersions.firstOrNull { versionId == null || it.versionId == versionId }
                     },
                     findProject = { providerId, projectId ->
-                        if (providerId == ContentProviderId.MODRINTH) {
-                            provider.getProject(projectId)
-                        } else null
+                        when (providerId) {
+                            ContentProviderId.MODRINTH -> provider.getProject(projectId)
+                            ContentProviderId.CURSEFORGE -> (curseForgeProvider
+                                ?: throw IllegalStateException("Enter your CurseForge API key to load dependency details."))
+                                .getProject(projectId, MinecraftContentType.MOD)
+                        }
                     },
                     includeOptionalModpackFiles = includeOptionalModpackFiles,
                     progress = { projectId, downloaded, expected ->
