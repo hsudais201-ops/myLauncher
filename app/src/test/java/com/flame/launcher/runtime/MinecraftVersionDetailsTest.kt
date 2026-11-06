@@ -84,6 +84,17 @@ class MinecraftVersionDetailsTest {
     }
 
     @Test
+    fun rejectsUnsafeLibraryPaths() {
+        val unsafe = details().replace(
+            "org/example/sample/1.0/sample-1.0.jar",
+            "../outside.jar"
+        )
+        assertThrows(IllegalArgumentException::class.java) {
+            MinecraftVersionDetails.parse(unsafe, "1.21")
+        }
+    }
+
+    @Test
     fun rejectsWrongVersionIdAndInvalidMainClass() {
         assertThrows(IllegalArgumentException::class.java) {
             MinecraftVersionDetails.parse(details(), "1.20.1")
