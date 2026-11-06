@@ -1,13 +1,14 @@
 package com.flame.launcher.content
 
 import java.io.File
+import java.nio.file.Files
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class MinecraftContentInstallCoordinatorTest {
     @Test
     fun rejectsEmptySelectionBeforeFilesystemWork() {
-        val root = createTempDir(prefix = "flame-coordinator-")
+        val root = Files.createTempDirectory("flame-coordinator-").toFile()
         try {
             val coordinator = MinecraftContentInstallCoordinator(
                 MinecraftContentInstallManifestStore(File(root, "manifests"))
@@ -30,7 +31,7 @@ class MinecraftContentInstallCoordinatorTest {
 
     @Test
     fun requiredDependencyMustResolveBeforeAnyDownloadOrInstall() {
-        val root = createTempDir(prefix = "flame-coordinator-")
+        val root = Files.createTempDirectory("flame-coordinator-").toFile()
         try {
             val project = project("root")
             val version = version(
