@@ -23,6 +23,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import com.flame.launcher.content.ContentProviderId
+import com.flame.launcher.content.MinecraftContentInstallCoordinator
+import com.flame.launcher.content.MinecraftContentInstallCoordinatorResult
+import com.flame.launcher.content.MinecraftContentInstallItem
+import com.flame.launcher.content.MinecraftContentInstallManifestStore
 import com.flame.launcher.content.MinecraftContentProject
 import com.flame.launcher.content.MinecraftContentType
 import com.flame.launcher.content.MinecraftContentVersion
@@ -49,13 +54,20 @@ fun MinecraftContentBrowser() {
     val profileStore = remember(context) {
         MinecraftInstanceProfileStore(File(context.filesDir, "minecraft-instances"))
     }
+    val installCoordinator = remember(context) {
+        MinecraftContentInstallCoordinator(
+            MinecraftContentInstallManifestStore(File(context.filesDir, "managed-content-manifests"))
+        )
+    }
     var query by remember { mutableStateOf("") }
     var selectedType by remember { mutableStateOf(MinecraftContentType.MOD) }
     var targetMinecraftVersion by remember { mutableStateOf("1.20.1") }
     var selectedLoader by remember { mutableStateOf<MinecraftLoader?>(MinecraftLoader.FABRIC) }
     var projects by remember { mutableStateOf<List<MinecraftContentProject>>(emptyList()) }
     var selectedProject by remember { mutableStateOf<MinecraftContentProject?>(null) }
+    var selectedVersion by remember { mutableStateOf<MinecraftContentVersion?>(null) }
     var versions by remember { mutableStateOf<List<MinecraftContentVersion>>(emptyList()) }
+    var installStatus by remember { mutableStateOf<String?>(null) }
     var loading by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
     var status by remember { mutableStateOf("Search Modrinth to discover Minecraft content.") }
@@ -114,10 +126,64 @@ fun MinecraftContentBrowser() {
         }
     }
 
+    fun installSelectedVersion() {
+        val profile = selectedProfile
+        val project = selectedProject
+        val version = selectedVersion
+        if (profile == null || project == null || version == null) {
+            installStatus = "Select a profile and a content version first."
+            return
+        }
+        loading = true
+        error = null
+        installStatus = "Resolving dependencies and preparing verified downloads…"
+        scope.launch {
+            val result = withContext(Dispatchers.IO) {
+                installCoordinator.install(
+                    selectedItems = listOf(MinecraftContentInstallItem(project, version)),
+                    target = profile.target(),
+                    stagingDirectory = File(context.cacheDir, "minecraft-content-staging"),
+                    modpackStagingDirectory = File(context.filesDir, "modpack-import-staging"),
+                    findVersion = { providerId, projectId, versionId ->
+                        if (providerId != ContentProviderId.MODRINTH) {
+                            null
+                        } else {
+                            provider.getProjectVersions(
+                                projectId = projectId,
+                                minecraftVersion = profile.minecraftVersion,
+                                loader = profile.loader
+                            ).firstOrNull { versionId == null || it.versionId == versionId }
+                        }
+                    },
+                    findProject = { providerId, projectId ->
+                        if (providerId == ContentProviderId.MODRINTH) {
+                            provider.getProject(projectId)
+                        } else null
+                    }
+                )
+            }
+            loading = false
+            installStatus = when (result) {
+                is MinecraftContentInstallCoordinatorResult.Installed ->
+                    "Installed and recorded ${result.plan.items.count { it.action.name == "INSTALL_FILE" }} managed file(s)."
+                is MinecraftContentInstallCoordinatorResult.Failed ->
+                    buildString {
+                        append(result.reason)
+                        if (result.cleanupFailures.isNotEmpty()) {
+                            append(" Cleanup: ")
+                            append(result.cleanupFailures.joinToString("; "))
+                        }
+                    }
+            }
+        }
+    }
+
     fun search() {
         loading = true
         error = null
         selectedProject = null
+        selectedVersion = null
+        installStatus = null
         versions = emptyList()
         scope.launch {
             try {
@@ -144,6 +210,8 @@ fun MinecraftContentBrowser() {
         loading = true
         error = null
         selectedProject = project
+        selectedVersion = null
+        installStatus = null
         versions = emptyList()
         scope.launch {
             try {
@@ -310,12 +378,29 @@ fun MinecraftContentBrowser() {
                             "Dependencies: ${version.dependencies.count { it.type.name == "REQUIRED" }} required",
                             style = MaterialTheme.typography.labelSmall
                         )
+                        Button(
+                            onClick = { selectedVersion = version },
+                            enabled = !loading
+                        ) {
+                            Text(if (selectedVersion?.versionId == version.versionId) "Selected version" else "Select version")
+                        }
                     }
-                    Text(
-                        "Installation is not available yet; no files have been changed.",
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        style = MaterialTheme.typography.bodySmall
-                    )
+                    Button(
+                        onClick = { installSelectedVersion() },
+                        enabled = !loading && selectedProfile != null && selectedVersion != null
+                    ) {
+                        Text("Install selected version")
+                    }
+                    installStatus?.let {
+                        Text(it, style = MaterialTheme.typography.bodySmall)
+                    }
+                    if (selectedProfile == null) {
+                        Text(
+                            "Create or select a profile before installing content.",
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                    }
                 }
             }
         }
