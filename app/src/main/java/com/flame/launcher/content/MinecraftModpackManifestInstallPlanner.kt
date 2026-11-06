@@ -81,11 +81,15 @@ class MinecraftModpackManifestInstallPlanner {
 
         fun planned(file: MinecraftModpackManifestParser.RemoteFile): PlannedFile {
             val destination = File(root, file.path).canonicalFile
+            if (!destination.toPath().startsWith(root.toPath()) || destination == root) {
+                reasons += "Modpack destination escapes the selected instance directory"
+            }
             return PlannedFile(file.path, destination, file)
         }
 
         val required = candidates.filter { it.clientEnvironment == "required" }.map(::planned)
         val optional = candidates.filter { it.clientEnvironment == "optional" }.map(::planned)
+        if (reasons.isNotEmpty()) return Result.Rejected(reasons.distinct())
         return Result.Ready(
             Plan(
                 requiredFiles = required,
