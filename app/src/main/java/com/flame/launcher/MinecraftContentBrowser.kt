@@ -25,8 +25,10 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import com.flame.launcher.content.ContentProviderId
+import com.flame.launcher.content.CurseForgeContentProvider
 import com.flame.launcher.content.MinecraftContentInstallCoordinator
 import com.flame.launcher.content.MinecraftContentInstallCoordinatorResult
 import com.flame.launcher.content.MinecraftContentInstallItem
@@ -48,7 +50,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 /**
- * Live Modrinth catalog browser with an explicit, app-private profile selector.
+ * Live Modrinth and CurseForge catalog browser with an explicit, app-private profile selector.
  * Profiles created here are content-install targets; they are not runnable game
  * installations until the runtime/version installer milestone is complete.
  */
@@ -57,6 +59,11 @@ fun MinecraftContentBrowser() {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val provider = remember { ModrinthContentProvider() }
+    var selectedProvider by remember { mutableStateOf(ContentProviderId.MODRINTH) }
+    var curseForgeApiKey by remember { mutableStateOf("") }
+    val curseForgeProvider = remember(curseForgeApiKey) {
+        curseForgeApiKey.trim().takeIf(String::isNotEmpty)?.let(::CurseForgeContentProvider)
+    }
     val profileStore = remember(context) {
         MinecraftInstanceProfileStore(File(context.filesDir, "minecraft-instances"))
     }
@@ -270,17 +277,28 @@ fun MinecraftContentBrowser() {
         scope.launch {
             try {
                 projects = withContext(Dispatchers.IO) {
-                    provider.searchProjects(
-                        query = query,
-                        type = selectedType,
-                        minecraftVersion = targetMinecraftVersion.takeIf(String::isNotBlank),
-                        loader = selectedLoader,
-                        limit = 20
-                    )
+                    when (selectedProvider) {
+                        ContentProviderId.MODRINTH -> provider.searchProjects(
+                            query = query,
+                            type = selectedType,
+                            minecraftVersion = targetMinecraftVersion.takeIf(String::isNotBlank),
+                            loader = selectedLoader,
+                            limit = 20
+                        )
+                        ContentProviderId.CURSEFORGE -> (curseForgeProvider
+                            ?: throw IllegalStateException("Enter your CurseForge API key to search its catalog."))
+                            .searchProjects(
+                                query = query,
+                                type = selectedType,
+                                minecraftVersion = targetMinecraftVersion.takeIf(String::isNotBlank),
+                                loader = selectedLoader,
+                                limit = 20
+                            )
+                    }
                 }
-                status = "Showing ${projects.size} Modrinth results."
+                status = "Showing ${projects.size} ${selectedProvider.name.lowercase().replaceFirstChar(Char::uppercase)} results."
             } catch (failure: Exception) {
-                error = failure.message ?: "Could not load Modrinth projects."
+                error = failure.message ?: "Could not load ${selectedProvider.name} projects."
                 status = "Search failed."
             } finally {
                 loading = false
@@ -298,11 +316,20 @@ fun MinecraftContentBrowser() {
         scope.launch {
             try {
                 versions = withContext(Dispatchers.IO) {
-                    provider.getProjectVersions(
-                        projectId = project.projectId,
-                        minecraftVersion = targetMinecraftVersion.takeIf(String::isNotBlank),
-                        loader = selectedLoader
-                    )
+                    when (project.provider) {
+                        ContentProviderId.MODRINTH -> provider.getProjectVersions(
+                            projectId = project.projectId,
+                            minecraftVersion = targetMinecraftVersion.takeIf(String::isNotBlank),
+                            loader = selectedLoader
+                        )
+                        ContentProviderId.CURSEFORGE -> (curseForgeProvider
+                            ?: throw IllegalStateException("Enter your CurseForge API key to view versions."))
+                            .getProjectVersions(
+                                projectId = project.projectId,
+                                minecraftVersion = targetMinecraftVersion.takeIf(String::isNotBlank),
+                                loader = selectedLoader
+                            )
+                    }
                 }
                 status = "Found ${versions.size} versions for ${project.title}."
             } catch (failure: Exception) {
@@ -319,12 +346,16 @@ fun MinecraftContentBrowser() {
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         Text(
-            "Browse Modrinth",
+            "Browse ${selectedProvider.name.lowercase().replaceFirstChar(Char::uppercase)}",
             style = MaterialTheme.typography.titleLarge,
             color = MaterialTheme.colorScheme.onSurface
         )
         Text(
-            "Live public catalog search. CurseForge is not enabled in this build.",
+            if (selectedProvider == ContentProviderId.MODRINTH) {
+                "Search Modrinth's public catalog."
+            } else {
+                "CurseForge requires your own API key. The key stays in memory and is not saved by Flame."
+            },
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
@@ -419,6 +450,51 @@ fun MinecraftContentBrowser() {
             }
         }
 
+        Text("Content source", style = MaterialTheme.typography.titleSmall)
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            FilterChip(
+                selected = selectedProvider == ContentProviderId.MODRINTH,
+                onClick = {
+                    selectedProvider = ContentProviderId.MODRINTH
+                    projects = emptyList()
+                    selectedProject = null
+                    selectedVersion = null
+                    versions = emptyList()
+                    error = null
+                    status = "Search Modrinth to discover Minecraft content."
+                },
+                label = { Text("Modrinth") }
+            )
+            FilterChip(
+                selected = selectedProvider == ContentProviderId.CURSEFORGE,
+                onClick = {
+                    selectedProvider = ContentProviderId.CURSEFORGE
+                    projects = emptyList()
+                    selectedProject = null
+                    selectedVersion = null
+                    versions = emptyList()
+                    error = null
+                    status = "Enter a CurseForge API key to search its catalog."
+                },
+                label = { Text("CurseForge") }
+            )
+        }
+        if (selectedProvider == ContentProviderId.CURSEFORGE) {
+            OutlinedTextField(
+                value = curseForgeApiKey,
+                onValueChange = { curseForgeApiKey = it },
+                modifier = Modifier.fillMaxWidth(),
+                label = { Text("CurseForge API key") },
+                visualTransformation = PasswordVisualTransformation(),
+                singleLine = true
+            )
+            Text(
+                "Your key is used only for this app session. Do not share it or commit it to source control.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+
         Text("Catalog filters", style = MaterialTheme.typography.titleSmall)
         OutlinedTextField(
             value = targetMinecraftVersion,
@@ -476,8 +552,11 @@ fun MinecraftContentBrowser() {
             label = { Text("Search projects") },
             singleLine = true
         )
-        Button(onClick = { search() }, enabled = !loading) {
-            Text("Search Modrinth")
+        Button(
+            onClick = { search() },
+            enabled = !loading && (selectedProvider == ContentProviderId.MODRINTH || curseForgeApiKey.isNotBlank())
+        ) {
+            Text("Search ${selectedProvider.name.lowercase().replaceFirstChar(Char::uppercase)}")
         }
         if (loading) CircularProgressIndicator()
         Text(status, style = MaterialTheme.typography.bodySmall)
@@ -531,9 +610,23 @@ fun MinecraftContentBrowser() {
                     }
                     Button(
                         onClick = { installSelectedVersion() },
-                        enabled = !loading && selectedProfile != null && selectedVersion != null
+                        enabled = !loading && selectedProfile != null && selectedVersion != null &&
+                            project.provider == ContentProviderId.MODRINTH
                     ) {
-                        Text("Install selected version")
+                        Text(
+                            if (project.provider == ContentProviderId.MODRINTH) {
+                                "Install selected version"
+                            } else {
+                                "CurseForge installation coming soon"
+                            }
+                        )
+                    }
+                    if (project.provider == ContentProviderId.CURSEFORGE) {
+                        Text(
+                            "CurseForge browsing and version lookup are enabled. Installation will be enabled after provider-aware dependency resolution and install verification are complete.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                     }
                     installStatus?.let {
                         Text(it, style = MaterialTheme.typography.bodySmall)
