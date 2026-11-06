@@ -52,6 +52,7 @@ class MinecraftModpackArchiveInspector(
         return try {
             ZipFile(archive).use { zip ->
                 val seen = HashSet<String>()
+                val filePaths = HashSet<String>()
                 val overrides = mutableListOf<String>()
                 var count = 0
                 var totalBytes = 0L
@@ -70,8 +71,19 @@ class MinecraftModpackArchiveInspector(
                     if (!seen.add(normalized)) {
                         return Result.Rejected("Archive contains duplicate paths")
                     }
+                    val segments = normalized.split('/')
+                    if (segments.dropLast(1).indices.any { index ->
+                            segments.take(index + 1).joinToString("/") in filePaths
+                        }
+                    ) {
+                        return Result.Rejected("Archive contains a file used as a parent directory")
+                    }
+                    if (!entry.isDirectory && seen.any { it.startsWith("$normalized/") }) {
+                        return Result.Rejected("Archive contains a file that conflicts with a directory path")
+                    }
 
                     if (!entry.isDirectory) {
+                        filePaths += normalized
                         val size = entry.size
                         val compressedSize = entry.compressedSize
                         if (size < 0L || compressedSize < 0L) {
