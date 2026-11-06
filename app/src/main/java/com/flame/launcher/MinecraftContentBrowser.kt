@@ -138,8 +138,9 @@ fun MinecraftContentBrowser() {
         error = null
         installStatus = "Resolving dependencies and preparing verified downloads…"
         scope.launch {
-            val result = withContext(Dispatchers.IO) {
-                installCoordinator.install(
+            val result = try {
+                withContext(Dispatchers.IO) {
+                    installCoordinator.install(
                     selectedItems = listOf(MinecraftContentInstallItem(project, version)),
                     target = profile.target(),
                     stagingDirectory = File(context.cacheDir, "minecraft-content-staging"),
@@ -167,7 +168,12 @@ fun MinecraftContentBrowser() {
                             "Downloading $projectId: $downloaded / $expected bytes"
                         }
                     }
-                )
+                    )
+                }
+            } catch (failure: Exception) {
+                loading = false
+                installStatus = failure.message ?: "Install failed unexpectedly."
+                return@launch
             }
             loading = false
             installStatus = when (result) {
