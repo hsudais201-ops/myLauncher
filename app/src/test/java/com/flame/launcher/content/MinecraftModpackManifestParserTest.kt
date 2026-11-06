@@ -28,8 +28,8 @@ class MinecraftModpackManifestParserTest {
         assertTrue(parser.parse(untrusted) is MinecraftModpackManifestParser.Result.Rejected)
 
         val noHash = validManifest().replace(
-            "\"sha1\": \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",",
-            ""
+            "\"hashes\": {\"sha1\": \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"}",
+            "\"hashes\": {}"
         )
         assertTrue(parser.parse(noHash) is MinecraftModpackManifestParser.Result.Rejected)
     }
@@ -38,8 +38,8 @@ class MinecraftModpackManifestParserTest {
     fun rejectsDuplicatePathsAndMalformedOrAmbiguousJson() {
         val duplicateEntry = """{"path":"mods/example.jar","hashes":{"sha1":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"},"downloads":["https://cdn.modrinth.com/file"],"fileSize":1}"""
         val duplicatePath = validManifest().replace(
-            "\"files\": [",
-            "\"files\": [$duplicateEntry,"
+            "\"files\": [{",
+            "\"files\": [$duplicateEntry, {"
         )
         assertTrue(parser.parse(duplicatePath) is MinecraftModpackManifestParser.Result.Rejected)
         assertTrue(parser.parse(validManifest().dropLast(1)) is MinecraftModpackManifestParser.Result.Rejected)
