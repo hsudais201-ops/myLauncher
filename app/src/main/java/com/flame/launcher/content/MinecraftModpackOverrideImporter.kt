@@ -79,6 +79,7 @@ class MinecraftModpackOverrideImporter(
         val tempRoot = File(staging, "override-import-${System.nanoTime()}")
         if (!tempRoot.mkdir()) return failed("Could not create private override staging directory")
         val staged = mutableListOf<Pair<File, File>>()
+        var totalExtractedBytes = 0L
         try {
             ZipFile(archiveFile).use { zip ->
                 for ((relative, entryName) in planned) {
@@ -103,8 +104,12 @@ class MinecraftModpackOverrideImporter(
                                 val count = input.read(buffer)
                                 if (count < 0) break
                                 total += count
+                                totalExtractedBytes += count
                                 if (total > MAX_OVERRIDE_FILE_BYTES) {
                                     throw IllegalStateException("Override file exceeds size limit")
+                                }
+                                if (totalExtractedBytes > MAX_TOTAL_OVERRIDE_BYTES) {
+                                    throw IllegalStateException("Client overrides exceed the total extraction limit")
                                 }
                                 output.write(buffer, 0, count)
                             }
@@ -175,5 +180,6 @@ class MinecraftModpackOverrideImporter(
 
     private companion object {
         const val MAX_OVERRIDE_FILE_BYTES = 128L * 1024L * 1024L
+        const val MAX_TOTAL_OVERRIDE_BYTES = 512L * 1024L * 1024L
     }
 }
