@@ -197,6 +197,17 @@ class MinecraftContentInstallCoordinator(
             }
         }
 
+        // Preserve the expected bytes before staging cleanup so a failed ownership write
+        // can safely compensate without deleting a file that another process changed.
+        val rollbackDigests = buildMap {
+            downloaded.forEach { item ->
+                put(File(item.install.destinationPath).canonicalPath, sha256(item.stagedFile))
+            }
+            additionalFiles.forEach { item ->
+                put(item.destination.canonicalPath, item.expectedSha256)
+            }
+        }
+
         val committed = transaction.install(
             plan = plan,
             stagedDownloads = downloaded,
@@ -232,16 +243,25 @@ class MinecraftContentInstallCoordinator(
         return when (saved) {
             is MinecraftContentInstallManifestResult.Saved ->
                 MinecraftContentInstallCoordinatorResult.Installed(plan, saved.manifest)
-            is MinecraftContentInstallManifestResult.Failed ->
+            is MinecraftContentInstallManifestResult.Failed -> {
+                val rollbackFailures = transaction.rollbackInstalled(committed.installedPaths, rollbackDigests)
                 MinecraftContentInstallCoordinatorResult.Failed(
-                    "Files were installed, but the managed-content manifest could not be saved: ${saved.reason}",
-                    cleanupFailures
+                    if (rollbackFailures.isEmpty()) {
+                        "Managed-content manifest could not be saved; installed files were rolled back: ${saved.reason}"
+                    } else {
+                        "Managed-content manifest could not be saved; some installed files could not be safely rolled back: ${saved.reason}"
+                    },
+                    cleanupFailures + rollbackFailures
                 )
-            is MinecraftContentInstallManifestResult.Loaded ->
+            }
+            is MinecraftContentInstallManifestResult.Loaded -> {
+                val rollbackFailures = transaction.rollbackInstalled(committed.installedPaths, rollbackDigests)
                 MinecraftContentInstallCoordinatorResult.Failed(
-                    "Files were installed, but manifest persistence returned an unexpected result",
-                    cleanupFailures
+                    if (rollbackFailures.isEmpty()) "Unexpected manifest persistence result; installed files were rolled back"
+                    else "Unexpected manifest persistence result; some installed files could not be safely rolled back",
+                    cleanupFailures + rollbackFailures
                 )
+            }
         }
     }
 
