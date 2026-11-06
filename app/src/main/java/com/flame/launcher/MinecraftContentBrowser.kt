@@ -509,7 +509,7 @@ fun MinecraftContentBrowser() {
                             Text(if (selectedVersion?.versionId == version.versionId) "Selected version" else "Select version")
                         }
                     }
-                    if (selectedProject.contentType == MinecraftContentType.MODPACK) {
+                    if (project.contentType == MinecraftContentType.MODPACK) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween
