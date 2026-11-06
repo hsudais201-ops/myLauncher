@@ -82,7 +82,7 @@ class MinecraftContentInstallTransaction(
     )
 
     private data class Prepared(
-        val install: MinecraftPlannedInstall,
+        val install: MinecraftPlannedInstall?,
         val staged: File,
         val destination: File,
         val destinationDirectory: File,
