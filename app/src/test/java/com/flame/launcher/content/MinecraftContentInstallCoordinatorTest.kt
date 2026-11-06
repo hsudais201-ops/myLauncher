@@ -59,6 +59,82 @@ class MinecraftContentInstallCoordinatorTest {
         }
     }
 
+    @Test
+    fun curseForgeDependencyUsesCurseForgeVersionAndProjectLookups() {
+        val root = Files.createTempDirectory("flame-coordinator-curseforge-").toFile()
+        try {
+            val rootProject = curseForgeProject("100")
+            val rootVersion = curseForgeVersion(
+                "100",
+                dependencies = listOf(
+                    MinecraftContentDependency("200", type = DependencyType.REQUIRED)
+                )
+            )
+            var versionLookupProvider: ContentProviderId? = null
+            var projectLookupProvider: ContentProviderId? = null
+            val coordinator = MinecraftContentInstallCoordinator(
+                MinecraftContentInstallManifestStore(File(root, "manifests"))
+            )
+
+            val result = coordinator.install(
+                selectedItems = listOf(MinecraftContentInstallItem(rootProject, rootVersion)),
+                target = target(root),
+                stagingDirectory = File(root, "downloads"),
+                modpackStagingDirectory = File(root, "modpacks"),
+                findVersion = { providerId, projectId, versionId ->
+                    versionLookupProvider = providerId
+                    assertTrue(projectId == "200")
+                    assertTrue(versionId == null)
+                    curseForgeVersion("200")
+                },
+                findProject = { providerId, projectId ->
+                    projectLookupProvider = providerId
+                    assertTrue(projectId == "200")
+                    null
+                }
+            )
+
+            assertTrue(result is MinecraftContentInstallCoordinatorResult.Failed)
+            assertTrue(
+                (result as MinecraftContentInstallCoordinatorResult.Failed).reason
+                    .contains("Could not load project details for required dependency 200")
+            )
+            assertEquals(ContentProviderId.CURSEFORGE, versionLookupProvider)
+            assertEquals(ContentProviderId.CURSEFORGE, projectLookupProvider)
+            assertTrue(!File(root, "downloads").exists())
+        } finally {
+            root.deleteRecursively()
+        }
+    }
+
+    private fun curseForgeProject(id: String) = MinecraftContentProject(
+        provider = ContentProviderId.CURSEFORGE,
+        projectId = id,
+        slug = id,
+        title = "CurseForge $id",
+        description = "",
+        contentType = MinecraftContentType.MOD,
+        author = "Test"
+    )
+
+    private fun curseForgeVersion(
+        id: String,
+        dependencies: List<MinecraftContentDependency> = emptyList()
+    ) = MinecraftContentVersion(
+        provider = ContentProviderId.CURSEFORGE,
+        projectId = id,
+        versionId = "$id-file",
+        versionNumber = "1.0",
+        displayName = "CurseForge $id",
+        gameVersions = setOf("1.20.1"),
+        loaders = setOf(MinecraftLoader.FABRIC),
+        fileName = "$id.jar",
+        downloadUrl = "https://edge.forgecdn.net/files/$id.jar",
+        fileSizeBytes = 10,
+        sha1 = null,
+        dependencies = dependencies
+    )
+
     private fun target(root: File) = MinecraftInstanceTarget(
         minecraftVersion = "1.20.1",
         loader = MinecraftLoader.FABRIC,
