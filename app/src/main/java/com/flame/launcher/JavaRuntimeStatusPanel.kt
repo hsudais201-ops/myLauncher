@@ -1,0 +1,98 @@
+package com.flame.launcher
+
+import android.os.Build
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.flame.launcher.runtime.JavaRuntimeManager
+import java.io.File
+
+@Composable
+fun JavaRuntimeStatusPanel() {
+    val context = LocalContext.current
+    val deviceAbi = Build.SUPPORTED_ABIS.firstOrNull()
+        ?: System.getProperty("os.arch").orEmpty()
+    val manager = remember(context.filesDir, deviceAbi) {
+        JavaRuntimeManager(
+            runtimeRoot = File(context.filesDir, "runtimes"),
+            deviceArchitecture = deviceAbi
+        )
+    }
+    var refreshKey by remember(manager) { mutableStateOf(0) }
+    val installations = remember(manager, refreshKey) { manager.discover() }
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFF151A23))
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    text = "JAVA RUNTIME MANAGER",
+                    color = Color(0xFFFF7A1A),
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = 1.1.sp
+                )
+                Button(onClick = { refreshKey++ }) {
+                    Text("Rescan")
+                }
+            }
+            if (installations.isEmpty()) {
+                Text(
+                    text = "No managed Java runtime is installed yet.",
+                    color = Color(0xFFF4F5F7),
+                    fontWeight = FontWeight.SemiBold
+                )
+                Text(
+                    text = "The registry is ready to discover app-managed JVMs and select the exact Java major version and ABI required by a Minecraft release. No JRE is bundled or downloaded by this build.",
+                    color = Color(0xFF9AA4B2),
+                    fontSize = 12.sp,
+                    lineHeight = 18.sp
+                )
+            } else {
+                Text(
+                    text = installations.size.toString() + " compatible runtime package(s) discovered",
+                    color = Color(0xFFF4F5F7),
+                    fontWeight = FontWeight.SemiBold
+                )
+                installations.take(4).forEach { runtime ->
+                    Text(
+                        text = "Java " + runtime.majorVersion + " • " + runtime.architecture + " • " + runtime.id,
+                        color = Color(0xFF9AA4B2),
+                        fontSize = 12.sp
+                    )
+                }
+            }
+            Text(
+                text = "Device ABI: " + deviceAbi + ". Android JVM execution still needs the matching native runtime bridge before a game can launch.",
+                color = Color(0xFF9AA4B2),
+                fontSize = 11.sp,
+                lineHeight = 16.sp
+            )
+        }
+    }
+}

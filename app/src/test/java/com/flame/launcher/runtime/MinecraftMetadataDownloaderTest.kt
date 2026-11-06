@@ -92,7 +92,7 @@ class MinecraftMetadataDownloaderTest {
     @Test
     fun rejectsRedirectAndUntrustedMetadataHost() {
         val redirect = MinecraftMetadataDownloader(
-            connectionFactory = { url -> FakeConnection(url, byteArrayOf(1), status = HTTP_MOVED_TEMP) }
+            connectionFactory = { url -> FakeConnection(url, byteArrayOf(1), status = 302) }
         )
         assertThrows(IllegalArgumentException::class.java) { redirect.downloadManifest() }
 

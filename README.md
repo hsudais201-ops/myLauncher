@@ -20,12 +20,32 @@ Flame Launcher is an Android-first project targeting **Minecraft Java Edition** 
 
 **CurseForge credential note:** the current client asks the user for their own API key and holds it in Compose memory for the active app session. There is no backend proxy or server-side secret management in this repository yet. Do not commit an API key or describe this client-side arrangement as backend-protected.
 
-**Profile/runtime note:** content profiles are app-private content targets. They are not yet complete playable Minecraft installations.
+### Minecraft metadata and runtime foundation
+- Mojang version manifest parsing with trusted-host and SHA-1 descriptor validation.
+- Bounded metadata downloads with timeouts, redirect rejection, response-size limits, and version JSON SHA-1 verification.
+- The Play screen can load official releases asynchronously and inspect verified version metadata, including declared Java major version, libraries, client JAR descriptor, and asset index.
+- App-private Java runtime discovery validates each runtime's release metadata, supported architecture, contained JVM entry point, and Java major version; selection requires an exact Java-major and device-ABI match.
+- The Java runtime registry is a discovery/selection layer only. This build does not bundle or download a JRE and does not yet invoke a JVM.
+
+### Rendering foundation
+- An Android GLSurfaceView host backed by OpenGL ES 2.0.
+- Lifecycle-aware surface pause/resume and on-demand rendering to avoid an unnecessary continuous frame loop.
+- A lightweight diagnostic scene verifies shader compilation, program linking, viewport setup, and frame submission.
+- This is not yet Minecraft world rendering. A compatible LWJGL-to-Android native bridge, graphics translation layer, and game launch integration are still required.
+
+### Current boundaries
+- Content profiles are app-private content targets, not complete playable Minecraft installations.
+- Verified version metadata is not equivalent to installed libraries, assets, natives, or client JAR files.
+- Java runtime discovery is not equivalent to a downloadable/installed runtime package or a working JVM launch.
+- The OpenGL ES diagnostic renderer is not an implementation of Minecraft's LWJGL renderer.
 
 ## Not implemented yet
 
-- Minecraft Java runtime integration, asset/library downloads, and game launching.
-- Microsoft account authentication and full offline account/profile management.
+- Downloading, safely extracting, updating, and rolling back Java runtime packages.
+- Verified client JAR, libraries, native libraries, asset index, assets installation.
+- Android JVM/native bridge and Minecraft LWJGL rendering compatibility.
+- End-to-end Minecraft launch arguments, process/session lifecycle, and playable game testing.
+- Microsoft account authentication and compliant offline account/profile management.
 - Production backend proxy for CurseForge API credentials.
 - Cloud Feature Store installation and its service.
 - Social Hub services, live ServerState services, and Flame AI crash repair.
@@ -35,28 +55,22 @@ The interface should clearly label these as planned until their implementations 
 ## Requirements
 
 - Android Studio with Android SDK Platform 36 installed.
-- JDK 17 or newer.
+- JDK 17 or newer for building Flame Launcher.
 - Android device or emulator running Android 8.0 (API 26) or newer.
 
 ## Build and test
 
 On macOS/Linux:
 
-```bash
-./gradlew testDebugUnitTest assembleDebug
-```
+    ./gradlew testDebugUnitTest assembleDebug
 
 On Windows:
 
-```bat
-gradlew.bat testDebugUnitTest assembleDebug
-```
+    gradlew.bat testDebugUnitTest assembleDebug
 
 The debug APK is produced at:
 
-```
-app/build/outputs/apk/debug/app-debug.apk
-```
+    app/build/outputs/apk/debug/app-debug.apk
 
 ## Development quality gate
 
@@ -66,16 +80,14 @@ Every milestone follows:
 
 A failed check blocks the next milestone. Do not mark a build or test as passed until its actual result has been inspected.
 
-## Planned roadmap
+## Roadmap
 
-1. Complete the Android shell and navigation foundation.
-2. Harden the Modrinth and CurseForge content browser, including a backend credential proxy.
-3. Implement Minecraft version metadata, libraries, assets, and runtime installation.
-4. Implement Microsoft authentication and compliant account handling.
-5. Build isolated playable instances and a reliable launch pipeline.
-6. Add device-aware performance and renderer controls for low-memory devices.
-7. Implement the independent cloud Feature Store.
-8. Add Social Hub and ServerState services.
-9. Add Flame AI diagnostics, reversible repair actions, and crash history.
+1. Installable Java runtime packages with checksum verification, safe extraction, ABI matching, and rollback.
+2. Verified Minecraft libraries, platform natives, asset index, assets, and client JAR installation.
+3. Android JVM bridge and LWJGL/OpenGL compatibility backend.
+4. Instance-aware launch arguments, account integration, cancellation, logs, and crash recovery.
+5. Device-aware performance controls and renderer compatibility profiles.
+6. Backend-protected CurseForge credentials.
+7. Independent cloud Feature Store, Social Hub, ServerState, and Flame AI services.
 
 All work must preserve Minecraft's licensing and authentication requirements, provider API terms, app security, and user control over downloads and repairs.

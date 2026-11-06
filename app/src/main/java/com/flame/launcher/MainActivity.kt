@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -69,6 +70,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.flame.launcher.navigation.FlameNavigation
 import com.flame.launcher.navigation.LauncherSection
+import com.flame.launcher.render.FlameRenderSurface
 import kotlinx.coroutines.launch
 
 private val FlameBackground = Color(0xFF0B0D12)
@@ -349,7 +351,7 @@ private fun HomePage(onNavigate: (LauncherSection) -> Unit) {
         StatusCard(
             title = "Minecraft runtime",
             status = "Next milestone",
-            body = "The real Java runtime, libraries, assets, version manifests, and launch pipeline are not connected yet.",
+            body = "Verified Mojang version metadata, a Java runtime discovery/selection manager, and an OpenGL ES render host are connected. Runtime packaging, game files, and the Android LWJGL bridge remain in progress.",
             icon = Icons.Outlined.SportsEsports
         )
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -381,24 +383,56 @@ private fun HomePage(onNavigate: (LauncherSection) -> Unit) {
 private fun PlayPage() {
     SectionTitle(
         title = "Play Minecraft",
-        subtitle = "A real game launch is the target. This screen will only launch after the runtime and profile pipeline pass their tests."
+        subtitle = "Choose a Mojang release, inspect its verified launch metadata, and prepare a compatible Java runtime."
     )
-    StatusCard(
-        title = "Minecraft Java runtime",
-        status = "Not connected",
-        body = "No game files or runtime are bundled in this foundation build. The next engine milestone will establish a lawful, compatible runtime and version installer.",
-        icon = Icons.Outlined.SportsEsports
-    )
+    JavaRuntimeStatusPanel()
+    MinecraftVersionCatalogPanel()
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = FlamePanel)
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Text(
+                text = "OPENGL ES RENDER HOST",
+                color = FlameAccent,
+                fontSize = 10.sp,
+                fontWeight = FontWeight.Bold,
+                letterSpacing = 1.1.sp
+            )
+            Text(
+                text = "Main rendering surface",
+                color = FlameText,
+                fontWeight = FontWeight.SemiBold,
+                fontSize = 17.sp
+            )
+            FlameRenderSurface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(176.dp)
+                    .clip(RoundedCornerShape(14.dp))
+            )
+            Text(
+                text = "On-demand OpenGL ES frames are active in this preview. Rendering Minecraft itself still requires a compatible LWJGL-to-Android native bridge and game launch pipeline.",
+                color = FlameMuted,
+                fontSize = 12.sp,
+                lineHeight = 18.sp
+            )
+        }
+    }
     StatusCard(
         title = "Game profiles",
-        status = "Planned",
-        body = "Each profile will keep its own game version, loader, mods, resource packs, settings, and account selection.",
+        status = "Content profiles available • launch profiles pending",
+        body = "Content profiles already isolate installed mods and packs. Full game instances will add verified libraries, assets, client JARs, JVM arguments, and per-profile settings.",
         icon = Icons.Outlined.Home
     )
     StatusCard(
         title = "Offline and Microsoft accounts",
-        status = "Planned",
-        body = "Offline local profiles and official Microsoft authentication will be separate supported account types.",
+        status = "Authentication pending",
+        body = "Offline local profiles and official Microsoft authentication will be separate supported account types. Online sessions will use the official account flow.",
         icon = Icons.Outlined.Groups
     )
 }
