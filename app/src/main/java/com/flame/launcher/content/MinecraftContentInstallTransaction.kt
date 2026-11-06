@@ -60,6 +60,14 @@ private object DefaultMinecraftInstallFileOperations : MinecraftInstallFileOpera
  * Existing destination files are always rejected. If a later commit fails, only files
  * created by this transaction are deleted; pre-existing files are never touched.
  */
+data class MinecraftAdditionalInstallFile(
+    val stagedFile: File,
+    val destination: File,
+    val approvedRoot: File,
+    val expectedSizeBytes: Long,
+    val expectedSha256: String
+)
+
 class MinecraftContentInstallTransaction(
     private val files: MinecraftInstallFileOperations = DefaultMinecraftInstallFileOperations
 ) {
@@ -73,14 +81,16 @@ class MinecraftContentInstallTransaction(
         val install: MinecraftPlannedInstall,
         val staged: File,
         val destination: File,
-        val destinationDirectory: File
+        val destinationDirectory: File,
+        val expectedRoot: File
     )
 
     fun install(
         plan: MinecraftContentInstallPlan,
         stagedDownloads: List<MinecraftStagedDownloadResult.Downloaded>,
         stagingDirectory: File,
-        appPrivateStagingDirectory: File? = null
+        appPrivateStagingDirectory: File? = null,
+        additionalFiles: List<MinecraftAdditionalInstallFile> = emptyList()
     ): MinecraftContentInstallTransactionResult {
         if (plan.items.isEmpty()) return failed("Install plan is empty")
         if (stagedDownloads.size != plan.items.size) {
@@ -160,7 +170,33 @@ class MinecraftContentInstallTransaction(
             if (files.exists(canonicalDestination)) {
                 return failed("Destination already exists; existing files are never overwritten")
             }
-            prepared += Prepared(install, staged, canonicalDestination, canonicalDirectory)
+            prepared += Prepared(install, staged, canonicalDestination, canonicalDirectory, expectedRoot)
+        }
+
+        for (additional in additionalFiles) {
+            val staged = try { files.canonical(additional.stagedFile) } catch (_: Exception) {
+                return failed("Invalid additional staged file")
+            }
+            if (!isWithin(stagingRoot, staged) || !files.isRegularFile(staged) || !files.canRead(staged)) {
+                return failed("Additional staged file is missing, unreadable, or outside staging")
+            }
+            if (additional.expectedSizeBytes <= 0L || staged.length() != additional.expectedSizeBytes ||
+                !verifyDigest(staged, additional.expectedSha256, "SHA-256")
+            ) return failed("Additional staged file verification failed")
+            val expectedRoot = try { files.canonical(additional.approvedRoot) } catch (_: Exception) {
+                return failed("Invalid additional destination root")
+            }
+            val destination = additional.destination
+            val directory = destination.parentFile ?: return failed("Additional destination has no parent")
+            val canonicalDirectory = try { files.canonical(directory) } catch (_: Exception) {
+                return failed("Invalid additional destination directory")
+            }
+            val canonicalDestination = File(canonicalDirectory, destination.name)
+            if (!isSafeLeaf(destination.name) || !isWithin(expectedRoot, canonicalDestination)) {
+                return failed("Additional destination escapes its approved directory")
+            }
+            if (files.exists(canonicalDestination)) return failed("Additional destination already exists")
+            prepared += Prepared(null, staged, canonicalDestination, canonicalDirectory, expectedRoot)
         }
 
         if (prepared.map { it.destination.path.lowercase(Locale.ROOT) }.distinct().size != prepared.size) {
@@ -178,7 +214,7 @@ class MinecraftContentInstallTransaction(
                 }
                 // Re-check after directory creation to close the common preflight/commit race.
                 val recheckedDirectory = files.canonical(item.destinationDirectory)
-                if (!isWithinOrEqual(expectedDestinationRoot(plan, item.install, appPrivateRoot)!!, recheckedDirectory)) {
+                if (!isWithinOrEqual(item.expectedRoot, recheckedDirectory)) {
                     throw IllegalStateException("Destination directory changed during installation")
                 }
                 if (files.exists(item.destination)) {
