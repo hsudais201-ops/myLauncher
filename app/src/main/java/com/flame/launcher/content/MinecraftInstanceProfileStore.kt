@@ -1,8 +1,8 @@
 package com.flame.launcher.content
 
 import java.io.File
-import java.io.IOException
 import java.util.Properties
+import java.util.UUID
 
 data class MinecraftInstanceProfile(
     val id: String,
@@ -31,7 +31,6 @@ sealed interface MinecraftInstanceProfileResult {
 /**
  * Minimal app-owned instance registry. Profiles are isolated under the launcher's
  * private files directory; no shared-storage path is guessed or modified.
- *
  * A profile is a content-install target, not yet a runnable Minecraft installation.
  */
 class MinecraftInstanceProfileStore(private val profilesRoot: File) {
@@ -44,8 +43,10 @@ class MinecraftInstanceProfileStore(private val profilesRoot: File) {
         loader: MinecraftLoader
     ): MinecraftInstanceProfileResult {
         val cleanName = name.trim()
-        if (cleanName.isBlank() || cleanName.length > 48) {
-            return MinecraftInstanceProfileResult.Failed("Profile name must be 1–48 characters.")
+        if (cleanName.isBlank() || cleanName.length > 48 ||
+            cleanName.any { it == '/' || it == '\\' || it.isISOControl() }
+        ) {
+            return MinecraftInstanceProfileResult.Failed("Profile name must be 1–48 safe characters.")
         }
         if (!minecraftVersion.matches(VERSION_PATTERN)) {
             return MinecraftInstanceProfileResult.Failed("Enter a valid Minecraft version, such as 1.20.1.")
@@ -59,7 +60,7 @@ class MinecraftInstanceProfileStore(private val profilesRoot: File) {
                 return MinecraftInstanceProfileResult.Failed("Could not create the private profiles directory.")
             }
             val canonicalRoot = profilesRoot.canonicalFile
-            val id = "profile-${System.currentTimeMillis().toString(36)}-${cleanName.hashCode().toUInt().toString(16)}"
+            val id = "profile-${UUID.randomUUID()}"
             val directory = File(canonicalRoot, id)
             if (!directory.mkdir()) {
                 return MinecraftInstanceProfileResult.Failed("Could not create the profile directory.")
@@ -84,8 +85,9 @@ class MinecraftInstanceProfileStore(private val profilesRoot: File) {
                 setProperty("minecraftVersion", profile.minecraftVersion)
                 setProperty("loader", profile.loader.name)
             }
-            val metadata = File(directory, "profile.properties")
-            metadata.outputStream().use { properties.store(it, "Flame Launcher profile") }
+            File(directory, "profile.properties").outputStream().use {
+                properties.store(it, "Flame Launcher profile")
+            }
             MinecraftInstanceProfileResult.Created(profile)
         } catch (error: Exception) {
             MinecraftInstanceProfileResult.Failed(error.message ?: "Could not create profile.")
@@ -127,9 +129,7 @@ class MinecraftInstanceProfileStore(private val profilesRoot: File) {
 
     @Synchronized
     fun selectedProfile(): MinecraftInstanceProfileResult {
-        if (!selectedFile.isFile) {
-            return MinecraftInstanceProfileResult.Failed("No profile selected.")
-        }
+        if (!selectedFile.isFile) return MinecraftInstanceProfileResult.Failed("No profile selected.")
         val id = runCatching { selectedFile.readText().trim() }.getOrNull()
             ?: return MinecraftInstanceProfileResult.Failed("Could not read selected profile.")
         return when (val result = listProfiles()) {
@@ -146,7 +146,7 @@ class MinecraftInstanceProfileStore(private val profilesRoot: File) {
         if (!canonicalDirectory.toPath().startsWith(canonicalRoot.toPath())) return null
         val metadata = File(canonicalDirectory, "profile.properties")
         if (!metadata.isFile) return null
-        val properties = Properties().apply { metadata.inputStream().use(::load) }
+        val properties = Properties().apply { metadata.inputStream().use { load(it) } }
         if (properties.getProperty("schema") != "1") return null
         val id = properties.getProperty("id") ?: return null
         if (id != canonicalDirectory.name) return null
@@ -155,8 +155,7 @@ class MinecraftInstanceProfileStore(private val profilesRoot: File) {
         val loader = runCatching { MinecraftLoader.valueOf(properties.getProperty("loader") ?: "") }.getOrNull()
             ?.takeIf { it != MinecraftLoader.UNKNOWN } ?: return null
         val gameDirectory = File(canonicalDirectory, ".minecraft").canonicalFile
-        if (!gameDirectory.toPath().startsWith(canonicalDirectory.toPath())) return null
-        if (!gameDirectory.isDirectory) return null
+        if (!gameDirectory.toPath().startsWith(canonicalDirectory.toPath()) || !gameDirectory.isDirectory) return null
         return MinecraftInstanceProfile(id, name, version, loader, canonicalDirectory, gameDirectory)
     }
 
