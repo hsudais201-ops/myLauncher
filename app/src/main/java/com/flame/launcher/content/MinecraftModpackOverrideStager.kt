@@ -11,7 +11,7 @@ sealed interface MinecraftModpackOverrideStageResult {
         val skippedServerFiles: Int,
         val stagingRoot: File
     ) : MinecraftModpackOverrideStageResult
-    data class Failed(val reason: String, val cleanupFailures: List<String> = emptyList) :
+    data class Failed(val reason: String, val cleanupFailures: List<String> = emptyList()) :
         MinecraftModpackOverrideStageResult
 }
 
