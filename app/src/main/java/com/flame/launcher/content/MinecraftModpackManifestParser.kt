@@ -92,9 +92,12 @@ class MinecraftModpackManifestParser {
                     return Result.Rejected("Manifest contains an invalid SHA-512 hash")
                 }
 
-                val downloads = (item["downloads"] as? List<*>)
-                    ?.mapNotNull { it as? String }
+                val rawDownloads = item["downloads"] as? List<*>
                     ?: return Result.Rejected("Manifest downloads must be an array")
+                if (rawDownloads.any { it !is String }) {
+                    return Result.Rejected("Manifest download URLs must be strings")
+                }
+                val downloads = rawDownloads.filterIsInstance<String>()
                 if (downloads.isEmpty() || downloads.size > 8 || downloads.any { !isTrustedDownload(it) }) {
                     return Result.Rejected("Manifest contains an untrusted or missing download URL")
                 }
