@@ -5,8 +5,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -23,27 +21,35 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import com.flame.launcher.content.ContentCompatibility
+import com.flame.launcher.content.ContentProviderId
 import com.flame.launcher.content.MinecraftContentProject
 import com.flame.launcher.content.MinecraftContentType
 import com.flame.launcher.content.MinecraftContentVersion
-import com.flame.launcher.content.MinecraftContentCompatibility
-import com.flame.launcher.content.MinecraftInstanceTarget
+import com.flame.launcher.content.MinecraftInstanceProfile
+import com.flame.launcher.content.MinecraftInstanceProfileResult
+import com.flame.launcher.content.MinecraftInstanceProfileStore
 import com.flame.launcher.content.MinecraftLoader
 import com.flame.launcher.content.ModrinthContentProvider
+import java.io.File
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 /**
- * First live content-browser slice. Search and version discovery are read-only;
- * installation stays disabled until a real profile filesystem/transaction layer exists.
+ * Live Modrinth catalog browser with an explicit, app-private profile selector.
+ * Profiles created here are content-install targets; they are not runnable game
+ * installations until the runtime/version installer milestone is complete.
  */
 @Composable
 fun MinecraftContentBrowser() {
+    val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val provider = remember { ModrinthContentProvider() }
+    val profileStore = remember(context) {
+        MinecraftInstanceProfileStore(File(context.filesDir, "minecraft-instances"))
+    }
     var query by remember { mutableStateOf("") }
     var selectedType by remember { mutableStateOf(MinecraftContentType.MOD) }
     var targetMinecraftVersion by remember { mutableStateOf("1.20.1") }
@@ -54,6 +60,60 @@ fun MinecraftContentBrowser() {
     var loading by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
     var status by remember { mutableStateOf("Search Modrinth to discover Minecraft content.") }
+    var profileName by remember { mutableStateOf("") }
+    var profileStatus by remember { mutableStateOf<String?>(null) }
+    var profiles by remember {
+        mutableStateOf(
+            (profileStore.listProfiles() as? MinecraftInstanceProfileResult.Profiles)?.profiles.orEmpty()
+        )
+    }
+    var selectedProfile by remember {
+        mutableStateOf(
+            (profileStore.selectedProfile() as? MinecraftInstanceProfileResult.Selected)?.profile
+        )
+    }
+
+    fun refreshProfiles() {
+        profiles = (profileStore.listProfiles() as? MinecraftInstanceProfileResult.Profiles)
+            ?.profiles.orEmpty()
+        selectedProfile = (profileStore.selectedProfile() as? MinecraftInstanceProfileResult.Selected)
+            ?.profile
+    }
+
+    fun createProfile() {
+        val loader = selectedLoader ?: MinecraftLoader.FABRIC
+        when (val result = profileStore.createProfile(profileName, targetMinecraftVersion, loader)) {
+            is MinecraftInstanceProfileResult.Created -> {
+                when (val selected = profileStore.selectProfile(result.profile.id)) {
+                    is MinecraftInstanceProfileResult.Selected -> {
+                        selectedProfile = selected.profile
+                        profileStatus = "Created and selected ${selected.profile.name}."
+                        profileName = ""
+                        targetMinecraftVersion = selected.profile.minecraftVersion
+                        selectedLoader = selected.profile.loader
+                        refreshProfiles()
+                    }
+                    is MinecraftInstanceProfileResult.Failed -> profileStatus = selected.reason
+                    else -> profileStatus = "Could not select the new profile."
+                }
+            }
+            is MinecraftInstanceProfileResult.Failed -> profileStatus = result.reason
+            else -> profileStatus = "Could not create profile."
+        }
+    }
+
+    fun selectProfile(profile: MinecraftInstanceProfile) {
+        when (val result = profileStore.selectProfile(profile.id)) {
+            is MinecraftInstanceProfileResult.Selected -> {
+                selectedProfile = result.profile
+                targetMinecraftVersion = result.profile.minecraftVersion
+                selectedLoader = result.profile.loader
+                profileStatus = "Selected ${result.profile.name}."
+            }
+            is MinecraftInstanceProfileResult.Failed -> profileStatus = result.reason
+            else -> profileStatus = "Could not select profile."
+        }
+    }
 
     fun search() {
         loading = true
@@ -115,11 +175,60 @@ fun MinecraftContentBrowser() {
             color = MaterialTheme.colorScheme.onSurface
         )
         Text(
-            "Live public catalog search. CurseForge and installation are not enabled in this build.",
+            "Live public catalog search. CurseForge is not enabled in this build.",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
-        Text("Target filters", style = MaterialTheme.typography.titleSmall)
+
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+        ) {
+            Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
+                Text("Minecraft profiles", style = MaterialTheme.typography.titleMedium)
+                Text(
+                    selectedProfile?.let {
+                        "Active: ${it.name} · Minecraft ${it.minecraftVersion} · ${it.loader.label()}"
+                    } ?: "No profile selected yet.",
+                    style = MaterialTheme.typography.bodySmall
+                )
+                if (profiles.isNotEmpty()) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        profiles.forEach { profile ->
+                            FilterChip(
+                                selected = selectedProfile?.id == profile.id,
+                                onClick = { selectProfile(profile) },
+                                label = { Text(profile.name) }
+                            )
+                        }
+                    }
+                }
+                OutlinedTextField(
+                    value = profileName,
+                    onValueChange = { profileName = it },
+                    modifier = Modifier.fillMaxWidth(),
+                    label = { Text("New profile name") },
+                    singleLine = true
+                )
+                Button(
+                    onClick = { createProfile() },
+                    enabled = profileName.isNotBlank() && targetMinecraftVersion.isNotBlank()
+                ) {
+                    Text("Create & select profile")
+                }
+                profileStatus?.let {
+                    Text(it, style = MaterialTheme.typography.bodySmall)
+                }
+                Text(
+                    "Profiles use Flame's private app storage. They are isolated content targets, not playable installations yet; the game runtime and world selector are still pending.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+
+        Text("Catalog filters", style = MaterialTheme.typography.titleSmall)
         OutlinedTextField(
             value = targetMinecraftVersion,
             onValueChange = { targetMinecraftVersion = it },
@@ -143,7 +252,7 @@ fun MinecraftContentBrowser() {
             }
         }
         Text(
-            "These are catalog filters only; Flame is not connected to an installed instance yet.",
+            "Changing these filters does not change the selected profile's version or loader.",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
@@ -176,17 +285,12 @@ fun MinecraftContentBrowser() {
             label = { Text("Search projects") },
             singleLine = true
         )
-        Button(
-            onClick = { search() },
-            enabled = !loading
-        ) {
+        Button(onClick = { search() }, enabled = !loading) {
             Text("Search Modrinth")
         }
         if (loading) CircularProgressIndicator()
         Text(status, style = MaterialTheme.typography.bodySmall)
-        error?.let {
-            Text(it, color = MaterialTheme.colorScheme.error)
-        }
+        error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
 
         selectedProject?.let { project ->
             Card(
@@ -232,10 +336,7 @@ fun MinecraftContentBrowser() {
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-                    Button(
-                        onClick = { loadVersions(project) },
-                        enabled = !loading
-                    ) {
+                    Button(onClick = { loadVersions(project) }, enabled = !loading) {
                         Text("View versions")
                     }
                 }
