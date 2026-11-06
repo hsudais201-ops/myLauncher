@@ -35,6 +35,11 @@ data class MinecraftContentInstallManifest(
     val schemaVersion: Int = 1
 )
 
+sealed interface MinecraftManagedContentUninstallResult {
+    data class Uninstalled(val entry: MinecraftManagedContentInstall) : MinecraftManagedContentUninstallResult
+    data class Failed(val reason: String) : MinecraftManagedContentUninstallResult
+}
+
 sealed interface MinecraftContentInstallManifestResult {
     data class Loaded(
         val manifest: MinecraftContentInstallManifest,
@@ -181,6 +186,66 @@ class MinecraftContentInstallManifestStore(
         } catch (_: Exception) {
             false
         }
+    }
+
+    /**
+     * Removes one Flame-managed file only when its canonical path and SHA-256 still match
+     * the durable ownership record. The manifest entry is durably removed first; if the
+     * filesystem delete fails, the original manifest is restored.
+     */
+    @Synchronized
+    fun uninstallManagedFile(
+        instanceContentDirectory: File,
+        installedPath: String
+    ): MinecraftManagedContentUninstallResult {
+        val instanceRoot = canonicalInstanceRoot(instanceContentDirectory)
+            ?: return MinecraftManagedContentUninstallResult.Failed("Invalid instance content directory")
+        val manifest = when (val loaded = load(instanceRoot)) {
+            is MinecraftContentInstallManifestResult.Loaded -> loaded.manifest
+            is MinecraftContentInstallManifestResult.Failed ->
+                return MinecraftManagedContentUninstallResult.Failed(loaded.reason)
+            is MinecraftContentInstallManifestResult.Saved ->
+                return MinecraftManagedContentUninstallResult.Failed("Unexpected manifest load result")
+        }
+        val canonicalPath = try {
+            File(installedPath).canonicalPath
+        } catch (_: Exception) {
+            return MinecraftManagedContentUninstallResult.Failed("Invalid installed file path")
+        }
+        val entry = manifest.entries.singleOrNull { it.installedPath == canonicalPath }
+            ?: return MinecraftManagedContentUninstallResult.Failed("File is not recorded as Flame-managed")
+        if (!verifyManagedFile(entry)) {
+            return MinecraftManagedContentUninstallResult.Failed(
+                "Managed file is missing or has changed; it was not deleted"
+            )
+        }
+
+        val updated = manifest.copy(entries = manifest.entries.filterNot { it.installedPath == entry.installedPath })
+        when (val saved = save(instanceRoot, updated)) {
+            is MinecraftContentInstallManifestResult.Saved -> Unit
+            is MinecraftContentInstallManifestResult.Failed ->
+                return MinecraftManagedContentUninstallResult.Failed(saved.reason)
+            is MinecraftContentInstallManifestResult.Loaded ->
+                return MinecraftManagedContentUninstallResult.Failed("Unexpected manifest save result")
+        }
+
+        val file = File(entry.installedPath)
+        val deleted = try {
+            file.delete()
+        } catch (_: Exception) {
+            false
+        }
+        if (!deleted && file.exists()) {
+            // Preserve ownership metadata if deletion did not happen.
+            when (val restored = save(instanceRoot, manifest)) {
+                is MinecraftContentInstallManifestResult.Saved -> Unit
+                else -> return MinecraftManagedContentUninstallResult.Failed(
+                    "File could not be deleted and ownership record restoration failed"
+                )
+            }
+            return MinecraftManagedContentUninstallResult.Failed("Managed file could not be deleted")
+        }
+        return MinecraftManagedContentUninstallResult.Uninstalled(entry)
     }
 
     private fun save(
