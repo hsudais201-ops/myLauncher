@@ -45,7 +45,7 @@ class MinecraftModpackOverrideImporterTest {
             File(root, "config").mkdirs()
             File(root, "config/options.txt").writeText("keep")
             val inspection = inspector.inspect(archive) as MinecraftModpackArchiveInspector.Result.Accepted
-            val result = importer.import(archive, inspection.inspection, root, staging)
+            val result = importer.importOverrides(archive, inspection.inspection, root, staging)
             assertTrue(result is MinecraftModpackOverrideImportResult.Failed)
             assertEquals("keep", File(root, "config/options.txt").readText())
         } finally {
@@ -63,7 +63,7 @@ class MinecraftModpackOverrideImporterTest {
         try {
             val inspection = inspector.inspect(archive) as MinecraftModpackArchiveInspector.Result.Accepted
             createArchiveAt(archive, "overrides/config/second.txt" to "second")
-            val result = importer.import(archive, inspection.inspection, root, staging)
+            val result = importer.importOverrides(archive, inspection.inspection, root, staging)
             assertTrue(result is MinecraftModpackOverrideImportResult.Failed)
             assertTrue(!File(root, "config/second.txt").exists())
         } finally {
