@@ -20,7 +20,9 @@ sealed interface MinecraftModpackOverrideImportResult {
  * All bytes are extracted to a private temporary directory first. Existing destinations
  * are rejected, and a failed commit removes only files created by this import.
  */
-class MinecraftModpackOverrideImporter {
+class MinecraftModpackOverrideImporter(
+    private val inspector: MinecraftModpackArchiveInspector = MinecraftModpackArchiveInspector()
+) {
     fun import(
         archive: File,
         inspection: MinecraftModpackArchiveInspector.Inspection,
@@ -32,6 +34,14 @@ class MinecraftModpackOverrideImporter {
         if (archiveFile != inspection.archive.canonicalFile || !archiveFile.isFile) {
             return failed("Modpack archive does not match the inspected archive")
         }
+        val freshInspection = when (val result = inspector.inspect(archiveFile)) {
+            is MinecraftModpackArchiveInspector.Result.Accepted -> result.inspection
+            is MinecraftModpackArchiveInspector.Result.Rejected ->
+                return failed("Modpack archive changed or is no longer valid: ${result.reason}")
+        }
+        if (freshInspection.manifest != inspection.manifest ||
+            freshInspection.overrideFiles != inspection.overrideFiles
+        ) return failed("Modpack archive changed after inspection")
         val root = runCatching { contentDirectory.canonicalFile }.getOrNull()
             ?: return failed("Invalid instance content directory")
         val staging = runCatching { stagingDirectory.canonicalFile }.getOrNull()
