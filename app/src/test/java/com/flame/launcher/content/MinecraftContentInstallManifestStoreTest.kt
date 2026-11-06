@@ -171,6 +171,10 @@ class MinecraftContentInstallManifestStoreTest {
 
         assertTrue("Expected uninstall, got $result", result is MinecraftManagedContentUninstallResult.Uninstalled)
         assertFalse(installedFile.exists())
+        assertTrue(
+            "No quarantine artifact should remain",
+            installedFile.parentFile?.listFiles()?.none { it.name.startsWith(".flame-uninstall-") } == true
+        )
         val loaded = store.load(instance) as MinecraftContentInstallManifestResult.Loaded
         assertTrue(loaded.manifest.entries.isEmpty())
     }
