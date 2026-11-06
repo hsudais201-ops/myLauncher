@@ -143,6 +143,50 @@ class MinecraftContentInstallManifestStoreTest {
     }
 
     @Test
+    fun recordsReloadsAndUninstallsImportedModpackFileUnderInstanceRoot() {
+        val appPrivate = Files.createTempDirectory("flame-modpack-manifest-app").toFile()
+        val instance = Files.createTempDirectory("flame-modpack-manifest-instance").toFile()
+        val plan = plan(instance)
+        val normalFile = writeInstalledFile(plan)
+        val importedFile = File(instance, "config/example-mod/config.json").apply {
+            parentFile?.mkdirs()
+            writeText("modpack configuration")
+        }
+        val digest = java.security.MessageDigest.getInstance("SHA-256")
+            .digest(importedFile.readBytes()).joinToString("") { "%02x".format(it) }
+        val additional = MinecraftManagedContentInstall(
+            provider = ContentProviderId.MODRINTH,
+            projectId = "modpack-import",
+            versionId = "imported",
+            contentType = MinecraftContentType.MODPACK,
+            fileName = importedFile.name,
+            installedPath = importedFile.canonicalPath,
+            sha256 = digest,
+            expectedSizeBytes = importedFile.length()
+        )
+        val store = MinecraftContentInstallManifestStore(appPrivate)
+
+        val saved = store.recordSuccessfulInstall(
+            plan,
+            MinecraftContentInstallTransactionResult.Installed(
+                listOf(normalFile.canonicalPath, importedFile.canonicalPath)
+            ),
+            listOf(additional)
+        )
+
+        assertTrue("Expected save, got $saved", saved is MinecraftContentInstallManifestResult.Saved)
+        val loaded = store.load(instance)
+        assertTrue("Expected load, got $loaded", loaded is MinecraftContentInstallManifestResult.Loaded)
+        val entries = (loaded as MinecraftContentInstallManifestResult.Loaded).manifest.entries
+        val importedEntry = entries.single { it.contentType == MinecraftContentType.MODPACK }
+        assertTrue(store.verifyManagedFile(importedEntry))
+
+        val uninstall = store.uninstallManagedFile(instance, importedFile.canonicalPath)
+        assertTrue("Expected imported file uninstall, got $uninstall", uninstall is MinecraftManagedContentUninstallResult.Uninstalled)
+        assertFalse(importedFile.exists())
+    }
+
+    @Test
     fun missingManifestLoadsAsEmptyWithoutCreatingOne() {
         val appPrivate = Files.createTempDirectory("flame-manifest-empty-app").toFile()
         val instance = Files.createTempDirectory("flame-manifest-empty-instance").toFile()
