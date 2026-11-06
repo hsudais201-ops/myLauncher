@@ -4,6 +4,7 @@ import java.io.ByteArrayInputStream
 import java.net.HttpURLConnection
 import java.net.URL
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -54,6 +55,7 @@ class CurseForgeContentProviderTest {
         assertEquals("Example Author", results.single().author)
         assertEquals(987L, results.single().downloads)
         assertEquals("test-key", observedKey)
+        assertFalse("API key must never be placed in the request URL", observedUrl.orEmpty().contains("test-key"))
         assertTrue(observedUrl.orEmpty().contains("gameId=432"))
         assertTrue(observedUrl.orEmpty().contains("classId=6"))
         assertTrue(observedUrl.orEmpty().contains("gameVersion=1.20.1"))
