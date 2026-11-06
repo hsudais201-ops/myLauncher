@@ -16,6 +16,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.Switch
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -74,6 +75,7 @@ fun MinecraftContentBrowser() {
     var selectedVersion by remember { mutableStateOf<MinecraftContentVersion?>(null) }
     var versions by remember { mutableStateOf<List<MinecraftContentVersion>>(emptyList()) }
     var installStatus by remember { mutableStateOf<String?>(null) }
+    var includeOptionalModpackFiles by remember { mutableStateOf(false) }
     var managedEntries by remember {
         mutableStateOf(
             (profileStore.selectedProfile() as? MinecraftInstanceProfileResult.Selected)?.profile?.let { profile ->
@@ -216,6 +218,7 @@ fun MinecraftContentBrowser() {
                             provider.getProject(projectId)
                         } else null
                     },
+                    includeOptionalModpackFiles = includeOptionalModpackFiles,
                     progress = { projectId, downloaded, expected ->
                         installStatus = if (expected == null) {
                             "Downloading $projectId: $downloaded bytes"
@@ -499,6 +502,26 @@ fun MinecraftContentBrowser() {
                             enabled = !loading
                         ) {
                             Text(if (selectedVersion?.versionId == version.versionId) "Selected version" else "Select version")
+                        }
+                    }
+                    if (selectedProject.contentType == MinecraftContentType.MODPACK) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text("Include optional modpack files")
+                                Text(
+                                    "Adds files marked optional by the pack author. Required files are always installed.",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            Switch(
+                                checked = includeOptionalModpackFiles,
+                                onCheckedChange = { includeOptionalModpackFiles = it },
+                                enabled = !loading
+                            )
                         }
                     }
                     Button(
