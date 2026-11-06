@@ -157,7 +157,7 @@ class MinecraftContentInstallCoordinatorTest {
             assertTrue(File(root, "instance/mods/200.jar").readBytes().contentEquals(payload))
             assertTrue(File(root, "instance/mods/100.jar").readBytes().contentEquals(payload))
             assertTrue(File(root, "downloads").listFiles().isNullOrEmpty())
-            assertEquals(2, installed.manifest.installs.size)
+            assertEquals(2, installed.manifest.entries.size)
         } finally {
             root.deleteRecursively()
         }
