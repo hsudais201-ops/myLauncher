@@ -155,6 +155,25 @@ class MinecraftContentInstallTransactionTest {
         assertFalse(File(root, "mods/pack.zip").exists())
     }
 
+    @Test
+    fun compensationDeletesOnlyFilesMatchingExpectedDigest() {
+        val root = Files.createTempDirectory("flame-compensation").toFile()
+        val unchanged = File(root, "unchanged.jar").apply { writeText("original bytes") }
+        val modified = File(root, "modified.jar").apply { writeText("user replacement") }
+        val digest = java.security.MessageDigest.getInstance("SHA-256")
+            .digest("original bytes".toByteArray()).joinToString("") { "%02x".format(it) }
+        val transaction = MinecraftContentInstallTransaction()
+
+        val failures = transaction.rollbackInstalled(
+            listOf(unchanged.canonicalPath, modified.canonicalPath),
+            mapOf(unchanged.canonicalPath to digest, modified.canonicalPath to digest)
+        )
+
+        assertFalse(unchanged.exists())
+        assertTrue(modified.isFile)
+        assertEquals(listOf(modified.canonicalPath), failures)
+    }
+
     private class TestFileOperations : MinecraftInstallFileOperations {
         override fun canonical(file: File): File = file.canonicalFile
         override fun exists(file: File): Boolean = Files.exists(file.toPath())
