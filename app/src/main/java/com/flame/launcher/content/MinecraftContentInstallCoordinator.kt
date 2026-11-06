@@ -24,7 +24,8 @@ sealed interface MinecraftContentInstallCoordinatorResult {
 class MinecraftContentInstallCoordinator(
     private val manifestStore: MinecraftContentInstallManifestStore,
     private val downloader: MinecraftContentStagedDownloader = MinecraftContentStagedDownloader(),
-    private val transaction: MinecraftContentInstallTransaction = MinecraftContentInstallTransaction()
+    private val transaction: MinecraftContentInstallTransaction = MinecraftContentInstallTransaction(),
+    private val modpackInspector: MinecraftModpackArchiveInspector = MinecraftModpackArchiveInspector()
 ) {
     fun install(
         selectedItems: List<MinecraftContentInstallItem>,
@@ -97,6 +98,19 @@ class MinecraftContentInstallCoordinator(
                     val cleanupFailures = cleanup()
                     return MinecraftContentInstallCoordinatorResult.Failed(
                         "Download failed for ${item.projectId}: ${result.reason}",
+                        cleanupFailures
+                    )
+                }
+            }
+        }
+
+        for (item in downloaded.filter { it.install.contentType == MinecraftContentType.MODPACK }) {
+            when (val inspection = modpackInspector.inspect(item.stagedFile)) {
+                is MinecraftModpackArchiveInspector.Result.Accepted -> Unit
+                is MinecraftModpackArchiveInspector.Result.Rejected -> {
+                    val cleanupFailures = cleanup()
+                    return MinecraftContentInstallCoordinatorResult.Failed(
+                        "Modpack archive rejected for ${item.install.projectId}: ${inspection.reason}",
                         cleanupFailures
                     )
                 }
