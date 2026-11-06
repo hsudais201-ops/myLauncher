@@ -1,6 +1,9 @@
 package com.flame.launcher.content
 
+import java.io.ByteArrayInputStream
 import java.io.File
+import java.net.HttpURLConnection
+import java.net.URL
 import java.nio.file.Files
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -106,6 +109,70 @@ class MinecraftContentInstallCoordinatorTest {
         } finally {
             root.deleteRecursively()
         }
+    }
+
+
+    @Test
+    fun curseForgeDependencyAndRootInstallSuccessfullyThroughCoordinator() {
+        val root = Files.createTempDirectory("flame-coordinator-curseforge-success-").toFile()
+        val payload = "0123456789".toByteArray()
+        try {
+            val rootProject = curseForgeProject("100")
+            val rootVersion = curseForgeVersion(
+                "100",
+                dependencies = listOf(
+                    MinecraftContentDependency("200", type = DependencyType.REQUIRED)
+                )
+            )
+            val dependencyVersion = curseForgeVersion("200")
+            val downloader = MinecraftContentStagedDownloader {
+                FakeCurseForgeConnection(it, payload)
+            }
+            val coordinator = MinecraftContentInstallCoordinator(
+                MinecraftContentInstallManifestStore(File(root, "manifests")),
+                downloader = downloader
+            )
+
+            val result = coordinator.install(
+                selectedItems = listOf(MinecraftContentInstallItem(rootProject, rootVersion)),
+                target = target(root),
+                stagingDirectory = File(root, "downloads"),
+                modpackStagingDirectory = File(root, "modpacks"),
+                findVersion = { providerId, projectId, versionId ->
+                    assertEquals(ContentProviderId.CURSEFORGE, providerId)
+                    assertEquals("200", projectId)
+                    assertEquals(null, versionId)
+                    dependencyVersion
+                },
+                findProject = { providerId, projectId ->
+                    assertEquals(ContentProviderId.CURSEFORGE, providerId)
+                    assertEquals("200", projectId)
+                    curseForgeProject(projectId)
+                }
+            )
+
+            assertTrue("Expected install success, got $result", result is MinecraftContentInstallCoordinatorResult.Installed)
+            val installed = result as MinecraftContentInstallCoordinatorResult.Installed
+            assertEquals(listOf("200", "100"), installed.plan.items.map { it.projectId })
+            assertTrue(File(root, "instance/mods/200.jar").readBytes().contentEquals(payload))
+            assertTrue(File(root, "instance/mods/100.jar").readBytes().contentEquals(payload))
+            assertTrue(File(root, "downloads").listFiles().isNullOrEmpty())
+            assertEquals(2, installed.manifest.installs.size)
+        } finally {
+            root.deleteRecursively()
+        }
+    }
+
+    private class FakeCurseForgeConnection(
+        url: URL,
+        private val bytes: ByteArray
+    ) : HttpURLConnection(url) {
+        override fun connect() = Unit
+        override fun disconnect() = Unit
+        override fun usingProxy(): Boolean = false
+        override fun getResponseCode(): Int = 200
+        override fun getContentLengthLong(): Long = bytes.size.toLong()
+        override fun getInputStream() = ByteArrayInputStream(bytes)
     }
 
     private fun curseForgeProject(id: String) = MinecraftContentProject(
