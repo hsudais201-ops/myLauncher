@@ -1,6 +1,7 @@
 package com.flame.launcher.content
 
 import java.io.File
+import java.security.MessageDigest
 import java.util.zip.ZipFile
 
 /**
@@ -33,6 +34,7 @@ class MinecraftModpackArchiveInspector(
         val entryCount: Int,
         val totalUncompressedBytes: Long,
         val overrideFiles: List<String>,
+        val archiveSha256: String,
         val manifest: MinecraftModpackManifestParser.Manifest
     )
 
@@ -50,6 +52,7 @@ class MinecraftModpackArchiveInspector(
         }
 
         return try {
+            val digestBefore = sha256(archive)
             ZipFile(archive).use { zip ->
                 val seen = HashSet<String>()
                 val filePaths = HashSet<String>()
@@ -140,12 +143,17 @@ class MinecraftModpackArchiveInspector(
                     is MinecraftModpackManifestParser.Result.Rejected ->
                         return Result.Rejected("Invalid modpack manifest: ${parsed.reason}")
                 }
+                val digestAfter = sha256(archive)
+                if (digestBefore != digestAfter) {
+                    return Result.Rejected("Modpack archive changed while it was being inspected")
+                }
                 Result.Accepted(
                     Inspection(
                         archive = archive.canonicalFile,
                         entryCount = count,
                         totalUncompressedBytes = totalBytes,
                         overrideFiles = overrides.sorted(),
+                        archiveSha256 = digestAfter,
                         manifest = manifest
                     )
                 )
@@ -153,6 +161,17 @@ class MinecraftModpackArchiveInspector(
         } catch (error: Exception) {
             Result.Rejected("Could not inspect modpack archive: ${error.message ?: "invalid ZIP"}")
         }
+    }
+
+    private fun sha256(file: File): String = file.inputStream().use { input ->
+        val digest = MessageDigest.getInstance("SHA-256")
+        val buffer = ByteArray(32 * 1024)
+        while (true) {
+            val count = input.read(buffer)
+            if (count < 0) break
+            digest.update(buffer, 0, count)
+        }
+        digest.digest().joinToString("") { "%02x".format(it) }
     }
 
     private fun normalizeEntryName(raw: String): String? {
