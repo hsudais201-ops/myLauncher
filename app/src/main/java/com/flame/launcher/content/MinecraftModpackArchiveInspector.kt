@@ -80,7 +80,7 @@ class MinecraftModpackArchiveInspector(
                         }
                         if (size > 0L) {
                             if (compressedSize == 0L ||
-                                size / compressedSize.coerceAtLeast(1L) > limits.maxCompressionRatio
+                                size.toDouble() / compressedSize.toDouble() > limits.maxCompressionRatio.toDouble()
                             ) {
                                 return Result.Rejected("Archive contains a suspicious compression ratio")
                             }
