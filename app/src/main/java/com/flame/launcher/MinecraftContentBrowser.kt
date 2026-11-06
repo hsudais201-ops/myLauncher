@@ -77,7 +77,7 @@ fun MinecraftContentBrowser() {
     var managedEntries by remember {
         mutableStateOf(
             (profileStore.selectedProfile() as? MinecraftInstanceProfileResult.Selected)?.profile?.let { profile ->
-                (manifestStore.load(File(profile.contentDirectory)) as? MinecraftContentInstallManifestResult.Loaded)
+                (manifestStore.load(profile.contentDirectory) as? MinecraftContentInstallManifestResult.Loaded)
                     ?.manifest?.entries
             }.orEmpty()
         )
@@ -121,12 +121,12 @@ fun MinecraftContentBrowser() {
         scope.launch {
             val result = withContext(Dispatchers.IO) {
                 manifestStore.uninstallManagedFile(
-                    File(profile.contentDirectory),
+                    profile.contentDirectory,
                     entry.installedPath
                 )
             }
             loading = false
-            if (result is MinecraftContentInstallCoordinatorResult.Installed) {
+            if (result is MinecraftManagedContentUninstallResult.Uninstalled) {
                 refreshManagedEntries(profile)
             }
             installStatus = when (result) {
