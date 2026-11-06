@@ -159,13 +159,23 @@ fun MinecraftContentBrowser() {
                         if (providerId == ContentProviderId.MODRINTH) {
                             provider.getProject(projectId)
                         } else null
+                    },
+                    progress = { projectId, downloaded, expected ->
+                        installStatus = if (expected == null) {
+                            "Downloading $projectId: $downloaded bytes"
+                        } else {
+                            "Downloading $projectId: $downloaded / $expected bytes"
+                        }
                     }
                 )
             }
             loading = false
             installStatus = when (result) {
-                is MinecraftContentInstallCoordinatorResult.Installed ->
-                    "Installed and recorded ${result.plan.items.count { it.action.name == "INSTALL_FILE" }} managed file(s)."
+                is MinecraftContentInstallCoordinatorResult.Installed -> {
+                    val installedFiles = result.plan.items.count { it.action.name == "INSTALL_FILE" }
+                    val stagedModpacks = result.plan.items.count { it.action.name == "STAGE_MODPACK_ARCHIVE" }
+                    "Installed $installedFiles managed file(s); staged $stagedModpacks modpack archive(s) for import. Manifest saved."
+                }
                 is MinecraftContentInstallCoordinatorResult.Failed ->
                     buildString {
                         append(result.reason)
