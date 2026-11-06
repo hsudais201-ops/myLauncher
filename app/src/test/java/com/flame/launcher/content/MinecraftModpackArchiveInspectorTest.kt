@@ -12,7 +12,7 @@ class MinecraftModpackArchiveInspectorTest {
     @Test
     fun acceptsModrinthArchiveAndReportsOverrides() {
         val archive = archive(
-            "modrinth.index.json" to "{}",
+            "modrinth.index.json" to validManifest(),
             "overrides/config/example.json" to "{}",
             "server-overrides/config/server.json" to "{}"
         )
@@ -86,6 +86,17 @@ class MinecraftModpackArchiveInspectorTest {
             tooLarge.parentFile?.deleteRecursively()
         }
     }
+
+    private fun validManifest() = """
+        {
+          "formatVersion": 1,
+          "game": "minecraft",
+          "name": "Test Pack",
+          "versionId": "test-1",
+          "dependencies": {"minecraft": "1.20.1", "fabric-loader": "0.15.11"},
+          "files": []
+        }
+    """.trimIndent()
 
     private fun archive(vararg entries: Pair<String, String>): File {
         val directory = Files.createTempDirectory("flame-mrpack-").toFile()
