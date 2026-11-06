@@ -25,7 +25,8 @@ Flame Launcher is an Android-first project targeting **Minecraft Java Edition** 
 - Bounded metadata downloads with timeouts, redirect rejection, response-size limits, and version JSON SHA-1 verification.
 - The Play screen can load official releases asynchronously and inspect verified version metadata, including declared Java major version, libraries, client JAR descriptor, and asset index.
 - App-private Java runtime discovery validates each runtime's release metadata, supported architecture, contained JVM entry point, and Java major version; selection requires an exact Java-major and device-ABI match.
-- The Java runtime registry is a discovery/selection layer only. This build does not bundle or download a JRE and does not yet invoke a JVM.
+- A package installer accepts a supplied JRE ZIP, verifies its SHA-256, extracts with ZIP-slip and size/entry limits, checks the runtime version and ABI, and replaces an existing package transactionally.
+- The runtime installer does not fetch a JRE source or download its archive in the UI, and this build does not yet invoke a JVM.
 
 ### Rendering foundation
 - An Android GLSurfaceView host backed by OpenGL ES 2.0.
@@ -41,7 +42,7 @@ Flame Launcher is an Android-first project targeting **Minecraft Java Edition** 
 
 ## Not implemented yet
 
-- Downloading, safely extracting, updating, and rolling back Java runtime packages.
+- Selecting an official runtime package source and downloading its archive with provider metadata and authenticated checksums.
 - Verified client JAR, libraries, native libraries, asset index, assets installation.
 - Android JVM/native bridge and Minecraft LWJGL rendering compatibility.
 - End-to-end Minecraft launch arguments, process/session lifecycle, and playable game testing.

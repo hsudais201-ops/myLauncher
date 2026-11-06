@@ -115,7 +115,7 @@ class JavaRuntimeManager(
 
     companion object {
         private const val MAX_RELEASE_FILE_BYTES = 32 * 1024
-        private val ID_PATTERN = Regex("[A-Za-z0-9._-]{1,64}")
+        private val ID_PATTERN = Regex("[A-Za-z0-9][A-Za-z0-9._-]{0,63}")
         private val JVM_LIBRARY_PATHS = listOf(
             "lib/server/libjvm.so",
             "lib/client/libjvm.so",
