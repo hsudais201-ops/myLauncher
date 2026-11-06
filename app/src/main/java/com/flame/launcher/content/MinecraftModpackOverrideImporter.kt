@@ -130,6 +130,17 @@ class MinecraftModpackOverrideImporter(
                 }
             }
 
+            // Verify the source archive again after extraction so a file replacement
+            // during the ZIP read cannot silently change the bytes being committed.
+            val postExtractionInspection = when (val result = inspector.inspect(archiveFile)) {
+                is MinecraftModpackArchiveInspector.Result.Accepted -> result.inspection
+                is MinecraftModpackArchiveInspector.Result.Rejected ->
+                    throw IllegalStateException("Modpack archive changed during extraction: ${result.reason}")
+            }
+            if (postExtractionInspection.archiveSha256 != inspection.archiveSha256) {
+                throw IllegalStateException("Modpack archive changed during extraction")
+            }
+
             val created = mutableListOf<File>()
             try {
                 for ((source, destination) in staged) {
