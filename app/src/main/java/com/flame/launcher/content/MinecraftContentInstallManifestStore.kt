@@ -443,7 +443,7 @@ class MinecraftContentInstallManifestStore(
         instanceRoot: File,
         entry: MinecraftManagedContentInstall
     ): Boolean {
-        if (entry.contentType == MinecraftContentType.MODPACK || !isSafeLeaf(entry.fileName)) return false
+        if (!isSafeLeaf(entry.fileName)) return false
         val allowedRoot = when (entry.contentType) {
             MinecraftContentType.MOD -> File(instanceRoot, "mods")
             MinecraftContentType.RESOURCE_PACK -> File(instanceRoot, "resourcepacks")
