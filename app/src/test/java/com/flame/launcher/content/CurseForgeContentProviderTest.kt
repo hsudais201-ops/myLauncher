@@ -103,6 +103,66 @@ class CurseForgeContentProviderTest {
     }
 
     @Test
+    fun requiredCurseForgeDependencyResolvesBeforeItsParent() {
+        val provider = CurseForgeContentProvider(
+            apiKey = "test-key",
+            connectionFactory = { url ->
+                val body = if (url.path.endsWith("/mods/100/files")) {
+                    """
+                    {
+                      "data": [{
+                        "id": 1001,
+                        "displayName": "Parent file",
+                        "fileName": "parent.jar",
+                        "isAvailable": true,
+                        "gameVersions": ["1.20.1"],
+                        "modLoader": 4,
+                        "downloadUrl": "https://edge.forgecdn.net/files/parent.jar",
+                        "dependencies": [{"modId": 200, "relationType": 3}]
+                      }]
+                    }
+                    """.trimIndent()
+                } else {
+                    """
+                    {
+                      "data": [{
+                        "id": 2001,
+                        "displayName": "Dependency file",
+                        "fileName": "dependency.jar",
+                        "isAvailable": true,
+                        "gameVersions": ["1.20.1"],
+                        "modLoader": 4,
+                        "downloadUrl": "https://edge.forgecdn.net/files/dependency.jar",
+                        "dependencies": []
+                      }]
+                    }
+                    """.trimIndent()
+                }
+                FakeConnection(url, body)
+            }
+        )
+        val parent = provider.getProjectVersions(
+            "100",
+            minecraftVersion = "1.20.1",
+            loader = MinecraftLoader.FABRIC
+        ).single()
+
+        val result = MinecraftContentDependencyResolver.resolve(listOf(parent)) { providerId, projectId, versionId ->
+            assertEquals(ContentProviderId.CURSEFORGE, providerId)
+            provider.getProjectVersions(
+                projectId,
+                minecraftVersion = "1.20.1",
+                loader = MinecraftLoader.FABRIC
+            ).firstOrNull { versionId == null || it.versionId == versionId }
+        }
+
+        assertTrue(result is MinecraftContentDependencyResolver.Result.Resolved)
+        val installOrder = (result as MinecraftContentDependencyResolver.Result.Resolved).installOrder
+        assertEquals(listOf("200", "100"), installOrder.map { it.projectId })
+        assertEquals(listOf("2001", "1001"), installOrder.map { it.versionId })
+    }
+
+    @Test
     fun datapackSearchIsExplicitlyUnsupportedByCurseForgeCatalog() {
         val provider = CurseForgeContentProvider("test-key")
         assertThrows(IllegalArgumentException::class.java) {
