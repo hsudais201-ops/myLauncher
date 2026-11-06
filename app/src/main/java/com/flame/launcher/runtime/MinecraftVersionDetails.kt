@@ -124,7 +124,7 @@ data class MinecraftVersionDetails(
         private val MAIN_CLASS = Regex("[A-Za-z_$][A-Za-z0-9_$.]{1,255}")
         private val SHA1 = Regex("[a-fA-F0-9]{40}")
         private val CLASSIFIER = Regex("[A-Za-z0-9._-]{1,128}")
-        private val CLIENT_HOSTS = setOf("piston-data.mojang.com", "launcher.mojang.com")
+        private val CLIENT_HOSTS = setOf("piston-data.mojang.com", "piston-meta.mojang.com", "launcher.mojang.com")
         private val LIBRARY_HOSTS = CLIENT_HOSTS + setOf(
             "libraries.minecraft.net",
             "repo1.maven.org",
