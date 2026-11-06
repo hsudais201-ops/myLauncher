@@ -241,7 +241,12 @@ fun MinecraftContentBrowser() {
                 is MinecraftContentInstallCoordinatorResult.Installed -> {
                     val installedFiles = result.plan.items.count { it.action.name == "INSTALL_FILE" }
                     val stagedModpacks = result.plan.items.count { it.action.name == "STAGE_MODPACK_ARCHIVE" }
-                    "Installed $installedFiles managed file(s); staged $stagedModpacks modpack archive(s) for import. Manifest saved."
+                    buildString {
+                        append("Installed $installedFiles managed file(s); staged $stagedModpacks modpack archive(s). Manifest saved.")
+                        if (result.skippedUnsupportedFiles > 0) append(" Skipped ${result.skippedUnsupportedFiles} client-incompatible file(s).")
+                        if (result.omittedOptionalFiles > 0) append(" Omitted ${result.omittedOptionalFiles} optional file(s).")
+                        if (result.skippedServerOverrideFiles > 0) append(" Skipped ${result.skippedServerOverrideFiles} server override file(s).")
+                    }
                 }
                 is MinecraftContentInstallCoordinatorResult.Failed ->
                     buildString {
