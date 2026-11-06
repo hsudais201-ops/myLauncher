@@ -25,7 +25,9 @@ class MinecraftContentInstallCoordinator(
     private val manifestStore: MinecraftContentInstallManifestStore,
     private val downloader: MinecraftContentStagedDownloader = MinecraftContentStagedDownloader(),
     private val transaction: MinecraftContentInstallTransaction = MinecraftContentInstallTransaction(),
-    private val modpackInspector: MinecraftModpackArchiveInspector = MinecraftModpackArchiveInspector()
+    private val modpackInspector: MinecraftModpackArchiveInspector = MinecraftModpackArchiveInspector(),
+    private val modpackManifestDownloader: MinecraftModpackManifestFileDownloader = MinecraftModpackManifestFileDownloader(),
+    private val modpackOverrideStager: MinecraftModpackOverrideStager = MinecraftModpackOverrideStager()
 ) {
     fun install(
         selectedItems: List<MinecraftContentInstallItem>,
@@ -104,9 +106,11 @@ class MinecraftContentInstallCoordinator(
             }
         }
 
+        val modpackInspections = mutableListOf<Pair<MinecraftStagedDownloadResult.Downloaded, MinecraftModpackArchiveInspector.Inspection>>()
         for (item in downloaded.filter { it.install.contentType == MinecraftContentType.MODPACK }) {
             when (val inspection = modpackInspector.inspect(item.stagedFile)) {
-                is MinecraftModpackArchiveInspector.Result.Accepted -> Unit
+                is MinecraftModpackArchiveInspector.Result.Accepted ->
+                    modpackInspections += item to inspection.inspection
                 is MinecraftModpackArchiveInspector.Result.Rejected -> {
                     val cleanupFailures = cleanup()
                     return MinecraftContentInstallCoordinatorResult.Failed(
@@ -117,12 +121,70 @@ class MinecraftContentInstallCoordinator(
             }
         }
 
+        val additionalFiles = mutableListOf<MinecraftAdditionalInstallFile>()
+        val extraStagingRoots = mutableListOf<File>()
+        fun cleanupAdditional(): List<String> = extraStagingRoots.mapNotNull { root ->
+            try { if (root.exists() && !root.deleteRecursively()) root.path else null }
+            catch (_: Exception) { root.path }
+        }
+
+        for ((archive, inspection) in modpackInspections) {
+            val manifestPlan = when (val planned = MinecraftModpackManifestInstallPlanner().plan(
+                inspection.manifest, target, inspection.overrideFiles
+            )) {
+                is MinecraftModpackManifestInstallPlanner.Result.Ready -> planned.plan
+                is MinecraftModpackManifestInstallPlanner.Result.Rejected -> {
+                    val failures = cleanup() + cleanupAdditional()
+                    return MinecraftContentInstallCoordinatorResult.Failed(
+                        "Modpack compatibility check failed for ${archive.install.projectId}: ${planned.reasons.joinToString("; ")}",
+                        failures
+                    )
+                }
+            }
+            when (val remote = modpackManifestDownloader.download(manifestPlan, stagingDirectory)) {
+                is MinecraftModpackManifestDownloadResult.Downloaded -> {
+                    remote.files.forEach { file ->
+                        additionalFiles += MinecraftAdditionalInstallFile(
+                            stagedFile = file.stagedFile,
+                            destination = File(file.install.destinationPath),
+                            approvedRoot = File(target.contentDirectory),
+                            expectedSizeBytes = file.stagedFile.length(),
+                            expectedSha256 = sha256(file.stagedFile)
+                        )
+                    }
+                }
+                is MinecraftModpackManifestDownloadResult.Failed -> {
+                    val failures = cleanup() + cleanupAdditional() + remote.cleanupFailures
+                    return MinecraftContentInstallCoordinatorResult.Failed(
+                        "Modpack file download failed at ${remote.relativePath}: ${remote.reason}",
+                        failures
+                    )
+                }
+            }
+            when (val overrides = modpackOverrideStager.stage(
+                archive.stagedFile, inspection, File(target.contentDirectory), stagingDirectory
+            )) {
+                is MinecraftModpackOverrideStageResult.Staged -> {
+                    additionalFiles += overrides.files
+                    if (overrides.files.isNotEmpty()) extraStagingRoots += overrides.stagingRoot
+                }
+                is MinecraftModpackOverrideStageResult.Failed -> {
+                    val failures = cleanup() + cleanupAdditional() + overrides.cleanupFailures
+                    return MinecraftContentInstallCoordinatorResult.Failed(
+                        "Modpack override staging failed: ${overrides.reason}", failures
+                    )
+                }
+            }
+        }
+
         val committed = transaction.install(
             plan = plan,
             stagedDownloads = downloaded,
             stagingDirectory = stagingDirectory,
-            appPrivateStagingDirectory = modpackStagingDirectory
+            appPrivateStagingDirectory = modpackStagingDirectory,
+            additionalFiles = additionalFiles
         )
+        cleanupAdditional()
         if (committed !is MinecraftContentInstallTransactionResult.Installed) {
             val reason = (committed as MinecraftContentInstallTransactionResult.Failed).reason
             val cleanupFailures = cleanup()
@@ -148,6 +210,17 @@ class MinecraftContentInstallCoordinator(
                     cleanupFailures
                 )
         }
+    }
+
+    private fun sha256(file: File): String = file.inputStream().use { input ->
+        val digest = java.security.MessageDigest.getInstance("SHA-256")
+        val buffer = ByteArray(32 * 1024)
+        while (true) {
+            val count = input.read(buffer)
+            if (count < 0) break
+            digest.update(buffer, 0, count)
+        }
+        digest.digest().joinToString("") { "%02x".format(it) }
     }
 
     private fun failed(reason: String) =
