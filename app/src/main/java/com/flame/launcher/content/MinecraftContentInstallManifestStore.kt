@@ -121,11 +121,12 @@ class MinecraftContentInstallManifestStore(
     @Synchronized
     fun recordSuccessfulInstall(
         plan: MinecraftContentInstallPlan,
-        installed: MinecraftContentInstallTransactionResult.Installed
+        installed: MinecraftContentInstallTransactionResult.Installed,
+        additionalEntries: List<MinecraftManagedContentInstall> = emptyList()
     ): MinecraftContentInstallManifestResult {
         val instanceRoot = canonicalInstanceRoot(File(plan.target.contentDirectory))
             ?: return failed("Invalid instance content directory")
-        if (plan.items.isEmpty() || installed.installedPaths.size != plan.items.size) {
+        if (plan.items.isEmpty() || installed.installedPaths.size != plan.items.size + additionalEntries.size) {
             return failed("Transaction result does not match the install plan")
         }
 
@@ -154,10 +155,24 @@ class MinecraftContentInstallManifestStore(
             newEntries += entry
         }
 
+        for (entry in additionalEntries) {
+            if (!isValidManagedPath(instanceRoot, entry)) {
+                return failed("Additional managed file is outside the selected instance directory")
+            }
+            val file = File(entry.installedPath)
+            if (!file.isFile || !file.canRead() || file.length() != entry.expectedSizeBytes ||
+                sha256(file) != entry.sha256
+            ) return failed("Additional managed file verification failed")
+        }
+
         val actualPaths = installed.installedPaths.map { path ->
             try { File(path).canonicalFile.path } catch (_: Exception) { return failed("Invalid transaction result path") }
         }
-        if (expectedPaths.toSet() != actualPaths.toSet() || actualPaths.distinct().size != actualPaths.size) {
+        if (!expectedPaths.all { it in actualPaths } ||
+            actualPaths.distinct().size != actualPaths.size ||
+            additionalEntries.map { File(it.installedPath).canonicalPath }.toSet().size != additionalEntries.size ||
+            additionalEntries.any { File(it.installedPath).canonicalPath !in actualPaths }
+        ) {
             return failed("Transaction result paths do not match the install plan")
         }
 
@@ -166,9 +181,10 @@ class MinecraftContentInstallManifestStore(
             is MinecraftContentInstallManifestResult.Failed -> return loaded
             is MinecraftContentInstallManifestResult.Saved -> return failed("Unexpected manifest load result")
         }
+        val allNewEntries = newEntries + additionalEntries
         val merged = (current.filterNot { existing ->
-            newEntries.any { it.installedPath == existing.installedPath }
-        } + newEntries).sortedBy { it.installedPath }
+            allNewEntries.any { it.installedPath == existing.installedPath }
+        } + allNewEntries).sortedBy { it.installedPath }
         val manifest = MinecraftContentInstallManifest(instanceRoot.path, merged)
         return save(instanceRoot, manifest)
     }
@@ -436,7 +452,7 @@ class MinecraftContentInstallManifestStore(
                 val world = entry.selectedWorldDirectory ?: return false
                 File(File(world).canonicalFile, "datapacks")
             }
-            MinecraftContentType.MODPACK -> return false
+            MinecraftContentType.MODPACK -> instanceRoot
         }.canonicalFile
         val installed = File(entry.installedPath)
         val canonicalInstalled = installed.canonicalFile
