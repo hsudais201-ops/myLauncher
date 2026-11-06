@@ -56,6 +56,24 @@ class MinecraftModpackOverrideImporterTest {
     }
 
     @Test
+    fun rejectsArchiveWhoseBytesChangeWithoutChangingPathsOrManifest() {
+        val root = Files.createTempDirectory("flame-instance").toFile()
+        val staging = Files.createTempDirectory("flame-staging").toFile()
+        val archive = createArchive("overrides/config/options.txt" to "first")
+        try {
+            val inspection = inspector.inspect(archive) as MinecraftModpackArchiveInspector.Result.Accepted
+            createArchiveAt(archive, "overrides/config/options.txt" to "other")
+            val result = importer.importOverrides(archive, inspection.inspection, root, staging)
+            assertTrue(result is MinecraftModpackOverrideImportResult.Failed)
+            assertTrue(!File(root, "config/options.txt").exists())
+        } finally {
+            root.deleteRecursively()
+            staging.deleteRecursively()
+            archive.delete()
+        }
+    }
+
+    @Test
     fun rejectsArchiveThatWasChangedAfterInspection() {
         val root = Files.createTempDirectory("flame-instance").toFile()
         val staging = Files.createTempDirectory("flame-staging").toFile()
