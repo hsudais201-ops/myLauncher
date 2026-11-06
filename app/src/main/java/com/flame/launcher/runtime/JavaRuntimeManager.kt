@@ -31,7 +31,8 @@ class JavaRuntimeManager(
 
     fun resolve(requiredMajorVersion: Int): JavaRuntimeResolution {
         require(requiredMajorVersion in 1..100) { "Required Java major version is invalid." }
-        val candidates = discover().filter {
+        val discovered = discover()
+        val candidates = discovered.filter {
             it.majorVersion == requiredMajorVersion &&
                 it.architecture == targetArchitecture
         }
@@ -42,7 +43,7 @@ class JavaRuntimeManager(
         return if (selected != null) {
             JavaRuntimeResolution.Available(selected)
         } else {
-            val availableMajors = discover()
+            val availableMajors = discovered
                 .filter { it.architecture == targetArchitecture }
                 .map { it.majorVersion }
                 .distinct()
@@ -55,57 +56,61 @@ class JavaRuntimeManager(
         }
     }
 
-    private fun readInstallation(directory: File): JavaRuntimeInstallation? = try {
-        val home = directory.canonicalFile
-        if (home.parentFile != root || !home.isDirectory) return null
+    private fun readInstallation(directory: File): JavaRuntimeInstallation? {
+        return try {
+            val home = directory.canonicalFile
+            if (home.parentFile != root || !home.isDirectory) return null
 
-        val releaseFile = safeChild(home, "release") ?: return null
-        if (!releaseFile.isFile || releaseFile.length() !in 1..MAX_RELEASE_FILE_BYTES.toLong()) {
-            return null
+            val releaseFile = safeChild(home, "release") ?: return null
+            if (!releaseFile.isFile || releaseFile.length() !in 1..MAX_RELEASE_FILE_BYTES.toLong()) {
+                return null
+            }
+
+            val properties = Properties()
+            FileInputStream(releaseFile).use { properties.load(it) }
+            val version = properties.getProperty("JAVA_VERSION")
+                ?.trim()
+                ?.trim('"')
+                ?.takeIf(String::isNotBlank)
+                ?: return null
+            val major = parseMajorVersion(version) ?: return null
+            val architecture = normalizeArchitecture(
+                properties.getProperty("OS_ARCH")?.trim()?.trim('"').orEmpty()
+            ) ?: return null
+
+            val executable = sequenceOf("bin/java", "bin/javaw")
+                .mapNotNull { safeChild(home, it) }
+                .firstOrNull { it.isFile && it.canExecute() }
+            val jvmLibrary = JVM_LIBRARY_PATHS
+                .asSequence()
+                .mapNotNull { safeChild(home, it) }
+                .firstOrNull { it.isFile }
+
+            if (executable == null && jvmLibrary == null) return null
+
+            JavaRuntimeInstallation(
+                id = home.name,
+                version = version,
+                majorVersion = major,
+                architecture = architecture,
+                homeDirectory = home,
+                javaExecutable = executable,
+                jvmLibrary = jvmLibrary
+            )
+        } catch (_: Exception) {
+            null
         }
-
-        val properties = Properties()
-        FileInputStream(releaseFile).use { properties.load(it) }
-        val version = properties.getProperty("JAVA_VERSION")
-            ?.trim()
-            ?.trim('"')
-            ?.takeIf(String::isNotBlank)
-            ?: return null
-        val major = parseMajorVersion(version) ?: return null
-        val architecture = normalizeArchitecture(
-            properties.getProperty("OS_ARCH")?.trim()?.trim('"').orEmpty()
-        ) ?: return null
-
-        val executable = sequenceOf("bin/java", "bin/javaw")
-            .mapNotNull { safeChild(home, it) }
-            .firstOrNull { it.isFile && it.canExecute() }
-        val jvmLibrary = JVM_LIBRARY_PATHS
-            .asSequence()
-            .mapNotNull { safeChild(home, it) }
-            .firstOrNull { it.isFile }
-
-        if (executable == null && jvmLibrary == null) return null
-
-        JavaRuntimeInstallation(
-            id = home.name,
-            version = version,
-            majorVersion = major,
-            architecture = architecture,
-            homeDirectory = home,
-            javaExecutable = executable,
-            jvmLibrary = jvmLibrary
-        )
-    } catch (_: Exception) {
-        null
     }
 
-    private fun safeChild(parent: File, relativePath: String): File? = try {
-        if (relativePath.startsWith("/") || '\\' in relativePath) return null
-        val candidate = File(parent, relativePath).canonicalFile
-        val prefix = parent.canonicalPath + File.separator
-        candidate.takeIf { it.path.startsWith(prefix) }
-    } catch (_: Exception) {
-        null
+    private fun safeChild(parent: File, relativePath: String): File? {
+        return try {
+            if (relativePath.startsWith("/") || '\\' in relativePath) return null
+            val candidate = File(parent, relativePath).canonicalFile
+            val prefix = parent.canonicalPath + File.separator
+            candidate.takeIf { it.path.startsWith(prefix) }
+        } catch (_: Exception) {
+            null
+        }
     }
 
     companion object {
