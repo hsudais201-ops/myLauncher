@@ -189,9 +189,9 @@ class MinecraftContentInstallManifestStore(
     }
 
     /**
-     * Removes one Flame-managed file only when its canonical path and SHA-256 still match
-     * the durable ownership record. The manifest entry is durably removed first; if the
-     * filesystem delete fails, the original manifest is restored.
+     * Removes a managed file without a check/delete race: first move the candidate to a
+     * unique quarantine name in the same directory, then verify the moved bytes again.
+     * Only after the second verification is the manifest updated and quarantine deleted.
      */
     @Synchronized
     fun uninstallManagedFile(
@@ -220,32 +220,92 @@ class MinecraftContentInstallManifestStore(
             )
         }
 
-        val updated = manifest.copy(entries = manifest.entries.filterNot { it.installedPath == entry.installedPath })
-        when (val saved = save(instanceRoot, updated)) {
-            is MinecraftContentInstallManifestResult.Saved -> Unit
-            is MinecraftContentInstallManifestResult.Failed ->
-                return MinecraftManagedContentUninstallResult.Failed(saved.reason)
-            is MinecraftContentInstallManifestResult.Loaded ->
-                return MinecraftManagedContentUninstallResult.Failed("Unexpected manifest save result")
-        }
-
-        val file = File(entry.installedPath)
-        val deleted = try {
-            file.delete()
+        val original = File(entry.installedPath)
+        val quarantine = File(
+            original.parentFile,
+            ".flame-uninstall-${java.util.UUID.randomUUID()}.tmp"
+        )
+        val moved = try {
+            try {
+                Files.move(original.toPath(), quarantine.toPath(), StandardCopyOption.ATOMIC_MOVE)
+            } catch (_: java.nio.file.AtomicMoveNotSupportedException) {
+                Files.move(original.toPath(), quarantine.toPath())
+            }
+            true
         } catch (_: Exception) {
             false
         }
-        if (!deleted && file.exists()) {
-            // Preserve ownership metadata if deletion did not happen.
-            when (val restored = save(instanceRoot, manifest)) {
-                is MinecraftContentInstallManifestResult.Saved -> Unit
-                else -> return MinecraftManagedContentUninstallResult.Failed(
-                    "File could not be deleted and ownership record restoration failed"
+        if (!moved) {
+            return MinecraftManagedContentUninstallResult.Failed("Managed file could not be safely isolated")
+        }
+
+        val quarantineMatches = try {
+            quarantine.isFile && quarantine.length() > 0L &&
+                sha256(quarantine) == entry.sha256.lowercase(Locale.ROOT)
+        } catch (_: Exception) {
+            false
+        }
+        if (!quarantineMatches) {
+            val restored = restoreQuarantinedFile(quarantine, original)
+            return MinecraftManagedContentUninstallResult.Failed(
+                if (restored) "Managed file changed during uninstall; original file was restored"
+                else "Managed file changed during uninstall; recovery file remains at ${quarantine.name}"
+            )
+        }
+
+        val updated = manifest.copy(entries = manifest.entries.filterNot { it.installedPath == entry.installedPath })
+        when (val saved = save(instanceRoot, updated)) {
+            is MinecraftContentInstallManifestResult.Saved -> Unit
+            is MinecraftContentInstallManifestResult.Failed -> {
+                val restored = restoreQuarantinedFile(quarantine, original)
+                return MinecraftManagedContentUninstallResult.Failed(
+                    if (restored) saved.reason
+                    else "${saved.reason}; recovery file remains at ${quarantine.name}"
                 )
             }
-            return MinecraftManagedContentUninstallResult.Failed("Managed file could not be deleted")
+            is MinecraftContentInstallManifestResult.Loaded -> {
+                val restored = restoreQuarantinedFile(quarantine, original)
+                return MinecraftManagedContentUninstallResult.Failed(
+                    if (restored) "Unexpected manifest save result"
+                    else "Manifest save failed; recovery file remains at ${quarantine.name}"
+                )
+            }
+        }
+
+        val deleted = try {
+            quarantine.delete()
+        } catch (_: Exception) {
+            false
+        }
+        if (!deleted && quarantine.exists()) {
+            val restored = restoreQuarantinedFile(quarantine, original)
+            val ownershipRestored = when (save(instanceRoot, manifest)) {
+                is MinecraftContentInstallManifestResult.Saved -> true
+                else -> false
+            }
+            return MinecraftManagedContentUninstallResult.Failed(
+                when {
+                    restored && ownershipRestored -> "Managed file could not be deleted; original file and ownership record were restored"
+                    !restored -> "Managed file could not be deleted; recovery file remains at ${quarantine.name}"
+                    else -> "Managed file could not be deleted and ownership record restoration failed"
+                }
+            )
         }
         return MinecraftManagedContentUninstallResult.Uninstalled(entry)
+    }
+
+    private fun restoreQuarantinedFile(quarantine: File, original: File): Boolean {
+        if (!quarantine.exists() || original.exists()) return false
+        return try {
+            try {
+                Files.move(quarantine.toPath(), original.toPath(), StandardCopyOption.ATOMIC_MOVE)
+            } catch (_: java.nio.file.AtomicMoveNotSupportedException) {
+                Files.move(quarantine.toPath(), original.toPath())
+            }
+            true
+        } catch (_: Exception) {
+            false
+        }
     }
 
     private fun save(
