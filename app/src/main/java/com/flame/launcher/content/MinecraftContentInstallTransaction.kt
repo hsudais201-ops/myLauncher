@@ -65,7 +65,11 @@ data class MinecraftAdditionalInstallFile(
     val destination: File,
     val approvedRoot: File,
     val expectedSizeBytes: Long,
-    val expectedSha256: String
+    val expectedSha256: String,
+    val provider: ContentProviderId = ContentProviderId.MODRINTH,
+    val projectId: String = "modpack",
+    val versionId: String = "imported",
+    val contentType: MinecraftContentType = MinecraftContentType.MODPACK
 )
 
 class MinecraftContentInstallTransaction(
