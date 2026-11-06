@@ -106,8 +106,18 @@ data class MinecraftVersionDetails(
             require(SHA1.matches(sha1)) { "$label has an invalid SHA-1 digest." }
             require(size > 0L) { "$label has an invalid file size." }
             val path = value.optString("path").takeIf(String::isNotBlank)
+            if (path != null) {
+                require(isSafeRelativePath(path)) { "$label has an unsafe installation path." }
+            }
             return MinecraftDownloadDescriptor(url, sha1.lowercase(), size, path)
         }
+
+        private fun isSafeRelativePath(value: String): Boolean =
+            !value.startsWith("/") &&
+                !value.startsWith("\\\\") &&
+                '\\\\' !in value &&
+                ':' !in value &&
+                value.split('/').all { it.isNotBlank() && it != "." && it != ".." }
 
         private fun isHttpsUrl(value: String, allowedHosts: Set<String>): Boolean = try {
             val uri = URI(value)
