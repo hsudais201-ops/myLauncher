@@ -48,6 +48,20 @@ class MinecraftModpackManifestFileDownloader(
         }
 
         val selected = plan.requiredFiles + if (includeOptional) plan.optionalFiles else emptyList()
+        val totalBytes = selected.fold(0L) { total, item ->
+            val size = item.file.fileSizeBytes
+            if (size <= 0L || total > MAX_TOTAL_DOWNLOAD_BYTES - size) {
+                return MinecraftModpackManifestDownloadResult.Failed(
+                    item.relativePath, "Modpack download exceeds the total size limit", emptyList()
+                )
+            }
+            total + size
+        }
+        if (totalBytes > MAX_TOTAL_DOWNLOAD_BYTES) {
+            return MinecraftModpackManifestDownloadResult.Failed(
+                "", "Modpack download exceeds the total size limit", emptyList()
+            )
+        }
         val completed = mutableListOf<MinecraftStagedDownloadResult.Downloaded>()
 
         fun cleanup(): List<String> {
@@ -73,7 +87,16 @@ class MinecraftModpackManifestFileDownloader(
                 val failures = cleanup()
                 return MinecraftModpackManifestDownloadResult.Failed(
                     planned.relativePath, "Could not create isolated staging area",
-                    completed.map { it.stagedFile }, failures
+                    emptyList(), failures
+                )
+            }
+
+            if (file.downloads.isEmpty()) {
+                val itemCleanupFailures = if (itemDirectory.deleteRecursively()) emptyList()
+                    else listOf(itemDirectory.path)
+                val failures = cleanup() + itemCleanupFailures
+                return MinecraftModpackManifestDownloadResult.Failed(
+                    planned.relativePath, "Manifest file has no download URLs", emptyList(), failures
                 )
             }
 
@@ -109,18 +132,23 @@ class MinecraftModpackManifestFileDownloader(
                 }
             }
             if (success == null) {
-                itemDirectory.deleteRecursively()
-                val failures = cleanup()
+                val itemCleanupFailures = if (itemDirectory.deleteRecursively()) emptyList()
+                    else listOf(itemDirectory.path)
+                val failures = cleanup() + itemCleanupFailures
                 return MinecraftModpackManifestDownloadResult.Failed(
-                    planned.relativePath, lastFailure, completed.map { it.stagedFile }, failures
+                    planned.relativePath, lastFailure, emptyList(), failures
                 )
             }
-            completed += success!!
+            completed += success
         }
 
         return MinecraftModpackManifestDownloadResult.Downloaded(
             completed, plan.skippedClientUnsupported,
             if (includeOptional) 0 else plan.optionalFiles.size
         )
+    }
+
+    private companion object {
+        const val MAX_TOTAL_DOWNLOAD_BYTES = 2L * 1024L * 1024L * 1024L
     }
 }
