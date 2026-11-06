@@ -23,7 +23,7 @@ sealed interface MinecraftModpackOverrideImportResult {
 class MinecraftModpackOverrideImporter(
     private val inspector: MinecraftModpackArchiveInspector = MinecraftModpackArchiveInspector()
 ) {
-    fun import(
+    fun importOverrides(
         archive: File,
         inspection: MinecraftModpackArchiveInspector.Inspection,
         contentDirectory: File,
