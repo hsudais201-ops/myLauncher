@@ -11,7 +11,8 @@ import java.util.zip.ZipFile
  * extracted destination before writing it.
  */
 class MinecraftModpackArchiveInspector(
-    private val limits: Limits = Limits()
+    private val limits: Limits = Limits(),
+    private val manifestParser: MinecraftModpackManifestParser = MinecraftModpackManifestParser()
 ) {
     data class Limits(
         val maxEntries: Int = 10_000,
@@ -31,7 +32,8 @@ class MinecraftModpackArchiveInspector(
         val archive: File,
         val entryCount: Int,
         val totalUncompressedBytes: Long,
-        val overrideFiles: List<String>
+        val overrideFiles: List<String>,
+        val manifest: MinecraftModpackManifestParser.Manifest
     )
 
     sealed interface Result {
@@ -53,7 +55,7 @@ class MinecraftModpackArchiveInspector(
                 val overrides = mutableListOf<String>()
                 var count = 0
                 var totalBytes = 0L
-                var hasRootManifest = false
+                var manifestEntry: java.util.zip.ZipEntry? = null
                 val entries = zip.entries()
 
                 while (entries.hasMoreElements()) {
@@ -91,7 +93,7 @@ class MinecraftModpackArchiveInspector(
                         }
 
                         if (normalized == "modrinth.index.json") {
-                            hasRootManifest = true
+                            manifestEntry = entry
                         }
                         if (normalized.startsWith("overrides/") ||
                             normalized.startsWith("server-overrides/")
@@ -101,18 +103,40 @@ class MinecraftModpackArchiveInspector(
                     }
                 }
 
-                if (!hasRootManifest) {
-                    Result.Rejected("Archive is missing its root modrinth.index.json manifest")
-                } else {
-                    Result.Accepted(
-                        Inspection(
-                            archive = archive.canonicalFile,
-                            entryCount = count,
-                            totalUncompressedBytes = totalBytes,
-                            overrideFiles = overrides.sorted()
-                        )
-                    )
+                val indexEntry = manifestEntry
+                    ?: return Result.Rejected("Archive is missing its root modrinth.index.json manifest")
+                if (indexEntry.size > MAX_MANIFEST_BYTES) {
+                    return Result.Rejected("Modpack manifest exceeds the allowed size")
                 }
+                val manifestJson = zip.getInputStream(indexEntry).use { input ->
+                    val output = java.io.ByteArrayOutputStream()
+                    val buffer = ByteArray(8 * 1024)
+                    var total = 0
+                    while (true) {
+                        val read = input.read(buffer)
+                        if (read < 0) break
+                        total += read
+                        if (total > MAX_MANIFEST_BYTES) {
+                            return Result.Rejected("Modpack manifest exceeds the allowed size")
+                        }
+                        output.write(buffer, 0, read)
+                    }
+                    output.toString(Charsets.UTF_8.name())
+                }
+                val manifest = when (val parsed = manifestParser.parse(manifestJson)) {
+                    is MinecraftModpackManifestParser.Result.Parsed -> parsed.manifest
+                    is MinecraftModpackManifestParser.Result.Rejected ->
+                        return Result.Rejected("Invalid modpack manifest: \${parsed.reason}")
+                }
+                Result.Accepted(
+                    Inspection(
+                        archive = archive.canonicalFile,
+                        entryCount = count,
+                        totalUncompressedBytes = totalBytes,
+                        overrideFiles = overrides.sorted(),
+                        manifest = manifest
+                    )
+                )
             }
         } catch (error: Exception) {
             Result.Rejected("Could not inspect modpack archive: ${error.message ?: "invalid ZIP"}")
@@ -129,5 +153,8 @@ class MinecraftModpackArchiveInspector(
         val segments = withoutTrailingSlash.split('/')
         if (segments.any { it.isBlank() || it == "." || it == ".." }) return null
         return segments.joinToString("/")
+    }
+    private companion object {
+        const val MAX_MANIFEST_BYTES = 4 * 1024 * 1024
     }
 }
