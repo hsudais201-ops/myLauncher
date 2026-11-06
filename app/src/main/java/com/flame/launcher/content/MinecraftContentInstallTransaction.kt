@@ -82,7 +82,6 @@ class MinecraftContentInstallTransaction(
     )
 
     private data class Prepared(
-        val install: MinecraftPlannedInstall?,
         val staged: File,
         val destination: File,
         val destinationDirectory: File,
@@ -174,7 +173,7 @@ class MinecraftContentInstallTransaction(
             if (files.exists(canonicalDestination)) {
                 return failed("Destination already exists; existing files are never overwritten")
             }
-            prepared += Prepared(install, staged, canonicalDestination, canonicalDirectory, expectedRoot)
+            prepared += Prepared(staged, canonicalDestination, canonicalDirectory, expectedRoot)
         }
 
         for (additional in additionalFiles) {
@@ -200,7 +199,7 @@ class MinecraftContentInstallTransaction(
                 return failed("Additional destination escapes its approved directory")
             }
             if (files.exists(canonicalDestination)) return failed("Additional destination already exists")
-            prepared += Prepared(null, staged, canonicalDestination, canonicalDirectory, expectedRoot)
+            prepared += Prepared(staged, canonicalDestination, canonicalDirectory, expectedRoot)
         }
 
         if (prepared.map { it.destination.path.lowercase(Locale.ROOT) }.distinct().size != prepared.size) {
