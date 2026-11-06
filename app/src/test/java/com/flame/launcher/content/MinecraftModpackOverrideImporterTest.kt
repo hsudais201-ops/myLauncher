@@ -22,7 +22,7 @@ class MinecraftModpackOverrideImporterTest {
         )
         try {
             val inspection = inspector.inspect(archive) as MinecraftModpackArchiveInspector.Result.Accepted
-            val result = importer.import(archive, inspection.inspection, root, staging)
+            val result = importer.importOverrides(archive, inspection.inspection, root, staging)
             assertTrue(result is MinecraftModpackOverrideImportResult.Imported)
             val imported = result as MinecraftModpackOverrideImportResult.Imported
             assertEquals(1, imported.installedPaths.size)
