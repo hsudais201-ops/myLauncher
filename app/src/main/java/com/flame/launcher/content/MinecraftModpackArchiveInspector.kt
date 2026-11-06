@@ -138,7 +138,7 @@ class MinecraftModpackArchiveInspector(
                 val manifest = when (val parsed = manifestParser.parse(manifestJson)) {
                     is MinecraftModpackManifestParser.Result.Parsed -> parsed.manifest
                     is MinecraftModpackManifestParser.Result.Rejected ->
-                        return Result.Rejected("Invalid modpack manifest: \${parsed.reason}")
+                        return Result.Rejected("Invalid modpack manifest: ${parsed.reason}")
                 }
                 Result.Accepted(
                     Inspection(
