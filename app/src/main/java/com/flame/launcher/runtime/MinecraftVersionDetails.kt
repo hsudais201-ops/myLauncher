@@ -115,7 +115,7 @@ data class MinecraftVersionDetails(
         private fun isSafeRelativePath(value: String): Boolean =
             !value.startsWith("/") &&
                 !value.startsWith("\\\\") &&
-                '\\\\' !in value &&
+                '\\' !in value &&
                 ':' !in value &&
                 value.split('/').all { it.isNotBlank() && it != "." && it != ".." }
 
