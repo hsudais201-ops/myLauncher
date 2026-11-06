@@ -28,6 +28,9 @@ import com.flame.launcher.content.MinecraftContentInstallCoordinator
 import com.flame.launcher.content.MinecraftContentInstallCoordinatorResult
 import com.flame.launcher.content.MinecraftContentInstallItem
 import com.flame.launcher.content.MinecraftContentInstallManifestStore
+import com.flame.launcher.content.MinecraftContentInstallManifestResult
+import com.flame.launcher.content.MinecraftManagedContentInstall
+import com.flame.launcher.content.MinecraftManagedContentUninstallResult
 import com.flame.launcher.content.MinecraftContentProject
 import com.flame.launcher.content.MinecraftContentType
 import com.flame.launcher.content.MinecraftContentVersion
@@ -54,10 +57,11 @@ fun MinecraftContentBrowser() {
     val profileStore = remember(context) {
         MinecraftInstanceProfileStore(File(context.filesDir, "minecraft-instances"))
     }
-    val installCoordinator = remember(context) {
-        MinecraftContentInstallCoordinator(
-            MinecraftContentInstallManifestStore(File(context.filesDir, "managed-content-manifests"))
-        )
+    val manifestStore = remember(context) {
+        MinecraftContentInstallManifestStore(File(context.filesDir, "managed-content-manifests"))
+    }
+    val installCoordinator = remember(manifestStore) {
+        MinecraftContentInstallCoordinator(manifestStore)
     }
     var query by remember { mutableStateOf("") }
     var selectedType by remember { mutableStateOf(MinecraftContentType.MOD) }
@@ -68,6 +72,7 @@ fun MinecraftContentBrowser() {
     var selectedVersion by remember { mutableStateOf<MinecraftContentVersion?>(null) }
     var versions by remember { mutableStateOf<List<MinecraftContentVersion>>(emptyList()) }
     var installStatus by remember { mutableStateOf<String?>(null) }
+    var managedEntries by remember { mutableStateOf<List<MinecraftManagedContentInstall>>(emptyList()) }
     var loading by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
     var status by remember { mutableStateOf("Search Modrinth to discover Minecraft content.") }
@@ -84,6 +89,45 @@ fun MinecraftContentBrowser() {
         )
     }
 
+    fun refreshManagedEntries(profile: MinecraftInstanceProfile?) {
+        if (profile == null) {
+            managedEntries = emptyList()
+            return
+        }
+        managedEntries = when (val loaded = manifestStore.load(File(profile.contentDirectory))) {
+            is MinecraftContentInstallManifestResult.Loaded -> loaded.manifest.entries
+            is MinecraftContentInstallManifestResult.Failed -> {
+                installStatus = "Could not load managed content: ${loaded.reason}"
+                emptyList()
+            }
+            is MinecraftContentInstallManifestResult.Saved -> emptyList()
+        }
+    }
+
+    fun uninstallEntry(entry: MinecraftManagedContentInstall) {
+        val profile = selectedProfile ?: return
+        loading = true
+        installStatus = "Verifying managed file before uninstall…"
+        scope.launch {
+            val result = withContext(Dispatchers.IO) {
+                manifestStore.uninstallManagedFile(
+                    File(profile.contentDirectory),
+                    entry.installedPath
+                )
+            }
+            loading = false
+            if (result is MinecraftContentInstallCoordinatorResult.Installed) {
+                refreshManagedEntries(profile)
+            }
+            installStatus = when (result) {
+                is MinecraftManagedContentUninstallResult.Uninstalled ->
+                    "Uninstalled ${result.entry.fileName}."
+                is MinecraftManagedContentUninstallResult.Failed -> result.reason
+            }
+            refreshManagedEntries(profile)
+        }
+    }
+
     fun refreshProfiles() {
         profiles = (profileStore.listProfiles() as? MinecraftInstanceProfileResult.Profiles)
             ?.profiles.orEmpty()
@@ -98,6 +142,7 @@ fun MinecraftContentBrowser() {
                 when (val selected = profileStore.selectProfile(result.profile.id)) {
                     is MinecraftInstanceProfileResult.Selected -> {
                         selectedProfile = selected.profile
+                        refreshManagedEntries(selected.profile)
                         profileStatus = "Created and selected ${selected.profile.name}."
                         profileName = ""
                         targetMinecraftVersion = selected.profile.minecraftVersion
@@ -117,6 +162,7 @@ fun MinecraftContentBrowser() {
         when (val result = profileStore.selectProfile(profile.id)) {
             is MinecraftInstanceProfileResult.Selected -> {
                 selectedProfile = result.profile
+                refreshManagedEntries(result.profile)
                 targetMinecraftVersion = result.profile.minecraftVersion
                 selectedLoader = result.profile.loader
                 profileStatus = "Selected ${result.profile.name}."
@@ -308,6 +354,48 @@ fun MinecraftContentBrowser() {
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
+            }
+        }
+
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+        ) {
+            Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("Managed content", style = MaterialTheme.typography.titleMedium)
+                Text(
+                    "Files recorded by Flame for the selected profile. Files changed outside Flame are protected from uninstall.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                if (selectedProfile == null) {
+                    Text("Select a profile to view its managed files.")
+                } else if (managedEntries.isEmpty()) {
+                    Text("No managed content installed in this profile.")
+                } else {
+                    managedEntries.forEach { entry ->
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                Text(entry.fileName, style = MaterialTheme.typography.bodyMedium)
+                                Text(
+                                    "${entry.contentType.label()} · ${entry.provider.name} · ${entry.versionId}",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            Button(
+                                onClick = { uninstallEntry(entry) },
+                                enabled = !loading
+                            ) {
+                                Text("Uninstall")
+                            }
+                        }
+                    }
+                }
             }
         }
 
