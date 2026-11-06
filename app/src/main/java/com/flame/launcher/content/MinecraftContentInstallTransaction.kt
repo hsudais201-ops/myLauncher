@@ -178,7 +178,7 @@ class MinecraftContentInstallTransaction(
                 }
                 // Re-check after directory creation to close the common preflight/commit race.
                 val recheckedDirectory = files.canonical(item.destinationDirectory)
-                if (!isWithin(expectedDestinationRoot(plan, item.install, appPrivateRoot)!!, recheckedDirectory)) {
+                if (!isWithinOrEqual(expectedDestinationRoot(plan, item.install, appPrivateRoot)!!, recheckedDirectory)) {
                     throw IllegalStateException("Destination directory changed during installation")
                 }
                 if (files.exists(item.destination)) {
@@ -263,6 +263,12 @@ class MinecraftContentInstallTransaction(
     }
 
     private fun ByteArray.toHex(): String = joinToString("") { "%02x".format(it) }
+
+    private fun isWithinOrEqual(root: File, candidate: File): Boolean {
+        val rootPath = root.toPath().normalize()
+        val candidatePath = candidate.toPath().normalize()
+        return candidatePath == rootPath || candidatePath.startsWith(rootPath)
+    }
 
     private fun isWithin(root: File, candidate: File): Boolean {
         val rootPath = root.toPath().normalize()
