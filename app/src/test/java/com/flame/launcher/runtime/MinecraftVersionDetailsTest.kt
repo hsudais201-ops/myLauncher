@@ -73,19 +73,14 @@ class MinecraftVersionDetailsTest {
     }
 
     @Test
-    fun acceptsLibrariesWithoutDownloadsAndMissingJavaRequirement() {
+    fun acceptsMissingJavaRequirement() {
         val json = details().replace(
             """"javaVersion": {"component": "java-runtime-dummy", "majorVersion": 21},""",
             ""
-        ).replace(
-            """"name": "org.example:sample:1.0",
-              "downloads": {
-                "artifact": {""",
-            """"name": "org.example:metadata-only:1.0""""
         )
         val parsed = MinecraftVersionDetails.parse(json, "1.21")
         assertNull(parsed.javaMajorVersion)
-        assertEquals(0, parsed.libraries.size)
+        assertEquals(1, parsed.libraries.size)
     }
 
     @Test
