@@ -61,6 +61,48 @@ class CurseForgeContentProviderTest {
     }
 
     @Test
+    fun projectVersionsMapRequiredCurseForgeDependenciesForResolver() {
+        val provider = CurseForgeContentProvider(
+            apiKey = "test-key",
+            connectionFactory = { url ->
+                FakeConnection(url, """
+                    {
+                      "data": [{
+                        "id": 54321,
+                        "displayName": "Example file",
+                        "fileName": "example-mod.jar",
+                        "isAvailable": true,
+                        "gameVersions": ["1.20.1"],
+                        "modLoader": 4,
+                        "downloadUrl": "https://edge.forgecdn.net/files/example.jar",
+                        "fileLength": 1024,
+                        "hashes": [{"algo": 1, "value": "0123456789abcdef0123456789abcdef01234567"}],
+                        "dependencies": [
+                          {"modId": 98765, "relationType": 3},
+                          {"modId": 87654, "relationType": 2}
+                        ]
+                      }]
+                    }
+                """.trimIndent())
+            }
+        )
+
+        val version = provider.getProjectVersions(
+            projectId = "12345",
+            minecraftVersion = "1.20.1",
+            loader = MinecraftLoader.FABRIC
+        ).single()
+
+        assertEquals("54321", version.versionId)
+        assertEquals(2, version.dependencies.size)
+        assertEquals("98765", version.dependencies[0].projectId)
+        assertEquals(DependencyType.REQUIRED, version.dependencies[0].type)
+        assertEquals("87654", version.dependencies[1].projectId)
+        assertEquals(DependencyType.OPTIONAL, version.dependencies[1].type)
+        assertEquals("0123456789abcdef0123456789abcdef01234567", version.sha1)
+    }
+
+    @Test
     fun datapackSearchIsExplicitlyUnsupportedByCurseForgeCatalog() {
         val provider = CurseForgeContentProvider("test-key")
         assertThrows(IllegalArgumentException::class.java) {
