@@ -1,6 +1,7 @@
 package com.flame.launcher.content
 
 import java.io.File
+import java.nio.file.Files
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -33,7 +34,7 @@ class MinecraftModpackManifestInstallPlannerTest {
 
     @Test
     fun separatesRequiredOptionalAndUnsupportedClientFiles() {
-        val root = createTempDir(prefix = "flame-pack-plan-")
+        val root = Files.createTempDirectory("flame-pack-plan-").toFile()
         try {
             val result = MinecraftModpackManifestInstallPlanner().plan(
                 manifest(files = listOf(
