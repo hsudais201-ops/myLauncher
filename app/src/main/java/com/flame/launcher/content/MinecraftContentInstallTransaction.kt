@@ -259,6 +259,37 @@ class MinecraftContentInstallTransaction(
         }
     }
 
+    /**
+     * Compensates a completed install when ownership persistence fails. A file is deleted
+     * only when its canonical path and SHA-256 still match the transaction's staged bytes.
+     */
+    fun rollbackInstalled(
+        installedPaths: List<String>,
+        expectedSha256ByPath: Map<String, String>
+    ): List<String> {
+        if (installedPaths.distinct().size != installedPaths.size ||
+            installedPaths.toSet() != expectedSha256ByPath.keys
+        ) return listOf("Installed path set did not match rollback verification data")
+
+        val failures = mutableListOf<String>()
+        installedPaths.asReversed().forEach { path ->
+            val file = File(path)
+            try {
+                val canonical = files.canonical(file)
+                if (canonical.path != path || !files.isRegularFile(canonical) || !files.canRead(canonical) ||
+                    !verifyDigest(canonical, expectedSha256ByPath[path], "SHA-256")
+                ) {
+                    failures += path
+                } else if (!files.delete(canonical)) {
+                    failures += path
+                }
+            } catch (_: Exception) {
+                failures += path
+            }
+        }
+        return failures
+    }
+
     private fun expectedDestinationRoot(
         plan: MinecraftContentInstallPlan,
         install: MinecraftPlannedInstall,
