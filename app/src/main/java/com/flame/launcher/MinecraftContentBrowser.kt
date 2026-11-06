@@ -620,19 +620,18 @@ fun MinecraftContentBrowser() {
                     Button(
                         onClick = { installSelectedVersion() },
                         enabled = !loading && selectedProfile != null && selectedVersion != null &&
-                            project.provider == ContentProviderId.MODRINTH
+                            (project.provider == ContentProviderId.MODRINTH ||
+                                curseForgeApiKey.isNotBlank())
                     ) {
-                        Text(
-                            if (project.provider == ContentProviderId.MODRINTH) {
-                                "Install selected version"
-                            } else {
-                                "CurseForge installation coming soon"
-                            }
-                        )
+                        Text("Install selected version")
                     }
                     if (project.provider == ContentProviderId.CURSEFORGE) {
                         Text(
-                            "CurseForge browsing and version lookup are enabled. Installation will be enabled after provider-aware dependency resolution and install verification are complete.",
+                            if (curseForgeApiKey.isBlank()) {
+                                "Enter your CurseForge API key to resolve dependencies and install this version."
+                            } else {
+                                "CurseForge installs use provider-aware dependency resolution, compatibility checks, verified downloads, and rollback."
+                            },
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
