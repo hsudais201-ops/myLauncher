@@ -9,11 +9,13 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -72,7 +74,15 @@ fun MinecraftContentBrowser() {
     var selectedVersion by remember { mutableStateOf<MinecraftContentVersion?>(null) }
     var versions by remember { mutableStateOf<List<MinecraftContentVersion>>(emptyList()) }
     var installStatus by remember { mutableStateOf<String?>(null) }
-    var managedEntries by remember { mutableStateOf<List<MinecraftManagedContentInstall>>(emptyList()) }
+    var managedEntries by remember {
+        mutableStateOf(
+            (profileStore.selectedProfile() as? MinecraftInstanceProfileResult.Selected)?.profile?.let { profile ->
+                (manifestStore.load(File(profile.contentDirectory)) as? MinecraftContentInstallManifestResult.Loaded)
+                    ?.manifest?.entries
+            }.orEmpty()
+        )
+    }
+    var pendingUninstall by remember { mutableStateOf<MinecraftManagedContentInstall?>(null) }
     var loading by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
     var status by remember { mutableStateOf("Search Modrinth to discover Minecraft content.") }
@@ -388,7 +398,7 @@ fun MinecraftContentBrowser() {
                                 )
                             }
                             Button(
-                                onClick = { uninstallEntry(entry) },
+                                onClick = { pendingUninstall = entry },
                                 enabled = !loading
                             ) {
                                 Text("Uninstall")
@@ -529,6 +539,33 @@ fun MinecraftContentBrowser() {
                     }
                 }
             }
+        }
+        pendingUninstall?.let { entry ->
+            AlertDialog(
+                onDismissRequest = { pendingUninstall = null },
+                title = { Text("Uninstall managed content?") },
+                text = {
+                    Text(
+                        "Flame will verify the file fingerprint and remove only ${entry.fileName}. Modified or unmanaged files are protected."
+                    )
+                },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            pendingUninstall = null
+                            uninstallEntry(entry)
+                        },
+                        enabled = !loading
+                    ) {
+                        Text("Uninstall")
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { pendingUninstall = null }) {
+                        Text("Cancel")
+                    }
+                }
+            )
         }
     }
 }
