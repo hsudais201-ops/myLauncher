@@ -155,7 +155,12 @@ class MinecraftContentInstallCoordinator(
                 }
             }
             when (val remote = modpackManifestDownloader.download(
-                manifestPlan, stagingDirectory, includeOptional = includeOptionalModpackFiles
+                manifestPlan,
+                stagingDirectory,
+                includeOptional = includeOptionalModpackFiles,
+                progress = { relativePath, bytes, expected ->
+                    progress("${archive.install.projectId}:$relativePath", bytes, expected)
+                }
             )) {
                 is MinecraftModpackManifestDownloadResult.Downloaded -> {
                     remote.files.forEach { file ->
