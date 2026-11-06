@@ -123,9 +123,21 @@ class MinecraftContentInstallCoordinator(
 
         val additionalFiles = mutableListOf<MinecraftAdditionalInstallFile>()
         val extraStagingRoots = mutableListOf<File>()
-        fun cleanupAdditional(): List<String> = extraStagingRoots.mapNotNull { root ->
-            try { if (root.exists() && !root.deleteRecursively()) root.path else null }
-            catch (_: Exception) { root.path }
+        fun cleanupAdditional(): List<String> {
+            val failures = mutableListOf<String>()
+            additionalFiles.forEach { item ->
+                try {
+                    if (item.stagedFile.exists() && !item.stagedFile.delete()) failures += item.stagedFile.path
+                    item.stagedFile.parentFile?.let { parent ->
+                        if (parent != stagingDirectory && parent.isDirectory) parent.delete()
+                    }
+                } catch (_: Exception) { failures += item.stagedFile.path }
+            }
+            extraStagingRoots.forEach { root ->
+                try { if (root.exists() && !root.deleteRecursively()) failures += root.path }
+                catch (_: Exception) { failures += root.path }
+            }
+            return failures.distinct()
         }
 
         for ((archive, inspection) in modpackInspections) {
@@ -184,18 +196,31 @@ class MinecraftContentInstallCoordinator(
             appPrivateStagingDirectory = modpackStagingDirectory,
             additionalFiles = additionalFiles
         )
-        cleanupAdditional()
+        val additionalCleanupFailures = cleanupAdditional()
         if (committed !is MinecraftContentInstallTransactionResult.Installed) {
             val reason = (committed as MinecraftContentInstallTransactionResult.Failed).reason
-            val cleanupFailures = cleanup()
+            val cleanupFailures = cleanup() + additionalCleanupFailures
             return MinecraftContentInstallCoordinatorResult.Failed(
                 "Install transaction failed: $reason",
                 cleanupFailures
             )
         }
 
-        val saved = manifestStore.recordSuccessfulInstall(plan, committed)
-        val cleanupFailures = cleanup()
+        val additionalEntries = additionalFiles.map { file ->
+            val destination = file.destination.canonicalFile
+            MinecraftManagedContentInstall(
+                provider = file.provider,
+                projectId = file.projectId,
+                versionId = file.versionId,
+                contentType = file.contentType,
+                fileName = destination.name,
+                installedPath = destination.path,
+                sha256 = sha256(destination),
+                expectedSizeBytes = destination.length()
+            )
+        }
+        val saved = manifestStore.recordSuccessfulInstall(plan, committed, additionalEntries)
+        val cleanupFailures = cleanup() + additionalCleanupFailures
         return when (saved) {
             is MinecraftContentInstallManifestResult.Saved ->
                 MinecraftContentInstallCoordinatorResult.Installed(plan, saved.manifest)
