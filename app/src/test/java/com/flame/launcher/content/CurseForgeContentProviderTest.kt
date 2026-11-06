@@ -76,10 +76,10 @@ class CurseForgeContentProviderTest {
         override fun connect() = Unit
         override fun disconnect() = Unit
         override fun usingProxy(): Boolean = false
-        override fun getResponseCode(): Int {
-            onApiKey(getRequestProperty("x-api-key"))
-            return 200
+        override fun setRequestProperty(key: String, value: String) {
+            if (key.equals("x-api-key", ignoreCase = true)) onApiKey(value)
         }
+        override fun getResponseCode(): Int = 200
         override fun getInputStream() = ByteArrayInputStream(body.toByteArray())
     }
 }
