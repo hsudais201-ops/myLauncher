@@ -56,7 +56,7 @@ class MinecraftModpackManifestInstallPlannerTest {
 
     @Test
     fun rejectsMinecraftVersionMismatch() {
-        val root = createTempDir(prefix = "flame-pack-plan-")
+        val root = Files.createTempDirectory("flame-pack-plan-").toFile()
         try {
             val result = MinecraftModpackManifestInstallPlanner().plan(
                 manifest(version = "1.21.1"), target(root)
@@ -69,7 +69,7 @@ class MinecraftModpackManifestInstallPlannerTest {
 
     @Test
     fun rejectsLoaderMismatch() {
-        val root = createTempDir(prefix = "flame-pack-plan-")
+        val root = Files.createTempDirectory("flame-pack-plan-").toFile()
         try {
             val result = MinecraftModpackManifestInstallPlanner().plan(
                 manifest(loaders = mapOf("forge" to "47.2.0")), target(root)
@@ -82,7 +82,7 @@ class MinecraftModpackManifestInstallPlannerTest {
 
     @Test
     fun rejectsRemoteFileCollisionWithOverride() {
-        val root = createTempDir(prefix = "flame-pack-plan-")
+        val root = Files.createTempDirectory("flame-pack-plan-").toFile()
         try {
             val result = MinecraftModpackManifestInstallPlanner().plan(
                 manifest(files = listOf(remote("config/options.txt"))),
@@ -97,7 +97,7 @@ class MinecraftModpackManifestInstallPlannerTest {
 
     @Test
     fun rejectsFileDirectoryPathConflict() {
-        val root = createTempDir(prefix = "flame-pack-plan-")
+        val root = Files.createTempDirectory("flame-pack-plan-").toFile()
         try {
             val result = MinecraftModpackManifestInstallPlanner().plan(
                 manifest(files = listOf(
@@ -114,7 +114,7 @@ class MinecraftModpackManifestInstallPlannerTest {
 
     @Test
     fun rejectsUnsafeOverridePath() {
-        val root = createTempDir(prefix = "flame-pack-plan-")
+        val root = Files.createTempDirectory("flame-pack-plan-").toFile()
         try {
             val result = MinecraftModpackManifestInstallPlanner().plan(
                 manifest(), target(root),
