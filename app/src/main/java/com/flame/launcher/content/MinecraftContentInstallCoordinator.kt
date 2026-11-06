@@ -36,7 +36,8 @@ class MinecraftContentInstallCoordinator(
         modpackStagingDirectory: File,
         findVersion: (ContentProviderId, String, String?) -> MinecraftContentVersion?,
         findProject: (ContentProviderId, String) -> MinecraftContentProject?,
-        progress: (projectId: String, downloaded: Long, expected: Long?) -> Unit = { _, _, _ -> }
+        progress: (projectId: String, downloaded: Long, expected: Long?) -> Unit = { _, _, _ -> },
+        includeOptionalModpackFiles: Boolean = false
     ): MinecraftContentInstallCoordinatorResult {
         if (selectedItems.isEmpty()) return failed("Select at least one content version")
 
@@ -153,7 +154,9 @@ class MinecraftContentInstallCoordinator(
                     )
                 }
             }
-            when (val remote = modpackManifestDownloader.download(manifestPlan, stagingDirectory)) {
+            when (val remote = modpackManifestDownloader.download(
+                manifestPlan, stagingDirectory, includeOptional = includeOptionalModpackFiles
+            )) {
                 is MinecraftModpackManifestDownloadResult.Downloaded -> {
                     remote.files.forEach { file ->
                         additionalFiles += MinecraftAdditionalInstallFile(
