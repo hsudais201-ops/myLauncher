@@ -5,7 +5,10 @@ import java.io.File
 sealed interface MinecraftContentInstallCoordinatorResult {
     data class Installed(
         val plan: MinecraftContentInstallPlan,
-        val manifest: MinecraftContentInstallManifest
+        val manifest: MinecraftContentInstallManifest,
+        val skippedUnsupportedFiles: Int = 0,
+        val omittedOptionalFiles: Int = 0,
+        val skippedServerOverrideFiles: Int = 0
     ) : MinecraftContentInstallCoordinatorResult
 
     data class Failed(
@@ -124,6 +127,9 @@ class MinecraftContentInstallCoordinator(
 
         val additionalFiles = mutableListOf<MinecraftAdditionalInstallFile>()
         val extraStagingRoots = mutableListOf<File>()
+        var skippedUnsupportedFiles = 0
+        var omittedOptionalFiles = 0
+        var skippedServerOverrideFiles = 0
         fun cleanupAdditional(): List<String> {
             val failures = mutableListOf<String>()
             additionalFiles.forEach { item ->
@@ -163,6 +169,8 @@ class MinecraftContentInstallCoordinator(
                 }
             )) {
                 is MinecraftModpackManifestDownloadResult.Downloaded -> {
+                    skippedUnsupportedFiles += remote.skippedClientUnsupported
+                    omittedOptionalFiles += remote.optionalFilesOmitted
                     remote.files.forEach { file ->
                         additionalFiles += MinecraftAdditionalInstallFile(
                             stagedFile = file.stagedFile,
@@ -186,6 +194,7 @@ class MinecraftContentInstallCoordinator(
             )) {
                 is MinecraftModpackOverrideStageResult.Staged -> {
                     additionalFiles += overrides.files
+                    skippedServerOverrideFiles += overrides.skippedServerFiles
                     if (overrides.files.isNotEmpty()) extraStagingRoots += overrides.stagingRoot
                 }
                 is MinecraftModpackOverrideStageResult.Failed -> {
@@ -242,7 +251,13 @@ class MinecraftContentInstallCoordinator(
         val cleanupFailures = cleanup() + additionalCleanupFailures
         return when (saved) {
             is MinecraftContentInstallManifestResult.Saved ->
-                MinecraftContentInstallCoordinatorResult.Installed(plan, saved.manifest)
+                MinecraftContentInstallCoordinatorResult.Installed(
+                plan = plan,
+                manifest = saved.manifest,
+                skippedUnsupportedFiles = skippedUnsupportedFiles,
+                omittedOptionalFiles = omittedOptionalFiles,
+                skippedServerOverrideFiles = skippedServerOverrideFiles
+            )
             is MinecraftContentInstallManifestResult.Failed -> {
                 val rollbackFailures = transaction.rollbackInstalled(committed.installedPaths, rollbackDigests)
                 MinecraftContentInstallCoordinatorResult.Failed(
