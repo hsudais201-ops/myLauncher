@@ -25,8 +25,10 @@ Flame Launcher is an Android-first project targeting **Minecraft Java Edition** 
 - Bounded metadata downloads with timeouts, redirect rejection, response-size limits, and version JSON SHA-1 verification.
 - The Play screen can load official releases asynchronously and inspect verified version metadata, including declared Java major version, libraries, client JAR descriptor, and asset index.
 - App-private Java runtime discovery validates each runtime's release metadata, supported architecture, contained JVM entry point, and Java major version; selection requires an exact Java-major and device-ABI match.
+- A package catalog parser validates schema, package identity, Java major, normalized ABI, HTTPS download host allowlisting, SHA-256, archive size, and ZIP format before a package can be selected.
+- A bounded runtime archive downloader disables redirects, streams to a temporary file, verifies SHA-256 before promotion, and preserves an existing archive when verification fails.
 - A package installer accepts a supplied JRE ZIP, verifies its SHA-256, extracts with ZIP-slip and size/entry limits, checks the runtime version and ABI, and replaces an existing package transactionally.
-- The runtime installer does not fetch a JRE source or download its archive in the UI, and this build does not yet invoke a JVM.
+- The catalog parser and downloader are foundations only: no production runtime catalog endpoint or signing key is configured, the downloader is not yet connected to the UI, and this build does not yet invoke a JVM.
 
 ### Rendering foundation
 - An Android GLSurfaceView host backed by OpenGL ES 2.0.
@@ -37,12 +39,12 @@ Flame Launcher is an Android-first project targeting **Minecraft Java Edition** 
 ### Current boundaries
 - Content profiles are app-private content targets, not complete playable Minecraft installations.
 - Verified version metadata is not equivalent to installed libraries, assets, natives, or client JAR files.
-- Java runtime discovery is not equivalent to a downloadable/installed runtime package or a working JVM launch.
+- Java runtime catalog validation, archive downloading, and package installation are separate foundations; none is equivalent to a working JVM launch.
 - The OpenGL ES diagnostic renderer is not an implementation of Minecraft's LWJGL renderer.
 
 ## Not implemented yet
 
-- Selecting an official runtime package source and downloading its archive with provider metadata and authenticated checksums.
+- Selecting and independently authenticating a production runtime catalog, connecting catalog download and package installation to the UI.
 - Verified client JAR, libraries, native libraries, asset index, assets installation.
 - Android JVM/native bridge and Minecraft LWJGL rendering compatibility.
 - End-to-end Minecraft launch arguments, process/session lifecycle, and playable game testing.
