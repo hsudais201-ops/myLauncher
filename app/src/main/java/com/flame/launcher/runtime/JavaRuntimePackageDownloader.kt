@@ -87,6 +87,7 @@ class JavaRuntimePackageDownloader(
 
             val digest = MessageDigest.getInstance("SHA-256")
             var total = 0L
+            var lastReportedProgress = 0L
             connection.inputStream.use { input ->
                 FileOutputStream(temporary).use { output ->
                     val buffer = ByteArray(BUFFER_SIZE)
@@ -100,11 +101,19 @@ class JavaRuntimePackageDownloader(
                         digest.update(buffer, 0, count)
                         output.write(buffer, 0, count)
                         total += count
-                        onProgress(total, declaredLength.takeIf { it > 0L })
+                        if (total - lastReportedProgress >= PROGRESS_INTERVAL_BYTES ||
+                            (declaredLength > 0L && total == declaredLength)
+                        ) {
+                            onProgress(total, declaredLength.takeIf { it > 0L })
+                            lastReportedProgress = total
+                        }
                     }
                 }
             }
             require(total > 0L) { "Runtime package download is empty." }
+            if (lastReportedProgress != total) {
+                onProgress(total, declaredLength.takeIf { it > 0L })
+            }
             val actual = digest.digest().joinToString("") { "%02x".format(it) }
             require(actual.equals(expectedSha256, ignoreCase = true)) {
                 "Runtime package SHA-256 verification failed."
@@ -143,6 +152,7 @@ class JavaRuntimePackageDownloader(
         const val DEFAULT_MAX_ARCHIVE_BYTES = 512L * 1024 * 1024
         private const val ABSOLUTE_MAX_ARCHIVE_BYTES = 1024L * 1024 * 1024
         private const val BUFFER_SIZE = 16 * 1024
+        private const val PROGRESS_INTERVAL_BYTES = 256 * 1024
         private val SHA256_PATTERN = Regex("[a-fA-F0-9]{64}")
         private val HOST_PATTERN = Regex("[a-z0-9.-]{1,253}")
     }

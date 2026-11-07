@@ -51,6 +51,24 @@ class JavaRuntimePackageDownloaderTest {
     }
 
     @Test
+    fun throttlesProgressCallbacksForLargeArchivesAndReportsFinalByteCount() {
+        val directory = Files.createTempDirectory("flame-runtime-progress-throttle").toFile()
+        try {
+            val payload = ByteArray(1024 * 1024) { it.toByte() }
+            val connection = FakeConnection(payload)
+            val updates = mutableListOf<Pair<Long, Long?>>()
+            downloader(connection, maxArchiveBytes = 2 * 1024 * 1024).download(
+                URL_STRING, sha256(payload), File(directory, "java.zip")
+            ) { received, total -> updates += received to total }
+            assertTrue(updates.size <= 5)
+            assertEquals(payload.size.toLong(), updates.last().first)
+            assertEquals(payload.size.toLong(), updates.last().second)
+        } finally {
+            directory.deleteRecursively()
+        }
+    }
+
+    @Test
     fun reportsUnknownTotalWhenServerOmitsContentLength() {
         val directory = Files.createTempDirectory("flame-runtime-progress-unknown").toFile()
         try {
