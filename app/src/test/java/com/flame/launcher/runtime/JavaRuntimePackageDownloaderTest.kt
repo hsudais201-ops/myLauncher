@@ -43,7 +43,7 @@ class JavaRuntimePackageDownloaderTest {
             }
             assertTrue(updates.isNotEmpty())
             assertEquals(payload.size.toLong(), updates.last().first)
-            assertEquals(payload.size.toLong(), updates.last().second)
+            assertTrue(updates.last().second == payload.size.toLong())
             assertTrue(updates.zipWithNext().all { (a, b) -> b.first > a.first })
         } finally {
             directory.deleteRecursively()

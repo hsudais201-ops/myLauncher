@@ -52,7 +52,7 @@ class JavaRuntimePackageInstallCoordinatorTest {
             assertTrue(progress.last() is JavaRuntimeInstallProgress.Completed)
             val downloadProgress = progress.filterIsInstance<JavaRuntimeInstallProgress.DownloadProgress>()
             assertEquals(archive.size.toLong(), downloadProgress.last().receivedBytes)
-            assertEquals(archive.size.toLong(), downloadProgress.last().totalBytes)
+            assertTrue(downloadProgress.last().totalBytes == archive.size.toLong())
             assertTrue(File(root, "runtimes/java-17").isDirectory)
             assertTrue(File(root, "downloads").listFiles().orEmpty().isEmpty())
         } finally {
