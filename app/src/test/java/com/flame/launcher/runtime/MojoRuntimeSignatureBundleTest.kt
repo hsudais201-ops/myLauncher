@@ -16,7 +16,7 @@ class MojoRuntimeSignatureBundleTest {
     private fun bundle(component: String = "bin-arm64.tar.xz", bytes: ByteArray = ByteArray(512)): String {
         val universal = Base64.getEncoder().encodeToString(ByteArray(512))
         val platform = Base64.getEncoder().encodeToString(bytes)
-        return "universal.tar.xz:$universal\\n$component:$platform"
+        return "universal.tar.xz:$universal\n$component:$platform"
     }
 
     @Test
@@ -31,12 +31,12 @@ class MojoRuntimeSignatureBundleTest {
     fun rejectsMalformedDuplicateAndIncompleteManifests() {
         listOf(
             "universal.tar.xz:bad",
-            bundle() + "\\nbin-arm64.tar.xz:" + Base64.getEncoder().encodeToString(ByteArray(512)),
+            bundle() + "\nbin-arm64.tar.xz:" + Base64.getEncoder().encodeToString(ByteArray(512)),
             "universal.tar.xz:" + Base64.getEncoder().encodeToString(ByteArray(512)),
             "universal.tar.xz:" + Base64.getEncoder().encodeToString(ByteArray(256)) +
-                "\\nbin-arm64.tar.xz:" + Base64.getEncoder().encodeToString(ByteArray(512)),
+                "\nbin-arm64.tar.xz:" + Base64.getEncoder().encodeToString(ByteArray(512)),
             "universal.tar.xz:" + Base64.getEncoder().encodeToString(ByteArray(512)) +
-                "\\nbin-../../evil.tar.xz:" + Base64.getEncoder().encodeToString(ByteArray(512))
+                "\nbin-../../evil.tar.xz:" + Base64.getEncoder().encodeToString(ByteArray(512))
         ).forEach { value ->
             assertThrows(IllegalArgumentException::class.java) {
                 MojoRuntimeSignatureBundle.parse(value)
@@ -56,7 +56,7 @@ class MojoRuntimeSignatureBundleTest {
         val signature = signer.sign()
         val encoded = Base64.getEncoder().encodeToString(ByteArray(512))
         val manifest = MojoRuntimeSignatureBundle.parse(
-            "universal.tar.xz:$encoded\\nbin-arm64.tar.xz:" +
+            "universal.tar.xz:$encoded\nbin-arm64.tar.xz:" +
                 Base64.getEncoder().encodeToString(signature)
         )
         assertTrue(
