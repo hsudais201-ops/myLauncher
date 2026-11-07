@@ -187,7 +187,7 @@ class MinecraftPlannedArtifactDownloader(
 
     private fun validateRelativePath(path: String) {
         require(path.isNotBlank() && path.length <= MAX_PATH_LENGTH &&
-            !path.startsWith('/') && '\\\\' !in path && ':' !in path &&
+            !path.startsWith('/') && '\\' !in path && ':' !in path &&
             path.none { it.code < 0x20 } &&
             path.split('/').all { it.isNotBlank() && it != "." && it != ".." }
         ) { "Minecraft artifact installation path is unsafe." }
