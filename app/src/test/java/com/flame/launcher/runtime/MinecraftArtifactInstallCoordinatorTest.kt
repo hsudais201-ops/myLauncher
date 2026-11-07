@@ -65,8 +65,8 @@ class MinecraftArtifactInstallCoordinatorTest {
             })
             val updates = mutableListOf<MinecraftArtifactInstallProgress>()
             val installed = MinecraftArtifactInstallCoordinator(downloader).install(
-                plan(), directory) { updates += it }
-            )
+                plan(), directory
+            ) { updates += it }
             assertEquals(2, installed.size)
             assertEquals(5L, updates.last().completedBytes)
             assertEquals(5L, updates.last().totalBytes)
