@@ -105,5 +105,6 @@ enum class MinecraftPlannedDownloadKind {
     CLIENT,
     ASSET_INDEX,
     LIBRARY,
-    NATIVE
+    NATIVE,
+    ASSET
 }
