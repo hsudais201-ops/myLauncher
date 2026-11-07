@@ -153,7 +153,6 @@ class MojoRuntimeTarXzExtractor(
                             )
                         }
                         seen[key] = type
-                        tar.closeEntry()
                     }
                 }
             }
