@@ -40,6 +40,8 @@ kotlin {
 }
 
 dependencies {
+    implementation("org.apache.commons:commons-compress:1.28.0")
+    implementation("org.tukaani:xz:1.12")
     implementation(libs.androidx.activity.compose)
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.9.4")
     implementation(platform(libs.androidx.compose.bom))
