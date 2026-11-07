@@ -38,7 +38,7 @@ class JavaRuntimePackageDownloaderTest {
             val payload = ByteArray(40_000) { it.toByte() }
             val connection = FakeConnection(payload)
             val updates = mutableListOf<Pair<Long, Long?>>()
-            downloader(connection).download(URL_STRING, sha256(payload), File(directory, "java.zip")) { received, total ->
+            downloader(connection, maxArchiveBytes = 64 * 1024).download(URL_STRING, sha256(payload), File(directory, "java.zip")) { received, total ->
                 updates += received to total
             }
             assertTrue(updates.isNotEmpty())
@@ -157,10 +157,13 @@ class JavaRuntimePackageDownloaderTest {
         }
     }
 
-    private fun downloader(connection: FakeConnection) = JavaRuntimePackageDownloader(
+    private fun downloader(
+        connection: FakeConnection,
+        maxArchiveBytes: Long = 1024
+    ) = JavaRuntimePackageDownloader(
         trustedHosts = setOf("runtime.example"),
         connectionFactory = { connection },
-        maxArchiveBytes = 1024
+        maxArchiveBytes = maxArchiveBytes
     )
 
     private fun sha256(bytes: ByteArray): String =
