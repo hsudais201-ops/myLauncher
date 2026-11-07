@@ -38,7 +38,8 @@ class JavaRuntimePackageDownloader(
     fun download(
         address: String,
         expectedSha256: String,
-        destination: File
+        destination: File,
+        onProgress: (receivedBytes: Long, totalBytes: Long?) -> Unit = { _, _ -> }
     ): File {
         require(SHA256_PATTERN.matches(expectedSha256)) {
             "Runtime package SHA-256 is invalid."
@@ -99,6 +100,7 @@ class JavaRuntimePackageDownloader(
                         digest.update(buffer, 0, count)
                         output.write(buffer, 0, count)
                         total += count
+                        onProgress(total, declaredLength.takeIf { it > 0L })
                     }
                 }
             }

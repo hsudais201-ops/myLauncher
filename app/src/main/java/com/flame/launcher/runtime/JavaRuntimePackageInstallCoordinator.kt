@@ -61,7 +61,10 @@ class JavaRuntimePackageInstallCoordinator(
             val downloaded = downloader.download(
                 address = descriptor.downloadUrl,
                 expectedSha256 = descriptor.sha256,
-                destination = archive
+                destination = archive,
+                onProgress = { received, total ->
+                    onProgress(JavaRuntimeInstallProgress.DownloadProgress(descriptor.id, received, total))
+                }
             )
             require(downloaded.length() == descriptor.sizeBytes) {
                 "Downloaded runtime size does not match the trusted catalog."
@@ -93,6 +96,11 @@ class JavaRuntimePackageInstallCoordinator(
 
 sealed interface JavaRuntimeInstallProgress {
     data class Downloading(val packageId: String) : JavaRuntimeInstallProgress
+    data class DownloadProgress(
+        val packageId: String,
+        val receivedBytes: Long,
+        val totalBytes: Long?
+    ) : JavaRuntimeInstallProgress
     data class Installing(val packageId: String) : JavaRuntimeInstallProgress
     data class Completed(val installation: JavaRuntimeInstallation) : JavaRuntimeInstallProgress
 }

@@ -32,6 +32,47 @@ class JavaRuntimePackageDownloaderTest {
     }
 
     @Test
+    fun reportsIncrementalDownloadProgressAndKnownTotal() {
+        val directory = Files.createTempDirectory("flame-runtime-progress").toFile()
+        try {
+            val payload = ByteArray(40_000) { it.toByte() }
+            val connection = FakeConnection(payload)
+            val updates = mutableListOf<Pair<Long, Long?>>()
+            downloader(connection).download(URL_STRING, sha256(payload), File(directory, "java.zip")) { received, total ->
+                updates += received to total
+            }
+            assertTrue(updates.isNotEmpty())
+            assertEquals(payload.size.toLong(), updates.last().first)
+            assertEquals(payload.size.toLong(), updates.last().second)
+            assertTrue(updates.zipWithNext().all { (a, b) -> b.first > a.first })
+        } finally {
+            directory.deleteRecursively()
+        }
+    }
+
+    @Test
+    fun reportsUnknownTotalWhenServerOmitsContentLength() {
+        val directory = Files.createTempDirectory("flame-runtime-progress-unknown").toFile()
+        try {
+            val payload = byteArrayOf(4, 5, 6, 7)
+            val connection = FakeConnection(payload, declaredLength = -1)
+            val updates = mutableListOf<Pair<Long, Long?>>()
+            val downloader = JavaRuntimePackageDownloader(
+                trustedHosts = setOf("runtime.example"),
+                connectionFactory = { connection },
+                maxArchiveBytes = 1024
+            )
+            downloader.download(URL_STRING, sha256(payload), File(directory, "java.zip")) { received, total ->
+                updates += received to total
+            }
+            assertEquals(4L, updates.last().first)
+            assertEquals(null, updates.last().second)
+        } finally {
+            directory.deleteRecursively()
+        }
+    }
+
+    @Test
     fun rejectsUntrustedHostsBeforeOpeningConnection() {
         val directory = Files.createTempDirectory("flame-runtime-untrusted").toFile()
         try {
