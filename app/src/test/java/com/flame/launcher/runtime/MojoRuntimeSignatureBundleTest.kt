@@ -47,7 +47,7 @@ class MojoRuntimeSignatureBundleTest {
     @Test
     fun verifiesArchiveBytesAndRejectsTampering() {
         val generator = KeyPairGenerator.getInstance("RSA")
-        generator.initialize(2048)
+        generator.initialize(4096)
         val pair = generator.generateKeyPair()
         val payload = "trusted runtime payload".toByteArray()
         val signer = Signature.getInstance("SHA256withRSA")
@@ -56,17 +56,19 @@ class MojoRuntimeSignatureBundleTest {
         val signature = signer.sign()
         val encoded = Base64.getEncoder().encodeToString(ByteArray(512))
         val manifest = MojoRuntimeSignatureBundle.parse(
-            "universal.tar.xz:$encoded\\nbin-arm64.tar.xz:$encoded"
-        )
-        // Exercise the verifier with a generated RSA key and a valid signature
-        // by parsing a second manifest whose signature is the generated value.
-        val validBundle = MojoRuntimeSignatureBundle.parse(
             "universal.tar.xz:$encoded\\nbin-arm64.tar.xz:" +
-                Base64.getEncoder().encodeToString(signature.copyOf(512))
+                Base64.getEncoder().encodeToString(signature)
         )
-        // RSA-2048 signatures are intentionally rejected by the RSA-4096 manifest parser.
-        assertNotNull(manifest.signatureFor("bin-arm64.tar.xz"))
-        assertFalse(validBundle.verify("bin-arm64.tar.xz", ByteArrayInputStream(payload), pair.public))
+        assertTrue(
+            manifest.verify("bin-arm64.tar.xz", ByteArrayInputStream(payload), pair.public)
+        )
+        assertFalse(
+            manifest.verify(
+                "bin-arm64.tar.xz",
+                ByteArrayInputStream("tampered payload".toByteArray()),
+                pair.public
+            )
+        )
         assertFalse(manifest.verify("missing.tar.xz", ByteArrayInputStream(payload), pair.public))
     }
 }
