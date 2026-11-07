@@ -82,6 +82,10 @@ class MinecraftPlannedArtifactDownloader(
         require(gameDirectory.isDirectory) { "Minecraft game directory is invalid." }
         val root = gameDirectory.canonicalFile
         val target = resolveSafeTarget(root, planned.relativePath)
+        if (target.isFile && target.length() == expectedSize && sha1(target) == hash) {
+            onProgress(expectedSize, expectedSize)
+            return target
+        }
         val parent = target.parentFile
             ?: throw IllegalArgumentException("Minecraft artifact destination has no parent.")
         val temporary = File(parent, ".${target.name}.download-${UUID.randomUUID()}")
@@ -183,6 +187,22 @@ class MinecraftPlannedArtifactDownloader(
             "Minecraft artifact destination resolves outside the game directory."
         }
         return target
+    }
+
+    private fun sha1(file: File): String {
+        val digest = MessageDigest.getInstance("SHA-1")
+        file.inputStream().use { input ->
+            val buffer = ByteArray(BUFFER_SIZE)
+            while (true) {
+                if (Thread.currentThread().isInterrupted) {
+                    throw InterruptedException("Minecraft artifact verification was cancelled.")
+                }
+                val count = input.read(buffer)
+                if (count == -1) break
+                digest.update(buffer, 0, count)
+            }
+        }
+        return digest.digest().joinToString("") { "%02x".format(it) }
     }
 
     private fun validateRelativePath(path: String) {
