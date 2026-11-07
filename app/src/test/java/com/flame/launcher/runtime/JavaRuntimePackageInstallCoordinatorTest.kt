@@ -37,7 +37,8 @@ class JavaRuntimePackageInstallCoordinatorTest {
                     maxArchiveBytes = 1024 * 1024
                 ),
                 installer = installer,
-                downloadDirectory = File(root, "downloads")
+                downloadDirectory = File(root, "downloads"),
+                deviceArchitecture = "arm64-v8a"
             )
             val progress = mutableListOf<JavaRuntimeInstallProgress>()
             val installed = coordinator.install(descriptor, progress::add)
@@ -68,7 +69,8 @@ class JavaRuntimePackageInstallCoordinatorTest {
                     connectionFactory = { opened = true; FakeConnection(archive) }
                 ),
                 installer = JavaRuntimePackageInstaller(File(root, "runtimes"), "arm64-v8a"),
-                downloadDirectory = File(root, "downloads")
+                downloadDirectory = File(root, "downloads"),
+                deviceArchitecture = "arm64-v8a"
             )
             assertThrows(IllegalArgumentException::class.java) {
                 coordinator.install(descriptor(archive).copy(architecture = "x86_64"))
@@ -92,7 +94,8 @@ class JavaRuntimePackageInstallCoordinatorTest {
                     maxArchiveBytes = 1024 * 1024
                 ),
                 installer = JavaRuntimePackageInstaller(File(root, "runtimes"), "arm64-v8a"),
-                downloadDirectory = File(root, "downloads")
+                downloadDirectory = File(root, "downloads"),
+                deviceArchitecture = "arm64-v8a"
             )
             assertThrows(IllegalArgumentException::class.java) {
                 coordinator.install(descriptor(archive).copy(sizeBytes = archive.size.toLong() + 1))

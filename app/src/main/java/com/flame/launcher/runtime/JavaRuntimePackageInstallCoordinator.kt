@@ -15,8 +15,11 @@ import java.util.UUID
 class JavaRuntimePackageInstallCoordinator(
     private val downloader: JavaRuntimePackageDownloader,
     private val installer: JavaRuntimePackageInstaller,
-    private val downloadDirectory: File
+    private val downloadDirectory: File,
+    deviceArchitecture: String
 ) {
+    private val targetArchitecture = JavaRuntimeManager.normalizeArchitecture(deviceArchitecture)
+        ?: throw IllegalArgumentException("Device architecture is unsupported.")
     fun install(
         descriptor: JavaRuntimePackageDescriptor,
         onProgress: (JavaRuntimeInstallProgress) -> Unit = {}
@@ -36,6 +39,9 @@ class JavaRuntimePackageInstallCoordinator(
         }
         val architecture = JavaRuntimeManager.normalizeArchitecture(descriptor.architecture)
             ?: throw IllegalArgumentException("Runtime package architecture is unsupported.")
+        require(architecture == targetArchitecture) {
+            "Runtime package architecture does not match this device."
+        }
 
         if (!downloadDirectory.exists()) {
             check(downloadDirectory.mkdirs()) {
