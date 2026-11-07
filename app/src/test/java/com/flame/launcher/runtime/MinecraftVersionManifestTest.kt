@@ -48,6 +48,13 @@ class MinecraftVersionManifestTest {
     }
 
     @Test
+    fun rejectsManifestThatExceedsParserSizeLimit() {
+        assertThrows(IllegalArgumentException::class.java) {
+            MinecraftVersionManifest.parse(" ".repeat(4 * 1024 * 1024 + 1))
+        }
+    }
+
+    @Test
     fun rejectsMalformedJsonAndMissingLatestVersion() {
         assertThrows(IllegalArgumentException::class.java) {
             MinecraftVersionManifest.parse("{not-json")

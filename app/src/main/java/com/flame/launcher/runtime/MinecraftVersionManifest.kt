@@ -19,6 +19,9 @@ data class MinecraftVersionManifest(
 
     companion object {
         fun parse(json: String): MinecraftVersionManifest {
+            require(json.toByteArray(Charsets.UTF_8).size in 1..MAX_MANIFEST_BYTES) {
+                "Minecraft version manifest is empty or exceeds the size limit."
+            }
             val root = try {
                 JSONObject(json)
             } catch (failure: JSONException) {
@@ -33,6 +36,9 @@ data class MinecraftVersionManifest(
             val rawVersions = root.optJSONArray("versions")
                 ?: throw IllegalArgumentException("Minecraft version manifest is missing its versions list.")
 
+            require(rawVersions.length() in 1..MAX_VERSION_ENTRIES) {
+                "Minecraft version manifest has an invalid number of entries."
+            }
             val entries = ArrayList<MinecraftVersionEntry>(rawVersions.length())
             val seenIds = HashSet<String>()
             for (index in 0 until rawVersions.length()) {
@@ -70,6 +76,8 @@ data class MinecraftVersionManifest(
             return MinecraftVersionManifest(release, snapshot, entries)
         }
 
+        private const val MAX_MANIFEST_BYTES = 4 * 1024 * 1024
+        private const val MAX_VERSION_ENTRIES = 10_000
         private val ID_PATTERN = Regex("[A-Za-z0-9._-]{1,64}")
         private val SHA1_PATTERN = Regex("[a-fA-F0-9]{40}")
         private val SUPPORTED_TYPES = setOf("release", "snapshot", "old_beta", "old_alpha")

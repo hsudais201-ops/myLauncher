@@ -73,6 +73,13 @@ class MinecraftVersionDetailsTest {
     }
 
     @Test
+    fun rejectsVersionDetailsThatExceedParserSizeLimit() {
+        assertThrows(IllegalArgumentException::class.java) {
+            MinecraftVersionDetails.parse(" ".repeat(8 * 1024 * 1024 + 1), "1.21")
+        }
+    }
+
+    @Test
     fun acceptsMissingJavaRequirement() {
         val json = details().replace(
             """"javaVersion": {"component": "java-runtime-dummy", "majorVersion": 21},""",

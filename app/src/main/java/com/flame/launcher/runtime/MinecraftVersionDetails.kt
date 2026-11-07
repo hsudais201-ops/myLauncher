@@ -19,6 +19,9 @@ data class MinecraftVersionDetails(
 ) {
     companion object {
         fun parse(json: String, expectedVersionId: String): MinecraftVersionDetails {
+            require(json.toByteArray(Charsets.UTF_8).size in 1..MAX_DETAILS_BYTES) {
+                "Minecraft version details are empty or exceed the size limit."
+            }
             require(VERSION_ID.matches(expectedVersionId)) { "Requested Minecraft version ID is invalid." }
             val root = try {
                 JSONObject(json)
@@ -46,6 +49,9 @@ data class MinecraftVersionDetails(
 
             val rawLibraries = root.optJSONArray("libraries")
                 ?: throw IllegalArgumentException("Minecraft metadata is missing its libraries list.")
+            require(rawLibraries.length() <= MAX_LIBRARY_ENTRIES) {
+                "Minecraft metadata contains too many library entries."
+            }
             val libraries = ArrayList<MinecraftLibraryArtifact>()
             for (index in 0 until rawLibraries.length()) {
                 val library = rawLibraries.optJSONObject(index)
@@ -61,6 +67,9 @@ data class MinecraftVersionDetails(
                 val classifiersObject = downloadsObject.optJSONObject("classifiers")
                 val classifiers = LinkedHashMap<String, MinecraftDownloadDescriptor>()
                 if (classifiersObject != null) {
+                    require(classifiersObject.length() <= MAX_CLASSIFIERS_PER_LIBRARY) {
+                        "Library $name contains too many native classifiers."
+                    }
                     val keys = classifiersObject.keys()
                     while (keys.hasNext()) {
                         val classifier = keys.next()
@@ -130,6 +139,9 @@ data class MinecraftVersionDetails(
             false
         }
 
+        private const val MAX_DETAILS_BYTES = 8 * 1024 * 1024
+        private const val MAX_LIBRARY_ENTRIES = 10_000
+        private const val MAX_CLASSIFIERS_PER_LIBRARY = 256
         private val VERSION_ID = Regex("[A-Za-z0-9._-]{1,64}")
         private val MAIN_CLASS = Regex("[A-Za-z_$][A-Za-z0-9_$.]{1,255}")
         private val SHA1 = Regex("[a-fA-F0-9]{40}")
