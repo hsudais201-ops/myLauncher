@@ -500,6 +500,9 @@ private fun SettingsPage() {
         body = "RAM recommendations, resolution, rendering compatibility, Java runtime selection, and graphics presets will respect the device's real limits.",
         icon = Icons.Outlined.SportsEsports
     )
+    // Show the real device ABI and managed runtime inventory without implying
+    // that downloading or launching a JVM is available yet.
+    JavaRuntimeStatusPanel()
     StatusCard(
         title = "Controls",
         status = "Planned",
