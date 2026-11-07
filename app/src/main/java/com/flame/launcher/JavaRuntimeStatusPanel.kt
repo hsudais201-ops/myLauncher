@@ -113,6 +113,7 @@ fun JavaRuntimeStatusPanel() {
                 fontSize = 11.sp,
                 lineHeight = 16.sp
             )
+            MojoRuntimeInstallPanel(onInstalled = { refreshKey++ })
         }
     }
 }
