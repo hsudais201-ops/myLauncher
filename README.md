@@ -29,8 +29,10 @@ Flame Launcher is an Android-first project targeting **Minecraft Java Edition** 
 - A bounded runtime archive downloader disables redirects, streams to a temporary file, verifies SHA-256 before promotion, and preserves an existing archive when verification fails.
 - A package installer accepts a supplied JRE ZIP, verifies its SHA-256, extracts with ZIP-slip and size/entry limits, checks the runtime version and ABI, and replaces an existing package transactionally.
 - A runtime install coordinator joins a validated package descriptor to the bounded downloader and transactional installer, checks the downloaded byte count against catalog metadata, reports download/install/completion stages plus byte-level download progress (with an optional total when the server provides it), and always cleans up its temporary archive. Unit tests cover the end-to-end coordinator flow, ABI rejection before network access, and catalog-size mismatch cleanup.
-- A MojoLauncher upstream adapter now reads its fixed-host runtime signature manifest for Java 17, 21, and 25, selects the published architecture component, and verifies component bytes with the pinned upstream X.509 public key using RSA/SHA-256. The upstream publishes split universal and architecture-specific `.tar.xz` components; its signing certificate is time-limited and must be rotated before expiry.
-- The upstream adapter is currently a verified metadata/signature foundation only: split `.tar.xz` downloading, bounded XZ extraction, runtime promotion, and Play-screen install controls are not yet connected. The existing ZIP installer/coordinator must not be used for these `.tar.xz` packages.
+- A MojoLauncher upstream adapter reads its fixed-host runtime signature manifest for Java 17, 21, and 25, selects the published architecture component, and verifies component bytes with the pinned upstream X.509 public key using RSA/SHA-256. The upstream publishes split universal and architecture-specific `.tar.xz` components; its signing certificate is time-limited and must be rotated before expiry.
+- A dedicated component downloader validates the exact HTTPS host and component path, rejects redirects, enforces byte/time limits, streams progress, supports cancellation, and verifies the RSA/SHA-256 signature before atomically promoting a component. It also computes SHA-256 for local integrity metadata.
+- A package download coordinator obtains both universal and ABI-specific components and promotes the pair as one directory only after both signatures verify; failed or cancelled partial downloads are cleaned up without replacing the previous package.
+- Bounded `.tar.xz` decompression, safe TAR extraction/merge, Java runtime validation and transactional runtime promotion, and Play-screen install controls are not yet connected. The existing ZIP installer/coordinator must not be used for these `.tar.xz` packages.
 
 ### Rendering foundation
 - An Android GLSurfaceView host backed by OpenGL ES 2.0.
@@ -46,7 +48,7 @@ Flame Launcher is an Android-first project targeting **Minecraft Java Edition** 
 
 ## Not implemented yet
 
-- Connecting the signed Mojo runtime source to a bounded component downloader, safe `.tar.xz` extraction, transactional runtime installation, and Play-screen progress/cancellation UI.
+- Safe bounded XZ/TAR extraction and merge, runtime validation/promotion, and Play-screen install controls for the authenticated Mojo components.
 - Rotating and validating the pinned upstream runtime certificate before its expiry.
 - Verified client JAR, libraries, native libraries, asset index, assets installation.
 - Android JVM/native bridge and Minecraft LWJGL rendering compatibility.
