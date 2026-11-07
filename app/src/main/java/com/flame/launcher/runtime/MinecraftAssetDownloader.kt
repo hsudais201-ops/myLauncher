@@ -63,17 +63,21 @@ class MinecraftAssetDownloader(
         }
         require(gameDirectory.isDirectory) { "Minecraft game directory is invalid." }
         val root = gameDirectory.canonicalFile
-        val target = File(root, relativePath).canonicalFile
-        require(target.path.startsWith(root.path + File.separator)) {
-            "Minecraft asset destination escapes the game directory."
-        }
-        val parent = target.parentFile
+        val requestedTarget = File(root, relativePath).absoluteFile
+        val parent = requestedTarget.parentFile
             ?: throw IllegalArgumentException("Minecraft asset destination has no parent.")
         if (!parent.exists()) {
             require(parent.mkdirs()) { "Unable to create the Minecraft asset directory." }
         }
-        require(parent.isDirectory && parent.canonicalFile.path.startsWith(root.path + File.separator)) {
-            "Minecraft asset directory is invalid."
+        val canonicalParent = parent.canonicalFile
+        require(
+            parent.isDirectory &&
+                canonicalParent == parent.absoluteFile &&
+                canonicalParent.path.startsWith(root.path + File.separator)
+        ) { "Minecraft asset directory is invalid or traverses a symbolic link." }
+        val target = File(canonicalParent, requestedTarget.name)
+        require(target.canonicalFile == target.absoluteFile) {
+            "Minecraft asset destination traverses a symbolic link."
         }
 
         val temporary = File(parent, ".${target.name}.download-${UUID.randomUUID()}")

@@ -151,6 +151,28 @@ class MinecraftAssetDownloaderTest {
     }
 
     @Test
+    fun rejectsSymlinkedAssetDirectoryBeforeOpeningConnection() {
+        val parent = Files.createTempDirectory("flame-mc-symlink-parent").toFile()
+        val directory = File(parent, "game").also { it.mkdirs() }
+        val outside = File(parent, "outside").also { it.mkdirs() }
+        try {
+            Files.createSymbolicLink(File(directory, "assets").toPath(), outside.toPath())
+            var opened = false
+            val bytes = byteArrayOf(1, 2, 3)
+            val downloader = MinecraftAssetDownloader(
+                connectionFactory = { opened = true; FakeConnection(bytes) }
+            )
+            assertThrows(IllegalArgumentException::class.java) {
+                downloader.download(plan(bytes), directory)
+            }
+            assertFalse(opened)
+            assertTrue(outside.walkTopDown().none { it.isFile })
+        } finally {
+            parent.deleteRecursively()
+        }
+    }
+
+    @Test
     fun rejectsOversizedAssetBeforeOpeningConnection() {
         val directory = Files.createTempDirectory("flame-mc-oversized-asset").toFile()
         try {
