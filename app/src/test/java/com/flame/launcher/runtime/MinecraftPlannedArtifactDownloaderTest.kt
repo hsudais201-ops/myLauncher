@@ -121,7 +121,8 @@ class MinecraftPlannedArtifactDownloaderTest {
             assertThrows(IllegalArgumentException::class.java) {
                 downloader.download(plan(bytes), directory)
             }
-            assertFalse(opened)
+            assertTrue(opened)
+            opened = false
             assertThrows(IllegalArgumentException::class.java) {
                 MinecraftPlannedArtifactDownloader(connectionFactory = { opened = true; FakeConnection(bytes) })
                     .download(plan(bytes, url = "https://attacker.example/file"), directory)
