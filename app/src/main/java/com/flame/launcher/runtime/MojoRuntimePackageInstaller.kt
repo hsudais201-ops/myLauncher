@@ -197,7 +197,7 @@ class MojoRuntimePackageInstaller(
             release.length() in 1..MAX_RELEASE_BYTES.toLong()
         ) { "Runtime release metadata is missing or invalid." }
         val properties = Properties()
-        FileInputStream(release).use(properties::load)
+        FileInputStream(release).use { properties.load(it) }
         val version = properties.getProperty("JAVA_VERSION")
             ?.trim()?.trim('"')
             ?.takeIf(String::isNotBlank)
