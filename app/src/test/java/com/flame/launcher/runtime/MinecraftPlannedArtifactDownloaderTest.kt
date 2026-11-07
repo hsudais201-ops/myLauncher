@@ -134,7 +134,7 @@ class MinecraftPlannedArtifactDownloaderTest {
             var opened = false
             val downloader = MinecraftPlannedArtifactDownloader(connectionFactory = {
                 opened = true
-                FakeConnection(bytes, status = HTTP_MOVED_TEMP)
+                FakeConnection(bytes, status = 302)
             })
             assertThrows(IllegalArgumentException::class.java) {
                 downloader.download(plan(bytes), directory)
