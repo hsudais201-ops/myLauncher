@@ -148,6 +148,16 @@ class MinecraftPlannedArtifactDownloaderTest {
             assertFalse(opened)
             assertThrows(IllegalArgumentException::class.java) {
                 MinecraftPlannedArtifactDownloader(connectionFactory = { opened = true; FakeConnection(bytes) })
+                    .download(plan(bytes, url = "https://piston-data.mojang.com/%2e%2e/escape"), directory)
+            }
+            assertFalse(opened)
+            assertThrows(IllegalArgumentException::class.java) {
+                MinecraftPlannedArtifactDownloader(connectionFactory = { opened = true; FakeConnection(bytes) })
+                    .download(plan(bytes, url = "https://piston-data.mojang.com/%2f..%2fescape"), directory)
+            }
+            assertFalse(opened)
+            assertThrows(IllegalArgumentException::class.java) {
+                MinecraftPlannedArtifactDownloader(connectionFactory = { opened = true; FakeConnection(bytes) })
                     .download(plan(bytes, path = "versions/../../escape.jar"), directory)
             }
             assertFalse(opened)
