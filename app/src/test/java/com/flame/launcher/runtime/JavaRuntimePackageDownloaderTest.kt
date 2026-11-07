@@ -58,7 +58,7 @@ class JavaRuntimePackageDownloaderTest {
                 downloader(connection).download(URL_STRING, "0".repeat(64), File(directory, "java.zip"))
             }
             assertFalse(File(directory, "java.zip").exists())
-            assertFalse(connection.followRedirects)
+            assertFalse(connection.redirectsEnabled)
         } finally {
             directory.deleteRecursively()
         }
@@ -131,7 +131,7 @@ class JavaRuntimePackageDownloaderTest {
         private val declaredLength: Long = body.size.toLong()
     ) : HttpURLConnection(URL(URL_STRING)) {
         var disconnected = false
-        var followRedirects = true
+        var redirectsEnabled = true
 
         override fun connect() = Unit
         override fun disconnect() { disconnected = true }
@@ -140,7 +140,7 @@ class JavaRuntimePackageDownloaderTest {
         override fun getContentLengthLong(): Long = declaredLength
         override fun getInputStream() = ByteArrayInputStream(body)
         override fun setInstanceFollowRedirects(follow: Boolean) {
-            followRedirects = follow
+            redirectsEnabled = follow
             super.setInstanceFollowRedirects(follow)
         }
     }
