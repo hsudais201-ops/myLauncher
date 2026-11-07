@@ -95,7 +95,7 @@ class JavaRuntimePackageInstallCoordinator(
     }
 
     companion object {
-        private const val MAX_PACKAGE_BYTES = 1024L * 1024 * 1024
+        private const val MAX_PACKAGE_BYTES = JavaRuntimePackageDownloader.DEFAULT_MAX_ARCHIVE_BYTES
         private val ID_PATTERN = Regex("[A-Za-z0-9][A-Za-z0-9._-]{0,63}")
         private val SHA256_PATTERN = Regex("[a-fA-F0-9]{64}")
     }

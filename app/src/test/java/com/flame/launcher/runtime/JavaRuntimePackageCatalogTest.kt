@@ -78,7 +78,7 @@ class JavaRuntimePackageCatalogTest {
         val invalidCatalogs = listOf(
             catalog(sha256 = "xyz"),
             catalog(sizeBytes = 0),
-            catalog(sizeBytes = 2L * 1024 * 1024 * 1024),
+            catalog(sizeBytes = 512L * 1024 * 1024 + 1),
             catalog(architecture = "mips"),
             catalog(archiveType = "tar.gz")
         )
