@@ -73,7 +73,9 @@ class MinecraftPlannedArtifactDownloader(
                 uri.port in setOf(-1, 443) &&
                 uri.rawQuery == null &&
                 uri.rawFragment == null &&
-                uri.rawPath?.contains("/../") != true
+                !uri.isOpaque &&
+                uri.path?.contains('\\\\') != true &&
+                uri.path?.split('/')?.none { it == "." || it == ".." } == true
         ) { "Minecraft artifact URL is not trusted." }
 
         if (!gameDirectory.exists()) {
