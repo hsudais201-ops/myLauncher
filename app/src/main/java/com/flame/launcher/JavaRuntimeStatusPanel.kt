@@ -29,6 +29,9 @@ fun JavaRuntimeStatusPanel() {
     val context = LocalContext.current
     val deviceAbi = Build.SUPPORTED_ABIS.firstOrNull()
         ?: System.getProperty("os.arch").orEmpty()
+    val normalizedDeviceAbi = remember(deviceAbi) {
+        JavaRuntimeManager.normalizeArchitecture(deviceAbi) ?: "unknown"
+    }
     val manager = remember(context.filesDir, deviceAbi) {
         JavaRuntimeManager(
             runtimeRoot = File(context.filesDir, "runtimes"),
@@ -37,6 +40,9 @@ fun JavaRuntimeStatusPanel() {
     }
     var refreshKey by remember(manager) { mutableStateOf(0) }
     val installations = remember(manager, refreshKey) { manager.discover() }
+    val compatibleInstallations = remember(installations, normalizedDeviceAbi) {
+        installations.filter { it.architecture == normalizedDeviceAbi }
+    }
 
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -75,15 +81,29 @@ fun JavaRuntimeStatusPanel() {
                 )
             } else {
                 Text(
-                    text = installations.size.toString() + " compatible runtime package(s) discovered",
+                    text = installations.size.toString() + " managed runtime(s) discovered • " +
+                        compatibleInstallations.size + " match this device ABI",
                     color = Color(0xFFF4F5F7),
                     fontWeight = FontWeight.SemiBold
                 )
                 installations.take(4).forEach { runtime ->
                     Text(
-                        text = "Java " + runtime.majorVersion + " • " + runtime.architecture + " • " + runtime.id,
-                        color = Color(0xFF9AA4B2),
+                        text = "Java " + runtime.majorVersion + " • " + runtime.architecture +
+                            " • " + runtime.id +
+                            if (runtime.architecture == normalizedDeviceAbi) "" else " • incompatible ABI",
+                        color = if (runtime.architecture == normalizedDeviceAbi) {
+                            Color(0xFF9AA4B2)
+                        } else {
+                            Color(0xFFFF9A85)
+                        },
                         fontSize = 12.sp
+                    )
+                }
+                if (compatibleInstallations.isEmpty()) {
+                    Text(
+                        text = "None of these runtimes can run on this device architecture.",
+                        color = Color(0xFFFF9A85),
+                        fontSize = 11.sp
                     )
                 }
             }
