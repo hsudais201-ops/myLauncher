@@ -7,8 +7,8 @@ import java.net.URL
 import java.security.PublicKey
 import java.security.Signature
 import java.security.cert.CertificateFactory
+import java.security.cert.X509Certificate
 import java.util.Base64
-import java.util.Locale
 
 /**
  * Reader for the signed split-runtime manifest published by MojoLauncher.
@@ -21,6 +21,8 @@ data class MojoRuntimePackageDescriptor(
     val javaMajorVersion: Int,
     val architecture: String,
     val component: String,
+    val universalDownloadUrl: String,
+    val universalSignature: ByteArray,
     val downloadUrl: String,
     val signature: ByteArray
 )
@@ -131,6 +133,8 @@ class MojoRuntimeCatalogClient(
         val manifest = downloadManifest(manifestUrl)
         val bundle = MojoRuntimeSignatureBundle.parse(manifest)
         val component = "bin-$componentArchitecture.tar.xz"
+        val universalSignature = bundle.signatureFor("universal.tar.xz")
+            ?: throw IllegalArgumentException("The upstream runtime is missing its universal component signature.")
         val signature = bundle.signatureFor(component)
             ?: throw IllegalArgumentException(
                 "The upstream runtime does not publish Java $javaMajorVersion for $architecture."
@@ -139,6 +143,8 @@ class MojoRuntimeCatalogClient(
             javaMajorVersion = javaMajorVersion,
             architecture = architecture,
             component = component,
+            universalDownloadUrl = "$BASE_URL/components/$runtimePath/universal.tar.xz",
+            universalSignature = universalSignature,
             downloadUrl = "$BASE_URL/components/$runtimePath/$component",
             signature = signature
         )
@@ -191,8 +197,9 @@ class MojoRuntimeCatalogClient(
 object MojoRuntimeCertificate {
     fun readPublicKey(pemInput: InputStream): PublicKey {
         val certificate = pemInput.use {
-            CertificateFactory.getInstance("X.509").generateCertificate(it)
+            CertificateFactory.getInstance("X.509").generateCertificate(it) as X509Certificate
         }
+        certificate.checkValidity()
         return certificate.publicKey
     }
 }
