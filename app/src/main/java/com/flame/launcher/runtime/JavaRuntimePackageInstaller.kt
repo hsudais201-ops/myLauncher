@@ -70,16 +70,17 @@ class JavaRuntimePackageInstaller(
             }
 
             extractArchive(archive, payload)
+            val runtimeHome = findRuntimeHome(payload)
             listOf("bin/java", "bin/javaw").forEach { relative ->
-                val executable = File(payload, relative)
+                val executable = File(runtimeHome, relative)
                 if (executable.isFile && !executable.setExecutable(true, true) && !executable.canExecute()) {
                     throw IllegalStateException("Unable to mark the runtime launcher executable.")
                 }
             }
 
-            val stagedRuntime = JavaRuntimeManager(staging, deviceAbi)
+            val stagedRuntime = JavaRuntimeManager(runtimeHome.parentFile, deviceAbi)
                 .discover()
-                .firstOrNull { it.id == "runtime" }
+                .firstOrNull { it.id == runtimeHome.name }
                 ?: throw IllegalArgumentException("Archive does not contain a valid Java runtime root.")
             require(stagedRuntime.majorVersion == expectedMajorVersion) {
                 "Runtime Java major version does not match the requested version."
@@ -103,7 +104,7 @@ class JavaRuntimePackageInstaller(
 
             var promoted = false
             try {
-                check(payload.renameTo(destination)) {
+                check(runtimeHome.renameTo(destination)) {
                     "Unable to move the verified runtime into its destination."
                 }
                 promoted = true
@@ -209,8 +210,28 @@ class JavaRuntimePackageInstaller(
                 zip.closeEntry()
             }
         }
-        require(expandedBytes > 0L && File(destination, "release").isFile) {
-            "Runtime archive is missing its release metadata or runtime files."
+        require(expandedBytes > 0L) {
+            "Runtime archive is empty."
+        }
+    }
+
+    /**
+     * Runtime archives commonly wrap their JRE in one top-level directory.
+     * Accept either a root-level release file or exactly one immediate child
+     * containing release metadata; reject ambiguous layouts.
+     */
+    private fun findRuntimeHome(extractionRoot: File): File {
+        if (File(extractionRoot, "release").isFile) return extractionRoot
+        val candidates = extractionRoot.listFiles()
+            .orEmpty()
+            .filter { it.isDirectory && File(it, "release").isFile }
+        require(candidates.size == 1) {
+            "Runtime archive must contain one unambiguous Java runtime root."
+        }
+        return candidates.single().canonicalFile.also { candidate ->
+            require(candidate.parentFile == extractionRoot.canonicalFile) {
+                "Runtime root resolves outside the extraction directory."
+            }
         }
     }
 

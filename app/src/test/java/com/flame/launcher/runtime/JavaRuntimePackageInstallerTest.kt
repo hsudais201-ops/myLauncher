@@ -38,6 +38,43 @@ class JavaRuntimePackageInstallerTest {
     }
 
     @Test
+    fun installsRuntimeWrappedInSingleTopLevelDirectory() {
+        val root = Files.createTempDirectory("flame-runtime-prefixed").toFile()
+        try {
+            val archive = runtimeArchive("17.0.12", prefix = "jre-17")
+            val installed = installer(root).install(
+                "java-17",
+                ByteArrayInputStream(archive),
+                sha256(archive),
+                17,
+                "aarch64"
+            )
+            assertEquals("17.0.12", installed.version)
+            assertTrue(File(installed.homeDirectory, "lib/server/libjvm.so").isFile)
+            assertEquals(listOf("java-17"), JavaRuntimeManager(root, "aarch64").discover().map { it.id })
+        } finally {
+            root.deleteRecursively()
+        }
+    }
+
+    @Test
+    fun rejectsAmbiguousMultipleRuntimeRoots() {
+        val root = Files.createTempDirectory("flame-runtime-ambiguous").toFile()
+        try {
+            val archive = runtimeArchive("17.0.12", prefix = "jre-17")
+            val withSecondRoot = addRuntimeRoot(archive, "another-jre")
+            assertThrows(IllegalArgumentException::class.java) {
+                installer(root).install(
+                    "java-17", ByteArrayInputStream(withSecondRoot), sha256(withSecondRoot), 17, "aarch64"
+                )
+            }
+            assertTrue(JavaRuntimeManager(root, "aarch64").discover().isEmpty())
+        } finally {
+            root.deleteRecursively()
+        }
+    }
+
+    @Test
     fun rejectsWrongArchiveHashAndLeavesNoRuntimeInstalled() {
         val root = Files.createTempDirectory("flame-runtime-bad-hash").toFile()
         try {
@@ -187,7 +224,8 @@ class JavaRuntimePackageInstallerTest {
 
     private fun runtimeArchive(
         version: String,
-        extraEntries: Map<String, ByteArray> = emptyMap()
+        extraEntries: Map<String, ByteArray> = emptyMap(),
+        prefix: String = ""
     ): ByteArray {
         val output = ByteArrayOutputStream()
         ZipOutputStream(output).use { zip ->
@@ -197,10 +235,32 @@ class JavaRuntimePackageInstallerTest {
             )
             entries.putAll(extraEntries)
             entries.forEach { (name, bytes) ->
-                zip.putNextEntry(ZipEntry(name))
+                val entryName = if (prefix.isBlank()) name else "$prefix/$name"
+                zip.putNextEntry(ZipEntry(entryName))
                 zip.write(bytes)
                 zip.closeEntry()
             }
+        }
+        return output.toByteArray()
+    }
+
+    private fun addRuntimeRoot(original: ByteArray, prefix: String): ByteArray {
+        val output = ByteArrayOutputStream()
+        ZipOutputStream(output).use { zip ->
+            java.util.zip.ZipInputStream(ByteArrayInputStream(original)).use { input ->
+                while (true) {
+                    val entry = input.nextEntry ?: break
+                    zip.putNextEntry(ZipEntry(entry.name))
+                    input.copyTo(zip)
+                    zip.closeEntry()
+                }
+            }
+            zip.putNextEntry(ZipEntry("$prefix/release"))
+            zip.write("JAVA_VERSION=\"17.0.12\"\nOS_ARCH=\"aarch64\"\n".toByteArray())
+            zip.closeEntry()
+            zip.putNextEntry(ZipEntry("$prefix/lib/server/libjvm.so"))
+            zip.write(byteArrayOf(1, 2, 3))
+            zip.closeEntry()
         }
         return output.toByteArray()
     }
