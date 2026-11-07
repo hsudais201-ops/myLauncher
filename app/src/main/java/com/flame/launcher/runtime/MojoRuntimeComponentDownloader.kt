@@ -41,7 +41,8 @@ class MojoRuntimeComponentDownloader(
         onProgress: (receivedBytes: Long, totalBytes: Long?) -> Unit = { _, _ -> },
         isCancelled: () -> Boolean = { false }
     ): VerifiedMojoRuntimeComponent {
-        require(expectedSignature.size == RSA_4096_SIGNATURE_BYTES) {
+        val trustedSignature = expectedSignature.clone()
+        require(trustedSignature.size == RSA_4096_SIGNATURE_BYTES) {
             "Runtime component signature must be RSA-4096."
         }
         val uri = try {
