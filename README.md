@@ -32,7 +32,8 @@ Flame Launcher is an Android-first project targeting **Minecraft Java Edition** 
 - A MojoLauncher upstream adapter reads its fixed-host runtime signature manifest for Java 17, 21, and 25, selects the published architecture component, and verifies component bytes with the pinned upstream X.509 public key using RSA/SHA-256. The upstream publishes split universal and architecture-specific `.tar.xz` components; its signing certificate is time-limited and must be rotated before expiry.
 - A dedicated component downloader validates the exact HTTPS host and component path, rejects redirects, enforces byte/time limits, streams progress, supports cancellation, and verifies the RSA/SHA-256 signature before atomically promoting a component. It also computes SHA-256 for local integrity metadata.
 - A package download coordinator obtains both universal and ABI-specific components and promotes the pair as one directory only after both signatures verify; failed or cancelled partial downloads are cleaned up without replacing the previous package.
-- Bounded `.tar.xz` decompression, safe TAR extraction/merge, Java runtime validation and transactional runtime promotion, and Play-screen install controls are not yet connected. The existing ZIP installer/coordinator must not be used for these `.tar.xz` packages.
+- A dedicated TAR/XZ extractor uses a bounded XZ decoder, compressed and expanded byte caps, entry-count limits, cancellation checks, path traversal protection, and safe relative symlink handling. It preserves executable bits and supports the intended universal-then-ABI overlay order. Tests cover regular files, executable permissions, traversal rejection, and safe/unsafe symlinks.
+- Runtime release/ABI validation after extraction, atomic promotion into the managed Java runtime directory, and Play-screen install controls are not yet connected. The existing ZIP installer/coordinator must not be used for these `.tar.xz` packages.
 
 ### Rendering foundation
 - An Android GLSurfaceView host backed by OpenGL ES 2.0.
@@ -48,7 +49,7 @@ Flame Launcher is an Android-first project targeting **Minecraft Java Edition** 
 
 ## Not implemented yet
 
-- Safe bounded XZ/TAR extraction and merge, runtime validation/promotion, and Play-screen install controls for the authenticated Mojo components.
+- Runtime validation/promotion and Play-screen install controls for the authenticated Mojo components.
 - Rotating and validating the pinned upstream runtime certificate before its expiry.
 - Verified client JAR, libraries, native libraries, asset index, assets installation.
 - Android JVM/native bridge and Minecraft LWJGL rendering compatibility.
