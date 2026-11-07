@@ -62,6 +62,7 @@ class JavaRuntimePackageInstallCoordinator(
                 address = descriptor.downloadUrl,
                 expectedSha256 = descriptor.sha256,
                 destination = archive,
+                expectedSizeBytes = descriptor.sizeBytes,
                 onProgress = { received, total ->
                     onProgress(
                         JavaRuntimeInstallProgress.DownloadProgress(

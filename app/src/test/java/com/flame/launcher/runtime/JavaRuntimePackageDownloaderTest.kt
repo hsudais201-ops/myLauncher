@@ -175,6 +175,61 @@ class JavaRuntimePackageDownloaderTest {
         }
     }
 
+
+    @Test
+    fun rejectsDeclaredSizeMismatchBeforeReadingBody() {
+        val directory = Files.createTempDirectory("flame-runtime-declared-size").toFile()
+        try {
+            val connection = FakeConnection(byteArrayOf(1, 2, 3, 4), declaredLength = 4)
+            val downloader = downloader(connection, maxArchiveBytes = 1024)
+            assertThrows(IllegalArgumentException::class.java) {
+                downloader.download(
+                    URL_STRING, sha256(byteArrayOf(1, 2, 3, 4)),
+                    File(directory, "java.zip"), expectedSizeBytes = 5
+                )
+            }
+            assertTrue(directory.listFiles().orEmpty().isEmpty())
+        } finally {
+            directory.deleteRecursively()
+        }
+    }
+
+    @Test
+    fun rejectsShortUnknownLengthBodyAgainstCatalogSize() {
+        val directory = Files.createTempDirectory("flame-runtime-short-body").toFile()
+        try {
+            val payload = byteArrayOf(1, 2, 3)
+            val connection = FakeConnection(payload, declaredLength = -1)
+            assertThrows(IllegalArgumentException::class.java) {
+                downloader(connection).download(
+                    URL_STRING, sha256(payload), File(directory, "java.zip"),
+                    expectedSizeBytes = 4
+                )
+            }
+            assertTrue(directory.listFiles().orEmpty().isEmpty())
+        } finally {
+            directory.deleteRecursively()
+        }
+    }
+
+    @Test
+    fun rejectsOversizedUnknownLengthBodyAgainstCatalogSizeDuringStreaming() {
+        val directory = Files.createTempDirectory("flame-runtime-long-body").toFile()
+        try {
+            val payload = byteArrayOf(1, 2, 3, 4, 5)
+            val connection = FakeConnection(payload, declaredLength = -1)
+            assertThrows(IllegalArgumentException::class.java) {
+                downloader(connection).download(
+                    URL_STRING, sha256(payload), File(directory, "java.zip"),
+                    expectedSizeBytes = 4
+                )
+            }
+            assertTrue(directory.listFiles().orEmpty().isEmpty())
+        } finally {
+            directory.deleteRecursively()
+        }
+    }
+
     private fun downloader(
         connection: FakeConnection,
         maxArchiveBytes: Long = 1024

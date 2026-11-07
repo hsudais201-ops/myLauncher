@@ -39,10 +39,14 @@ class JavaRuntimePackageDownloader(
         address: String,
         expectedSha256: String,
         destination: File,
+        expectedSizeBytes: Long? = null,
         onProgress: (receivedBytes: Long, totalBytes: Long?) -> Unit = { _, _ -> }
     ): File {
         require(SHA256_PATTERN.matches(expectedSha256)) {
             "Runtime package SHA-256 is invalid."
+        }
+        require(expectedSizeBytes == null || expectedSizeBytes in 1..maxArchiveBytes) {
+            "Expected runtime package size is invalid or exceeds the configured download limit."
         }
         val uri = try {
             URI(address)
@@ -84,6 +88,10 @@ class JavaRuntimePackageDownloader(
             require(declaredLength == -1L || declaredLength in 1..maxArchiveBytes) {
                 "Runtime package exceeds the configured download size limit."
             }
+            require(expectedSizeBytes == null || declaredLength == -1L || declaredLength == expectedSizeBytes) {
+                "Runtime package declared size does not match the trusted catalog."
+            }
+            val progressTotal = expectedSizeBytes ?: declaredLength.takeIf { it > 0L }
 
             val digest = MessageDigest.getInstance("SHA-256")
             var total = 0L
@@ -98,21 +106,27 @@ class JavaRuntimePackageDownloader(
                         require(total <= maxArchiveBytes - count) {
                             "Runtime package exceeds the configured download size limit."
                         }
+                        require(expectedSizeBytes == null || total <= expectedSizeBytes - count) {
+                            "Runtime package exceeds the trusted catalog size."
+                        }
                         digest.update(buffer, 0, count)
                         output.write(buffer, 0, count)
                         total += count
                         if (total - lastReportedProgress >= PROGRESS_INTERVAL_BYTES ||
                             (declaredLength > 0L && total == declaredLength)
                         ) {
-                            onProgress(total, declaredLength.takeIf { it > 0L })
+                            onProgress(total, progressTotal)
                             lastReportedProgress = total
                         }
                     }
                 }
             }
             require(total > 0L) { "Runtime package download is empty." }
+            require(expectedSizeBytes == null || total == expectedSizeBytes) {
+                "Downloaded runtime size does not match the trusted catalog."
+            }
             if (lastReportedProgress != total) {
-                onProgress(total, declaredLength.takeIf { it > 0L })
+                onProgress(total, progressTotal)
             }
             val actual = digest.digest().joinToString("") { "%02x".format(it) }
             require(actual.equals(expectedSha256, ignoreCase = true)) {
