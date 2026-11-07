@@ -23,8 +23,12 @@ data class MinecraftAssetIndex(
             } catch (failure: JSONException) {
                 throw IllegalArgumentException("Minecraft asset index is not valid JSON.", failure)
             }
-            val id = root.optString("id")
-            require(id == expectedId) { "Minecraft asset index ID does not match the requested index." }
+            // The asset index document commonly omits its ID; the trusted ID
+            // comes from the version metadata descriptor used to fetch it.
+            val embeddedId = root.optString("id").takeIf(String::isNotBlank)
+            require(embeddedId == null || embeddedId == expectedId) {
+                "Minecraft asset index ID does not match the requested index."
+            }
             val rawObjects = root.optJSONObject("objects")
                 ?: throw IllegalArgumentException("Minecraft asset index is missing its objects map.")
             require(rawObjects.length() <= MAX_ASSET_OBJECTS) {
@@ -46,7 +50,7 @@ data class MinecraftAssetIndex(
                 objects[name] = MinecraftAssetObject(name, hash.lowercase(), size)
             }
             val totalSize = root.optLong("totalSize", -1L).takeIf { it >= 0L }
-            return MinecraftAssetIndex(id, objects, totalSize)
+            return MinecraftAssetIndex(expectedId, objects, totalSize)
         }
 
         private const val MAX_INDEX_BYTES = 16 * 1024 * 1024
