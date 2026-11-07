@@ -28,7 +28,8 @@ Flame Launcher is an Android-first project targeting **Minecraft Java Edition** 
 - A package catalog parser validates schema, package identity, Java major, normalized ABI, HTTPS download host allowlisting, SHA-256, archive size, and ZIP format before a package can be selected.
 - A bounded runtime archive downloader disables redirects, streams to a temporary file, verifies SHA-256 before promotion, and preserves an existing archive when verification fails.
 - A package installer accepts a supplied JRE ZIP, verifies its SHA-256, extracts with ZIP-slip and size/entry limits, checks the runtime version and ABI, and replaces an existing package transactionally.
-- The catalog parser and downloader are foundations only: no production runtime catalog endpoint or signing key is configured, the downloader is not yet connected to the UI, and this build does not yet invoke a JVM.
+- A runtime install coordinator joins a validated package descriptor to the bounded downloader and transactional installer, checks the downloaded byte count against catalog metadata, reports download/install/completion stages, and always cleans up its temporary archive. Unit tests cover the end-to-end coordinator flow, ABI rejection before network access, and catalog-size mismatch cleanup.
+- The coordinator is not yet connected to the UI: no production runtime catalog endpoint or signing key is configured, and this build does not yet invoke a JVM.
 
 ### Rendering foundation
 - An Android GLSurfaceView host backed by OpenGL ES 2.0.
