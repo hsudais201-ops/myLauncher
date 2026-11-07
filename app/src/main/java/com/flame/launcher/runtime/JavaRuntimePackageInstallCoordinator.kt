@@ -63,7 +63,13 @@ class JavaRuntimePackageInstallCoordinator(
                 expectedSha256 = descriptor.sha256,
                 destination = archive,
                 onProgress = { received, total ->
-                    onProgress(JavaRuntimeInstallProgress.DownloadProgress(descriptor.id, received, total))
+                    onProgress(
+                        JavaRuntimeInstallProgress.DownloadProgress(
+                            descriptor.id,
+                            received,
+                            total ?: descriptor.sizeBytes
+                        )
+                    )
                 }
             )
             require(downloaded.length() == descriptor.sizeBytes) {

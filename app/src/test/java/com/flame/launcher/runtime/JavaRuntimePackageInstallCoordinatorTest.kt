@@ -61,6 +61,40 @@ class JavaRuntimePackageInstallCoordinatorTest {
     }
 
     @Test
+    fun usesCatalogSizeWhenServerOmitsContentLength() {
+        val root = Files.createTempDirectory("flame-runtime-coordinator-unknown-length").toFile()
+        try {
+            val archive = runtimeArchive()
+            val connection = FakeConnection(archive, declaredLength = -1L)
+            val descriptor = descriptor(archive)
+            val coordinator = JavaRuntimePackageInstallCoordinator(
+                downloader = JavaRuntimePackageDownloader(
+                    trustedHosts = setOf("runtime.example"),
+                    connectionFactory = { connection },
+                    maxArchiveBytes = 1024 * 1024
+                ),
+                installer = JavaRuntimePackageInstaller(
+                    File(root, "runtimes"),
+                    "arm64-v8a",
+                    maxArchiveBytes = 1024 * 1024,
+                    maxExpandedBytes = 1024 * 1024,
+                    maxEntries = 100
+                ),
+                downloadDirectory = File(root, "downloads"),
+                deviceArchitecture = "arm64-v8a"
+            )
+            val progress = mutableListOf<JavaRuntimeInstallProgress>()
+            coordinator.install(descriptor, progress::add)
+            val downloadProgress = progress.filterIsInstance<JavaRuntimeInstallProgress.DownloadProgress>()
+            assertTrue(downloadProgress.isNotEmpty())
+            assertEquals(descriptor.sizeBytes, downloadProgress.last().totalBytes)
+            assertEquals(descriptor.sizeBytes, downloadProgress.last().receivedBytes)
+        } finally {
+            root.deleteRecursively()
+        }
+    }
+
+    @Test
     fun rejectsWrongDeviceArchitectureBeforeNetworkAccess() {
         val root = Files.createTempDirectory("flame-runtime-coordinator-abi").toFile()
         try {
@@ -142,13 +176,16 @@ class JavaRuntimePackageInstallCoordinatorTest {
             .digest(bytes)
             .joinToString("") { "%02x".format(it) }
 
-    private class FakeConnection(private val body: ByteArray) : HttpURLConnection(URL(URL_STRING)) {
+    private class FakeConnection(
+        private val body: ByteArray,
+        private val declaredLength: Long = body.size.toLong()
+    ) : HttpURLConnection(URL(URL_STRING)) {
         var disconnected = false
         override fun connect() = Unit
         override fun disconnect() { disconnected = true }
         override fun usingProxy(): Boolean = false
         override fun getResponseCode(): Int = HTTP_OK
-        override fun getContentLengthLong(): Long = body.size.toLong()
+        override fun getContentLengthLong(): Long = declaredLength
         override fun getInputStream() = ByteArrayInputStream(body)
     }
 
