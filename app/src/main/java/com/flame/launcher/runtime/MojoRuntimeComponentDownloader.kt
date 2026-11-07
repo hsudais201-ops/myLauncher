@@ -119,7 +119,7 @@ class MojoRuntimeComponentDownloader(
             }
             if (lastReported != received) onProgress(received, declaredLength.takeIf { it > 0L })
             if (isCancelled()) throw CancellationException("Runtime component verification cancelled.")
-            require(verifier.verify(expectedSignature)) {
+            require(verifier.verify(trustedSignature)) {
                 "Runtime component RSA/SHA-256 signature verification failed."
             }
 
