@@ -22,7 +22,8 @@ class MojoRuntimeTarXzExtractorTest {
         val destination = File(temporary, "stage").apply { mkdir() }
         try {
             createArchive(archive) {
-                addFile("jre/release", "JAVA_VERSION=\"21.0.1\"\n".toByteArray())
+                addDirectory("./")
+                addFile("./jre/release", "JAVA_VERSION=\"21.0.1\"\n".toByteArray())
                 addFile("jre/bin/java", byteArrayOf(1, 2, 3), mode = 0b111101101)
                 addFile("jre/lib/server/libjvm.so", byteArrayOf(4, 5, 6))
             }
@@ -104,6 +105,12 @@ class MojoRuntimeTarXzExtractorTest {
     }
 
     private class ArchiveBuilder(private val tar: TarArchiveOutputStream) {
+        fun addDirectory(path: String) {
+            val entry = TarArchiveEntry(path).apply { mode = 0b111101101 }
+            tar.putArchiveEntry(entry)
+            tar.closeArchiveEntry()
+        }
+
         fun addFile(path: String, bytes: ByteArray, mode: Int = 0b110100100) {
             val entry = TarArchiveEntry(path).apply {
                 size = bytes.size.toLong()
