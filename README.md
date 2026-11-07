@@ -29,7 +29,8 @@ Flame Launcher is an Android-first project targeting **Minecraft Java Edition** 
 - A bounded runtime archive downloader disables redirects, streams to a temporary file, verifies SHA-256 before promotion, and preserves an existing archive when verification fails.
 - A package installer accepts a supplied JRE ZIP, verifies its SHA-256, extracts with ZIP-slip and size/entry limits, checks the runtime version and ABI, and replaces an existing package transactionally.
 - A runtime install coordinator joins a validated package descriptor to the bounded downloader and transactional installer, checks the downloaded byte count against catalog metadata, reports download/install/completion stages plus byte-level download progress (with an optional total when the server provides it), and always cleans up its temporary archive. Unit tests cover the end-to-end coordinator flow, ABI rejection before network access, and catalog-size mismatch cleanup.
-- The coordinator is not yet connected to the UI: no production runtime catalog endpoint or signing key is configured, and this build does not yet invoke a JVM.
+- A MojoLauncher upstream adapter now reads its fixed-host runtime signature manifest for Java 17, 21, and 25, selects the published architecture component, and verifies component bytes with the pinned upstream X.509 public key using RSA/SHA-256. The upstream publishes split universal and architecture-specific `.tar.xz` components; its signing certificate is time-limited and must be rotated before expiry.
+- The upstream adapter is currently a verified metadata/signature foundation only: split `.tar.xz` downloading, bounded XZ extraction, runtime promotion, and Play-screen install controls are not yet connected. The existing ZIP installer/coordinator must not be used for these `.tar.xz` packages.
 
 ### Rendering foundation
 - An Android GLSurfaceView host backed by OpenGL ES 2.0.
@@ -45,7 +46,8 @@ Flame Launcher is an Android-first project targeting **Minecraft Java Edition** 
 
 ## Not implemented yet
 
-- Selecting and independently authenticating a production runtime catalog, connecting catalog download and package installation to the UI.
+- Connecting the signed Mojo runtime source to a bounded component downloader, safe `.tar.xz` extraction, transactional runtime installation, and Play-screen progress/cancellation UI.
+- Rotating and validating the pinned upstream runtime certificate before its expiry.
 - Verified client JAR, libraries, native libraries, asset index, assets installation.
 - Android JVM/native bridge and Minecraft LWJGL rendering compatibility.
 - End-to-end Minecraft launch arguments, process/session lifecycle, and playable game testing.
