@@ -60,6 +60,9 @@ data class MinecraftVersionDetails(
                 require(name.isNotBlank() && name.length <= 512) {
                     "Minecraft library entry $index has an invalid coordinate."
                 }
+                val rules = parseLibraryRules(library.optJSONArray("rules"), name)
+                val natives = parseNativeMappings(library.optJSONObject("natives"), name)
+                val extractExcludes = parseExtractExcludes(library.optJSONObject("extract"), name)
                 val downloadsObject = library.optJSONObject("downloads") ?: continue
                 val artifact = downloadsObject.optJSONObject("artifact")?.let {
                     parseDownload(it, "Library $name", LIBRARY_HOSTS)
@@ -84,7 +87,14 @@ data class MinecraftVersionDetails(
                     }
                 }
                 if (artifact != null || classifiers.isNotEmpty()) {
-                    libraries += MinecraftLibraryArtifact(name, artifact, classifiers)
+                    libraries += MinecraftLibraryArtifact(
+                        coordinate = name,
+                        artifact = artifact,
+                        classifiers = classifiers,
+                        rules = rules,
+                        natives = natives,
+                        extractExcludes = extractExcludes
+                    )
                 }
             }
 
@@ -100,6 +110,125 @@ data class MinecraftVersionDetails(
                 libraries = libraries,
                 javaMajorVersion = javaMajorVersion
             )
+        }
+
+        private fun parseLibraryRules(
+            rawRules: org.json.JSONArray?,
+            libraryName: String
+        ): List<MinecraftLibraryRule> {
+            if (rawRules == null) return emptyList()
+            require(rawRules.length() <= MAX_RULES_PER_LIBRARY) {
+                "Library $libraryName contains too many compatibility rules."
+            }
+            return (0 until rawRules.length()).map { index ->
+                val rule = rawRules.optJSONObject(index)
+                    ?: throw IllegalArgumentException("Library $libraryName has an invalid rule at index $index.")
+                val action = rule.optString("action")
+                require(action == "allow" || action == "disallow") {
+                    "Library $libraryName has an unsupported rule action."
+                }
+                val rawOs = rule.opt("os")
+                require(rawOs == null || rawOs === JSONObject.NULL || rawOs is JSONObject) {
+                    "Library $libraryName has an invalid operating-system rule."
+                }
+                val os = rawOs as? JSONObject
+                val osName = optionalString(os, "name", "Library $libraryName OS name")
+                require(osName == null || osName in SUPPORTED_OS_NAMES) {
+                    "Library $libraryName has an unsupported operating-system rule."
+                }
+                val osArchPattern = optionalString(os, "arch", "Library $libraryName OS architecture")
+                val osVersionPattern = optionalString(os, "version", "Library $libraryName OS version")
+                validateRegex(osArchPattern, "Library $libraryName OS architecture")
+                validateRegex(osVersionPattern, "Library $libraryName OS version")
+
+                val rawFeatures = rule.opt("features")
+                require(rawFeatures == null || rawFeatures === JSONObject.NULL || rawFeatures is JSONObject) {
+                    "Library $libraryName has invalid feature rules."
+                }
+                val featuresObject = rawFeatures as? JSONObject
+                require((featuresObject?.length() ?: 0) <= MAX_FEATURES_PER_RULE) {
+                    "Library $libraryName has too many feature rules."
+                }
+                val features = LinkedHashMap<String, Boolean>()
+                if (featuresObject != null) {
+                    val keys = featuresObject.keys()
+                    while (keys.hasNext()) {
+                        val key = keys.next()
+                        require(FEATURE_NAME.matches(key)) {
+                            "Library $libraryName has an invalid feature name."
+                        }
+                        val value = featuresObject.opt(key)
+                        require(value is Boolean) {
+                            "Library $libraryName feature $key must be true or false."
+                        }
+                        features[key] = value
+                    }
+                }
+                MinecraftLibraryRule(action, osName, osArchPattern, osVersionPattern, features)
+            }
+        }
+
+        private fun parseNativeMappings(
+            rawNatives: JSONObject?,
+            libraryName: String
+        ): Map<String, String> {
+            if (rawNatives == null) return emptyMap()
+            require(rawNatives.length() <= SUPPORTED_OS_NAMES.size) {
+                "Library $libraryName has too many native mappings."
+            }
+            val mappings = LinkedHashMap<String, String>()
+            val keys = rawNatives.keys()
+            while (keys.hasNext()) {
+                val osName = keys.next()
+                require(osName in SUPPORTED_OS_NAMES) {
+                    "Library $libraryName has an unsupported native operating system."
+                }
+                val template = rawNatives.optString(osName)
+                val normalizedTemplate = template.replace(36.toChar().toString() + "{arch}", "64")
+                require(template.count { it.code == 36 } <= 1 && CLASSIFIER.matches(normalizedTemplate)) {
+                    "Library $libraryName has an invalid native classifier template."
+                }
+                mappings[osName] = template
+            }
+            return mappings
+        }
+
+        private fun parseExtractExcludes(
+            rawExtract: JSONObject?,
+            libraryName: String
+        ): List<String> {
+            if (rawExtract == null) return emptyList()
+            val excludes = rawExtract.optJSONArray("exclude") ?: return emptyList()
+            require(excludes.length() <= MAX_EXCLUDES_PER_LIBRARY) {
+                "Library $libraryName has too many native extraction exclusions."
+            }
+            return (0 until excludes.length()).map { index ->
+                val rawPath = excludes.optString(index)
+                val normalized = rawPath.trimEnd('/')
+                require(normalized.isNotBlank() && isSafeRelativePath(normalized)) {
+                    "Library $libraryName has an unsafe native extraction exclusion."
+                }
+                normalized
+            }
+        }
+
+        private fun optionalString(value: JSONObject?, key: String, label: String): String? {
+            if (value == null) return null
+            val raw = value.opt(key)
+            if (raw == null || raw === JSONObject.NULL) return null
+            require(raw is String && raw.length <= MAX_RULE_STRING_LENGTH) {
+                "$label is invalid."
+            }
+            return raw.takeIf(String::isNotBlank)
+        }
+
+        private fun validateRegex(pattern: String?, label: String) {
+            if (pattern == null) return
+            try {
+                Regex(pattern)
+            } catch (failure: Exception) {
+                throw IllegalArgumentException("$label contains an invalid regular expression.", failure)
+            }
         }
 
         private fun parseDownload(
@@ -142,10 +271,16 @@ data class MinecraftVersionDetails(
         private const val MAX_DETAILS_BYTES = 8 * 1024 * 1024
         private const val MAX_LIBRARY_ENTRIES = 10_000
         private const val MAX_CLASSIFIERS_PER_LIBRARY = 256
+        private const val MAX_RULES_PER_LIBRARY = 256
+        private const val MAX_FEATURES_PER_RULE = 64
+        private const val MAX_EXCLUDES_PER_LIBRARY = 256
+        private const val MAX_RULE_STRING_LENGTH = 256
         private val VERSION_ID = Regex("[A-Za-z0-9._-]{1,64}")
         private val MAIN_CLASS = Regex("[A-Za-z_$][A-Za-z0-9_$.]{1,255}")
         private val SHA1 = Regex("[a-fA-F0-9]{40}")
         private val CLASSIFIER = Regex("[A-Za-z0-9._-]{1,128}")
+        private val FEATURE_NAME = Regex("[A-Za-z0-9_]{1,64}")
+        private val SUPPORTED_OS_NAMES = setOf("windows", "osx", "linux")
         private val CLIENT_HOSTS = setOf("piston-data.mojang.com", "piston-meta.mojang.com", "launcher.mojang.com")
         private val LIBRARY_HOSTS = CLIENT_HOSTS + setOf(
             "libraries.minecraft.net",
@@ -169,5 +304,16 @@ data class MinecraftDownloadDescriptor(
 data class MinecraftLibraryArtifact(
     val coordinate: String,
     val artifact: MinecraftDownloadDescriptor?,
-    val classifiers: Map<String, MinecraftDownloadDescriptor>
+    val classifiers: Map<String, MinecraftDownloadDescriptor>,
+    val rules: List<MinecraftLibraryRule> = emptyList(),
+    val natives: Map<String, String> = emptyMap(),
+    val extractExcludes: List<String> = emptyList()
+)
+
+data class MinecraftLibraryRule(
+    val action: String,
+    val osName: String?,
+    val osArchPattern: String?,
+    val osVersionPattern: String?,
+    val features: Map<String, Boolean>
 )

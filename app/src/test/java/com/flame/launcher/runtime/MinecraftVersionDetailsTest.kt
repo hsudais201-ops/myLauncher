@@ -44,14 +44,20 @@ class MinecraftVersionDetailsTest {
                   "size": 456
                 },
                 "classifiers": {
-                  "natives-linux": {
+                  "natives-linux-64": {
                     "path": "org/example/sample/1.0/sample-1.0-natives-linux.jar",
                     "url": "https://libraries.minecraft.net/org/example/sample/1.0/sample-1.0-natives-linux.jar",
                     "sha1": "$librarySha",
                     "size": 789
                   }
                 }
-              }
+              },
+              "rules": [
+                {"action": "disallow", "os": {"name": "windows"}},
+                {"action": "allow", "os": {"name": "linux", "arch": "aarch64"}, "features": {"is_demo_user": false}}
+              ],
+              "natives": {"linux": "natives-linux-64"},
+              "extract": {"exclude": ["META-INF/", "META-INF/versions/"]}
             }
           ]
         }
@@ -69,7 +75,12 @@ class MinecraftVersionDetailsTest {
         assertEquals(1, parsed.libraries.size)
         assertEquals("org.example:sample:1.0", parsed.libraries.single().coordinate)
         assertEquals(librarySha, parsed.libraries.single().artifact?.sha1)
-        assertEquals(librarySha, parsed.libraries.single().classifiers["natives-linux"]?.sha1)
+        assertEquals(librarySha, parsed.libraries.single().classifiers["natives-linux-64"]?.sha1)
+        assertEquals(2, parsed.libraries.single().rules.size)
+        assertEquals("linux", parsed.libraries.single().rules.last().osName)
+        assertEquals(false, parsed.libraries.single().rules.last().features["is_demo_user"])
+        assertEquals("natives-linux-64", parsed.libraries.single().natives["linux"])
+        assertEquals(listOf("META-INF", "META-INF/versions"), parsed.libraries.single().extractExcludes)
     }
 
     @Test
