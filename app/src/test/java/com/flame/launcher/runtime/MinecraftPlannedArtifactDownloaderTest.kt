@@ -89,6 +89,24 @@ class MinecraftPlannedArtifactDownloaderTest {
     }
 
     @Test
+    fun reusesExistingArtifactOnlyWhenSizeAndSha1Match() {
+        val directory = Files.createTempDirectory("flame-client-cached").toFile()
+        try {
+            val bytes = byteArrayOf(5, 4, 3, 2, 1)
+            val planned = plan(bytes)
+            val target = File(directory, planned.relativePath)
+            target.parentFile!!.mkdirs()
+            target.writeBytes(bytes)
+            val result = MinecraftPlannedArtifactDownloader(connectionFactory = {
+                throw AssertionError("Verified cached artifact should not open a network connection.")
+            }).download(planned, directory)
+            assertArrayEquals(bytes, result.readBytes())
+        } finally {
+            directory.deleteRecursively()
+        }
+    }
+
+    @Test
     fun rejectsHashMismatchAndPreservesPreviousFile() {
         val directory = Files.createTempDirectory("flame-client-bad-hash").toFile()
         try {
