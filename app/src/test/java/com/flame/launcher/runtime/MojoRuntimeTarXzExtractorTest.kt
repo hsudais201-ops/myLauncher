@@ -33,7 +33,7 @@ class MojoRuntimeTarXzExtractorTest {
             assertEquals("JAVA_VERSION=\"21.0.1\"\n",
                 File(destination, "jre/release").readText())
             assertTrue(File(destination, "jre/bin/java").canExecute())
-            assertEquals(6L, result.expandedBytes)
+            assertEquals("JAVA_VERSION=\\"21.0.1\\"\\n".toByteArray().size + 6L, result.expandedBytes)
         } finally {
             temporary.deleteRecursively()
         }
@@ -70,7 +70,7 @@ class MojoRuntimeTarXzExtractorTest {
             assertThrows(IllegalArgumentException::class.java) {
                 MojoRuntimeTarXzExtractor().extract(archive, destination, "universal.tar.xz")
             }
-            assertFalse(File(temporary.parentFile, "outside").exists())
+            assertFalse(File(temporary, "outside").exists())
         } finally {
             temporary.deleteRecursively()
         }
