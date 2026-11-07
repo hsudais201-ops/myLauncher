@@ -12,6 +12,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -46,6 +47,9 @@ fun MojoRuntimeInstallPanel(onInstalled: () -> Unit) {
         JavaRuntimeManager.normalizeArchitecture(deviceAbi)
     }
     val cancellation = remember { AtomicBoolean(false) }
+    DisposableEffect(cancellation) {
+        onDispose { cancellation.set(true) }
+    }
     var busy by remember { mutableStateOf(false) }
     var status by remember { mutableStateOf("Signed Mojo runtime packages are available for supported device ABIs.") }
 
