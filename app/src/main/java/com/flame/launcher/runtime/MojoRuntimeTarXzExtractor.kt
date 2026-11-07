@@ -66,6 +66,12 @@ class MojoRuntimeTarXzExtractor(
                             "Runtime archive contains too many entries."
                         }
                         val relative = validatePath(entry.name)
+                        if (relative.toString() == ".") {
+                            require(entry.isDirectory) {
+                                "Runtime archive root entry must be a directory."
+                            }
+                            continue
+                        }
                         val key = relative.toString()
                         val type = entryType(entry)
                         val previousType = seen[key]
@@ -191,10 +197,12 @@ class MojoRuntimeTarXzExtractor(
         val trimmed = raw.removeSuffix("/")
         require(trimmed.isNotBlank()) { "Runtime archive contains an empty path." }
         val segments = trimmed.split('/')
-        require(segments.all { it.isNotBlank() && it != "." && it != ".." }) {
+        require(segments.none { it.isBlank() || it == ".." }) {
             "Runtime archive contains a traversal path."
         }
-        return Paths.get(segments.first(), *segments.drop(1).toTypedArray())
+        val normalizedSegments = segments.filterNot { it == "." }
+        if (normalizedSegments.isEmpty()) return Paths.get(".")
+        return Paths.get(normalizedSegments.first(), *normalizedSegments.drop(1).toTypedArray())
     }
 
     private fun validateLinkTarget(root: Path, parent: Path, rawTarget: String): Path {
