@@ -52,6 +52,7 @@ class MojoRuntimeTarXzExtractor(
         val rootPath = root.toPath().toAbsolutePath().normalize()
         val seen = HashMap<String, String>()
         var entries = 0
+        var archiveEntries = 0
         var expanded = 0L
         var componentExpanded = 0L
 
@@ -61,8 +62,8 @@ class MojoRuntimeTarXzExtractor(
                     while (true) {
                         checkCancelled(isCancelled)
                         val entry = tar.nextTarEntry ?: break
-                        entries += 1
-                        require(entries <= maxEntries) {
+                        archiveEntries += 1
+                        require(archiveEntries <= maxEntries) {
                             "Runtime archive contains too many entries."
                         }
                         val relative = validatePath(entry.name)
@@ -72,6 +73,7 @@ class MojoRuntimeTarXzExtractor(
                             }
                             continue
                         }
+                        entries += 1
                         val key = relative.toString()
                         val type = entryType(entry)
                         val previousType = seen[key]
