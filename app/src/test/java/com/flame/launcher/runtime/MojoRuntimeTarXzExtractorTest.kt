@@ -33,7 +33,7 @@ class MojoRuntimeTarXzExtractorTest {
             assertEquals("JAVA_VERSION=\"21.0.1\"\n",
                 File(destination, "jre/release").readText())
             assertTrue(File(destination, "jre/bin/java").canExecute())
-            assertEquals("JAVA_VERSION=\\"21.0.1\\"\\n".toByteArray().size + 6L, result.expandedBytes)
+            assertEquals("JAVA_VERSION=\\\"21.0.1\\\"\\n".toByteArray().size + 6L, result.expandedBytes)
         } finally {
             temporary.deleteRecursively()
         }
@@ -99,7 +99,6 @@ class MojoRuntimeTarXzExtractorTest {
         XZOutputStream(FileOutputStream(file), LZMA2Options()).use { xz ->
             TarArchiveOutputStream(xz).use { tar ->
                 ArchiveBuilder(tar).populate()
-                tar.finish()
             }
         }
     }
