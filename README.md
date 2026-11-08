@@ -44,6 +44,7 @@ Flame Launcher is an Android-first project targeting **Minecraft Java Edition** 
 - Runtime output and surfaced failure messages redact the launch access token. The controller deliberately does not log or stringify JVM arguments.
 - The launch-command builder now supports both process-based runtimes and embedded-JVM runtimes. Embedded commands carry a validated runtime home and contained `libjvm.so`; they cannot be converted into a desktop `ProcessBuilder`.
 - An `EmbeddedJvmProcessHost` adapter validates the runtime paths and forwards the JVM invocation to a narrow `AndroidJvmBridge` contract. The bridge session plugs into the existing process controller without calling `System.exit` on the Android app process.
+- A routing host now selects the embedded bridge or an injected process host based on the validated runtime execution kind; the app cannot accidentally route an embedded JVM package through `ProcessBuilder`.
 - Unit coverage exercises session startup, graceful stop, terminal state reporting, access-token redaction, embedded command construction, and bridge argument/path forwarding.
 - The native Android JVM invocation library implementing `AndroidJvmBridge` is not yet present. This is a Kotlin-side integration boundary, not proof that a JVM can already be started on-device.
 
