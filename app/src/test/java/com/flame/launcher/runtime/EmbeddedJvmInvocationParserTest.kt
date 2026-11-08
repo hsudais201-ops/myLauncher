@@ -156,6 +156,10 @@ class EmbeddedJvmInvocationParserTest {
                 game
             )
             assertEquals("A", parsed.mainClass)
+            val invocationWithToken = parsed.copy(
+                applicationArguments = listOf("--accessToken", "sensitive-test-token")
+            )
+            assertFalse(invocationWithToken.toString().contains("sensitive-test-token"))
         } finally {
             root.deleteRecursively()
         }
