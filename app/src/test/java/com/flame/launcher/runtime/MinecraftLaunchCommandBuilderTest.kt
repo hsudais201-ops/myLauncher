@@ -79,6 +79,45 @@ class MinecraftLaunchCommandBuilderTest {
     }
 
     @Test
+    fun builderOutputParsesIntoEmbeddedJvmInvocationWithoutLosingGameArguments() {
+        val f = fixture()
+        try {
+            val jvmLibrary = File(f.runtime.homeDirectory, "lib/server/libjvm.so").apply {
+                parentFile?.mkdirs()
+                writeBytes(byteArrayOf(4))
+            }
+            val embeddedRuntime = f.runtime.copy(jvmLibrary = jvmLibrary)
+            val token = "embedded-test-secret"
+            val command = MinecraftLaunchCommandBuilder.build(
+                f.plan,
+                f.game,
+                f.native,
+                embeddedRuntime,
+                MinecraftLaunchAccount(
+                    "Player",
+                    "12345678-1234-1234-1234-123456789abc",
+                    token
+                )
+            )
+
+            assertEquals(JavaRuntimeExecutionKind.EMBEDDED_JVM, command.executionKind)
+            val invocation = EmbeddedJvmInvocationParser.parse(
+                arguments = command.arguments,
+                expectedClassPath = command.classPath,
+                runtimeHome = command.runtimeHome!!,
+                workingDirectory = command.workingDirectory
+            )
+            assertEquals(f.plan.mainClass, invocation.mainClass)
+            assertEquals(command.classPath.map { File(it).canonicalFile }, invocation.classPath)
+            assertTrue(invocation.applicationArguments.contains("--username"))
+            assertTrue(invocation.applicationArguments.contains("Player"))
+            assertFalse(invocation.toString().contains(token))
+        } finally {
+            f.root.deleteRecursively()
+        }
+    }
+
+    @Test
     fun redactsSeparateAndInlineAccessTokenArgumentForms() {
         val redacted = redactLaunchArguments(
             listOf(
