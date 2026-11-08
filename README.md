@@ -42,8 +42,10 @@ Flame Launcher is an Android-first project targeting **Minecraft Java Edition** 
 ### Minecraft process/session foundation
 - A host-agnostic process controller now owns launch-session state transitions (preparing, starting, running, stopping, exited, cancelled, and failed), keeps session snapshots, supports non-blocking graceful stop requests, and allows completed sessions to be released.
 - Runtime output and surfaced failure messages redact the launch access token. The controller deliberately does not log or stringify JVM arguments.
-- The process host is an explicit interface for a future Android-compatible in-process JVM/native bridge. No desktop-style `ProcessBuilder` fallback is treated as a valid Android JVM implementation.
-- Unit coverage exercises session startup, graceful stop, terminal state reporting, and access-token redaction.
+- The launch-command builder now supports both process-based runtimes and embedded-JVM runtimes. Embedded commands carry a validated runtime home and contained `libjvm.so`; they cannot be converted into a desktop `ProcessBuilder`.
+- An `EmbeddedJvmProcessHost` adapter validates the runtime paths and forwards the JVM invocation to a narrow `AndroidJvmBridge` contract. The bridge session plugs into the existing process controller without calling `System.exit` on the Android app process.
+- Unit coverage exercises session startup, graceful stop, terminal state reporting, access-token redaction, embedded command construction, and bridge argument/path forwarding.
+- The native Android JVM invocation library implementing `AndroidJvmBridge` is not yet present. This is a Kotlin-side integration boundary, not proof that a JVM can already be started on-device.
 
 ### Rendering foundation
 - An Android GLSurfaceView host backed by OpenGL ES 2.0.
@@ -62,8 +64,9 @@ Flame Launcher is an Android-first project targeting **Minecraft Java Edition** 
 - End-to-end device testing of authenticated Mojo runtime download, extraction, promotion, cancellation, and replacement rollback.
 - Rotating and validating the pinned upstream runtime certificate before its expiry.
 - End-to-end device validation of client JAR, libraries, native archives, asset-index and asset-object installation, plus launch-time runtime checks. Native archive extraction is implemented and unit-tested but not yet device-validated.
-- Android JVM/native bridge and Minecraft LWJGL rendering compatibility.
-- End-to-end Minecraft launch arguments, process/session lifecycle, and playable game testing.
+- Native implementation of `AndroidJvmBridge`, including Android-compatible JVM startup, thread attachment, output forwarding, and safe shutdown.
+- Minecraft LWJGL rendering compatibility backend and device-level launch validation.
+- Wiring the native JVM bridge into the launch UI and end-to-end playable game testing.
 - Microsoft account authentication and compliant offline account/profile management.
 - Production backend proxy for CurseForge API credentials.
 - Cloud Feature Store installation and its service.
@@ -103,8 +106,8 @@ A failed check blocks the next milestone. Do not mark a build or test as passed 
 
 1. End-to-end device verification of the signed Mojo runtime installation path.
 2. End-to-end verification of client JAR, libraries, platform-native extraction, asset index, and assets installation.
-3. Android JVM bridge and LWJGL/OpenGL compatibility backend.
-4. Instance-aware launch arguments, account integration, cancellation, logs, and crash recovery.
+3. Implement and package the native `AndroidJvmBridge` for supported ABIs.
+4. Integrate the LWJGL/OpenGL compatibility backend, then connect account-aware launch UI, cancellation, logs, and crash recovery.
 5. Device-aware performance controls and renderer compatibility profiles.
 6. Backend-protected CurseForge credentials.
 7. Independent cloud Feature Store, Social Hub, ServerState, and Flame AI services.
