@@ -143,8 +143,8 @@ class MinecraftNativeArchiveExtractor(
 
     private fun normalizeEntry(raw: String, directory: Boolean): String {
         require(raw.isNotBlank() && raw.length <= MAX_PATH_LENGTH &&
-            !raw.startsWith('/') && !raw.startsWith('\\\\') &&
-            '\\\\' !in raw && ':' !in raw && raw.none { it.code < 0x20 }
+            !raw.startsWith('/') && !raw.startsWith('\\') &&
+            '\\' !in raw && ':' !in raw && raw.none { it.code < 0x20 }
         ) { "Native archive contains an unsafe entry path." }
         val value = if (directory) raw.removeSuffix("/") else raw
         require(value.isNotBlank() && value.split('/').all {
@@ -155,7 +155,7 @@ class MinecraftNativeArchiveExtractor(
 
     private fun normalizeExclude(raw: String): String {
         require(raw.isNotBlank() && raw.length <= MAX_PATH_LENGTH &&
-            !raw.startsWith('/') && '\\\\' !in raw && ':' !in raw &&
+            !raw.startsWith('/') && '\\' !in raw && ':' !in raw &&
             raw.split('/').all { it.isNotBlank() && it != "." && it != ".." }
         ) { "Native extraction exclusion is unsafe." }
         return raw
