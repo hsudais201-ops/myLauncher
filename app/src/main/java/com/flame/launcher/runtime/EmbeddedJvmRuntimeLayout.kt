@@ -13,12 +13,17 @@ import java.io.File
 data class EmbeddedJvmRuntimeLayout(
     val runtimeHome: File,
     val jvmLibrary: File,
+    val applicationNativeDirectory: File?,
     val libraryDirectories: List<File>,
     val optionalPreloadLibraries: List<File>
 )
 
 object EmbeddedJvmRuntimeLayoutResolver {
-    fun resolve(runtimeHome: File, jvmLibrary: File): EmbeddedJvmRuntimeLayout {
+    fun resolve(
+        runtimeHome: File,
+        jvmLibrary: File,
+        applicationNativeDirectory: File? = null
+    ): EmbeddedJvmRuntimeLayout {
         val home = runtimeHome.canonicalFile
         val jvm = jvmLibrary.canonicalFile
         require(home.isDirectory) { "Embedded JVM runtime home is unavailable." }
@@ -34,8 +39,13 @@ object EmbeddedJvmRuntimeLayoutResolver {
             "Embedded JVM library directory is outside the runtime home."
         }
 
-        val candidates = listOf(
+        val applicationNatives = applicationNativeDirectory?.canonicalFile
+        require(applicationNatives == null || applicationNatives.isDirectory) {
+            "Minecraft native-library directory is unavailable."
+        }
+        val candidates = listOfNotNull(
             libraryDirectory,
+            applicationNatives,
             vmDirectory,
             File(libraryDirectory, "jli")
         )
@@ -58,6 +68,7 @@ object EmbeddedJvmRuntimeLayoutResolver {
         return EmbeddedJvmRuntimeLayout(
             runtimeHome = home,
             jvmLibrary = jvm,
+            applicationNativeDirectory = applicationNatives,
             libraryDirectories = libraryDirectories,
             optionalPreloadLibraries = optionalPreloadLibraries
         )
