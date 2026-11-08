@@ -12,6 +12,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -21,8 +22,13 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.flame.launcher.runtime.JavaRuntimeExecutionKind
 import com.flame.launcher.runtime.JavaRuntimeManager
+import com.flame.launcher.runtime.NativeJvmLibraryProbe
 import java.io.File
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 @Composable
 fun JavaRuntimeStatusPanel() {
@@ -43,6 +49,9 @@ fun JavaRuntimeStatusPanel() {
     val compatibleInstallations = remember(installations, normalizedDeviceAbi) {
         installations.filter { it.architecture == normalizedDeviceAbi }
     }
+    val coroutineScope = rememberCoroutineScope()
+    var probingRuntimeId by remember { mutableStateOf<String?>(null) }
+    var probeDiagnostic by remember { mutableStateOf<String?>(null) }
 
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -97,6 +106,43 @@ fun JavaRuntimeStatusPanel() {
                             Color(0xFFFF9A85)
                         },
                         fontSize = 12.sp
+                    )
+                    if (runtime.executionKind == JavaRuntimeExecutionKind.EMBEDDED_JVM &&
+                        runtime.architecture == normalizedDeviceAbi
+                    ) {
+                        Button(
+                            enabled = probingRuntimeId == null,
+                            onClick = {
+                                coroutineScope.launch {
+                                    probingRuntimeId = runtime.id
+                                    probeDiagnostic = withContext(Dispatchers.IO) {
+                                        try {
+                                            NativeJvmLibraryProbe().inspect(runtime).diagnostic
+                                        } catch (failure: Throwable) {
+                                            "ERROR: " + (failure.message ?: failure.javaClass.simpleName)
+                                        }
+                                    }
+                                    probingRuntimeId = null
+                                }
+                            }
+                        ) {
+                            Text(
+                                if (probingRuntimeId == runtime.id) "Checking native JVM…"
+                                else "Check native JVM compatibility"
+                            )
+                        }
+                    }
+                }
+                probeDiagnostic?.let { diagnostic ->
+                    Text(
+                        text = diagnostic,
+                        color = if (diagnostic.startsWith("OK:")) {
+                            Color(0xFF8AD6A0)
+                        } else {
+                            Color(0xFFFF9A85)
+                        },
+                        fontSize = 11.sp,
+                        lineHeight = 16.sp
                     )
                 }
                 if (compatibleInstallations.isEmpty()) {
