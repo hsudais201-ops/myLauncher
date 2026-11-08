@@ -67,6 +67,8 @@ class MinecraftLaunchCommandBuilderTest {
             assertTrue(command.arguments.contains("--username"))
             assertTrue(command.arguments.contains("Player One"))
             assertTrue(command.arguments.contains(token))
+            assertFalse(command.toString().contains(token))
+            assertFalse(MinecraftLaunchAccount("Player", "12345678123412341234123456789abc", token).toString().contains(token))
             assertEquals(2, command.classPath.size)
             val process = command.toProcessBuilder()
             assertEquals(f.game.canonicalFile, process.directory())
