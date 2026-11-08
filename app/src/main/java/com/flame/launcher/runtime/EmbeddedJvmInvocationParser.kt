@@ -53,6 +53,18 @@ object EmbeddedJvmInvocationParser {
         require(vmOptions.all { it.startsWith("-") }) {
             "Embedded JVM options contain an unexpected positional argument."
         }
+        val launcherManagedProperties = setOf(
+            "java.class.path",
+            "java.home",
+            "user.dir"
+        )
+        require(vmOptions.none { option ->
+            option.startsWith("-D") &&
+                option.substringAfter("-D").substringBefore('=')
+                    .substringBefore(':') in launcherManagedProperties
+        }) {
+            "Embedded JVM options must not override launcher-managed system properties."
+        }
         val home = runtimeHome.canonicalFile
         val working = workingDirectory.canonicalFile
         require(home.isDirectory && working.isDirectory) {
@@ -72,7 +84,7 @@ object EmbeddedJvmInvocationParser {
         )
     }
 
-    private val MAIN_CLASS = Regex("[A-Za-z_$][A-Za-z0-9_$.]{1,255}")
+    private val MAIN_CLASS = Regex("[A-Za-z_$][A-Za-z0-9_$.]{0,255}")
 }
 
 data class EmbeddedJvmInvocation(
