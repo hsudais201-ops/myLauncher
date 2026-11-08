@@ -38,7 +38,10 @@ class EmbeddedJvmProcessHost(
             runtimeHome = runtimeHome,
             workingDirectory = workingDirectory
         )
-        val nativeDirectory = resolveApplicationNativeDirectory(invocation.vmOptions)
+        val nativeDirectory = resolveApplicationNativeDirectory(
+            invocation.vmOptions,
+            workingDirectory
+        )
         val runtimeLayout = EmbeddedJvmRuntimeLayoutResolver.resolve(
             runtimeHome = runtimeHome,
             jvmLibrary = jvmLibrary,
@@ -73,7 +76,10 @@ interface AndroidJvmBridge {
 interface AndroidJvmSession : MinecraftRunningProcess
 
 
-private fun resolveApplicationNativeDirectory(vmOptions: List<String>): File? {
+private fun resolveApplicationNativeDirectory(
+    vmOptions: List<String>,
+    workingDirectory: File
+): File? {
     val javaPaths = vmOptions.filter { it.startsWith("-Djava.library.path=") }
         .map { it.substringAfter('=') }
     val lwjglPaths = vmOptions.filter { it.startsWith("-Dorg.lwjgl.librarypath=") }
@@ -87,8 +93,11 @@ private fun resolveApplicationNativeDirectory(vmOptions: List<String>): File? {
     }
     val configured = configuredPaths.firstOrNull() ?: return null
     val directory = File(configured)
-    require(directory.isAbsolute && directory.canonicalFile.isDirectory) {
-        "Minecraft native-library directory must be an existing absolute directory."
+    val canonicalDirectory = directory.canonicalFile
+    require(directory.isAbsolute && canonicalDirectory.isDirectory &&
+        canonicalDirectory.path.startsWith(workingDirectory.canonicalPath + File.separator)
+    ) {
+        "Minecraft native-library directory must be an existing directory inside the game directory."
     }
-    return directory.canonicalFile
+    return canonicalDirectory
 }
