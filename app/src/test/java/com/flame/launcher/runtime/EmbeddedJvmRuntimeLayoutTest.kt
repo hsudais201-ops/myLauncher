@@ -71,7 +71,8 @@ class EmbeddedJvmRuntimeLayoutTest {
         try {
             val home = File(root, "runtime").apply { mkdirs() }
             val libraryDirectory = File(home, "lib").apply { mkdirs() }
-            val jvm = File(libraryDirectory, "libjvm.so").apply { writeBytes(byteArrayOf(1)) }
+            val vmDirectory = File(libraryDirectory, "server").apply { mkdirs() }
+            val jvm = File(vmDirectory, "libjvm.so").apply { writeBytes(byteArrayOf(1)) }
             val outside = File(root, "outside.so").apply { writeBytes(byteArrayOf(2)) }
             val preload = File(libraryDirectory, "libnio.so")
             try {
