@@ -39,6 +39,12 @@ Flame Launcher is an Android-first project targeting **Minecraft Java Edition** 
 - A sequential artifact installation coordinator installs the client, asset index, libraries, and native archives with aggregate size limits and progress reporting. It deliberately runs one download at a time to limit memory and network pressure on low-resource devices. Asset objects continue through the dedicated asset-index downloader/coordinator.
 - A guarded native ZIP/JAR extractor applies Mojang's per-library extraction exclusions, rejects traversal and unsafe paths, blocks duplicate output files, enforces entry/per-file/aggregate expansion limits, supports cancellation, and stages the complete native directory before promotion with backup/restore. A native-install coordinator now connects verified artifact downloads to this extraction stage.
 
+### Minecraft process/session foundation
+- A host-agnostic process controller now owns launch-session state transitions (preparing, starting, running, stopping, exited, cancelled, and failed), keeps session snapshots, supports non-blocking graceful stop requests, and allows completed sessions to be released.
+- Runtime output and surfaced failure messages redact the launch access token. The controller deliberately does not log or stringify JVM arguments.
+- The process host is an explicit interface for a future Android-compatible in-process JVM/native bridge. No desktop-style `ProcessBuilder` fallback is treated as a valid Android JVM implementation.
+- Unit coverage exercises session startup, graceful stop, terminal state reporting, and access-token redaction.
+
 ### Rendering foundation
 - An Android GLSurfaceView host backed by OpenGL ES 2.0.
 - Lifecycle-aware surface pause/resume and on-demand rendering to avoid an unnecessary continuous frame loop.
