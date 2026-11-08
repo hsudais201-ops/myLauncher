@@ -103,14 +103,15 @@ class EmbeddedJvmProcessHostTest {
             }
             val bridge = object : AndroidJvmBridge {
                 override fun start(
-                    jvmLibrary: File,
-                    runtimeHome: File,
+                    runtimeLayout: EmbeddedJvmRuntimeLayout,
                     workingDirectory: File,
                     invocation: EmbeddedJvmInvocation,
                     onOutput: (String) -> Unit
                 ): AndroidJvmSession {
-                    assertEquals(jvm.canonicalFile, jvmLibrary)
-                    assertEquals(root.resolve("runtime").canonicalFile, runtimeHome)
+                    assertEquals(jvm.canonicalFile, runtimeLayout.jvmLibrary)
+                    assertEquals(root.resolve("runtime").canonicalFile, runtimeLayout.runtimeHome)
+                    assertTrue(runtimeLayout.libraryDirectories.contains(File(runtimeHome, "lib").canonicalFile))
+                    assertTrue(runtimeLayout.libraryDirectories.contains(File(runtimeHome, "lib/server").canonicalFile))
                     assertEquals(game.canonicalFile, workingDirectory)
                     assertTrue(invocation.vmOptions.contains("-Xmx768M"))
                     assertTrue(invocation.vmOptions.any { it.startsWith("-Djava.class.path=") })
