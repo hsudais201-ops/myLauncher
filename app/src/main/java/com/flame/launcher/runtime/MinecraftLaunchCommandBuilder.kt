@@ -85,13 +85,25 @@ object MinecraftLaunchCommandBuilder {
             "Minecraft account type is invalid."
         }
 
+        val jvmLibrary = runtime.jvmLibrary?.canonicalFile
+        if (runtime.executionKind == JavaRuntimeExecutionKind.EMBEDDED_JVM) {
+            require(jvmLibrary != null && jvmLibrary.isFile &&
+                jvmLibrary.path.startsWith(runtime.homeDirectory.canonicalPath + File.separator)
+            ) { "Selected embedded runtime has no valid JVM library." }
+        } else {
+            require(runtime.javaExecutable?.isFile == true) {
+                "Selected process runtime has no executable Java binary."
+            }
+        }
+
         return MinecraftLaunchCommand(
-            executable = runtime.javaExecutable ?: throw IllegalArgumentException(
-                "Selected runtime has no executable Java process. An embedded JVM bridge is required."
-            ),
+            executable = runtime.javaExecutable,
             workingDirectory = gameRoot,
             arguments = jvmArguments + gameArguments,
-            classPath = classPath
+            classPath = classPath,
+            runtimeHome = runtime.homeDirectory.canonicalFile,
+            jvmLibrary = jvmLibrary,
+            executionKind = runtime.executionKind
         )
     }
 
@@ -124,14 +136,26 @@ data class MinecraftLaunchMemory(
 )
 
 data class MinecraftLaunchCommand(
-    val executable: File,
+    val executable: File?,
     val workingDirectory: File,
     val arguments: List<String>,
-    val classPath: List<String>
+    val classPath: List<String>,
+    val runtimeHome: File? = null,
+    val jvmLibrary: File? = null,
+    val executionKind: JavaRuntimeExecutionKind = JavaRuntimeExecutionKind.PROCESS
 ) {
-    /** Creates a ProcessBuilder without invoking a shell or interpolating a command string. */
-    fun toProcessBuilder(): ProcessBuilder =
-        ProcessBuilder(listOf(executable.absolutePath) + arguments)
+    /**
+     * Creates a shell-free process invocation for runtimes with an executable
+     * Java binary. Embedded Android JVMs must use MinecraftProcessHost instead.
+     */
+    fun toProcessBuilder(): ProcessBuilder {
+        val java = executable
+            ?: throw IllegalStateException("This launch command requires an embedded JVM host.")
+        check(executionKind == JavaRuntimeExecutionKind.PROCESS) {
+            "Embedded JVM commands cannot be started with ProcessBuilder."
+        }
+        return ProcessBuilder(listOf(java.absolutePath) + arguments)
             .directory(workingDirectory)
             .redirectErrorStream(true)
+    }
 }
