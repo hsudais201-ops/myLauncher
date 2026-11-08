@@ -59,10 +59,4 @@ interface AndroidJvmBridge {
 }
 
 /** Handle returned by the native embedded JVM bridge. */
-interface AndroidJvmSession {
-    /** Waits for the Minecraft main thread/JVM session to finish. */
-    fun awaitExit(): Int
-
-    /** Requests game/JVM shutdown without calling System.exit on Android. */
-    fun requestStop()
-}
+interface AndroidJvmSession : MinecraftRunningProcess
