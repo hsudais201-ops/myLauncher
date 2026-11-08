@@ -84,6 +84,8 @@ class EmbeddedJvmProcessHostTest {
                 workingDirectory = game,
                 arguments = listOf(
                     "-Xmx768M",
+                    "-Djava.library.path=${File(game, "natives").apply { mkdirs() }.absolutePath}",
+                    "-Dorg.lwjgl.librarypath=${File(game, "natives").absolutePath}",
                     "-cp",
                     clientJar.absolutePath,
                     "net.minecraft.client.main.Main",
@@ -112,6 +114,8 @@ class EmbeddedJvmProcessHostTest {
                     assertEquals(root.resolve("runtime").canonicalFile, runtimeLayout.runtimeHome)
                     assertTrue(runtimeLayout.libraryDirectories.contains(File(runtimeHome, "lib").canonicalFile))
                     assertTrue(runtimeLayout.libraryDirectories.contains(File(runtimeHome, "lib/server").canonicalFile))
+                    assertEquals(File(game, "natives").canonicalFile, runtimeLayout.applicationNativeDirectory)
+                    assertTrue(runtimeLayout.libraryDirectories.contains(File(game, "natives").canonicalFile))
                     assertEquals(game.canonicalFile, workingDirectory)
                     assertTrue(invocation.vmOptions.contains("-Xmx768M"))
                     assertTrue(invocation.vmOptions.any { it.startsWith("-Djava.class.path=") })
@@ -153,8 +157,7 @@ class EmbeddedJvmProcessHostTest {
             )
             val bridge = object : AndroidJvmBridge {
                 override fun start(
-                    jvmLibrary: File,
-                    runtimeHome: File,
+                    runtimeLayout: EmbeddedJvmRuntimeLayout,
                     workingDirectory: File,
                     invocation: EmbeddedJvmInvocation,
                     onOutput: (String) -> Unit
