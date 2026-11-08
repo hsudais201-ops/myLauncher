@@ -77,12 +77,20 @@ class EmbeddedJvmProcessHostTest {
                 writeBytes(byteArrayOf(3))
             }
             val game = File(root, "game").apply { mkdirs() }
+            val clientJar = File(game, "client.jar").apply { writeBytes(byteArrayOf(4)) }
             val token = "do-not-log-this-token"
             val command = MinecraftLaunchCommand(
                 executable = null,
                 workingDirectory = game,
-                arguments = listOf("-Xmx768M", "net.minecraft.client.main.Main", "--accessToken", token),
-                classPath = emptyList(),
+                arguments = listOf(
+                    "-Xmx768M",
+                    "-cp",
+                    clientJar.absolutePath,
+                    "net.minecraft.client.main.Main",
+                    "--accessToken",
+                    token
+                ),
+                classPath = listOf(clientJar.absolutePath),
                 runtimeHome = runtimeHome,
                 jvmLibrary = jvm,
                 executionKind = JavaRuntimeExecutionKind.EMBEDDED_JVM
@@ -98,13 +106,18 @@ class EmbeddedJvmProcessHostTest {
                     jvmLibrary: File,
                     runtimeHome: File,
                     workingDirectory: File,
-                    arguments: List<String>,
+                    invocation: EmbeddedJvmInvocation,
                     onOutput: (String) -> Unit
                 ): AndroidJvmSession {
                     assertEquals(jvm.canonicalFile, jvmLibrary)
                     assertEquals(root.resolve("runtime").canonicalFile, runtimeHome)
                     assertEquals(game.canonicalFile, workingDirectory)
-                    assertTrue(arguments.contains(token))
+                    assertTrue(invocation.vmOptions.contains("-Xmx768M"))
+                    assertTrue(invocation.vmOptions.any { it.startsWith("-Djava.class.path=") })
+                    assertTrue(invocation.vmOptions.any { it.startsWith("-Djava.home=") })
+                    assertEquals(listOf(clientJar.canonicalFile), invocation.classPath)
+                    assertEquals("net.minecraft.client.main.Main", invocation.mainClass)
+                    assertEquals(listOf("--accessToken", token), invocation.applicationArguments)
                     onOutput("JVM started")
                     started.set(true)
                     return session
@@ -142,7 +155,7 @@ class EmbeddedJvmProcessHostTest {
                     jvmLibrary: File,
                     runtimeHome: File,
                     workingDirectory: File,
-                    arguments: List<String>,
+                    invocation: EmbeddedJvmInvocation,
                     onOutput: (String) -> Unit
                 ): AndroidJvmSession = error("Bridge must not be called for an invalid library path.")
             }
