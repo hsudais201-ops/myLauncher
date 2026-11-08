@@ -26,6 +26,7 @@ import com.flame.launcher.runtime.JavaRuntimeExecutionKind
 import com.flame.launcher.runtime.JavaRuntimeManager
 import com.flame.launcher.runtime.NativeJvmLibraryProbe
 import java.io.File
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -115,14 +116,19 @@ fun JavaRuntimeStatusPanel() {
                             onClick = {
                                 coroutineScope.launch {
                                     probingRuntimeId = runtime.id
-                                    probeDiagnostic = withContext(Dispatchers.IO) {
-                                        try {
-                                            NativeJvmLibraryProbe().inspect(runtime).diagnostic
-                                        } catch (failure: Throwable) {
-                                            "ERROR: " + (failure.message ?: failure.javaClass.simpleName)
+                                    try {
+                                        probeDiagnostic = withContext(Dispatchers.IO) {
+                                            try {
+                                                NativeJvmLibraryProbe().inspect(runtime).diagnostic
+                                            } catch (cancelled: CancellationException) {
+                                                throw cancelled
+                                            } catch (failure: Exception) {
+                                                "ERROR: " + (failure.message ?: failure.javaClass.simpleName)
+                                            }
                                         }
+                                    } finally {
+                                        probingRuntimeId = null
                                     }
-                                    probingRuntimeId = null
                                 }
                             }
                         ) {
