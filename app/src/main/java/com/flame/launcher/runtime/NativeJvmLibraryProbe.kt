@@ -11,9 +11,13 @@ import java.io.File
  *
  * Call [inspect] from a worker thread because dlopen may resolve dependencies.
  */
-class NativeJvmLibraryProbe {
+class NativeJvmLibraryProbe internal constructor(
+    private val nativeInspector: ((String) -> String)? = null
+) {
     init {
-        System.loadLibrary(NATIVE_LIBRARY_NAME)
+        if (nativeInspector == null) {
+            System.loadLibrary(NATIVE_LIBRARY_NAME)
+        }
     }
 
     fun inspect(runtime: JavaRuntimeInstallation): NativeJvmLibraryProbeResult {
@@ -27,7 +31,8 @@ class NativeJvmLibraryProbe {
             library.path.startsWith(home.path + File.separator)
         ) { "JVM library must be a file inside the selected runtime home." }
 
-        val diagnostic = nativeInspectJvmLibrary(library.absolutePath)
+        val diagnostic = nativeInspector?.invoke(library.absolutePath)
+            ?: nativeInspectJvmLibrary(library.absolutePath)
         return NativeJvmLibraryProbeResult(
             available = diagnostic.startsWith("OK:"),
             diagnostic = diagnostic
