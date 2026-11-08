@@ -17,7 +17,7 @@ class RoutingMinecraftProcessHostTest {
         val embeddedCommand = command(JavaRuntimeExecutionKind.EMBEDDED_JVM)
         val processCommand = command(JavaRuntimeExecutionKind.PROCESS)
 
-        assertSame(embeddedSession, router.start(embeddedCommand) { }.also { })
+        assertSame(embeddedSession, router.start(embeddedCommand) { })
         assertSame(processSession, router.start(processCommand) { })
         assertEquals(1, embedded.calls)
         assertEquals(1, process.calls)
