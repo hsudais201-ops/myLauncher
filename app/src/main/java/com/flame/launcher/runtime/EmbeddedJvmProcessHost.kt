@@ -31,11 +31,18 @@ class EmbeddedJvmProcessHost(
         require(command.workingDirectory.isDirectory) {
             "Minecraft game directory is unavailable."
         }
+        val workingDirectory = command.workingDirectory.canonicalFile
+        val invocation = EmbeddedJvmInvocationParser.parse(
+            arguments = command.arguments,
+            expectedClassPath = command.classPath,
+            runtimeHome = runtimeHome,
+            workingDirectory = workingDirectory
+        )
         return bridge.start(
             jvmLibrary = jvmLibrary,
             runtimeHome = runtimeHome,
-            workingDirectory = command.workingDirectory.canonicalFile,
-            arguments = command.arguments.toList(),
+            workingDirectory = workingDirectory,
+            invocation = invocation,
             onOutput = onOutput
         )
     }
@@ -53,7 +60,7 @@ interface AndroidJvmBridge {
         jvmLibrary: File,
         runtimeHome: File,
         workingDirectory: File,
-        arguments: List<String>,
+        invocation: EmbeddedJvmInvocation,
         onOutput: (String) -> Unit
     ): AndroidJvmSession
 }
