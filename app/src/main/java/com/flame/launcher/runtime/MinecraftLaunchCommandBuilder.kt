@@ -96,7 +96,7 @@ object MinecraftLaunchCommandBuilder {
     }
 
     private fun isSafeRelativePath(value: String): Boolean =
-        value.isNotBlank() && !value.startsWith("/") && "\\\\" !in value &&
+        value.isNotBlank() && !value.startsWith("/") && value.indexOf(92.toChar()) < 0 &&
             ':' !in value && value.split('/').all {
                 it.isNotBlank() && it != "." && it != ".."
             }
