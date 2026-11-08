@@ -79,6 +79,24 @@ class MinecraftLaunchCommandBuilderTest {
     }
 
     @Test
+    fun redactsSeparateAndInlineAccessTokenArgumentForms() {
+        val redacted = redactLaunchArguments(
+            listOf(
+                "--accessToken",
+                "separate-secret",
+                "--access-token=inline-secret",
+                "--username",
+                "Player"
+            )
+        )
+        assertEquals(
+            listOf("--accessToken", "<redacted>", "--access-token=<redacted>", "--username", "Player"),
+            redacted
+        )
+        assertFalse(redacted.toString().contains("secret"))
+    }
+
+    @Test
     fun acceptsSingleCharacterMainClassConsistentlyWithEmbeddedInvocationParser() {
         val f = fixture()
         try {
