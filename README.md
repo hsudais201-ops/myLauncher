@@ -46,7 +46,7 @@ Flame Launcher is an Android-first project targeting **Minecraft Java Edition** 
 - An `EmbeddedJvmProcessHost` adapter validates the runtime paths and forwards the JVM invocation to a narrow `AndroidJvmBridge` contract. The bridge session plugs into the existing process controller without calling `System.exit` on the Android app process.
 - A routing host now selects the embedded bridge or an injected process host based on the validated runtime execution kind; the app cannot accidentally route an embedded JVM package through `ProcessBuilder`.
 - Unit coverage exercises session startup, graceful stop, terminal state reporting, access-token redaction, embedded command construction, and bridge argument/path forwarding.
-- The Android NDK/CMake native library now performs a real Android-linker preflight for an extracted `libjvm.so`: it checks whether the device linker can load the library and whether `JNI_CreateJavaVM` and `JNI_GetCreatedJavaVMs` are exported. The probe is ABI-packaged for arm64-v8a, armeabi-v7a, x86, and x86_64.
+- The Android NDK/CMake native library now performs a real Android-linker preflight for an extracted `libjvm.so`: it checks whether the device linker can load the library and whether `JNI_CreateJavaVM` and `JNI_GetCreatedJavaVMs` are exported. The probe is ABI-packaged for arm64-v8a, armeabi-v7a, x86, and x86_64. The runtime panel exposes this check, and deterministic JVM-path/linker-result tests exercise the Kotlin boundary without loading native code on the unit-test host.
 - This native preflight does not create a JVM or launch Minecraft. The `AndroidJvmBridge` invocation/session implementation, JNI thread lifecycle, safe JVM shutdown, and a device-level compatibility test remain outstanding.
 
 ### Rendering foundation
