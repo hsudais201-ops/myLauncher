@@ -128,7 +128,10 @@ data class MinecraftLaunchAccount(
     val uuid: String,
     val accessToken: String,
     val userType: String = "msa"
-)
+) {
+    override fun toString(): String =
+        "MinecraftLaunchAccount(username=$username, uuid=$uuid, accessToken=<redacted>, userType=$userType)"
+}
 
 data class MinecraftLaunchMemory(
     val minimumMb: Int = 512,
@@ -157,5 +160,23 @@ data class MinecraftLaunchCommand(
         return ProcessBuilder(listOf(java.absolutePath) + arguments)
             .directory(workingDirectory)
             .redirectErrorStream(true)
+    }
+
+    override fun toString(): String =
+        "MinecraftLaunchCommand(executable=$executable, workingDirectory=$workingDirectory, " +
+            "arguments=${redactLaunchArguments(arguments)}, classPath=$classPath, " +
+            "runtimeHome=$runtimeHome, jvmLibrary=$jvmLibrary, executionKind=$executionKind)"
+}
+
+internal fun redactLaunchArguments(arguments: List<String>): List<String> {
+    var redactNext = false
+    return arguments.map { argument ->
+        if (redactNext) {
+            redactNext = false
+            "<redacted>"
+        } else {
+            redactNext = argument == "--accessToken" || argument == "--access-token"
+            argument
+        }
     }
 }
