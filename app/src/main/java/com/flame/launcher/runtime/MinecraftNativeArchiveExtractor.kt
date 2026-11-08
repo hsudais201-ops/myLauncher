@@ -154,11 +154,12 @@ class MinecraftNativeArchiveExtractor(
     }
 
     private fun normalizeExclude(raw: String): String {
-        require(raw.isNotBlank() && raw.length <= MAX_PATH_LENGTH &&
-            !raw.startsWith('/') && '\\' !in raw && ':' !in raw &&
-            raw.split('/').all { it.isNotBlank() && it != "." && it != ".." }
+        val value = raw.removeSuffix("/")
+        require(value.isNotBlank() && value.length <= MAX_PATH_LENGTH &&
+            !value.startsWith('/') && '\\' !in value && ':' !in value &&
+            value.split('/').all { it.isNotBlank() && it != "." && it != ".." }
         ) { "Native extraction exclusion is unsafe." }
-        return raw
+        return value
     }
 
     private fun isExcluded(path: String, excludes: List<String>): Boolean =
