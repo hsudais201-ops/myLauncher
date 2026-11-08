@@ -92,4 +92,8 @@ data class EmbeddedJvmInvocation(
     val classPath: List<File>,
     val mainClass: String,
     val applicationArguments: List<String>
-)
+) {
+    override fun toString(): String =
+        "EmbeddedJvmInvocation(vmOptions=$vmOptions, classPath=$classPath, " +
+            "mainClass=$mainClass, applicationArguments=${redactLaunchArguments(applicationArguments)})"
+}
