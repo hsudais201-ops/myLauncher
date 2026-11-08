@@ -1,7 +1,6 @@
 package com.flame.launcher.runtime
 
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertThrows
@@ -103,7 +102,7 @@ class EmbeddedJvmProcessHostTest {
                     onOutput: (String) -> Unit
                 ): AndroidJvmSession {
                     assertEquals(jvm.canonicalFile, jvmLibrary)
-                    assertEquals(runtimeHome.canonicalFile, runtimeHome)
+                    assertEquals(root.resolve("runtime").canonicalFile, runtimeHome)
                     assertEquals(game.canonicalFile, workingDirectory)
                     assertTrue(arguments.contains(token))
                     onOutput("JVM started")
@@ -117,7 +116,6 @@ class EmbeddedJvmProcessHostTest {
             assertEquals("JVM started", output.toString())
             assertNotNull(running)
             assertEquals(0, running.awaitExit())
-            assertFalse(running === null)
         } finally {
             root.deleteRecursively()
         }
