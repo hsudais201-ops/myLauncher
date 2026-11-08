@@ -175,8 +175,17 @@ internal fun redactLaunchArguments(arguments: List<String>): List<String> {
             redactNext = false
             "<redacted>"
         } else {
-            redactNext = argument == "--accessToken" || argument == "--access-token"
-            argument
+            val tokenOption = TOKEN_OPTIONS.firstOrNull { option ->
+                argument.startsWith("$option=")
+            }
+            if (tokenOption != null) {
+                "$tokenOption=<redacted>"
+            } else {
+                redactNext = argument in TOKEN_OPTIONS
+                argument
+            }
         }
     }
 }
+
+private val TOKEN_OPTIONS = setOf("--accessToken", "--access-token")
