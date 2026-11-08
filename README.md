@@ -46,7 +46,8 @@ Flame Launcher is an Android-first project targeting **Minecraft Java Edition** 
 - An `EmbeddedJvmProcessHost` adapter validates the runtime paths and forwards the JVM invocation to a narrow `AndroidJvmBridge` contract. The bridge session plugs into the existing process controller without calling `System.exit` on the Android app process.
 - A routing host now selects the embedded bridge or an injected process host based on the validated runtime execution kind; the app cannot accidentally route an embedded JVM package through `ProcessBuilder`.
 - Unit coverage exercises session startup, graceful stop, terminal state reporting, access-token redaction, embedded command construction, and bridge argument/path forwarding.
-- The native Android JVM invocation library implementing `AndroidJvmBridge` is not yet present. This is a Kotlin-side integration boundary, not proof that a JVM can already be started on-device.
+- The Android NDK/CMake native library now performs a real Android-linker preflight for an extracted `libjvm.so`: it checks whether the device linker can load the library and whether `JNI_CreateJavaVM` and `JNI_GetCreatedJavaVMs` are exported. The probe is ABI-packaged for arm64-v8a, armeabi-v7a, x86, and x86_64.
+- This native preflight does not create a JVM or launch Minecraft. The `AndroidJvmBridge` invocation/session implementation, JNI thread lifecycle, safe JVM shutdown, and a device-level compatibility test remain outstanding.
 
 ### Rendering foundation
 - An Android GLSurfaceView host backed by OpenGL ES 2.0.
@@ -65,7 +66,7 @@ Flame Launcher is an Android-first project targeting **Minecraft Java Edition** 
 - End-to-end device testing of authenticated Mojo runtime download, extraction, promotion, cancellation, and replacement rollback.
 - Rotating and validating the pinned upstream runtime certificate before its expiry.
 - End-to-end device validation of client JAR, libraries, native archives, asset-index and asset-object installation, plus launch-time runtime checks. Native archive extraction is implemented and unit-tested but not yet device-validated.
-- Native implementation of `AndroidJvmBridge`, including Android-compatible JVM startup, thread attachment, output forwarding, and safe shutdown.
+- Native implementation of `AndroidJvmBridge`, including Android-compatible JVM startup, thread attachment, output forwarding, and safe shutdown. The current NDK library only probes linker compatibility and JNI invocation symbols.
 - Minecraft LWJGL rendering compatibility backend and device-level launch validation.
 - Wiring the native JVM bridge into the launch UI and end-to-end playable game testing.
 - Microsoft account authentication and compliant offline account/profile management.
