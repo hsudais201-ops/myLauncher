@@ -124,6 +124,43 @@ class EmbeddedJvmInvocationParserTest {
         }
     }
 
+    @Test
+    fun rejectsLauncherManagedPropertiesAndAcceptsSingleCharacterMainClass() {
+        val root = Files.createTempDirectory("flame-jvm-managed-properties").toFile()
+        try {
+            val home = File(root, "runtime").apply { mkdirs() }
+            val game = File(root, "game").apply { mkdirs() }
+            val jar = File(game, "client.jar").apply { writeBytes(byteArrayOf(1)) }
+
+            assertThrows(IllegalArgumentException::class.java) {
+                parse(
+                    listOf("-Djava.class.path=/unexpected.jar", "-cp", jar.absolutePath, "example.Main"),
+                    jar,
+                    home,
+                    game
+                )
+            }
+            assertThrows(IllegalArgumentException::class.java) {
+                parse(
+                    listOf("-Djava.home=/unexpected", "-cp", jar.absolutePath, "example.Main"),
+                    jar,
+                    home,
+                    game
+                )
+            }
+
+            val parsed = parse(
+                listOf("-Xmx512M", "-cp", jar.absolutePath, "A"),
+                jar,
+                home,
+                game
+            )
+            assertEquals("A", parsed.mainClass)
+        } finally {
+            root.deleteRecursively()
+        }
+    }
+
     private fun parse(
         arguments: List<String>,
         jar: File,
