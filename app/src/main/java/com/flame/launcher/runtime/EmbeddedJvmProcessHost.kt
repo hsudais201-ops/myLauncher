@@ -38,9 +38,14 @@ class EmbeddedJvmProcessHost(
             runtimeHome = runtimeHome,
             workingDirectory = workingDirectory
         )
-        return bridge.start(
-            jvmLibrary = jvmLibrary,
+        val nativeDirectory = resolveApplicationNativeDirectory(invocation.vmOptions)
+        val runtimeLayout = EmbeddedJvmRuntimeLayoutResolver.resolve(
             runtimeHome = runtimeHome,
+            jvmLibrary = jvmLibrary,
+            applicationNativeDirectory = nativeDirectory
+        )
+        return bridge.start(
+            runtimeLayout = runtimeLayout,
             workingDirectory = workingDirectory,
             invocation = invocation,
             onOutput = onOutput
@@ -57,8 +62,7 @@ class EmbeddedJvmProcessHost(
  */
 interface AndroidJvmBridge {
     fun start(
-        jvmLibrary: File,
-        runtimeHome: File,
+        runtimeLayout: EmbeddedJvmRuntimeLayout,
         workingDirectory: File,
         invocation: EmbeddedJvmInvocation,
         onOutput: (String) -> Unit
@@ -67,3 +71,24 @@ interface AndroidJvmBridge {
 
 /** Handle returned by the native embedded JVM bridge. */
 interface AndroidJvmSession : MinecraftRunningProcess
+
+
+private fun resolveApplicationNativeDirectory(vmOptions: List<String>): File? {
+    val javaPaths = vmOptions.filter { it.startsWith("-Djava.library.path=") }
+        .map { it.substringAfter('=') }
+    val lwjglPaths = vmOptions.filter { it.startsWith("-Dorg.lwjgl.librarypath=") }
+        .map { it.substringAfter('=') }
+    require(javaPaths.size <= 1 && lwjglPaths.size <= 1) {
+        "Embedded JVM native-library paths must not be duplicated."
+    }
+    val configuredPaths = listOfNotNull(javaPaths.singleOrNull(), lwjglPaths.singleOrNull())
+    require(configuredPaths.distinct().size <= 1) {
+        "Java and LWJGL native-library paths must match."
+    }
+    val configured = configuredPaths.firstOrNull() ?: return null
+    val directory = File(configured)
+    require(directory.isAbsolute && directory.canonicalFile.isDirectory) {
+        "Minecraft native-library directory must be an existing absolute directory."
+    }
+    return directory.canonicalFile
+}
