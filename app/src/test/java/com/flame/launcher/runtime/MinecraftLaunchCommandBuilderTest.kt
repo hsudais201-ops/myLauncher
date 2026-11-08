@@ -77,6 +77,23 @@ class MinecraftLaunchCommandBuilderTest {
     }
 
     @Test
+    fun acceptsSingleCharacterMainClassConsistentlyWithEmbeddedInvocationParser() {
+        val f = fixture()
+        try {
+            val command = MinecraftLaunchCommandBuilder.build(
+                f.plan.copy(mainClass = "A"),
+                f.game,
+                f.native,
+                f.runtime,
+                MinecraftLaunchAccount("Player", "12345678123412341234123456789abc", "token")
+            )
+            assertTrue(command.arguments.contains("A"))
+        } finally {
+            f.root.deleteRecursively()
+        }
+    }
+
+    @Test
     fun rejectsWrongJavaMajorAndUnsafeClasspathTraversal() {
         val f = fixture()
         try {
