@@ -69,6 +69,10 @@ class MinecraftProcessController(
 
     private fun runSession(session: Session, command: MinecraftLaunchCommand) {
         try {
+            if (session.stopRequested.get()) {
+                transition(session, MinecraftProcessState.CANCELLED)
+                return
+            }
             transition(session, MinecraftProcessState.STARTING)
             val process = host.start(command) { line ->
                 publish(session, MinecraftProcessEvent.Output(session.id, redact(line, session.accessToken)))
@@ -151,6 +155,7 @@ class MinecraftProcessController(
         var process: MinecraftRunningProcess? = null
         val stopRequested = AtomicBoolean(false)
 
+        @Synchronized
         fun snapshot() = MinecraftProcessSnapshot(id, state, exitCode, error)
     }
 
