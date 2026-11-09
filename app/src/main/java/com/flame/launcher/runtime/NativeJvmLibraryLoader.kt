@@ -14,10 +14,11 @@ import java.io.File
 class NativeJvmLibraryLoader internal constructor(
     private val nativeVmInspector: (() -> String)? = null,
     private val nativeRuntimeRetainer: ((String, Array<String>) -> String)? = null,
-    private val nativeRetainer: ((String) -> String)? = null
+    private val nativeRetainer: ((String) -> String)? = null,
+    private val nativeInvocationApiInspector: (() -> String)? = null
 ) {
     init {
-        if (nativeRetainer == null && nativeRuntimeRetainer == null && nativeVmInspector == null) {
+        if (nativeRetainer == null && nativeRuntimeRetainer == null && nativeVmInspector == null && nativeInvocationApiInspector == null) {
             System.loadLibrary(NATIVE_LIBRARY_NAME)
         }
     }
@@ -66,9 +67,18 @@ class NativeJvmLibraryLoader internal constructor(
      */
     fun inspectVmState(): String = nativeVmInspector?.invoke() ?: nativeInspectVmState()
 
+    /**
+     * Reports the process-global JNI_CreateJavaVM provider alongside the
+     * selected OpenJDK provider. A report is diagnostic only; it never calls
+     * either invocation function or attempts to create a second VM.
+     */
+    fun inspectInvocationApi(): String =
+        nativeInvocationApiInspector?.invoke() ?: nativeInspectInvocationApi()
+
     private external fun nativeRetainJvmLibrary(absolutePath: String): String
     private external fun nativeRetainJvmRuntime(absolutePath: String, dependencyPaths: Array<String>): String
     private external fun nativeInspectVmState(): String
+    private external fun nativeInspectInvocationApi(): String
 
     companion object {
         private const val NATIVE_LIBRARY_NAME = "flame_jvm_bridge"
