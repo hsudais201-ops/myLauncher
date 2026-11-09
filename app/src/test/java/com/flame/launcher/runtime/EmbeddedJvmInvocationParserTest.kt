@@ -257,7 +257,7 @@ class EmbeddedJvmInvocationParserTest {
                 "-Xmx0M",
                 "-Xms512",
                 "-Xmx1Q",
-                "-Xmx01G",
+                "-Xmx1.5G",
                 "-Dorg.lwjgl.librarypath="
             )
             invalidOptions.forEach { option ->
