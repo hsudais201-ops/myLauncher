@@ -1,6 +1,7 @@
 #include <jni.h>
 #include <dlfcn.h>
 #include <elf.h>
+#include <cstdint>
 #include <fstream>
 #include <string>
 
@@ -22,13 +23,59 @@ constexpr Elf32_Half kExpectedMachine = EM_386;
 #error "Unsupported Android ABI for embedded JVM inspection"
 #endif
 
+template <typename Header>
+std::string ValidateElfHeader(std::ifstream& input, std::uint64_t file_size) {
+    Header header = {};
+    input.seekg(0);
+    input.read(reinterpret_cast<char*>(&header), sizeof(header));
+    if (!input) {
+        return "ERROR: Selected libjvm has a truncated ELF header.";
+    }
+    if (header.e_type != ET_DYN) {
+        return "ERROR: Selected libjvm is not a shared ELF object.";
+    }
+    if (header.e_version != EV_CURRENT) {
+        return "ERROR: Selected libjvm uses an unsupported ELF version.";
+    }
+    if (header.e_machine != kExpectedMachine) {
+        return "ERROR: Selected libjvm architecture does not match this Android process ABI.";
+    }
+    if (header.e_ehsize != sizeof(Header)) {
+        return "ERROR: Selected libjvm has an invalid ELF header size.";
+    }
+
+    // A loadable shared object must provide a complete program-header table.
+    // Validate the table bounds before the Android linker parses the file.
+    if (header.e_phnum == 0 || header.e_phentsize == 0 ||
+        header.e_phentsize < sizeof(typename std::conditional<
+            sizeof(Header) == sizeof(Elf64_Ehdr),
+            Elf64_Phdr, Elf32_Phdr>::type)) {
+        return "ERROR: Selected libjvm has an invalid ELF program-header table.";
+    }
+    const std::uint64_t table_offset = static_cast<std::uint64_t>(header.e_phoff);
+    const std::uint64_t table_size =
+        static_cast<std::uint64_t>(header.e_phnum) * header.e_phentsize;
+    if (table_offset > file_size || table_size > file_size - table_offset) {
+        return "ERROR: Selected libjvm has a truncated ELF program-header table.";
+    }
+    return "";
+}
+
 std::string ValidateElf(const std::string& path) {
     std::ifstream input(path, std::ios::binary);
     if (!input) {
         return "ERROR: Unable to open libjvm for ELF validation.";
     }
 
+    input.seekg(0, std::ios::end);
+    const std::streamoff end = input.tellg();
+    if (end < static_cast<std::streamoff>(EI_NIDENT)) {
+        return "ERROR: Selected libjvm is too small to contain an ELF header.";
+    }
+    const std::uint64_t file_size = static_cast<std::uint64_t>(end);
+
     unsigned char identity[EI_NIDENT] = {};
+    input.seekg(0);
     input.read(reinterpret_cast<char*>(identity), sizeof(identity));
     if (!input || identity[EI_MAG0] != ELFMAG0 ||
         identity[EI_MAG1] != ELFMAG1 ||
@@ -44,22 +91,13 @@ std::string ValidateElf(const std::string& path) {
     if (identity[EI_CLASS] != ELFCLASS64) {
         return "ERROR: Selected libjvm is not a 64-bit library for this Android process.";
     }
-    Elf64_Ehdr header = {};
+    return ValidateElfHeader<Elf64_Ehdr>(input, file_size);
 #else
     if (identity[EI_CLASS] != ELFCLASS32) {
         return "ERROR: Selected libjvm is not a 32-bit library for this Android process.";
     }
-    Elf32_Ehdr header = {};
+    return ValidateElfHeader<Elf32_Ehdr>(input, file_size);
 #endif
-    input.seekg(0);
-    input.read(reinterpret_cast<char*>(&header), sizeof(header));
-    if (!input || header.e_type != ET_DYN) {
-        return "ERROR: Selected libjvm is not a valid shared ELF object.";
-    }
-    if (header.e_machine != kExpectedMachine) {
-        return "ERROR: Selected libjvm architecture does not match this Android process ABI.";
-    }
-    return "";
 }
 
 }  // namespace
@@ -125,5 +163,5 @@ Java_com_flame_launcher_runtime_NativeJvmLibraryProbe_nativeInspectJvmLibrary(
         );
     }
 
-    return ToJavaString(env, "OK: ELF ABI matches, Android linker loaded libjvm, and JNI invocation symbols are exported.");
+    return ToJavaString(env, "OK: ELF ABI and program-header bounds match, Android linker loaded libjvm, and JNI invocation symbols are exported.");
 }
