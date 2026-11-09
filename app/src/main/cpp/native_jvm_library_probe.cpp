@@ -11,6 +11,8 @@ namespace {
 
 std::mutex g_jvm_loader_mutex;
 void* g_retained_jvm_handle = nullptr;
+using GetCreatedJavaVmsFn = jint (JNICALL *)(JavaVM**, jsize, jsize*);
+GetCreatedJavaVmsFn g_get_created_java_vms = nullptr;
 std::string g_retained_jvm_path;
 
 jstring ToJavaString(JNIEnv* env, const std::string& value) {
@@ -285,9 +287,42 @@ Java_com_flame_launcher_runtime_NativeJvmLibraryLoader_nativeRetainJvmLibrary(
     // Intentionally never dlclose this handle. The process-wide VM and its
     // native threads may continue to execute after the game screen is closed.
     g_retained_jvm_path = path;
+    g_get_created_java_vms = reinterpret_cast<GetCreatedJavaVmsFn>(get_created_vms);
     g_retained_jvm_handle = handle;
     return ToJavaString(
         env,
         "OK: libjvm is loaded globally and its handle is retained for process lifetime."
+    );
+}
+
+
+/*
+ * Query only the selected embedded OpenJDK library. This does not enumerate
+ * Android ART and does not create, attach, or destroy any virtual machine.
+ */
+extern "C"
+JNIEXPORT jstring JNICALL
+Java_com_flame_launcher_runtime_NativeJvmLibraryLoader_nativeInspectVmState(
+    JNIEnv* env,
+    jobject /* receiver */
+) {
+    std::lock_guard<std::mutex> lock(g_jvm_loader_mutex);
+    if (g_retained_jvm_handle == nullptr || g_get_created_java_vms == nullptr) {
+        return ToJavaString(env, "ERROR: No embedded JVM library is retained by this process.");
+    }
+
+    JavaVM* existing_vms[1] = {};
+    jsize count = 0;
+    const jint status = g_get_created_java_vms(existing_vms, 1, &count);
+    if (status != JNI_OK) {
+        return ToJavaString(
+            env,
+            "ERROR: JNI_GetCreatedJavaVMs failed with status " + std::to_string(status) + "."
+        );
+    }
+    return ToJavaString(
+        env,
+        "OK: retained OpenJDK reports " + std::to_string(count) +
+            " created VM(s); no VM was created or modified by this check."
     );
 }
