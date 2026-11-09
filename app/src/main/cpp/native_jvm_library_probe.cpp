@@ -59,6 +59,50 @@ std::string ValidateElfHeader(std::ifstream& input, std::uint64_t file_size) {
     if (table_offset > file_size || table_size > file_size - table_offset) {
         return "ERROR: Selected libjvm has a truncated ELF program-header table.";
     }
+
+    using ProgramHeader = typename std::conditional<
+        sizeof(Header) == sizeof(Elf64_Ehdr),
+        Elf64_Phdr, Elf32_Phdr>::type;
+    bool has_loadable_segment = false;
+    input.seekg(static_cast<std::streamoff>(table_offset));
+    for (std::uint16_t index = 0; index < header.e_phnum; ++index) {
+        ProgramHeader segment = {};
+        input.read(reinterpret_cast<char*>(&segment), sizeof(segment));
+        if (!input) {
+            return "ERROR: Selected libjvm has a truncated ELF segment entry.";
+        }
+        if (segment.p_type != PT_LOAD) {
+            const std::streamoff next =
+                static_cast<std::streamoff>(table_offset) +
+                static_cast<std::streamoff>(index + 1) * header.e_phentsize;
+            input.seekg(next);
+            continue;
+        }
+        has_loadable_segment = true;
+        const std::uint64_t offset = static_cast<std::uint64_t>(segment.p_offset);
+        const std::uint64_t bytes = static_cast<std::uint64_t>(segment.p_filesz);
+        const std::uint64_t memory = static_cast<std::uint64_t>(segment.p_memsz);
+        if (bytes > memory || offset > file_size || bytes > file_size - offset) {
+            return "ERROR: Selected libjvm contains an invalid loadable ELF segment.";
+        }
+        if (segment.p_align > 1 &&
+            (segment.p_align & (segment.p_align - 1)) != 0) {
+            return "ERROR: Selected libjvm contains an invalid ELF segment alignment.";
+        }
+        const std::uint64_t alignment = static_cast<std::uint64_t>(segment.p_align);
+        if (alignment > 1 &&
+            (static_cast<std::uint64_t>(segment.p_vaddr) % alignment) !=
+                (offset % alignment)) {
+            return "ERROR: Selected libjvm contains a misaligned ELF load segment.";
+        }
+        const std::streamoff next =
+            static_cast<std::streamoff>(table_offset) +
+            static_cast<std::streamoff>(index + 1) * header.e_phentsize;
+        input.seekg(next);
+    }
+    if (!has_loadable_segment) {
+        return "ERROR: Selected libjvm has no loadable ELF segments.";
+    }
     return "";
 }
 
