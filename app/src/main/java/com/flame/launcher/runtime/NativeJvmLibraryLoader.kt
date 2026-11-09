@@ -12,10 +12,11 @@ import java.io.File
  * active can crash the Android application.
  */
 class NativeJvmLibraryLoader internal constructor(
-    private val nativeRetainer: ((String) -> String)? = null
+    private val nativeRetainer: ((String) -> String)? = null,
+    private val nativeVmInspector: (() -> String)? = null
 ) {
     init {
-        if (nativeRetainer == null) {
+        if (nativeRetainer == null && nativeVmInspector == null) {
             System.loadLibrary(NATIVE_LIBRARY_NAME)
         }
     }
@@ -39,7 +40,14 @@ class NativeJvmLibraryLoader internal constructor(
         )
     }
 
+    /**
+     * Queries the retained OpenJDK library's JNI_GetCreatedJavaVMs entry point.
+     * This does not inspect Android ART and does not create or destroy a VM.
+     */
+    fun inspectVmState(): String = nativeVmInspector?.invoke() ?: nativeInspectVmState()
+
     private external fun nativeRetainJvmLibrary(absolutePath: String): String
+    private external fun nativeInspectVmState(): String
 
     companion object {
         private const val NATIVE_LIBRARY_NAME = "flame_jvm_bridge"
