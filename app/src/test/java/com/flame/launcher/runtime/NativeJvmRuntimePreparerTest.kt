@@ -63,7 +63,9 @@ class NativeJvmRuntimePreparerTest {
             )
             val received = mutableListOf<String>()
             val preparer = NativeJvmRuntimePreparer(
-                probe = NativeJvmLibraryProbe { "OK: probe" },
+                probe = NativeJvmLibraryProbe(
+                    nativeDependencyInspector = { _, _ -> "OK: dependencies preflighted" }
+                ),
                 loader = NativeJvmLibraryLoader(
                     nativeRuntimeRetainer = { _, paths ->
                         received += paths.toList()
