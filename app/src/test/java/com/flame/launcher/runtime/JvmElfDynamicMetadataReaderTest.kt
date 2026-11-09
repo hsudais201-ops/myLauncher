@@ -128,8 +128,8 @@ class JvmElfDynamicMetadataReaderTest {
             out.putLong(0x1a8, stringTable.size.toLong())
             var dynamicCursor = 0x1b0
             if (rpathOffset != null) {
-                out.putLong(dynamicCursor.toLong(), 15L) // DT_RPATH
-                out.putLong((dynamicCursor + 8).toLong(), rpathOffset)
+                out.putLong(dynamicCursor, 15L) // DT_RPATH
+                out.putLong(dynamicCursor + 8, rpathOffset)
                 dynamicCursor += 16
             }
             if (runpathOffset != null) {
