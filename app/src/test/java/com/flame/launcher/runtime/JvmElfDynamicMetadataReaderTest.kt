@@ -133,16 +133,16 @@ class JvmElfDynamicMetadataReaderTest {
                 dynamicCursor += 16
             }
             if (runpathOffset != null) {
-                out.putLong(dynamicCursor.toLong(), 29L) // DT_RUNPATH
-                out.putLong((dynamicCursor + 8).toLong(), runpathOffset)
+                out.putLong(dynamicCursor, 29L) // DT_RUNPATH
+                out.putLong(dynamicCursor + 8, runpathOffset)
                 dynamicCursor += 16
             }
             if (terminateDynamic) {
-                out.putLong(dynamicCursor.toLong(), 0L) // DT_NULL
-                out.putLong((dynamicCursor + 8).toLong(), 0L)
+                out.putLong(dynamicCursor, 0L) // DT_NULL
+                out.putLong(dynamicCursor + 8, 0L)
             } else {
-                out.putLong(dynamicCursor.toLong(), 1L)
-                out.putLong((dynamicCursor + 8).toLong(), neededOffset)
+                out.putLong(dynamicCursor, 1L)
+                out.putLong(dynamicCursor + 8, neededOffset)
             }
             stringTable.copyInto(bytes, 0x200)
             file.writeBytes(bytes)
