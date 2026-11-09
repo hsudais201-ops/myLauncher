@@ -36,7 +36,13 @@ class NativeJvmRuntimePreparer(
         val dependencyResolution = dependencyResolver.resolve(
             rootLibrary = library,
             runtimeHome = home,
-            searchDirectories = layout.libraryDirectories
+            // Minecraft's extracted natives are not JVM runtime files. The
+            // resolver deliberately confines DT_NEEDED resolution to the
+            // selected JRE tree, even when the launch layout also includes
+            // an application-native directory for LWJGL.
+            searchDirectories = layout.libraryDirectories.filter {
+                it.canonicalFile.path.startsWith(home.path + File.separator)
+            }
         )
         when (dependencyResolution) {
             is JvmNativeDependencyResolution.Resolved -> Unit
