@@ -155,7 +155,7 @@ private fun isSupportedEmbeddedJvmOption(option: String): Boolean {
         option.substringAfter('=', "").isNotEmpty()
 }
 
-private val HEAP_OPTION = Regex("-X(?:ms|mx)[1-9][0-9]*(?:[kKmMgGtT])?")
+private val HEAP_OPTION = Regex("-X(?:ms|mx)[1-9][0-9]*[kKmMgGtT]")
 private val SUPPORTED_SYSTEM_PROPERTIES = setOf(
     "java.class.path",
     "java.home",
