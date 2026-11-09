@@ -12,7 +12,8 @@ import java.io.File
  */
 class NativeJvmRuntimePreparer(
     private val probe: NativeJvmLibraryProbe,
-    private val loader: NativeJvmLibraryLoader
+    private val loader: NativeJvmLibraryLoader,
+    private val dependencyResolver: JvmNativeDependencyResolver = JvmNativeDependencyResolver()
 ) {
     fun prepare(
         runtime: JavaRuntimeInstallation,
@@ -31,6 +32,24 @@ class NativeJvmRuntimePreparer(
             jvmLibrary = library,
             applicationNativeDirectory = applicationNativeDirectory
         )
+
+        val dependencyResolution = dependencyResolver.resolve(
+            rootLibrary = library,
+            runtimeHome = home,
+            searchDirectories = layout.libraryDirectories
+        )
+        when (dependencyResolution) {
+            is JvmNativeDependencyResolution.Resolved -> Unit
+            is JvmNativeDependencyResolution.Unresolved ->
+                return NativeJvmRuntimePreparationResult.Failed(
+                    "JVM dependency ${dependencyResolution.library} requested by " +
+                        "${dependencyResolution.requestedBy.name} was not found in approved runtime directories."
+                )
+            is JvmNativeDependencyResolution.Rejected ->
+                return NativeJvmRuntimePreparationResult.Failed(
+                    "JVM dependency metadata was rejected: ${dependencyResolution.diagnostic}"
+                )
+        }
 
         val preflight = probe.inspect(runtime)
         if (!preflight.available) {
