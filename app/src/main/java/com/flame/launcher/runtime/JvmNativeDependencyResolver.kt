@@ -29,7 +29,9 @@ sealed interface JvmNativeDependencyResolution {
     data class Resolved(
         val rootLibrary: File,
         val runtimeLibraries: Map<String, File>,
-        val approvedSystemLibraries: Set<String>
+        val approvedSystemLibraries: Set<String>,
+        /** Runtime dependencies ordered deepest-first for safe explicit loading. */
+        val runtimeLoadOrder: List<File>
     ) : JvmNativeDependencyResolution
 
     data class Unresolved(
@@ -84,27 +86,30 @@ class JvmNativeDependencyResolver(
         val resolved = linkedMapOf<String, File>()
         val system = linkedSetOf<String>()
         val visited = linkedSetOf<File>()
-        val queue = ArrayDeque<Pair<File, String?>>()
-        queue.add(root to null)
+        val ordered = linkedSetOf<File>()
+        var failure: JvmNativeDependencyResolution? = null
 
-        while (queue.isNotEmpty()) {
-            val (requester, _) = queue.removeFirst()
-            if (!visited.add(requester)) continue
-
+        // Visit each dependency before its requester. Android's linker may not
+        // discover private JRE directories by SONAME, so the native bridge
+        // explicitly retains these absolute paths before loading libjvm.
+        fun visit(requester: File) {
+            if (failure != null || !visited.add(requester)) return
             val needed = try {
                 metadataReader.inspect(requester).neededLibraries
             } catch (error: Exception) {
-                return JvmNativeDependencyResolution.Rejected(
+                failure = JvmNativeDependencyResolution.Rejected(
                     "Unable to inspect ELF dependencies for ${requester.name}: " +
                         (error.message ?: "metadata reader failed.")
                 )
+                return
             }
 
             for (name in needed) {
                 if (!isSafeSoname(name)) {
-                    return JvmNativeDependencyResolution.Rejected(
+                    failure = JvmNativeDependencyResolution.Rejected(
                         "ELF dependency contains an invalid library name: $name"
                     )
+                    return
                 }
                 if (name in approvedSystemLibraries) {
                     system += name
@@ -119,30 +124,38 @@ class JvmNativeDependencyResolver(
                     .distinct()
 
                 if (candidates.isEmpty()) {
-                    return JvmNativeDependencyResolution.Unresolved(name, requester)
+                    failure = JvmNativeDependencyResolution.Unresolved(name, requester)
+                    return
                 }
                 if (candidates.size > 1) {
-                    return JvmNativeDependencyResolution.Rejected(
+                    failure = JvmNativeDependencyResolution.Rejected(
                         "ELF dependency $name resolves to multiple runtime files."
                     )
+                    return
                 }
 
                 val dependency = candidates.single()
                 val previous = resolved[name]
                 if (previous != null && previous != dependency) {
-                    return JvmNativeDependencyResolution.Rejected(
+                    failure = JvmNativeDependencyResolution.Rejected(
                         "ELF dependency $name resolves inconsistently within the runtime."
                     )
+                    return
                 }
                 resolved[name] = dependency
-                if (dependency !in visited) queue.add(dependency to name)
+                visit(dependency)
+                if (failure != null) return
+                if (dependency != root) ordered += dependency
             }
         }
 
+        visit(root)
+        failure?.let { return it }
         return JvmNativeDependencyResolution.Resolved(
             rootLibrary = root,
             runtimeLibraries = resolved.toMap(),
-            approvedSystemLibraries = system.toSet()
+            approvedSystemLibraries = system.toSet(),
+            runtimeLoadOrder = ordered.toList()
         )
     }
 
