@@ -27,7 +27,8 @@ class NativeJvmRuntimePreparerTest {
                 loader = NativeJvmLibraryLoader(nativeRetainer = { _ ->
                     events += "retain"
                     "OK: handle retained"
-                })
+                }),
+                dependencyResolver = emptyDependencyResolver()
             )
 
             val result = preparer.prepare(runtime(home, library), natives)
@@ -57,7 +58,8 @@ class NativeJvmRuntimePreparerTest {
                 loader = NativeJvmLibraryLoader(nativeRetainer = { _ ->
                     retained = true
                     "OK: preflight passed"
-                })
+                }),
+                dependencyResolver = emptyDependencyResolver()
             )
 
             val result = preparer.prepare(runtime(home, library))
@@ -86,7 +88,8 @@ class NativeJvmRuntimePreparerTest {
                 loader = NativeJvmLibraryLoader(nativeRetainer = { _ ->
                     events += "retain"
                     "ERROR: another JVM is retained"
-                })
+                }),
+                dependencyResolver = emptyDependencyResolver()
             )
 
             val result = preparer.prepare(runtime(home, library))
@@ -99,6 +102,35 @@ class NativeJvmRuntimePreparerTest {
             root.deleteRecursively()
         }
     }
+
+    @Test
+    fun unresolvedElfDependencyStopsBeforeNativeProbeOrLoad() {
+        val root = Files.createTempDirectory("flame-jvm-unresolved-dep").toFile()
+        try {
+            val home = File(root, "runtime").apply { mkdirs() }
+            val library = File(home, "lib/server/libjvm.so").apply { parentFile.mkdirs(); writeBytes(byteArrayOf(1)) }
+            val events = mutableListOf<String>()
+            val resolver = JvmNativeDependencyResolver(
+                JvmElfDynamicMetadataReader { JvmElfDynamicMetadata(listOf("libmissing-runtime.so")) }
+            )
+            val preparer = NativeJvmRuntimePreparer(
+                probe = NativeJvmLibraryProbe { events += "probe"; "OK: probe" },
+                loader = NativeJvmLibraryLoader(nativeRetainer = { events += "retain"; "OK: retained" }),
+                dependencyResolver = resolver
+            )
+
+            val result = preparer.prepare(runtime(home, library))
+
+            assertTrue(result is NativeJvmRuntimePreparationResult.Failed)
+            assertTrue((result as NativeJvmRuntimePreparationResult.Failed).diagnostic.contains("libmissing-runtime.so"))
+            assertTrue(events.isEmpty())
+        } finally {
+            root.deleteRecursively()
+        }
+    }
+    private fun emptyDependencyResolver() = JvmNativeDependencyResolver(
+        JvmElfDynamicMetadataReader { JvmElfDynamicMetadata(emptyList()) }
+    )
 
     private fun runtime(home: File, library: File) = JavaRuntimeInstallation(
         id = "runtime",
