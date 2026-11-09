@@ -50,6 +50,17 @@ class JvmElfDynamicMetadataReaderTest {
         }
     }
 
+
+    @Test
+    fun rejectsNeededStringWithoutTerminatorInsideStringTable() {
+        withElf64(
+            neededOffset = 1,
+            stringTable = byteArrayOf(0, *"libx.so".toByteArray())
+        ) { file ->
+            assertTrue(runCatching { JvmElfDynamicMetadataReaderImpl().inspect(file) }.isFailure)
+        }
+    }
+
     @Test
     fun rejectsNonElfInput() {
         val file = Files.createTempFile("flame-not-elf", ".bin").toFile()
