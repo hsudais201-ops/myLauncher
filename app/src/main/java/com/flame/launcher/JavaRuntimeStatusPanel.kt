@@ -199,12 +199,7 @@ fun JavaRuntimeStatusPanel() {
                 probeDiagnostic?.let { diagnostic ->
                     Text(
                         text = diagnostic,
-                        color = if (
-                            diagnostic.startsWith("OK:") &&
-                            !diagnostic.contains("BLOCKED:") &&
-                            !diagnostic.contains("WARN:") &&
-                            !diagnostic.contains("ERROR:")
-                        ) {
+                        color = if (isSuccessfulJvmDiagnostic(diagnostic)) {
                             Color(0xFF8AD6A0)
                         } else {
                             Color(0xFFFF9A85)
@@ -216,12 +211,7 @@ fun JavaRuntimeStatusPanel() {
                 preparationDiagnostic?.let { diagnostic ->
                     Text(
                         text = diagnostic,
-                        color = if (
-                            diagnostic.startsWith("OK:") &&
-                            !diagnostic.contains("BLOCKED:") &&
-                            !diagnostic.contains("WARN:") &&
-                            !diagnostic.contains("ERROR:")
-                        ) {
+                        color = if (isSuccessfulJvmDiagnostic(diagnostic)) {
                             Color(0xFF8AD6A0)
                         } else {
                             Color(0xFFFF9A85)
