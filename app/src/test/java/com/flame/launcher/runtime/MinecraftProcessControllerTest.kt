@@ -75,6 +75,93 @@ class MinecraftProcessControllerTest {
         }
     }
 
+    @Test
+    fun stopBeforeWorkerStartsCancelsWithoutStartingHost() {
+        val workerBlocked = CountDownLatch(1)
+        val releaseWorker = CountDownLatch(1)
+        val terminal = CountDownLatch(1)
+        val hostStarted = AtomicBoolean(false)
+        val executor = Executors.newSingleThreadExecutor()
+        executor.execute {
+            workerBlocked.countDown()
+            check(releaseWorker.await(5, TimeUnit.SECONDS))
+        }
+        assertTrue(workerBlocked.await(5, TimeUnit.SECONDS))
+
+        val host = object : MinecraftProcessHost {
+            override fun start(
+                command: MinecraftLaunchCommand,
+                onOutput: (String) -> Unit
+            ): MinecraftRunningProcess {
+                hostStarted.set(true)
+                return object : MinecraftRunningProcess {
+                    override fun awaitExit(): Int = 0
+                    override fun requestStop() = Unit
+                }
+            }
+        }
+        val controller = MinecraftProcessController(host, executor)
+        try {
+            val command = MinecraftLaunchCommand(
+                executable = File("/unused/java"),
+                workingDirectory = File("/unused/game"),
+                arguments = emptyList(),
+                classPath = emptyList()
+            )
+            val id = controller.launch(command) { event ->
+                if (event is MinecraftProcessEvent.StateChanged &&
+                    event.snapshot.state.isTerminalForTest()
+                ) terminal.countDown()
+            }
+
+            assertTrue(controller.stop(id))
+            releaseWorker.countDown()
+            assertTrue(terminal.await(5, TimeUnit.SECONDS))
+            assertFalse(hostStarted.get())
+            assertEquals(MinecraftProcessState.CANCELLED, controller.snapshot(id)?.state)
+        } finally {
+            releaseWorker.countDown()
+            controller.close()
+        }
+    }
+
+    @Test
+    fun startupFailureRedactsAccessTokenFromSessionError() {
+        val token = "private-startup-token"
+        val terminal = CountDownLatch(1)
+        val executor = Executors.newSingleThreadExecutor()
+        val host = object : MinecraftProcessHost {
+            override fun start(
+                command: MinecraftLaunchCommand,
+                onOutput: (String) -> Unit
+            ): MinecraftRunningProcess {
+                throw IllegalStateException("Native startup rejected token=$token")
+            }
+        }
+        val controller = MinecraftProcessController(host, executor)
+        try {
+            val command = MinecraftLaunchCommand(
+                executable = File("/unused/java"),
+                workingDirectory = File("/unused/game"),
+                arguments = listOf("--accessToken", token),
+                classPath = emptyList()
+            )
+            val id = controller.launch(command) { event ->
+                if (event is MinecraftProcessEvent.StateChanged &&
+                    event.snapshot.state.isTerminalForTest()
+                ) terminal.countDown()
+            }
+
+            assertTrue(terminal.await(5, TimeUnit.SECONDS))
+            val snapshot = controller.snapshot(id)
+            assertEquals(MinecraftProcessState.FAILED, snapshot?.state)
+            assertFalse(snapshot?.error.orEmpty().contains(token))
+            assertTrue(snapshot?.error.orEmpty().contains("[REDACTED]"))
+        } finally {
+            controller.close()
+        }
+    }
+
     private fun MinecraftProcessState.isTerminalForTest(): Boolean =
         this == MinecraftProcessState.EXITED ||
             this == MinecraftProcessState.CANCELLED ||
