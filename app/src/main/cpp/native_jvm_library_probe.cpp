@@ -3,10 +3,15 @@
 #include <elf.h>
 #include <cstdint>
 #include <fstream>
+#include <mutex>
 #include <string>
 #include <type_traits>
 
 namespace {
+
+std::mutex g_jvm_loader_mutex;
+void* g_retained_jvm_handle = nullptr;
+std::string g_retained_jvm_path;
 
 jstring ToJavaString(JNIEnv* env, const std::string& value) {
     return env->NewStringUTF(value.c_str());
@@ -209,4 +214,80 @@ Java_com_flame_launcher_runtime_NativeJvmLibraryProbe_nativeInspectJvmLibrary(
     }
 
     return ToJavaString(env, "OK: ELF ABI and program-header bounds match, Android linker loaded libjvm, and JNI invocation symbols are exported.");
+}
+
+
+/*
+ * Retain exactly one embedded JVM for the lifetime of this Android process.
+ * JNI invocation permits one VM per process in the supported Android setup;
+ * unloading libjvm while Java/native threads may still exist is unsafe.
+ */
+extern "C"
+JNIEXPORT jstring JNICALL
+Java_com_flame_launcher_runtime_NativeJvmLibraryLoader_nativeRetainJvmLibrary(
+    JNIEnv* env,
+    jobject /* receiver */,
+    jstring java_path
+) {
+    if (java_path == nullptr) {
+        return ToJavaString(env, "ERROR: JVM library path is missing.");
+    }
+    const char* path_chars = env->GetStringUTFChars(java_path, nullptr);
+    if (path_chars == nullptr) {
+        return ToJavaString(env, "ERROR: Unable to read JVM library path.");
+    }
+    const std::string path(path_chars);
+    env->ReleaseStringUTFChars(java_path, path_chars);
+
+    const std::string elf_error = ValidateElf(path);
+    if (!elf_error.empty()) {
+        return ToJavaString(env, elf_error);
+    }
+
+    std::lock_guard<std::mutex> lock(g_jvm_loader_mutex);
+    if (g_retained_jvm_handle != nullptr) {
+        if (g_retained_jvm_path == path) {
+            return ToJavaString(env, "OK: libjvm is already retained for this process.");
+        }
+        return ToJavaString(
+            env,
+            "ERROR: This Android process already retains a different JVM; "
+            "a second embedded runtime cannot be loaded."
+        );
+    }
+
+    dlerror();
+    void* handle = dlopen(path.c_str(), RTLD_NOW | RTLD_GLOBAL);
+    if (handle == nullptr) {
+        const char* error = dlerror();
+        return ToJavaString(
+            env,
+            std::string("ERROR: Android linker could not retain libjvm: ") +
+                (error == nullptr ? "unknown linker error" : error)
+        );
+    }
+
+    dlerror();
+    void* create_vm = dlsym(handle, "JNI_CreateJavaVM");
+    const char* create_error = dlerror();
+    dlerror();
+    void* get_created_vms = dlsym(handle, "JNI_GetCreatedJavaVMs");
+    const char* list_error = dlerror();
+    if (create_vm == nullptr || create_error != nullptr ||
+        get_created_vms == nullptr || list_error != nullptr) {
+        dlclose(handle);
+        return ToJavaString(
+            env,
+            "ERROR: Retained library does not export the required JNI invocation symbols."
+        );
+    }
+
+    // Intentionally never dlclose this handle. The process-wide VM and its
+    // native threads may continue to execute after the game screen is closed.
+    g_retained_jvm_path = path;
+    g_retained_jvm_handle = handle;
+    return ToJavaString(
+        env,
+        "OK: libjvm is loaded globally and its handle is retained for process lifetime."
+    );
 }
