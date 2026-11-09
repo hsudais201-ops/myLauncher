@@ -17,7 +17,7 @@ class NativeJvmLibraryLoader internal constructor(
     private val nativeRetainer: ((String) -> String)? = null
 ) {
     init {
-        if ((nativeRetainer == null && nativeRuntimeRetainer == null) || nativeVmInspector == null) {
+        if (nativeRetainer == null && nativeRuntimeRetainer == null && nativeVmInspector == null) {
             System.loadLibrary(NATIVE_LIBRARY_NAME)
         }
     }
