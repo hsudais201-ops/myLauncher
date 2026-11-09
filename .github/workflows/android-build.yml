@@ -42,6 +42,23 @@ jobs:
       - name: Install Android SDK platform, build tools, NDK, and CMake
         run: sdkmanager "platforms;android-36" "build-tools;36.0.0" "ndk;27.2.12479018" "cmake;3.22.1"
 
+      - name: Provision Gradle distribution with retry
+        shell: bash
+        run: |
+          # The wrapper distribution is hosted behind a redirect that can
+          # intermittently return HTTP 504. Retry only the provisioning step;
+          # real build/test failures remain immediately visible below.
+          for attempt in 1 2 3; do
+            if ./gradlew --no-daemon --version; then
+              break
+            fi
+            if [ "$attempt" -eq 3 ]; then
+              echo "Gradle distribution provisioning failed after 3 attempts."
+              exit 1
+            fi
+            sleep $((attempt * 15))
+          done
+
       - name: Run unit tests and assemble debug APK
         run: ./gradlew --no-daemon testDebugUnitTest assembleDebug
 
