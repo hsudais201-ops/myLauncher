@@ -82,7 +82,7 @@ class JvmElfDynamicMetadataReaderTest {
             out.putInt(120, 2)
             out.putLong(128, 0x180L)
             out.putLong(136, 0x180L)
-            out.putLong(152, 48L)
+            out.putLong(152, 64L)
 
             out.putLong(0x180, 1L) // DT_NEEDED
             out.putLong(0x188, neededOffset)
