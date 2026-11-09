@@ -42,7 +42,7 @@ sealed interface JvmNativeDependencyResolution {
  * names fail closed rather than depending on linker search-order accidents.
  */
 class JvmNativeDependencyResolver(
-    private val metadataReader: JvmElfDynamicMetadataReader,
+    private val metadataReader: JvmElfDynamicMetadataReader = JvmElfDynamicMetadataReaderImpl(),
     approvedSystemLibraries: Set<String> = DEFAULT_ANDROID_SYSTEM_LIBRARIES
 ) {
     private val approvedSystemLibraries = approvedSystemLibraries.toSet()
