@@ -50,7 +50,7 @@ class JvmElfDynamicMetadataReaderImpl : JvmElfDynamicMetadataReader {
             val phentsize = header.u16(if (elfClass == ELFCLASS32) 42 else 54)
             val phnum = header.u16(if (elfClass == ELFCLASS32) 44 else 56)
             val expectedPhSize = if (elfClass == ELFCLASS32) ELF32_PROGRAM_HEADER_SIZE else ELF64_PROGRAM_HEADER_SIZE
-            require(ehsize >= headerSize) { "Invalid ELF header size." }
+            require(ehsize >= headerSize && ehsize <= length) { "Invalid ELF header size." }
             require(phentsize >= expectedPhSize) { "Invalid program-header entry size." }
             require(phnum > 0) { "ELF has no program headers." }
             requireRange(phoff, phentsize.toLong() * phnum, length, "Program-header table")
