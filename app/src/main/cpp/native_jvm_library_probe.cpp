@@ -457,3 +457,80 @@ Java_com_flame_launcher_runtime_NativeJvmLibraryLoader_nativeInspectVmState(
             " created VM(s); no VM was created or modified by this check."
     );
 }
+
+
+/*
+ * Compare the selected OpenJDK invocation entry point with the symbol that
+ * an ordinary process-wide lookup would resolve. Android apps already run on
+ * ART; this diagnostic makes symbol interposition visible without calling
+ * JNI_CreateJavaVM or JNI_GetCreatedJavaVMs through the global namespace.
+ */
+namespace {
+std::string DescribeSymbolProvider(void* symbol) {
+    if (symbol == nullptr) return "unresolved";
+    Dl_info info = {};
+    if (dladdr(symbol, &info) == 0 || info.dli_fname == nullptr) {
+        return "unknown provider";
+    }
+    return std::string(info.dli_fname);
+}
+}  // namespace
+
+extern "C"
+JNIEXPORT jstring JNICALL
+Java_com_flame_launcher_runtime_NativeJvmLibraryLoader_nativeInspectInvocationApi(
+    JNIEnv* env,
+    jobject /* receiver */
+) {
+    std::lock_guard<std::mutex> lock(g_jvm_loader_mutex);
+    if (g_retained_jvm_handle == nullptr) {
+        return ToJavaString(env, "ERROR: Retain the selected OpenJDK runtime before inspecting JNI invocation providers.");
+    }
+
+    dlerror();
+    void* selected_create = dlsym(g_retained_jvm_handle, "JNI_CreateJavaVM");
+    const char* selected_error = dlerror();
+    if (selected_create == nullptr || selected_error != nullptr) {
+        return ToJavaString(env, "ERROR: Selected OpenJDK does not expose JNI_CreateJavaVM.");
+    }
+
+    dlerror();
+    void* process_create = dlsym(RTLD_DEFAULT, "JNI_CreateJavaVM");
+    const char* process_error = dlerror();
+    if (process_create == nullptr || process_error != nullptr) {
+        return ToJavaString(
+            env,
+            "WARN: No process-global JNI_CreateJavaVM provider was found; "
+            "the selected OpenJDK provider is " + DescribeSymbolProvider(selected_create) + "."
+        );
+    }
+
+    const std::string selected_provider = DescribeSymbolProvider(selected_create);
+    const std::string process_provider = DescribeSymbolProvider(process_create);
+    if (process_provider.find("libart.so") != std::string::npos) {
+        return ToJavaString(
+            env,
+            "BLOCKED: process-global JNI_CreateJavaVM resolves to Android ART (" +
+                process_provider + "), while the selected OpenJDK provider is " +
+                selected_provider +
+                ". Do not invoke either provider for a second VM until a supported "
+                "runtime-isolation strategy is verified."
+        );
+    }
+
+    if (process_create != selected_create) {
+        return ToJavaString(
+            env,
+            "WARN: process-global JNI_CreateJavaVM resolves to " + process_provider +
+                ", not the selected OpenJDK provider " + selected_provider +
+                ". Invocation is not authorized by this diagnostic."
+        );
+    }
+
+    return ToJavaString(
+        env,
+        "WARN: process-global and selected JNI_CreateJavaVM resolve to " +
+            selected_provider +
+            ". Symbol identity alone does not prove Android ART coexistence is safe."
+    );
+}
