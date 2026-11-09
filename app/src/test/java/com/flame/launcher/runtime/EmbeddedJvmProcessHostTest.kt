@@ -204,6 +204,10 @@ class EmbeddedJvmProcessHostTest {
                 executionKind = JavaRuntimeExecutionKind.EMBEDDED_JVM
             )
             val bridge = object : AndroidJvmBridge {
+                // Explicitly pass the readiness gate so this test reaches the
+                // path-validation branch it is intended to exercise.
+                override val invocationReadiness = JvmInvocationReadiness.Ready
+
                 override fun start(
                     runtimeLayout: EmbeddedJvmRuntimeLayout,
                     createPlan: EmbeddedJvmCreatePlan,
