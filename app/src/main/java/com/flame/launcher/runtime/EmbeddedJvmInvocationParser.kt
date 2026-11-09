@@ -121,11 +121,34 @@ fun EmbeddedJvmInvocation.toVmCreationPlan(): EmbeddedJvmCreatePlan {
         it.startsWith("-Xrun") }) {
         "Java agents and native agent options are disabled in embedded launch mode."
     }
+    require(vmOptions.all(::isSupportedEmbeddedJvmOption)) {
+        "Embedded JVM option is not in Flame's supported option set."
+    }
     return EmbeddedJvmCreatePlan(
         options = vmOptions.toList(),
         ignoreUnrecognized = false
     )
 }
+
+private fun isSupportedEmbeddedJvmOption(option: String): Boolean {
+    if (HEAP_OPTION.matches(option)) return true
+    if (!option.startsWith("-D")) return false
+    val property = option.substringAfter("-D").substringBefore('=')
+    return property in SUPPORTED_SYSTEM_PROPERTIES &&
+        '=' in option &&
+        option.substringAfter('=', "").isNotEmpty()
+}
+
+private val HEAP_OPTION = Regex("-X(?:ms|mx)[1-9][0-9]*(?:[kKmMgGtT])?")
+private val SUPPORTED_SYSTEM_PROPERTIES = setOf(
+    "java.class.path",
+    "java.home",
+    "user.dir",
+    "java.library.path",
+    "org.lwjgl.librarypath",
+    "minecraft.launcher.brand",
+    "minecraft.launcher.version"
+)
 
 data class EmbeddedJvmInvocation(
     val vmOptions: List<String>,
