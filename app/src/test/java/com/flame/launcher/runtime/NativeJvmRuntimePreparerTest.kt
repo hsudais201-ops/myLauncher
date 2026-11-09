@@ -56,7 +56,7 @@ class NativeJvmRuntimePreparerTest {
                 probe = NativeJvmLibraryProbe { "ERROR: missing dependency" },
                 loader = NativeJvmLibraryLoader(nativeRetainer = { _ ->
                     retained = true
-                    "OK"
+                    "OK: preflight passed"
                 })
             )
 
