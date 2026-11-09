@@ -31,6 +31,16 @@ class JvmElfDynamicMetadataReaderTest {
     }
 
     @Test
+    fun readsRpathAndRunpathAsMetadataWithoutResolvingThem() {
+        val strings = byteArrayOf(0, *"libverify.so".toByteArray(), 0, *"\$ORIGIN/lib".toByteArray(), 0, *"\$ORIGIN/ext".toByteArray(), 0)
+        withElf64(neededOffset = 1, stringTable = strings, rpathOffset = 14, runpathOffset = 26) { file ->
+            val metadata = JvmElfDynamicMetadataReaderImpl().inspect(file)
+            assertEquals(listOf("libverify.so"), metadata.neededLibraries)
+            assertEquals(listOf("\$ORIGIN/lib"), metadata.rpathEntries)
+            assertEquals(listOf("\$ORIGIN/ext"), metadata.runpathEntries)
+        }
+    }
+    @Test
     fun rejectsNeededStringOffsetOutsideStringTable() {
         withElf64(neededOffset = 90, stringTable = byteArrayOf(0, *"libx.so".toByteArray(), 0)) { file ->
             val result = runCatching { JvmElfDynamicMetadataReaderImpl().inspect(file) }
@@ -76,6 +86,8 @@ class JvmElfDynamicMetadataReaderTest {
         neededOffset: Long,
         stringTable: ByteArray,
         terminateDynamic: Boolean = true,
+        rpathOffset: Long? = null,
+        runpathOffset: Long? = null,
         block: (File) -> Unit
     ) {
         val file = Files.createTempFile("flame-elf64", ".so").toFile()
@@ -104,7 +116,9 @@ class JvmElfDynamicMetadataReaderTest {
             out.putInt(120, 2)
             out.putLong(128, 0x180L)
             out.putLong(136, 0x180L)
-            out.putLong(152, 64L)
+            val dynamicSize = 64L + (if (rpathOffset != null) 16L else 0L) +
+                (if (runpathOffset != null) 16L else 0L)
+            out.putLong(152, dynamicSize)
 
             out.putLong(0x180, 1L) // DT_NEEDED
             out.putLong(0x188, neededOffset)
@@ -112,13 +126,23 @@ class JvmElfDynamicMetadataReaderTest {
             out.putLong(0x198, 0x200L)
             out.putLong(0x1a0, 10L) // DT_STRSZ
             out.putLong(0x1a8, stringTable.size.toLong())
+            var dynamicCursor = 0x1b0
+            if (rpathOffset != null) {
+                out.putLong(dynamicCursor.toLong(), 15L) // DT_RPATH
+                out.putLong((dynamicCursor + 8).toLong(), rpathOffset)
+                dynamicCursor += 16
+            }
+            if (runpathOffset != null) {
+                out.putLong(dynamicCursor.toLong(), 29L) // DT_RUNPATH
+                out.putLong((dynamicCursor + 8).toLong(), runpathOffset)
+                dynamicCursor += 16
+            }
             if (terminateDynamic) {
-                out.putLong(0x1b0, 0L) // DT_NULL
-                out.putLong(0x1b8, 0L)
+                out.putLong(dynamicCursor.toLong(), 0L) // DT_NULL
+                out.putLong((dynamicCursor + 8).toLong(), 0L)
             } else {
-                // A full dynamic table with no DT_NULL.
-                out.putLong(0x1b0, 1L)
-                out.putLong(0x1b8, neededOffset)
+                out.putLong(dynamicCursor.toLong(), 1L)
+                out.putLong((dynamicCursor + 8).toLong(), neededOffset)
             }
             stringTable.copyInto(bytes, 0x200)
             file.writeBytes(bytes)
