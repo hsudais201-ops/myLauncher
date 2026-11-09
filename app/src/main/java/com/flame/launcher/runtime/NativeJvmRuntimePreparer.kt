@@ -44,8 +44,8 @@ class NativeJvmRuntimePreparer(
                 it.canonicalFile.path.startsWith(home.path + File.separator)
             }
         )
-        when (dependencyResolution) {
-            is JvmNativeDependencyResolution.Resolved -> Unit
+        val runtimeLoadOrder = when (dependencyResolution) {
+            is JvmNativeDependencyResolution.Resolved -> dependencyResolution.runtimeLoadOrder
             is JvmNativeDependencyResolution.Unresolved ->
                 return NativeJvmRuntimePreparationResult.Failed(
                     "JVM dependency ${dependencyResolution.library} requested by " +
@@ -64,7 +64,7 @@ class NativeJvmRuntimePreparer(
             )
         }
 
-        val retained = loader.retain(runtime)
+        val retained = loader.retain(runtime, runtimeLoadOrder)
         if (!retained.retained) {
             return NativeJvmRuntimePreparationResult.Failed(
                 "JVM handle retention failed: ${retained.diagnostic}"
