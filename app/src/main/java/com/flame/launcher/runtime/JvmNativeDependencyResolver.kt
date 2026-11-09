@@ -1,7 +1,6 @@
 package com.flame.launcher.runtime
 
 import java.io.File
-import java.util.ArrayDeque
 
 /**
  * ELF dynamic-section facts supplied by a platform-specific reader.
