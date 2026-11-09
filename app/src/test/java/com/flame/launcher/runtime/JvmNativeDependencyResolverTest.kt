@@ -115,6 +115,33 @@ class JvmNativeDependencyResolverTest {
     }
 
     @Test
+    fun doesNotTrustRpathOrRunpathAsSearchDirectories() {
+        val root = Files.createTempDirectory("flame-elf-rpath-untrusted").toFile()
+        try {
+            val home = File(root, "runtime").apply { mkdirs() }
+            val vm = File(home, "lib/server").apply { mkdirs() }
+            val external = File(root, "external").apply { mkdirs() }
+            val jvm = File(vm, "libjvm.so").apply { writeBytes(byteArrayOf(1)) }
+            File(external, "liboutside.so").writeBytes(byteArrayOf(2))
+            val resolver = JvmNativeDependencyResolver(
+                JvmElfDynamicMetadataReader {
+                    JvmElfDynamicMetadata(
+                        neededLibraries = listOf("liboutside.so"),
+                        rpathEntries = listOf(external.absolutePath),
+                        runpathEntries = listOf("\$ORIGIN/../../external")
+                    )
+                }
+            )
+
+            val result = resolver.resolve(jvm, home, listOf(vm))
+
+            assertTrue(result is JvmNativeDependencyResolution.Unresolved)
+            assertEquals("liboutside.so", (result as JvmNativeDependencyResolution.Unresolved).library)
+        } finally {
+            root.deleteRecursively()
+        }
+    }
+    @Test
     fun rejectsSearchDirectoriesOutsideRuntimeHome() {
         val root = Files.createTempDirectory("flame-elf-outside").toFile()
         try {
