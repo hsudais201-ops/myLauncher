@@ -10,5 +10,5 @@ package com.flame.launcher
 internal fun isSuccessfulJvmDiagnostic(diagnostic: String): Boolean {
     val normalized = diagnostic.trim()
     if (!normalized.startsWith("OK:")) return false
-    return listOf("BLOCKED:", "WARN:", "ERROR:").none(normalized::contains)
+    return listOf("BLOCKED:", "WARN:", "ERROR:").none { marker -> normalized.contains(marker) }
 }
