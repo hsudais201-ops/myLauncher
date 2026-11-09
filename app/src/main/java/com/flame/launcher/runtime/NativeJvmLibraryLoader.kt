@@ -12,8 +12,8 @@ import java.io.File
  * active can crash the Android application.
  */
 class NativeJvmLibraryLoader internal constructor(
-    private val nativeRetainer: ((String) -> String)? = null,
-    private val nativeVmInspector: (() -> String)? = null
+    private val nativeVmInspector: (() -> String)? = null,
+    private val nativeRetainer: ((String) -> String)? = null
 ) {
     init {
         if (nativeRetainer == null && nativeVmInspector == null) {
