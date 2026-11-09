@@ -6,6 +6,7 @@
 #include <mutex>
 #include <string>
 #include <type_traits>
+#include <vector>
 
 namespace {
 
@@ -14,6 +15,7 @@ void* g_retained_jvm_handle = nullptr;
 using GetCreatedJavaVmsFn = jint (JNICALL *)(JavaVM**, jsize, jsize*);
 GetCreatedJavaVmsFn g_get_created_java_vms = nullptr;
 std::string g_retained_jvm_path;
+std::vector<void*> g_retained_dependency_handles;
 
 jstring ToJavaString(JNIEnv* env, const std::string& value) {
     return env->NewStringUTF(value.c_str());
@@ -224,13 +226,9 @@ Java_com_flame_launcher_runtime_NativeJvmLibraryProbe_nativeInspectJvmLibrary(
  * JNI invocation permits one VM per process in the supported Android setup;
  * unloading libjvm while Java/native threads may still exist is unsafe.
  */
-extern "C"
-JNIEXPORT jstring JNICALL
-Java_com_flame_launcher_runtime_NativeJvmLibraryLoader_nativeRetainJvmLibrary(
-    JNIEnv* env,
-    jobject /* receiver */,
-    jstring java_path
-) {
+namespace {
+
+jstring RetainJvmRuntime(JNIEnv* env, jstring java_path, jobjectArray dependency_paths) {
     if (java_path == nullptr) {
         return ToJavaString(env, "ERROR: JVM library path is missing.");
     }
@@ -241,15 +239,10 @@ Java_com_flame_launcher_runtime_NativeJvmLibraryLoader_nativeRetainJvmLibrary(
     const std::string path(path_chars);
     env->ReleaseStringUTFChars(java_path, path_chars);
 
-    const std::string elf_error = ValidateElf(path);
-    if (!elf_error.empty()) {
-        return ToJavaString(env, elf_error);
-    }
-
     std::lock_guard<std::mutex> lock(g_jvm_loader_mutex);
     if (g_retained_jvm_handle != nullptr) {
         if (g_retained_jvm_path == path) {
-            return ToJavaString(env, "OK: libjvm is already retained for this process.");
+            return ToJavaString(env, "OK: libjvm and its runtime dependencies are already retained for this process.");
         }
         return ToJavaString(
             env,
@@ -258,10 +251,62 @@ Java_com_flame_launcher_runtime_NativeJvmLibraryLoader_nativeRetainJvmLibrary(
         );
     }
 
+    std::vector<void*> newly_loaded;
+    const jsize dependency_count = dependency_paths == nullptr
+        ? 0
+        : env->GetArrayLength(dependency_paths);
+    for (jsize index = 0; index < dependency_count; ++index) {
+        auto dependency = static_cast<jstring>(
+            env->GetObjectArrayElement(dependency_paths, index)
+        );
+        if (dependency == nullptr) {
+            for (auto it = newly_loaded.rbegin(); it != newly_loaded.rend(); ++it) dlclose(*it);
+            return ToJavaString(env, "ERROR: JVM dependency path is null.");
+        }
+        const char* dependency_chars = env->GetStringUTFChars(dependency, nullptr);
+        if (dependency_chars == nullptr) {
+            env->DeleteLocalRef(dependency);
+            for (auto it = newly_loaded.rbegin(); it != newly_loaded.rend(); ++it) dlclose(*it);
+            return ToJavaString(env, "ERROR: Unable to read JVM dependency path.");
+        }
+        const std::string dependency_path(dependency_chars);
+        env->ReleaseStringUTFChars(dependency, dependency_chars);
+        env->DeleteLocalRef(dependency);
+
+        const std::string dependency_elf_error = ValidateElf(dependency_path);
+        if (!dependency_elf_error.empty()) {
+            for (auto it = newly_loaded.rbegin(); it != newly_loaded.rend(); ++it) dlclose(*it);
+            return ToJavaString(
+                env,
+                "ERROR: JVM runtime dependency failed ELF validation: " + dependency_elf_error
+            );
+        }
+
+        dlerror();
+        void* dependency_handle = dlopen(dependency_path.c_str(), RTLD_NOW | RTLD_GLOBAL);
+        if (dependency_handle == nullptr) {
+            const char* error = dlerror();
+            for (auto it = newly_loaded.rbegin(); it != newly_loaded.rend(); ++it) dlclose(*it);
+            return ToJavaString(
+                env,
+                std::string("ERROR: Android linker could not preload JVM dependency: ") +
+                    (error == nullptr ? "unknown linker error" : error)
+            );
+        }
+        newly_loaded.push_back(dependency_handle);
+    }
+
+    const std::string elf_error = ValidateElf(path);
+    if (!elf_error.empty()) {
+        for (auto it = newly_loaded.rbegin(); it != newly_loaded.rend(); ++it) dlclose(*it);
+        return ToJavaString(env, elf_error);
+    }
+
     dlerror();
     void* handle = dlopen(path.c_str(), RTLD_NOW | RTLD_GLOBAL);
     if (handle == nullptr) {
         const char* error = dlerror();
+        for (auto it = newly_loaded.rbegin(); it != newly_loaded.rend(); ++it) dlclose(*it);
         return ToJavaString(
             env,
             std::string("ERROR: Android linker could not retain libjvm: ") +
@@ -278,23 +323,47 @@ Java_com_flame_launcher_runtime_NativeJvmLibraryLoader_nativeRetainJvmLibrary(
     if (create_vm == nullptr || create_error != nullptr ||
         get_created_vms == nullptr || list_error != nullptr) {
         dlclose(handle);
+        for (auto it = newly_loaded.rbegin(); it != newly_loaded.rend(); ++it) dlclose(*it);
         return ToJavaString(
             env,
             "ERROR: Retained library does not export the required JNI invocation symbols."
         );
     }
 
-    // Intentionally never dlclose this handle. The process-wide VM and its
-    // native threads may continue to execute after the game screen is closed.
+    // The dependency-first handles and libjvm are process-lifetime references.
+    // Releasing them while VM-owned code or threads are active is unsafe.
+    g_retained_dependency_handles = std::move(newly_loaded);
     g_retained_jvm_path = path;
     g_get_created_java_vms = reinterpret_cast<GetCreatedJavaVmsFn>(get_created_vms);
     g_retained_jvm_handle = handle;
     return ToJavaString(
         env,
-        "OK: libjvm is loaded globally and its handle is retained for process lifetime."
+        "OK: JVM runtime dependencies were preloaded in order and libjvm is retained for process lifetime."
     );
 }
 
+}  // namespace
+
+extern "C"
+JNIEXPORT jstring JNICALL
+Java_com_flame_launcher_runtime_NativeJvmLibraryLoader_nativeRetainJvmLibrary(
+    JNIEnv* env,
+    jobject /* receiver */,
+    jstring java_path
+) {
+    return RetainJvmRuntime(env, java_path, nullptr);
+}
+
+extern "C"
+JNIEXPORT jstring JNICALL
+Java_com_flame_launcher_runtime_NativeJvmLibraryLoader_nativeRetainJvmRuntime(
+    JNIEnv* env,
+    jobject /* receiver */,
+    jstring java_path,
+    jobjectArray dependency_paths
+) {
+    return RetainJvmRuntime(env, java_path, dependency_paths);
+}
 
 /*
  * Query only the selected embedded OpenJDK library. This does not enumerate
