@@ -104,6 +104,8 @@ class EmbeddedJvmProcessHostTest {
                 override fun requestStop() { }
             }
             val bridge = object : AndroidJvmBridge {
+                override val invocationReadiness = JvmInvocationReadiness.Ready
+
                 override fun start(
                     runtimeLayout: EmbeddedJvmRuntimeLayout,
                     createPlan: EmbeddedJvmCreatePlan,
@@ -137,6 +139,49 @@ class EmbeddedJvmProcessHostTest {
             assertEquals("JVM started", output.toString())
             assertNotNull(running)
             assertEquals(0, running.awaitExit())
+        } finally {
+            root.deleteRecursively()
+        }
+    }
+
+    @Test
+    fun hostRefusesBridgeWithDefaultUnverifiedReadinessBeforeStarting() {
+        val root = Files.createTempDirectory("flame-embedded-host-unverified").toFile()
+        try {
+            val runtimeHome = File(root, "runtime").apply { mkdirs() }
+            val jvm = File(runtimeHome, "lib/server/libjvm.so").apply {
+                parentFile?.mkdirs()
+                writeBytes(byteArrayOf(3))
+            }
+            val game = File(root, "game").apply { mkdirs() }
+            val clientJar = File(game, "client.jar").apply { writeBytes(byteArrayOf(4)) }
+            val command = MinecraftLaunchCommand(
+                executable = null,
+                workingDirectory = game,
+                arguments = listOf(
+                    "-Xmx512M", "-cp", clientJar.absolutePath,
+                    "net.minecraft.client.main.Main"
+                ),
+                classPath = listOf(clientJar.absolutePath),
+                runtimeHome = runtimeHome,
+                jvmLibrary = jvm,
+                executionKind = JavaRuntimeExecutionKind.EMBEDDED_JVM
+            )
+            val bridge = object : AndroidJvmBridge {
+                override fun start(
+                    runtimeLayout: EmbeddedJvmRuntimeLayout,
+                    createPlan: EmbeddedJvmCreatePlan,
+                    workingDirectory: File,
+                    invocation: EmbeddedJvmInvocation,
+                    onOutput: (String) -> Unit
+                ): AndroidJvmSession = error("Unverified bridge must never be called.")
+            }
+
+            val failure = assertThrows(IllegalStateException::class.java) {
+                EmbeddedJvmProcessHost(bridge).start(command) { }
+            }
+
+            assertTrue(failure.message.orEmpty().contains("not verified"))
         } finally {
             root.deleteRecursively()
         }
