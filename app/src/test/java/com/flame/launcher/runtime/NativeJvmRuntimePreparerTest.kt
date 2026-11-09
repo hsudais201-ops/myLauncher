@@ -128,7 +128,7 @@ class NativeJvmRuntimePreparerTest {
             val preparer = NativeJvmRuntimePreparer(
                 probe = NativeJvmLibraryProbe {
                     events += "probe"
-                    "OK"
+                    "OK: probe passed"
                 },
                 loader = NativeJvmLibraryLoader(nativeRetainer = { _ ->
                     events += "retain"
