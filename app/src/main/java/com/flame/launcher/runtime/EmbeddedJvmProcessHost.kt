@@ -20,6 +20,17 @@ class EmbeddedJvmProcessHost(
         require(command.executionKind == JavaRuntimeExecutionKind.EMBEDDED_JVM) {
             "Embedded JVM host received a process-based Java runtime."
         }
+        // Fail closed: a bridge must explicitly prove its JNI invocation path
+        // is safe alongside Android ART before any native VM creation attempt.
+        val readiness = bridge.invocationReadiness
+        check(readiness.mayInvokeCreateJavaVm) {
+            when (readiness) {
+                is JvmInvocationReadiness.Blocked -> readiness.diagnostic
+                is JvmInvocationReadiness.Unverified -> readiness.diagnostic
+                is JvmInvocationReadiness.Failed -> readiness.diagnostic
+                JvmInvocationReadiness.Ready -> "Unexpected JVM readiness state."
+            }
+        }
         val runtimeHome = command.runtimeHome?.canonicalFile
             ?: throw IllegalArgumentException("Embedded JVM runtime home is missing.")
         val jvmLibrary = command.jvmLibrary?.canonicalFile
@@ -69,6 +80,16 @@ class EmbeddedJvmProcessHost(
  * and request shutdown without terminating the Android application process.
  */
 interface AndroidJvmBridge {
+    /**
+     * Implementations remain disabled until ART coexistence and the complete
+     * native VM lifecycle have been verified on supported physical devices.
+     * The safe default prevents an incomplete bridge from starting a JVM.
+     */
+    val invocationReadiness: JvmInvocationReadiness
+        get() = JvmInvocationReadiness.Unverified(
+            "Embedded JVM invocation is not verified for Android ART coexistence."
+        )
+
     fun start(
         runtimeLayout: EmbeddedJvmRuntimeLayout,
         createPlan: EmbeddedJvmCreatePlan,
