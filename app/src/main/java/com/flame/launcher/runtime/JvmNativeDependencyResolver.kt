@@ -10,6 +10,11 @@ import java.util.ArrayDeque
  * readelf, never loads a library, and never trusts DT_RPATH/DT_RUNPATH as
  * arbitrary filesystem search paths.
  */
+/**
+ * Parsed ELF dynamic strings. RPATH/RUNPATH values are informational only;
+ * callers must not use them as filesystem search paths without a separate,
+ * strict runtime-home policy.
+ */
 data class JvmElfDynamicMetadata(
     val neededLibraries: List<String>,
     val rpathEntries: List<String> = emptyList(),
