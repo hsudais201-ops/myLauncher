@@ -24,10 +24,10 @@ class NativeJvmRuntimePreparerTest {
                     events += "probe"
                     "OK: linker accepted library"
                 },
-                loader = NativeJvmLibraryLoader {
+                loader = NativeJvmLibraryLoader(nativeRetainer = { _ ->
                     events += "retain"
                     "OK: handle retained"
-                }
+                })
             )
 
             val result = preparer.prepare(runtime(home, library), natives)
@@ -54,10 +54,10 @@ class NativeJvmRuntimePreparerTest {
             var retained = false
             val preparer = NativeJvmRuntimePreparer(
                 probe = NativeJvmLibraryProbe { "ERROR: missing dependency" },
-                loader = NativeJvmLibraryLoader {
+                loader = NativeJvmLibraryLoader(nativeRetainer = { _ ->
                     retained = true
                     "OK"
-                }
+                })
             )
 
             val result = preparer.prepare(runtime(home, library))
@@ -83,10 +83,10 @@ class NativeJvmRuntimePreparerTest {
                     events += "probe"
                     "OK"
                 },
-                loader = NativeJvmLibraryLoader {
+                loader = NativeJvmLibraryLoader(nativeRetainer = { _ ->
                     events += "retain"
                     "ERROR: another JVM is retained"
-                }
+                })
             )
 
             val result = preparer.prepare(runtime(home, library))
