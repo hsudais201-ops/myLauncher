@@ -166,6 +166,53 @@ class EmbeddedJvmInvocationParserTest {
         }
     }
 
+    @Test
+    fun convertsParsedInvocationIntoStrictJniCreationPlan() {
+        val root = Files.createTempDirectory("flame-jni-create-plan").toFile()
+        try {
+            val home = File(root, "runtime").apply { mkdirs() }
+            val game = File(root, "game").apply { mkdirs() }
+            val jar = File(game, "client.jar").apply { writeBytes(byteArrayOf(1)) }
+            val invocation = parse(
+                listOf("-Xms512M", "-Xmx1536M", "-cp", jar.absolutePath, "example.Main"),
+                jar,
+                home,
+                game
+            )
+
+            val plan = invocation.toVmCreationPlan()
+
+            assertEquals(invocation.vmOptions, plan.options)
+            assertEquals(plan.options.size, plan.optionCount)
+            assertFalse(plan.ignoreUnrecognized)
+            assertFalse(plan.options.any { it == "-cp" })
+        } finally {
+            root.deleteRecursively()
+        }
+    }
+
+    @Test
+    fun rejectsJavaAgentsFromEmbeddedJniPlan() {
+        val root = Files.createTempDirectory("flame-jni-agent-reject").toFile()
+        try {
+            val home = File(root, "runtime").apply { mkdirs() }
+            val game = File(root, "game").apply { mkdirs() }
+            val jar = File(game, "client.jar").apply { writeBytes(byteArrayOf(1)) }
+            val invocation = parse(
+                listOf("-javaagent:/tmp/agent.jar", "-cp", jar.absolutePath, "example.Main"),
+                jar,
+                home,
+                game
+            )
+
+            assertThrows(IllegalArgumentException::class.java) {
+                invocation.toVmCreationPlan()
+            }
+        } finally {
+            root.deleteRecursively()
+        }
+    }
+
     private fun parse(
         arguments: List<String>,
         jar: File,
