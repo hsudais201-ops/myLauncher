@@ -90,6 +90,8 @@ class JvmElfDynamicMetadataReaderImpl : JvmElfDynamicMetadataReader {
             var stringTableAddress: Long? = null
             var stringTableSize: Long? = null
             val neededOffsets = mutableListOf<Long>()
+            val rpathOffsets = mutableListOf<Long>()
+            val runpathOffsets = mutableListOf<Long>()
             var terminated = false
             var cursor = 0L
             while (cursor < dynamic.fileSize) {
@@ -104,6 +106,14 @@ class JvmElfDynamicMetadataReaderImpl : JvmElfDynamicMetadataReader {
                         break
                     }
                     DT_NEEDED -> neededOffsets += value
+                    DT_RPATH -> {
+                        require(rpathOffsets.isEmpty()) { "Duplicate DT_RPATH entry." }
+                        rpathOffsets += value
+                    }
+                    DT_RUNPATH -> {
+                        require(runpathOffsets.isEmpty()) { "Duplicate DT_RUNPATH entry." }
+                        runpathOffsets += value
+                    }
                     DT_STRTAB -> {
                         require(stringTableAddress == null) { "Duplicate DT_STRTAB entry." }
                         stringTableAddress = value
@@ -115,21 +125,27 @@ class JvmElfDynamicMetadataReaderImpl : JvmElfDynamicMetadataReader {
                 }
             }
             require(terminated) { "Dynamic segment has no DT_NULL terminator." }
-            if (neededOffsets.isEmpty()) return JvmElfDynamicMetadata(emptyList())
+            if (neededOffsets.isEmpty() && rpathOffsets.isEmpty() && runpathOffsets.isEmpty()) {
+                return JvmElfDynamicMetadata(emptyList())
+            }
 
             val strAddress = stringTableAddress
-                ?: throw IllegalArgumentException("DT_NEEDED exists without DT_STRTAB.")
+                ?: throw IllegalArgumentException("Dynamic string references exist without DT_STRTAB.")
             val strSize = stringTableSize
-                ?: throw IllegalArgumentException("DT_NEEDED exists without DT_STRSZ.")
+                ?: throw IllegalArgumentException("Dynamic string references exist without DT_STRSZ.")
             require(strSize > 0) { "ELF dynamic string table is empty." }
             val strOffset = virtualAddressToFileOffset(strAddress, strSize, loads, length)
-            val names = neededOffsets.map { nameOffset ->
-                require(nameOffset >= 0 && nameOffset < strSize) {
-                    "DT_NEEDED string offset is outside DT_STRTAB."
+            fun readDynamicStrings(offsets: List<Long>): List<String> = offsets.map { stringOffset ->
+                require(stringOffset >= 0 && stringOffset < strSize) {
+                    "Dynamic string offset is outside DT_STRTAB."
                 }
-                readString(file, checkedAdd(strOffset, nameOffset), strSize - nameOffset, length)
+                readString(file, checkedAdd(strOffset, stringOffset), strSize - stringOffset, length)
             }
-            return JvmElfDynamicMetadata(names)
+            return JvmElfDynamicMetadata(
+                neededLibraries = readDynamicStrings(neededOffsets),
+                rpathEntries = readDynamicStrings(rpathOffsets),
+                runpathEntries = readDynamicStrings(runpathOffsets)
+            )
         }
     }
 
@@ -237,5 +253,7 @@ class JvmElfDynamicMetadataReaderImpl : JvmElfDynamicMetadataReader {
         private const val DT_NEEDED = 1L
         private const val DT_STRTAB = 5L
         private const val DT_STRSZ = 10L
+        private const val DT_RPATH = 15L
+        private const val DT_RUNPATH = 29L
     }
 }
