@@ -72,6 +72,36 @@ class NativeJvmLibraryLoaderTest {
         }
     }
 
+    @Test
+    fun inspectVmStateUsesNativeInspectorWithoutCreatingVm() {
+        var inspected = false
+        val loader = NativeJvmLibraryLoader(
+            nativeRetainer = { "OK: retained" },
+            nativeVmInspector = {
+                inspected = true
+                "OK: retained OpenJDK reports 0 created VM(s)"
+            }
+        )
+
+        val result = loader.inspectVmState()
+
+        assertTrue(inspected)
+        assertTrue(result.contains("0 created VM"))
+    }
+
+    @Test
+    fun inspectVmStateReportsMissingRetainedLibrary() {
+        val loader = NativeJvmLibraryLoader(
+            nativeRetainer = { "ERROR: retention failed" },
+            nativeVmInspector = { "ERROR: No embedded JVM library is retained." }
+        )
+
+        val result = loader.inspectVmState()
+
+        assertTrue(result.startsWith("ERROR:"))
+        assertTrue(result.contains("No embedded JVM"))
+    }
+
     private fun runtime(home: File, library: File) = JavaRuntimeInstallation(
         id = "runtime",
         version = "21.0.1",
