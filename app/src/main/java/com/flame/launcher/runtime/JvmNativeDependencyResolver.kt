@@ -144,7 +144,7 @@ class JvmNativeDependencyResolver(
             name != "." &&
             name != ".." &&
             '/' !in name &&
-            '\\\\' !in name &&
+            '\\' !in name &&
             '\u0000' !in name
 
     private fun isInside(home: File, file: File): Boolean =
