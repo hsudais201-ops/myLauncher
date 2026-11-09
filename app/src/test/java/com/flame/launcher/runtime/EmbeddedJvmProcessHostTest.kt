@@ -161,6 +161,7 @@ class EmbeddedJvmProcessHostTest {
             val bridge = object : AndroidJvmBridge {
                 override fun start(
                     runtimeLayout: EmbeddedJvmRuntimeLayout,
+                    createPlan: EmbeddedJvmCreatePlan,
                     workingDirectory: File,
                     invocation: EmbeddedJvmInvocation,
                     onOutput: (String) -> Unit
