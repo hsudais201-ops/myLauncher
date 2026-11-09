@@ -16,7 +16,7 @@ class NativeJvmLibraryProbe internal constructor(
     private val nativeInspector: ((String) -> String)? = null
 ) {
     init {
-        if (nativeInspector == null || nativeDependencyInspector == null) {
+        if (nativeInspector == null && nativeDependencyInspector == null) {
             System.loadLibrary(NATIVE_LIBRARY_NAME)
         }
     }
