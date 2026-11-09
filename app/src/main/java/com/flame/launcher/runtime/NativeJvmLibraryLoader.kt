@@ -13,15 +13,19 @@ import java.io.File
  */
 class NativeJvmLibraryLoader internal constructor(
     private val nativeVmInspector: (() -> String)? = null,
+    private val nativeRuntimeRetainer: ((String, Array<String>) -> String)? = null,
     private val nativeRetainer: ((String) -> String)? = null
 ) {
     init {
-        if (nativeRetainer == null && nativeVmInspector == null) {
+        if (nativeRetainer == null && nativeRuntimeRetainer == null && nativeVmInspector == null) {
             System.loadLibrary(NATIVE_LIBRARY_NAME)
         }
     }
 
-    fun retain(runtime: JavaRuntimeInstallation): NativeJvmLibraryLoadResult {
+    fun retain(
+        runtime: JavaRuntimeInstallation,
+        runtimeDependencies: List<File> = emptyList()
+    ): NativeJvmLibraryLoadResult {
         require(runtime.executionKind == JavaRuntimeExecutionKind.EMBEDDED_JVM) {
             "Selected runtime is not an embedded JVM package."
         }
@@ -32,8 +36,24 @@ class NativeJvmLibraryLoader internal constructor(
             library.path.startsWith(home.path + File.separator)
         ) { "JVM library must be a file inside the selected runtime home." }
 
-        val diagnostic = nativeRetainer?.invoke(library.absolutePath)
-            ?: nativeRetainJvmLibrary(library.absolutePath)
+        val dependencies = runtimeDependencies.map { it.canonicalFile }.distinct()
+        require(dependencies.all { dependency ->
+            dependency.isFile && dependency != library &&
+                dependency.path.startsWith(home.path + File.separator)
+        }) { "Every preloaded JVM dependency must be a file inside the selected runtime home." }
+        val diagnostic = if (dependencies.isEmpty()) {
+            nativeRetainer?.invoke(library.absolutePath)
+                ?: nativeRetainJvmLibrary(library.absolutePath)
+        } else {
+            val paths = dependencies.map { it.absolutePath }.toTypedArray()
+            when {
+                nativeRuntimeRetainer != null ->
+                    nativeRuntimeRetainer.invoke(library.absolutePath, paths)
+                nativeRetainer != null ->
+                    "ERROR: Native dependency preloading is unavailable in this injected loader."
+                else -> nativeRetainJvmRuntime(library.absolutePath, paths)
+            }
+        }
         return NativeJvmLibraryLoadResult(
             retained = diagnostic.startsWith("OK:"),
             diagnostic = diagnostic
@@ -47,6 +67,7 @@ class NativeJvmLibraryLoader internal constructor(
     fun inspectVmState(): String = nativeVmInspector?.invoke() ?: nativeInspectVmState()
 
     private external fun nativeRetainJvmLibrary(absolutePath: String): String
+    private external fun nativeRetainJvmRuntime(absolutePath: String, dependencyPaths: Array<String>): String
     private external fun nativeInspectVmState(): String
 
     companion object {
