@@ -100,7 +100,7 @@ data class EmbeddedJvmCreatePlan(
     val ignoreUnrecognized: Boolean = false
 ) {
     init {
-        require(options.none { it.isEmpty() || '\\u0000' in it }) {
+        require(options.none { it.isEmpty() || '\u0000' in it }) {
             "JNI VM options contain an empty or invalid value."
         }
         require(!ignoreUnrecognized) {
