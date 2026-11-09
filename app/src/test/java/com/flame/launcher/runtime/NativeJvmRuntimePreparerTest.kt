@@ -76,7 +76,7 @@ class NativeJvmRuntimePreparerTest {
         val root = Files.createTempDirectory("flame-jvm-prepare-retain-failed").toFile()
         try {
             val home = File(root, "runtime").apply { mkdirs() }
-            val library = File(home, "libjvm.so").apply { writeBytes(byteArrayOf(1)) }
+            val library = File(home, "lib/server/libjvm.so").apply { parentFile.mkdirs(); writeBytes(byteArrayOf(1)) }
             val events = mutableListOf<String>()
             val preparer = NativeJvmRuntimePreparer(
                 probe = NativeJvmLibraryProbe {
