@@ -245,6 +245,59 @@ class EmbeddedJvmInvocationParserTest {
         }
     }
 
+    @Test
+    fun rejectsMalformedHeapSizesAndEmptyApprovedProperties() {
+        val root = Files.createTempDirectory("flame-jni-option-boundaries").toFile()
+        try {
+            val home = File(root, "runtime").apply { mkdirs() }
+            val game = File(root, "game").apply { mkdirs() }
+            val jar = File(game, "client.jar").apply { writeBytes(byteArrayOf(1)) }
+
+            val invalidOptions = listOf(
+                "-Xmx0M",
+                "-Xms512",
+                "-Xmx1Q",
+                "-Xmx01G",
+                "-Dorg.lwjgl.librarypath="
+            )
+            invalidOptions.forEach { option ->
+                val invocation = parse(
+                    listOf(option, "-cp", jar.absolutePath, "example.Main"),
+                    jar,
+                    home,
+                    game
+                )
+                assertThrows("Expected rejection for $option", IllegalArgumentException::class.java) {
+                    invocation.toVmCreationPlan()
+                }
+            }
+        } finally {
+            root.deleteRecursively()
+        }
+    }
+
+    @Test
+    fun allowsReviewedPropertyValuesContainingSpacesAsSingleOption() {
+        val root = Files.createTempDirectory("flame-jni-option-spaces").toFile()
+        try {
+            val home = File(root, "runtime").apply { mkdirs() }
+            val game = File(root, "game").apply { mkdirs() }
+            val jar = File(game, "client.jar").apply { writeBytes(byteArrayOf(1)) }
+            val property = "-Dminecraft.launcher.brand=Flame Launcher"
+
+            val invocation = parse(
+                listOf(property, "-cp", jar.absolutePath, "example.Main"),
+                jar,
+                home,
+                game
+            )
+
+            assertEquals(property, invocation.toVmCreationPlan().options.first())
+        } finally {
+            root.deleteRecursively()
+        }
+    }
+
     private fun parse(
         arguments: List<String>,
         jar: File,
