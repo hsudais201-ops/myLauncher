@@ -157,27 +157,66 @@ std::string ValidateElf(const std::string& path) {
 
 }  // namespace
 
-extern "C"
-JNIEXPORT jstring JNICALL
-Java_com_flame_launcher_runtime_NativeJvmLibraryProbe_nativeInspectJvmLibrary(
-    JNIEnv* env,
-    jobject /* receiver */,
-    jstring java_path
-) {
+namespace {
+
+jstring InspectJvmRuntime(JNIEnv* env, jstring java_path, jobjectArray dependency_paths) {
     if (java_path == nullptr) {
         return ToJavaString(env, "ERROR: JVM library path is missing.");
     }
-
     const char* path_chars = env->GetStringUTFChars(java_path, nullptr);
     if (path_chars == nullptr) {
         return ToJavaString(env, "ERROR: Unable to read JVM library path.");
     }
-
     const std::string path(path_chars);
     env->ReleaseStringUTFChars(java_path, path_chars);
 
+    std::vector<void*> temporary_dependencies;
+    const jsize dependency_count = dependency_paths == nullptr
+        ? 0
+        : env->GetArrayLength(dependency_paths);
+    for (jsize index = 0; index < dependency_count; ++index) {
+        auto dependency = static_cast<jstring>(
+            env->GetObjectArrayElement(dependency_paths, index)
+        );
+        if (dependency == nullptr) {
+            for (auto it = temporary_dependencies.rbegin(); it != temporary_dependencies.rend(); ++it) dlclose(*it);
+            return ToJavaString(env, "ERROR: JVM dependency path is null.");
+        }
+        const char* dependency_chars = env->GetStringUTFChars(dependency, nullptr);
+        if (dependency_chars == nullptr) {
+            env->DeleteLocalRef(dependency);
+            for (auto it = temporary_dependencies.rbegin(); it != temporary_dependencies.rend(); ++it) dlclose(*it);
+            return ToJavaString(env, "ERROR: Unable to read JVM dependency path.");
+        }
+        const std::string dependency_path(dependency_chars);
+        env->ReleaseStringUTFChars(dependency, dependency_chars);
+        env->DeleteLocalRef(dependency);
+
+        const std::string dependency_elf_error = ValidateElf(dependency_path);
+        if (!dependency_elf_error.empty()) {
+            for (auto it = temporary_dependencies.rbegin(); it != temporary_dependencies.rend(); ++it) dlclose(*it);
+            return ToJavaString(
+                env,
+                "ERROR: JVM dependency failed ELF validation: " + dependency_elf_error
+            );
+        }
+        dlerror();
+        void* dependency_handle = dlopen(dependency_path.c_str(), RTLD_NOW | RTLD_GLOBAL);
+        if (dependency_handle == nullptr) {
+            const char* error = dlerror();
+            for (auto it = temporary_dependencies.rbegin(); it != temporary_dependencies.rend(); ++it) dlclose(*it);
+            return ToJavaString(
+                env,
+                std::string("ERROR: Android linker could not preflight JVM dependency: ") +
+                    (error == nullptr ? "unknown linker error" : error)
+            );
+        }
+        temporary_dependencies.push_back(dependency_handle);
+    }
+
     const std::string elf_error = ValidateElf(path);
     if (!elf_error.empty()) {
+        for (auto it = temporary_dependencies.rbegin(); it != temporary_dependencies.rend(); ++it) dlclose(*it);
         return ToJavaString(env, elf_error);
     }
 
@@ -185,6 +224,7 @@ Java_com_flame_launcher_runtime_NativeJvmLibraryProbe_nativeInspectJvmLibrary(
     void* handle = dlopen(path.c_str(), RTLD_NOW | RTLD_LOCAL);
     if (handle == nullptr) {
         const char* error = dlerror();
+        for (auto it = temporary_dependencies.rbegin(); it != temporary_dependencies.rend(); ++it) dlclose(*it);
         return ToJavaString(
             env,
             std::string("ERROR: Android linker could not load libjvm: ") +
@@ -204,21 +244,42 @@ Java_com_flame_launcher_runtime_NativeJvmLibraryProbe_nativeInspectJvmLibrary(
         get_created_vms != nullptr && list_error == nullptr;
 
     dlclose(handle);
+    for (auto it = temporary_dependencies.rbegin(); it != temporary_dependencies.rend(); ++it) dlclose(*it);
 
     if (!has_create_vm) {
-        return ToJavaString(
-            env,
-            "ERROR: libjvm loaded but does not export JNI_CreateJavaVM."
-        );
+        return ToJavaString(env, "ERROR: libjvm loaded but does not export JNI_CreateJavaVM.");
     }
     if (!has_get_created_vms) {
-        return ToJavaString(
-            env,
-            "ERROR: libjvm loaded but does not export JNI_GetCreatedJavaVMs."
-        );
+        return ToJavaString(env, "ERROR: libjvm loaded but does not export JNI_GetCreatedJavaVMs.");
     }
 
-    return ToJavaString(env, "OK: ELF ABI and program-header bounds match, Android linker loaded libjvm, and JNI invocation symbols are exported.");
+    return ToJavaString(
+        env,
+        "OK: JVM dependency closure loaded in order, Android linker accepted libjvm, and JNI invocation symbols are exported."
+    );
+}
+
+}  // namespace
+
+extern "C"
+JNIEXPORT jstring JNICALL
+Java_com_flame_launcher_runtime_NativeJvmLibraryProbe_nativeInspectJvmLibrary(
+    JNIEnv* env,
+    jobject /* receiver */,
+    jstring java_path
+) {
+    return InspectJvmRuntime(env, java_path, nullptr);
+}
+
+extern "C"
+JNIEXPORT jstring JNICALL
+Java_com_flame_launcher_runtime_NativeJvmLibraryProbe_nativeInspectJvmRuntime(
+    JNIEnv* env,
+    jobject /* receiver */,
+    jstring java_path,
+    jobjectArray dependency_paths
+) {
+    return InspectJvmRuntime(env, java_path, dependency_paths);
 }
 
 
