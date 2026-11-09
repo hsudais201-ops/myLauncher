@@ -192,6 +192,19 @@ class EmbeddedJvmInvocationParserTest {
     }
 
     @Test
+    fun rejectsExcessiveJniOptionCountAndPayloadSize() {
+        assertThrows(IllegalArgumentException::class.java) {
+            EmbeddedJvmCreatePlan(List(257) { "-Xmx1G" })
+        }
+        assertThrows(IllegalArgumentException::class.java) {
+            EmbeddedJvmCreatePlan(listOf("-Dminecraft.launcher.brand=" + "x".repeat(65 * 1024)))
+        }
+        assertThrows(IllegalArgumentException::class.java) {
+            EmbeddedJvmCreatePlan(List(5) { "-Dminecraft.launcher.brand=" + "x".repeat(60 * 1024) })
+        }
+    }
+
+    @Test
     fun rejectsJavaAgentsFromEmbeddedJniPlan() {
         val root = Files.createTempDirectory("flame-jni-agent-reject").toFile()
         try {
