@@ -93,18 +93,27 @@ class MinecraftProcessController(
         } catch (_: InterruptedException) {
             Thread.currentThread().interrupt()
             transition(session, MinecraftProcessState.CANCELLED)
-        } catch (failure: Throwable) {
-            transition(
-                session,
-                MinecraftProcessState.FAILED,
-                error = redact(
-                    failure.message?.takeIf(String::isNotBlank) ?: "Minecraft runtime failed.",
-                    session.accessToken
-                ).take(MAX_ERROR_LENGTH)
-            )
+        } catch (failure: Exception) {
+            failSession(session, failure)
+        } catch (failure: LinkageError) {
+            // Native bridge loading can fail with UnsatisfiedLinkError. Record
+            // that as a failed launch, but do not swallow fatal VM errors such
+            // as OutOfMemoryError or ThreadDeath.
+            failSession(session, failure)
         } finally {
             synchronized(session) { session.process = null }
         }
+    }
+
+    private fun failSession(session: Session, failure: Throwable) {
+        transition(
+            session,
+            MinecraftProcessState.FAILED,
+            error = redact(
+                failure.message?.takeIf(String::isNotBlank) ?: "Minecraft runtime failed.",
+                session.accessToken
+            ).take(MAX_ERROR_LENGTH)
+        )
     }
 
     private fun transition(
