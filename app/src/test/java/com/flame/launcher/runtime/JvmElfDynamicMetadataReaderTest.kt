@@ -19,6 +19,17 @@ class JvmElfDynamicMetadataReaderTest {
         }
     }
 
+
+    @Test
+    fun readsNeededNamesFromElf32BigEndianDynamicSection() {
+        withElf32BigEndian { file ->
+            assertEquals(
+                listOf("libverify32.so"),
+                JvmElfDynamicMetadataReaderImpl().inspect(file).neededLibraries
+            )
+        }
+    }
+
     @Test
     fun rejectsNeededStringOffsetOutsideStringTable() {
         withElf64(neededOffset = 90, stringTable = byteArrayOf(0, *"libx.so".toByteArray(), 0)) { file ->
@@ -105,4 +116,50 @@ class JvmElfDynamicMetadataReaderTest {
             file.delete()
         }
     }
+    private fun withElf32BigEndian(block: (File) -> Unit) {
+        val file = Files.createTempFile("flame-elf32-be", ".so").toFile()
+        try {
+            val bytes = ByteArray(0x240)
+            val out = ByteBuffer.wrap(bytes).order(ByteOrder.BIG_ENDIAN)
+            bytes[0] = 0x7f
+            bytes[1] = 'E'.code.toByte()
+            bytes[2] = 'L'.code.toByte()
+            bytes[3] = 'F'.code.toByte()
+            bytes[4] = 1 // ELFCLASS32
+            bytes[5] = 2 // ELFDATA2MSB
+            bytes[6] = 1 // EV_CURRENT
+            out.putInt(28, 52)
+            out.putShort(40, 52.toShort())
+            out.putShort(42, 32.toShort())
+            out.putShort(44, 2.toShort())
+
+            // PT_LOAD maps the synthetic file at virtual address zero.
+            out.putInt(52, 1)
+            out.putInt(56, 0)
+            out.putInt(60, 0)
+            out.putInt(68, bytes.size)
+
+            // PT_DYNAMIC
+            out.putInt(84, 2)
+            out.putInt(88, 0x100)
+            out.putInt(92, 0x100)
+            out.putInt(100, 32)
+
+            out.putInt(0x100, 1) // DT_NEEDED
+            out.putInt(0x104, 1)
+            out.putInt(0x108, 5) // DT_STRTAB
+            out.putInt(0x10c, 0x180)
+            out.putInt(0x110, 10) // DT_STRSZ
+            val stringTable = byteArrayOf(0, *"libverify32.so".toByteArray(), 0)
+            out.putInt(0x114, stringTable.size)
+            out.putInt(0x118, 0) // DT_NULL
+            out.putInt(0x11c, 0)
+            stringTable.copyInto(bytes, 0x180)
+            file.writeBytes(bytes)
+            block(file)
+        } finally {
+            file.delete()
+        }
+    }
+
 }
