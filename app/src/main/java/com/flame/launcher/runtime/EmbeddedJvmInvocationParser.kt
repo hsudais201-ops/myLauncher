@@ -103,12 +103,28 @@ data class EmbeddedJvmCreatePlan(
         require(options.none { it.isEmpty() || '\u0000' in it }) {
             "JNI VM options contain an empty or invalid value."
         }
+        require(options.size <= MAX_OPTION_COUNT) {
+            "JNI VM option count exceeds Flame's safety limit."
+        }
+        require(options.all { it.toByteArray(Charsets.UTF_8).size <= MAX_OPTION_BYTES }) {
+            "A JNI VM option exceeds Flame's per-option size limit."
+        }
+        val totalBytes = options.sumOf { it.toByteArray(Charsets.UTF_8).size.toLong() }
+        require(totalBytes <= MAX_TOTAL_OPTION_BYTES) {
+            "Combined JNI VM options exceed Flame's safety limit."
+        }
         require(!ignoreUnrecognized) {
             "Flame requires strict JNI option validation."
         }
     }
 
     val optionCount: Int get() = options.size
+
+    companion object {
+        private const val MAX_OPTION_COUNT = 256
+        private const val MAX_OPTION_BYTES = 64 * 1024
+        private const val MAX_TOTAL_OPTION_BYTES = 256 * 1024
+    }
 }
 
 fun EmbeddedJvmInvocation.toVmCreationPlan(): EmbeddedJvmCreatePlan {
