@@ -35,6 +35,36 @@ class NativeJvmLibraryProbeTest {
     }
 
     @Test
+    fun inspectPassesVerifiedDependencyOrderToNativeInspector() {
+        val root = Files.createTempDirectory("flame-jvm-probe-deps").toFile()
+        try {
+            val home = File(root, "runtime").apply { mkdirs() }
+            val library = File(home, "lib/server/libjvm.so").apply {
+                parentFile.mkdirs()
+                writeBytes(byteArrayOf(1))
+            }
+            val dependency = File(home, "lib/libverify.so").apply {
+                parentFile.mkdirs()
+                writeBytes(byteArrayOf(2))
+            }
+            var received: Array<String>? = null
+            val probe = NativeJvmLibraryProbe(
+                nativeDependencyInspector = { _, paths ->
+                    received = paths
+                    "OK: dependencies checked"
+                }
+            )
+
+            val result = probe.inspect(runtime(home, library), listOf(dependency))
+
+            assertTrue(result.available)
+            assertEquals(listOf(dependency.canonicalPath), received?.toList())
+        } finally {
+            root.deleteRecursively()
+        }
+    }
+
+    @Test
     fun inspectReturnsUnavailableWhenNativeLinkerRejectsLibrary() {
         val root = Files.createTempDirectory("flame-jvm-probe").toFile()
         try {
