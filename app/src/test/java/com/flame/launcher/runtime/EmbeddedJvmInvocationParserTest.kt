@@ -213,6 +213,38 @@ class EmbeddedJvmInvocationParserTest {
         }
     }
 
+    @Test
+    fun rejectsUnreviewedVmFlagsAndUnapprovedSystemProperties() {
+        val root = Files.createTempDirectory("flame-jni-option-allowlist").toFile()
+        try {
+            val home = File(root, "runtime").apply { mkdirs() }
+            val game = File(root, "game").apply { mkdirs() }
+            val jar = File(game, "client.jar").apply { writeBytes(byteArrayOf(1)) }
+
+            val unreviewedFlag = parse(
+                listOf("-XX:+UseG1GC", "-cp", jar.absolutePath, "example.Main"),
+                jar,
+                home,
+                game
+            )
+            assertThrows(IllegalArgumentException::class.java) {
+                unreviewedFlag.toVmCreationPlan()
+            }
+
+            val unapprovedProperty = parse(
+                listOf("-Djava.security.manager=allow", "-cp", jar.absolutePath, "example.Main"),
+                jar,
+                home,
+                game
+            )
+            assertThrows(IllegalArgumentException::class.java) {
+                unapprovedProperty.toVmCreationPlan()
+            }
+        } finally {
+            root.deleteRecursively()
+        }
+    }
+
     private fun parse(
         arguments: List<String>,
         jar: File,
