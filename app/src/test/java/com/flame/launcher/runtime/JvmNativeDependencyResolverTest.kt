@@ -35,6 +35,43 @@ class JvmNativeDependencyResolverTest {
             assertEquals(verify.canonicalFile, resolved.runtimeLibraries["libverify.so"])
             assertEquals(zip.canonicalFile, resolved.runtimeLibraries["libzip.so"])
             assertEquals(setOf("libc.so"), resolved.approvedSystemLibraries)
+            assertEquals(listOf(zip.canonicalFile, verify.canonicalFile), resolved.runtimeLoadOrder)
+        } finally {
+            root.deleteRecursively()
+        }
+    }
+
+    @Test
+    fun ordersSharedDependenciesOnceAndBeforeTheirDependents() {
+        val root = Files.createTempDirectory("flame-elf-dependency-order").toFile()
+        try {
+            val home = File(root, "runtime").apply { mkdirs() }
+            val lib = File(home, "lib").apply { mkdirs() }
+            val vm = File(lib, "server").apply { mkdirs() }
+            val jvm = File(vm, "libjvm.so").apply { writeBytes(byteArrayOf(1)) }
+            val first = File(lib, "libfirst.so").apply { writeBytes(byteArrayOf(2)) }
+            val second = File(lib, "libsecond.so").apply { writeBytes(byteArrayOf(3)) }
+            val shared = File(lib, "libshared.so").apply { writeBytes(byteArrayOf(4)) }
+            val metadata = mapOf(
+                jvm.canonicalFile to listOf("libfirst.so", "libsecond.so"),
+                first.canonicalFile to listOf("libshared.so"),
+                second.canonicalFile to listOf("libshared.so"),
+                shared.canonicalFile to emptyList()
+            )
+            val resolver = JvmNativeDependencyResolver(
+                JvmElfDynamicMetadataReader { file ->
+                    JvmElfDynamicMetadata(metadata[file.canonicalFile].orEmpty())
+                }
+            )
+
+            val result = resolver.resolve(jvm, home, listOf(lib, vm))
+
+            assertTrue(result is JvmNativeDependencyResolution.Resolved)
+            val order = (result as JvmNativeDependencyResolution.Resolved).runtimeLoadOrder
+            assertEquals(3, order.size)
+            assertEquals(shared.canonicalFile, order.first())
+            assertTrue(order.indexOf(first.canonicalFile) > order.indexOf(shared.canonicalFile))
+            assertTrue(order.indexOf(second.canonicalFile) > order.indexOf(shared.canonicalFile))
         } finally {
             root.deleteRecursively()
         }
