@@ -144,6 +144,23 @@ class NativeJvmLibraryLoaderTest {
     }
 
     @Test
+    fun inspectInvocationApiUsesDiagnosticSeamWithoutCallingVmCreation() {
+        var inspected = false
+        val loader = NativeJvmLibraryLoader(
+            nativeInvocationApiInspector = {
+                inspected = true
+                "BLOCKED: process-global JNI_CreateJavaVM resolves to libart.so"
+            }
+        )
+
+        val result = loader.inspectInvocationApi()
+
+        assertTrue(inspected)
+        assertTrue(result.startsWith("BLOCKED:"))
+        assertTrue(result.contains("libart.so"))
+    }
+
+    @Test
     fun inspectVmStateReportsMissingRetainedLibrary() {
         val loader = NativeJvmLibraryLoader(
             nativeRetainer = { "ERROR: retention failed" },
