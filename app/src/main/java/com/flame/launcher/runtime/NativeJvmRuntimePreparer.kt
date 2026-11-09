@@ -57,7 +57,7 @@ class NativeJvmRuntimePreparer(
                 )
         }
 
-        val preflight = probe.inspect(runtime)
+        val preflight = probe.inspect(runtime, runtimeLoadOrder)
         if (!preflight.available) {
             return NativeJvmRuntimePreparationResult.Failed(
                 "JVM linker preflight failed: ${preflight.diagnostic}"
