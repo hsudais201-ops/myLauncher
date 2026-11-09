@@ -47,8 +47,13 @@ class EmbeddedJvmProcessHost(
             jvmLibrary = jvmLibrary,
             applicationNativeDirectory = nativeDirectory
         )
+        // Validate and freeze the exact JNI_CreateJavaVM option vector before
+        // crossing the native boundary. The bridge receives this separately
+        // from the Java main-class invocation to prevent option reparsing.
+        val createPlan = invocation.toVmCreationPlan()
         return bridge.start(
             runtimeLayout = runtimeLayout,
+            createPlan = createPlan,
             workingDirectory = workingDirectory,
             invocation = invocation,
             onOutput = onOutput
@@ -66,6 +71,7 @@ class EmbeddedJvmProcessHost(
 interface AndroidJvmBridge {
     fun start(
         runtimeLayout: EmbeddedJvmRuntimeLayout,
+        createPlan: EmbeddedJvmCreatePlan,
         workingDirectory: File,
         invocation: EmbeddedJvmInvocation,
         onOutput: (String) -> Unit
