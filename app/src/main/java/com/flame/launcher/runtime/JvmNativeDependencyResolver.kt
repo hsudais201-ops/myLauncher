@@ -11,7 +11,9 @@ import java.util.ArrayDeque
  * arbitrary filesystem search paths.
  */
 data class JvmElfDynamicMetadata(
-    val neededLibraries: List<String>
+    val neededLibraries: List<String>,
+    val rpathEntries: List<String> = emptyList(),
+    val runpathEntries: List<String> = emptyList()
 )
 
 fun interface JvmElfDynamicMetadataReader {
