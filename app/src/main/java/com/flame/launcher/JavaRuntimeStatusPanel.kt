@@ -155,21 +155,30 @@ fun JavaRuntimeStatusPanel() {
                                                     probe = NativeJvmLibraryProbe(),
                                                     loader = loader
                                                 ).prepare(runtime)
-                                                preparation to if (
+                                                val vmState = if (
                                                     preparation is NativeJvmRuntimePreparationResult.Ready
                                                 ) loader.inspectVmState() else null
+                                                val invocationApi = if (
+                                                    preparation is NativeJvmRuntimePreparationResult.Ready
+                                                ) loader.inspectInvocationApi() else null
+                                                Triple(preparation, vmState, invocationApi)
                                             } catch (cancelled: CancellationException) {
                                                 throw cancelled
                                             } catch (failure: Exception) {
-                                                NativeJvmRuntimePreparationResult.Failed(
-                                                    "ERROR: " + (failure.message ?: failure.javaClass.simpleName)
-                                                ) to null
+                                                Triple(
+                                                    NativeJvmRuntimePreparationResult.Failed(
+                                                        "ERROR: " + (failure.message ?: failure.javaClass.simpleName)
+                                                    ),
+                                                    null,
+                                                    null
+                                                )
                                             }
                                         }
                                         preparationDiagnostic = when (val preparation = result.first) {
                                             is NativeJvmRuntimePreparationResult.Ready ->
                                                 preparation.diagnostic + " " +
-                                                    (result.second ?: "VM state unavailable.") +
+                                                    (result.second ?: "VM state unavailable.") + " " +
+                                                    (result.third ?: "JNI invocation provider unavailable.") +
                                                     " Minecraft has not been started."
                                             is NativeJvmRuntimePreparationResult.Failed ->
                                                 preparation.diagnostic
