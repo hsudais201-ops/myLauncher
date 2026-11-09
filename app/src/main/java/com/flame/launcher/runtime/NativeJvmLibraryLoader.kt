@@ -14,8 +14,8 @@ import java.io.File
 class NativeJvmLibraryLoader internal constructor(
     private val nativeVmInspector: (() -> String)? = null,
     private val nativeRuntimeRetainer: ((String, Array<String>) -> String)? = null,
-    private val nativeRetainer: ((String) -> String)? = null,
-    private val nativeInvocationApiInspector: (() -> String)? = null
+    private val nativeInvocationApiInspector: (() -> String)? = null,
+    private val nativeRetainer: ((String) -> String)? = null
 ) {
     init {
         if (nativeRetainer == null && nativeRuntimeRetainer == null && nativeVmInspector == null && nativeInvocationApiInspector == null) {
