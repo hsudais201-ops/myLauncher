@@ -25,6 +25,9 @@ import androidx.compose.ui.unit.sp
 import com.flame.launcher.runtime.JavaRuntimeExecutionKind
 import com.flame.launcher.runtime.JavaRuntimeManager
 import com.flame.launcher.runtime.NativeJvmLibraryProbe
+import com.flame.launcher.runtime.NativeJvmLibraryLoader
+import com.flame.launcher.runtime.NativeJvmRuntimePreparer
+import com.flame.launcher.runtime.NativeJvmRuntimePreparationResult
 import java.io.File
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -53,6 +56,8 @@ fun JavaRuntimeStatusPanel() {
     val coroutineScope = rememberCoroutineScope()
     var probingRuntimeId by remember { mutableStateOf<String?>(null) }
     var probeDiagnostic by remember { mutableStateOf<String?>(null) }
+    var preparingRuntimeId by remember { mutableStateOf<String?>(null) }
+    var preparationDiagnostic by remember { mutableStateOf<String?>(null) }
 
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -112,7 +117,7 @@ fun JavaRuntimeStatusPanel() {
                         runtime.architecture == normalizedDeviceAbi
                     ) {
                         Button(
-                            enabled = probingRuntimeId == null,
+                            enabled = probingRuntimeId == null && preparingRuntimeId == null,
                             onClick = {
                                 coroutineScope.launch {
                                     probingRuntimeId = runtime.id
@@ -137,9 +142,59 @@ fun JavaRuntimeStatusPanel() {
                                 else "Check native JVM compatibility"
                             )
                         }
+                        Button(
+                            enabled = probingRuntimeId == null && preparingRuntimeId == null,
+                            onClick = {
+                                coroutineScope.launch {
+                                    preparingRuntimeId = runtime.id
+                                    try {
+                                        val result = withContext(Dispatchers.IO) {
+                                            try {
+                                                NativeJvmRuntimePreparer(
+                                                    probe = NativeJvmLibraryProbe(),
+                                                    loader = NativeJvmLibraryLoader()
+                                                ).prepare(runtime)
+                                            } catch (cancelled: CancellationException) {
+                                                throw cancelled
+                                            } catch (failure: Exception) {
+                                                NativeJvmRuntimePreparationResult.Failed(
+                                                    "ERROR: " + (failure.message ?: failure.javaClass.simpleName)
+                                                )
+                                            }
+                                        }
+                                        preparationDiagnostic = when (result) {
+                                            is NativeJvmRuntimePreparationResult.Ready ->
+                                                "OK: JVM library retained for this app process. " +
+                                                    "This does not create a Java VM or launch Minecraft."
+                                            is NativeJvmRuntimePreparationResult.Failed ->
+                                                result.diagnostic
+                                        }
+                                    } finally {
+                                        preparingRuntimeId = null
+                                    }
+                                }
+                            }
+                        ) {
+                            Text(
+                                if (preparingRuntimeId == runtime.id) "Preparing JVM…"
+                                else "Prepare and retain JVM (restart required to change)"
+                            )
+                        }
                     }
                 }
                 probeDiagnostic?.let { diagnostic ->
+                    Text(
+                        text = diagnostic,
+                        color = if (diagnostic.startsWith("OK:")) {
+                            Color(0xFF8AD6A0)
+                        } else {
+                            Color(0xFFFF9A85)
+                        },
+                        fontSize = 11.sp,
+                        lineHeight = 16.sp
+                    )
+                }
+                preparationDiagnostic?.let { diagnostic ->
                     Text(
                         text = diagnostic,
                         color = if (diagnostic.startsWith("OK:")) {
