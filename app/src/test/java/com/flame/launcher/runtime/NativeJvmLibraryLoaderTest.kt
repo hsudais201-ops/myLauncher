@@ -35,6 +35,60 @@ class NativeJvmLibraryLoaderTest {
     }
 
     @Test
+    fun retainPreloadsCanonicalDependenciesInProvidedOrder() {
+        val root = Files.createTempDirectory("flame-jvm-loader-deps").toFile()
+        try {
+            val home = File(root, "runtime").apply { mkdirs() }
+            val library = File(home, "lib/server/libjvm.so").apply {
+                parentFile.mkdirs()
+                writeBytes(byteArrayOf(1))
+            }
+            val dependency = File(home, "lib/libverify.so").apply {
+                parentFile.mkdirs()
+                writeBytes(byteArrayOf(2))
+            }
+            var receivedPaths: Array<String>? = null
+            val loader = NativeJvmLibraryLoader(
+                nativeRuntimeRetainer = { _, paths ->
+                    receivedPaths = paths
+                    "OK: dependencies retained"
+                }
+            )
+
+            val result = loader.retain(runtime(home, library), listOf(dependency))
+
+            assertTrue(result.retained)
+            assertEquals(listOf(dependency.canonicalPath), receivedPaths?.toList())
+        } finally {
+            root.deleteRecursively()
+        }
+    }
+
+    @Test
+    fun retainRejectsDependencyOutsideRuntimeHomeBeforeNativeCall() {
+        val root = Files.createTempDirectory("flame-jvm-loader-deps-outside").toFile()
+        try {
+            val home = File(root, "runtime").apply { mkdirs() }
+            val library = File(home, "libjvm.so").apply { writeBytes(byteArrayOf(1)) }
+            val outside = File(root, "liboutside.so").apply { writeBytes(byteArrayOf(2)) }
+            var called = false
+            val loader = NativeJvmLibraryLoader(
+                nativeRuntimeRetainer = { _, _ ->
+                    called = true
+                    "OK: retained"
+                }
+            )
+
+            org.junit.Assert.assertThrows(IllegalArgumentException::class.java) {
+                loader.retain(runtime(home, library), listOf(outside))
+            }
+            assertFalse(called)
+        } finally {
+            root.deleteRecursively()
+        }
+    }
+
+    @Test
     fun retainReportsNativeLoaderFailure() {
         val root = Files.createTempDirectory("flame-jvm-loader-failure").toFile()
         try {
