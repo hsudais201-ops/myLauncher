@@ -47,6 +47,49 @@ class NativeJvmRuntimePreparerTest {
     }
 
     @Test
+    fun preloadsResolvedDependenciesInDependencyFirstOrder() {
+        val root = Files.createTempDirectory("flame-jvm-prepare-preload").toFile()
+        try {
+            val home = File(root, "runtime").apply { mkdirs() }
+            val lib = File(home, "lib").apply { mkdirs() }
+            val vm = File(lib, "server").apply { mkdirs() }
+            val library = File(vm, "libjvm.so").apply { writeBytes(byteArrayOf(1)) }
+            val dependency = File(lib, "libverify.so").apply { writeBytes(byteArrayOf(2)) }
+            val leaf = File(lib, "libzip.so").apply { writeBytes(byteArrayOf(3)) }
+            val metadata = mapOf(
+                library.canonicalFile to listOf("libverify.so"),
+                dependency.canonicalFile to listOf("libzip.so"),
+                leaf.canonicalFile to emptyList()
+            )
+            val received = mutableListOf<String>()
+            val preparer = NativeJvmRuntimePreparer(
+                probe = NativeJvmLibraryProbe { "OK: probe" },
+                loader = NativeJvmLibraryLoader(
+                    nativeRuntimeRetainer = { _, paths ->
+                        received += paths.toList()
+                        "OK: dependencies preloaded"
+                    }
+                ),
+                dependencyResolver = JvmNativeDependencyResolver(
+                    JvmElfDynamicMetadataReader { file ->
+                        JvmElfDynamicMetadata(metadata[file.canonicalFile].orEmpty())
+                    }
+                )
+            )
+
+            val result = preparer.prepare(runtime(home, library))
+
+            assertTrue(result is NativeJvmRuntimePreparationResult.Ready)
+            assertEquals(
+                listOf(leaf.canonicalPath, dependency.canonicalPath),
+                received
+            )
+        } finally {
+            root.deleteRecursively()
+        }
+    }
+
+    @Test
     fun failedPreflightNeverAttemptsToRetainLibrary() {
         val root = Files.createTempDirectory("flame-jvm-prepare-failed").toFile()
         try {
