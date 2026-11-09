@@ -150,24 +150,29 @@ fun JavaRuntimeStatusPanel() {
                                     try {
                                         val result = withContext(Dispatchers.IO) {
                                             try {
-                                                NativeJvmRuntimePreparer(
+                                                val loader = NativeJvmLibraryLoader()
+                                                val preparation = NativeJvmRuntimePreparer(
                                                     probe = NativeJvmLibraryProbe(),
-                                                    loader = NativeJvmLibraryLoader()
+                                                    loader = loader
                                                 ).prepare(runtime)
+                                                preparation to if (
+                                                    preparation is NativeJvmRuntimePreparationResult.Ready
+                                                ) loader.inspectVmState() else null
                                             } catch (cancelled: CancellationException) {
                                                 throw cancelled
                                             } catch (failure: Exception) {
                                                 NativeJvmRuntimePreparationResult.Failed(
                                                     "ERROR: " + (failure.message ?: failure.javaClass.simpleName)
-                                                )
+                                                ) to null
                                             }
                                         }
-                                        preparationDiagnostic = when (result) {
+                                        preparationDiagnostic = when (val preparation = result.first) {
                                             is NativeJvmRuntimePreparationResult.Ready ->
-                                                "OK: JVM library retained for this app process. " +
-                                                    "This does not create a Java VM or launch Minecraft."
+                                                preparation.diagnostic + " " +
+                                                    (result.second ?: "VM state unavailable.") +
+                                                    " Minecraft has not been started."
                                             is NativeJvmRuntimePreparationResult.Failed ->
-                                                result.diagnostic
+                                                preparation.diagnostic
                                         }
                                     } finally {
                                         preparingRuntimeId = null
