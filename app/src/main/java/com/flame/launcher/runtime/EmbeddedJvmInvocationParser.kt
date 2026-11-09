@@ -87,6 +87,46 @@ object EmbeddedJvmInvocationParser {
     private val MAIN_CLASS = Regex("[A-Za-z_$][A-Za-z0-9_$.]{0,255}")
 }
 
+/**
+ * Immutable, JNI-shaped input for a future VM creation call.
+ *
+ * JNI_CreateJavaVM accepts one JavaVMOption per option string. Keeping this
+ * conversion explicit prevents accidental shell quoting or passing the
+ * desktop launcher-only -cp switch into the native invocation API. This plan
+ * is data only: constructing it never calls JNI_CreateJavaVM.
+ */
+data class EmbeddedJvmCreatePlan(
+    val options: List<String>,
+    val ignoreUnrecognized: Boolean = false
+) {
+    init {
+        require(options.none { it.isEmpty() || '\\u0000' in it }) {
+            "JNI VM options contain an empty or invalid value."
+        }
+        require(!ignoreUnrecognized) {
+            "Flame requires strict JNI option validation."
+        }
+    }
+
+    val optionCount: Int get() = options.size
+}
+
+fun EmbeddedJvmInvocation.toVmCreationPlan(): EmbeddedJvmCreatePlan {
+    require(vmOptions.isNotEmpty()) { "Embedded JVM options are empty." }
+    require(vmOptions.none { it == "-cp" || it == "-classpath" || it == "--class-path" }) {
+        "Desktop Java classpath switches must not reach JNI_CreateJavaVM."
+    }
+    require(vmOptions.none { it.startsWith("-javaagent:") ||
+        it.startsWith("-agentlib:") || it.startsWith("-agentpath:") ||
+        it.startsWith("-Xrun") }) {
+        "Java agents and native agent options are disabled in embedded launch mode."
+    }
+    return EmbeddedJvmCreatePlan(
+        options = vmOptions.toList(),
+        ignoreUnrecognized = false
+    )
+}
+
 data class EmbeddedJvmInvocation(
     val vmOptions: List<String>,
     val classPath: List<File>,
