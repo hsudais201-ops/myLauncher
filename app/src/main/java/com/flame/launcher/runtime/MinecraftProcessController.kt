@@ -54,7 +54,7 @@ class MinecraftProcessController(
             session.stopRequested.set(true)
             session.state = MinecraftProcessState.STOPPING
             publish(session, MinecraftProcessEvent.StateChanged(session.snapshot()))
-            session.process?.requestStop()
+            session.process?.let { requestStopSafely(session, it) }
         }
         return true
     }
@@ -82,7 +82,7 @@ class MinecraftProcessController(
                 if (session.stopRequested.get()) {
                     session.state = MinecraftProcessState.STOPPING
                     publish(session, MinecraftProcessEvent.StateChanged(session.snapshot()))
-                    process.requestStop()
+                    requestStopSafely(session, process)
                 } else {
                     session.state = MinecraftProcessState.RUNNING
                     publish(session, MinecraftProcessEvent.StateChanged(session.snapshot()))
@@ -102,6 +102,18 @@ class MinecraftProcessController(
             failSession(session, failure)
         } finally {
             synchronized(session) { session.process = null }
+        }
+    }
+
+    private fun requestStopSafely(session: Session, process: MinecraftRunningProcess) {
+        try {
+            process.requestStop()
+        } catch (failure: Exception) {
+            failSession(session, failure)
+        } catch (failure: LinkageError) {
+            // A missing/broken native stop entry point is a session failure,
+            // but fatal VM errors must still propagate.
+            failSession(session, failure)
         }
     }
 
@@ -146,7 +158,7 @@ class MinecraftProcessController(
                     session.stopRequested.set(true)
                     session.state = MinecraftProcessState.STOPPING
                     publish(session, MinecraftProcessEvent.StateChanged(session.snapshot()))
-                    session.process?.requestStop()
+                    session.process?.let { requestStopSafely(session, it) }
                 }
             }
         }
