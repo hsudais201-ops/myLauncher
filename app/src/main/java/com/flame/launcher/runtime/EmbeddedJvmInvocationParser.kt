@@ -46,7 +46,7 @@ object EmbeddedJvmInvocationParser {
         }
 
         val mainClass = arguments[switchIndex + 2]
-        require(MAIN_CLASS.matches(mainClass)) {
+        require(isValidMainClass(mainClass)) {
             "Embedded JVM main class is invalid."
         }
         val vmOptions = arguments.take(switchIndex).toMutableList()
@@ -84,7 +84,12 @@ object EmbeddedJvmInvocationParser {
         )
     }
 
-    private val MAIN_CLASS = Regex("[A-Za-z_$][A-Za-z0-9_$.]{0,255}")
+    private fun isValidMainClass(value: String): Boolean =
+        value.length <= 256 && MAIN_CLASS.matches(value)
+
+    private val MAIN_CLASS = Regex(
+        "[A-Za-z_$][A-Za-z0-9_$]*(?:\\.[A-Za-z_$][A-Za-z0-9_$]*)*"
+    )
 }
 
 /**
