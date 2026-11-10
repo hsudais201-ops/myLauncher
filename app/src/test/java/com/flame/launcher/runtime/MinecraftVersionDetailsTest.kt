@@ -113,6 +113,28 @@ class MinecraftVersionDetailsTest {
     }
 
     @Test
+    fun acceptsSingleCharacterMainClassAndRejectsMalformedSegments() {
+        val singleCharacter = details().replace(
+            "net.minecraft.client.main.Main",
+            "A"
+        )
+        assertEquals("A", MinecraftVersionDetails.parse(singleCharacter, "1.21").mainClass)
+
+        listOf("net.minecraft..Main", "net.minecraft.1Main", "net.minecraft.Main.").forEach { invalid ->
+            val malformed = details().replace(
+                "net.minecraft.client.main.Main",
+                invalid
+            )
+            assertThrows(
+                "Expected rejection for $invalid",
+                IllegalArgumentException::class.java
+            ) {
+                MinecraftVersionDetails.parse(malformed, "1.21")
+            }
+        }
+    }
+
+    @Test
     fun rejectsWrongVersionIdAndInvalidMainClass() {
         assertThrows(IllegalArgumentException::class.java) {
             MinecraftVersionDetails.parse(details(), "1.20.1")
