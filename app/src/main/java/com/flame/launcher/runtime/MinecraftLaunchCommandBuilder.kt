@@ -18,7 +18,9 @@ object MinecraftLaunchCommandBuilder {
         memory: MinecraftLaunchMemory = MinecraftLaunchMemory()
     ): MinecraftLaunchCommand {
         require(plan.versionId.matches(VERSION_ID)) { "Minecraft version ID is invalid." }
-        require(plan.mainClass.matches(MAIN_CLASS)) { "Minecraft main class is invalid." }
+        require(plan.mainClass.length <= 256 && plan.mainClass.matches(MAIN_CLASS)) {
+            "Minecraft main class is invalid."
+        }
         require(plan.requiredJavaMajorVersion == null ||
             runtime.majorVersion == plan.requiredJavaMajorVersion
         ) { "Selected Java runtime does not match this Minecraft version's Java requirement." }
@@ -117,7 +119,9 @@ object MinecraftLaunchCommandBuilder {
     private const val MIN_HEAP_MB = 256
     private const val MAX_HEAP_MB = 16 * 1024
     private val VERSION_ID = Regex("[A-Za-z0-9._-]{1,64}")
-    private val MAIN_CLASS = Regex("[A-Za-z_$][A-Za-z0-9_$.]{0,255}")
+    private val MAIN_CLASS = Regex(
+        "[A-Za-z_$][A-Za-z0-9_$]*(?:\\.[A-Za-z_$][A-Za-z0-9_$]*)*"
+    )
     private val UUID_PATTERN = Regex("[0-9a-fA-F]{32}|[0-9a-fA-F]{8}(-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}")
     private val ASSET_INDEX_ID = Regex("[A-Za-z0-9._-]{1,128}")
     private val SUPPORTED_ARCHITECTURES = setOf("arm64", "arm", "x86_64", "x86")
