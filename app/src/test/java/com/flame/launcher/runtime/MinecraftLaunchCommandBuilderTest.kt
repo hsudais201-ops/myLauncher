@@ -153,6 +153,29 @@ class MinecraftLaunchCommandBuilderTest {
     }
 
     @Test
+    fun rejectsMalformedMainClassSegments() {
+        val f = fixture()
+        try {
+            listOf("net.minecraft..Main", "net.minecraft.1Main", "net.minecraft.Main.").forEach { mainClass ->
+                assertThrows(
+                    "Expected rejection for $mainClass",
+                    IllegalArgumentException::class.java
+                ) {
+                    MinecraftLaunchCommandBuilder.build(
+                        f.plan.copy(mainClass = mainClass),
+                        f.game,
+                        f.native,
+                        f.runtime,
+                        MinecraftLaunchAccount("Player", "12345678123412341234123456789abc", "token")
+                    )
+                }
+            }
+        } finally {
+            f.root.deleteRecursively()
+        }
+    }
+
+    @Test
     fun rejectsWrongJavaMajorAndUnsafeClasspathTraversal() {
         val f = fixture()
         try {
