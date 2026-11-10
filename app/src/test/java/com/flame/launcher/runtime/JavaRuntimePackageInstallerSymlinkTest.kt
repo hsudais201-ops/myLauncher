@@ -52,7 +52,7 @@ class JavaRuntimePackageInstallerSymlinkTest {
         val output = ByteArrayOutputStream()
         ZipOutputStream(output).use { zip ->
             zip.putNextEntry(ZipEntry("release"))
-            zip.write("JAVA_VERSION=\"17.0.12\"\\nOS_ARCH=\"aarch64\"\\n".toByteArray())
+            zip.write("JAVA_VERSION=\"17.0.12\"\nOS_ARCH=\"aarch64\"\n".toByteArray())
             zip.closeEntry()
             zip.putNextEntry(ZipEntry("lib/server/libjvm.so"))
             zip.write(byteArrayOf(1, 2, 3, 4))
