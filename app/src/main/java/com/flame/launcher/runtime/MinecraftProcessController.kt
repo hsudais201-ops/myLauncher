@@ -135,6 +135,10 @@ class MinecraftProcessController(
         error: String? = null
     ) {
         synchronized(session) {
+            // Once a session reaches a terminal state, a late worker result
+            // must not overwrite the outcome (for example, EXITED after a
+            // stop failure has already marked the session FAILED).
+            if (session.state.isTerminal()) return
             session.state = state
             session.exitCode = exitCode
             session.error = error
