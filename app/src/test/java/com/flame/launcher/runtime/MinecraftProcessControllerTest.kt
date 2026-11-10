@@ -79,6 +79,8 @@ class MinecraftProcessControllerTest {
     fun nativeStopFailureIsReportedInsteadOfLeavingSessionStopping() {
         val token = "stop-failure-token"
         val stopAttempted = CountDownLatch(1)
+        val allowExit = CountDownLatch(1)
+        val awaitExited = CountDownLatch(1)
         val terminal = CountDownLatch(1)
         val host = object : MinecraftProcessHost {
             override fun start(
@@ -86,8 +88,13 @@ class MinecraftProcessControllerTest {
                 onOutput: (String) -> Unit
             ): MinecraftRunningProcess = object : MinecraftRunningProcess {
                 override fun awaitExit(): Int {
-                    assertTrue(stopAttempted.await(5, TimeUnit.SECONDS))
-                    throw IllegalStateException("native stop failed for token=$token")
+                    try {
+                        assertTrue(stopAttempted.await(5, TimeUnit.SECONDS))
+                        assertTrue(allowExit.await(5, TimeUnit.SECONDS))
+                        return 0
+                    } finally {
+                        awaitExited.countDown()
+                    }
                 }
 
                 override fun requestStop() {
@@ -119,6 +126,10 @@ class MinecraftProcessControllerTest {
             assertEquals(MinecraftProcessState.RUNNING, controller.snapshot(id)?.state)
             assertTrue(controller.stop(id))
             assertTrue(terminal.await(5, TimeUnit.SECONDS))
+            // Let the worker report a successful exit after the stop failure.
+            // The earlier FAILED outcome must remain authoritative.
+            allowExit.countDown()
+            assertTrue(awaitExited.await(5, TimeUnit.SECONDS))
 
             val snapshot = controller.snapshot(id)
             assertEquals(MinecraftProcessState.FAILED, snapshot?.state)
