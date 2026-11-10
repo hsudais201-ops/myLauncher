@@ -141,6 +141,67 @@ class MinecraftProcessControllerTest {
     }
 
     @Test
+    fun nativeLinkageFailureDuringStopIsReportedAsFailed() {
+        val stopAttempted = CountDownLatch(1)
+        val allowExit = CountDownLatch(1)
+        val awaitExited = CountDownLatch(1)
+        val terminal = CountDownLatch(1)
+        val host = object : MinecraftProcessHost {
+            override fun start(
+                command: MinecraftLaunchCommand,
+                onOutput: (String) -> Unit
+            ): MinecraftRunningProcess = object : MinecraftRunningProcess {
+                override fun awaitExit(): Int {
+                    try {
+                        assertTrue(stopAttempted.await(5, TimeUnit.SECONDS))
+                        assertTrue(allowExit.await(5, TimeUnit.SECONDS))
+                        return 0
+                    } finally {
+                        awaitExited.countDown()
+                    }
+                }
+
+                override fun requestStop() {
+                    stopAttempted.countDown()
+                    throw UnsatisfiedLinkError("native stop entry point is missing")
+                }
+            }
+        }
+        val controller = MinecraftProcessController(host, Executors.newSingleThreadExecutor())
+        try {
+            val command = MinecraftLaunchCommand(
+                executable = File("/unused/java"),
+                workingDirectory = File("/unused/game"),
+                arguments = emptyList(),
+                classPath = emptyList()
+            )
+            val id = controller.launch(command) { event ->
+                if (event is MinecraftProcessEvent.StateChanged &&
+                    event.snapshot.state == MinecraftProcessState.FAILED
+                ) terminal.countDown()
+            }
+
+            val startedDeadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5)
+            while (controller.snapshot(id)?.state != MinecraftProcessState.RUNNING &&
+                System.nanoTime() < startedDeadline
+            ) {
+                Thread.yield()
+            }
+            assertEquals(MinecraftProcessState.RUNNING, controller.snapshot(id)?.state)
+            assertTrue(controller.stop(id))
+            assertTrue(terminal.await(5, TimeUnit.SECONDS))
+            allowExit.countDown()
+            assertTrue(awaitExited.await(5, TimeUnit.SECONDS))
+
+            assertEquals(MinecraftProcessState.FAILED, controller.snapshot(id)?.state)
+            assertTrue(controller.snapshot(id)?.error.orEmpty().contains("native stop entry point"))
+        } finally {
+            allowExit.countDown()
+            controller.close()
+        }
+    }
+
+    @Test
     fun stopBeforeWorkerStartsCancelsWithoutStartingHost() {
         val workerBlocked = CountDownLatch(1)
         val releaseWorker = CountDownLatch(1)
