@@ -6,6 +6,15 @@ import org.junit.Test
 
 class JvmInvocationReadinessTest {
     @Test
+    fun onlyExplicitTrustedReadyStateAuthorizesInvocation() {
+        assertTrue(JvmInvocationReadiness.Ready.mayInvokeCreateJavaVm)
+        assertFalse(
+            JvmInvocationReadiness.Unverified("device compatibility not verified")
+                .mayInvokeCreateJavaVm
+        )
+    }
+
+    @Test
     fun diagnosticTextNeverAuthorizesInvocation() {
         val readyLookingDiagnostic =
             JvmInvocationReadiness.fromDiagnostic("READY: verified runtime isolation")
