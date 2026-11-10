@@ -112,6 +112,15 @@ class EmbeddedJvmInvocationParserTest {
             assertThrows(IllegalArgumentException::class.java) {
                 parse(listOf("-cp", jar.absolutePath, "-invalid"), jar, home, game)
             }
+
+            listOf("example..Main", "example.1Main", "example.Main.").forEach { invalidMainClass ->
+                assertThrows(
+                    "Expected rejection for $invalidMainClass",
+                    IllegalArgumentException::class.java
+                ) {
+                    parse(listOf("-cp", jar.absolutePath, invalidMainClass), jar, home, game)
+                }
+            }
             assertThrows(IllegalArgumentException::class.java) {
                 parse(
                     listOf("-cp", jar.absolutePath + File.pathSeparator, "example.Main"),
