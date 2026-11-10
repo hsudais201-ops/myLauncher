@@ -69,11 +69,7 @@ class MinecraftProcessController(
 
     private fun runSession(session: Session, command: MinecraftLaunchCommand) {
         try {
-            if (session.stopRequested.get()) {
-                transition(session, MinecraftProcessState.CANCELLED)
-                return
-            }
-            transition(session, MinecraftProcessState.STARTING)
+            if (!beginStarting(session)) return
             val process = host.start(command) { line ->
                 publish(session, MinecraftProcessEvent.Output(session.id, redact(line, session.accessToken)))
             }
@@ -102,6 +98,25 @@ class MinecraftProcessController(
             failSession(session, failure)
         } finally {
             synchronized(session) { session.process = null }
+        }
+    }
+
+    /**
+     * Atomically checks cancellation and publishes STARTING under the same
+     * session lock used by stop(). This prevents a concurrent stop request
+     * from being overwritten by a late STARTING transition.
+     */
+    private fun beginStarting(session: Session): Boolean {
+        synchronized(session) {
+            if (session.state.isTerminal()) return false
+            if (session.stopRequested.get()) {
+                session.state = MinecraftProcessState.CANCELLED
+                publish(session, MinecraftProcessEvent.StateChanged(session.snapshot()))
+                return false
+            }
+            session.state = MinecraftProcessState.STARTING
+            publish(session, MinecraftProcessEvent.StateChanged(session.snapshot()))
+            return true
         }
     }
 
