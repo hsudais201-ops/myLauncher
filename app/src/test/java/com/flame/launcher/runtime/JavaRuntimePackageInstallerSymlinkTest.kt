@@ -17,7 +17,7 @@ class JavaRuntimePackageInstallerSymlinkTest {
         val root = Files.createDirectory(parent.toPath().resolve("runtimes")).toFile()
         val outside = Files.createDirectory(parent.toPath().resolve("outside")).toFile()
         try {
-            val marker = Files.writeString(outside.toPath().resolve("keep.txt"), "preserve").toFile()
+            val marker = Files.write(outside.toPath().resolve("keep.txt"), "preserve".toByteArray()).toFile()
             Files.createSymbolicLink(
                 root.toPath().resolve("java-17"),
                 outside.toPath()
