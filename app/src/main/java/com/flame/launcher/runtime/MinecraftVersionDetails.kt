@@ -33,7 +33,9 @@ data class MinecraftVersionDetails(
                 "Minecraft metadata ID does not match the requested version."
             }
             val mainClass = root.optString("mainClass")
-            require(mainClass.matches(MAIN_CLASS)) { "Minecraft metadata has an invalid main class." }
+            require(mainClass.length <= 256 && mainClass.matches(MAIN_CLASS)) {
+                "Minecraft metadata has an invalid main class."
+            }
             val assets = root.optString("assets").takeIf(String::isNotBlank)
                 ?: throw IllegalArgumentException("Minecraft metadata is missing its assets ID.")
             val downloads = root.optJSONObject("downloads")
@@ -276,7 +278,9 @@ data class MinecraftVersionDetails(
         private const val MAX_EXCLUDES_PER_LIBRARY = 256
         private const val MAX_RULE_STRING_LENGTH = 256
         private val VERSION_ID = Regex("[A-Za-z0-9._-]{1,64}")
-        private val MAIN_CLASS = Regex("[A-Za-z_$][A-Za-z0-9_$.]{1,255}")
+        private val MAIN_CLASS = Regex(
+            "[A-Za-z_$][A-Za-z0-9_$]*(?:\\.[A-Za-z_$][A-Za-z0-9_$]*)*"
+        )
         private val SHA1 = Regex("[a-fA-F0-9]{40}")
         private val CLASSIFIER = Regex("[A-Za-z0-9._-]{1,128}")
         private val FEATURE_NAME = Regex("[A-Za-z0-9_]{1,64}")
