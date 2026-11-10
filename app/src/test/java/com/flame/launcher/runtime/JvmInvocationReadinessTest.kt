@@ -6,11 +6,11 @@ import org.junit.Test
 
 class JvmInvocationReadinessTest {
     @Test
-    fun onlyExplicitReadyDiagnosticAuthorizesInvocation() {
-        assertTrue(
+    fun diagnosticTextNeverAuthorizesInvocation() {
+        val readyLookingDiagnostic =
             JvmInvocationReadiness.fromDiagnostic("READY: verified runtime isolation")
-                .mayInvokeCreateJavaVm
-        )
+        assertTrue(readyLookingDiagnostic is JvmInvocationReadiness.Unverified)
+        assertFalse(readyLookingDiagnostic.mayInvokeCreateJavaVm)
         assertFalse(
             JvmInvocationReadiness.fromDiagnostic("WARN: provider identity is inconclusive")
                 .mayInvokeCreateJavaVm
