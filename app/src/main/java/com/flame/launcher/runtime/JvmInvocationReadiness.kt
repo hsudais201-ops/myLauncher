@@ -21,8 +21,14 @@ sealed class JvmInvocationReadiness {
         fun fromDiagnostic(diagnostic: String): JvmInvocationReadiness {
             val normalized = diagnostic.trim()
             return when {
+                // A text diagnostic is evidence, not authorization. Only a
+                // trusted bridge implementation may explicitly return Ready
+                // after device-level compatibility verification.
                 normalized.startsWith("READY:") ->
-                    Ready
+                    Unverified(
+                        "A READY diagnostic cannot authorize JNI invocation; " +
+                            "the bridge must provide an explicit verified readiness state."
+                    )
                 normalized.startsWith("BLOCKED:") ->
                     Blocked(normalized)
                 normalized.startsWith("ERROR:") ->
