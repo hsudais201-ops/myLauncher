@@ -76,6 +76,60 @@ class MinecraftProcessControllerTest {
     }
 
     @Test
+    fun nativeStopFailureIsReportedInsteadOfLeavingSessionStopping() {
+        val token = "stop-failure-token"
+        val stopAttempted = CountDownLatch(1)
+        val terminal = CountDownLatch(1)
+        val host = object : MinecraftProcessHost {
+            override fun start(
+                command: MinecraftLaunchCommand,
+                onOutput: (String) -> Unit
+            ): MinecraftRunningProcess = object : MinecraftRunningProcess {
+                override fun awaitExit(): Int {
+                    assertTrue(stopAttempted.await(5, TimeUnit.SECONDS))
+                    throw IllegalStateException("native stop failed for token=$token")
+                }
+
+                override fun requestStop() {
+                    stopAttempted.countDown()
+                    throw IllegalStateException("native stop failed for token=$token")
+                }
+            }
+        }
+        val controller = MinecraftProcessController(host, Executors.newSingleThreadExecutor())
+        try {
+            val command = MinecraftLaunchCommand(
+                executable = File("/unused/java"),
+                workingDirectory = File("/unused/game"),
+                arguments = listOf("--accessToken", token),
+                classPath = emptyList()
+            )
+            val id = controller.launch(command) { event ->
+                if (event is MinecraftProcessEvent.StateChanged &&
+                    event.snapshot.state == MinecraftProcessState.FAILED
+                ) terminal.countDown()
+            }
+
+            val startedDeadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5)
+            while (controller.snapshot(id)?.state != MinecraftProcessState.RUNNING &&
+                System.nanoTime() < startedDeadline
+            ) {
+                Thread.yield()
+            }
+            assertEquals(MinecraftProcessState.RUNNING, controller.snapshot(id)?.state)
+            assertTrue(controller.stop(id))
+            assertTrue(terminal.await(5, TimeUnit.SECONDS))
+
+            val snapshot = controller.snapshot(id)
+            assertEquals(MinecraftProcessState.FAILED, snapshot?.state)
+            assertFalse(snapshot?.error.orEmpty().contains(token))
+            assertTrue(snapshot?.error.orEmpty().contains("[REDACTED]"))
+        } finally {
+            controller.close()
+        }
+    }
+
+    @Test
     fun stopBeforeWorkerStartsCancelsWithoutStartingHost() {
         val workerBlocked = CountDownLatch(1)
         val releaseWorker = CountDownLatch(1)
