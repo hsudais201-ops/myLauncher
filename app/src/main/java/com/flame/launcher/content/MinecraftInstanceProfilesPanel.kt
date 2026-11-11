@@ -3,6 +3,7 @@ package com.flame.launcher.content
 import android.app.ActivityManager
 import android.content.Context
 import android.os.Build
+import java.io.File
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -59,11 +60,12 @@ fun MinecraftInstanceProfilesPanel() {
     val root = remember(context) { context.getDir("minecraft-instances", Context.MODE_PRIVATE) }
     val profileStore = remember(root) { MinecraftInstanceProfileStore(root) }
     val settingsStore = remember(root) { MinecraftInstanceLaunchSettingsStore(root) }
-    val runtimeRoot = remember(context) { context.getDir("java-runtimes", Context.MODE_PRIVATE) }
+    val runtimeRoot = remember(context) { File(context.filesDir, "runtimes") }
     val runtimeManager = remember(runtimeRoot) {
         JavaRuntimeManager(runtimeRoot, Build.SUPPORTED_ABIS.firstOrNull().orEmpty())
     }
-    val installedRuntimes = remember(runtimeManager) { runtimeManager.discover() }
+    var runtimeRefresh by remember { mutableStateOf(0) }
+    val installedRuntimes = remember(runtimeManager, runtimeRefresh) { runtimeManager.discover() }
 
     fun readProfiles(): List<MinecraftInstanceProfile> =
         (profileStore.listProfiles() as? MinecraftInstanceProfileResult.Profiles)?.profiles.orEmpty()
@@ -280,6 +282,7 @@ fun MinecraftInstanceProfilesPanel() {
             ) { Text(if (cloningProfile) "Cloning profile…" else "Clone profile") }
 
             Text("JAVA RUNTIME", style = MaterialTheme.typography.labelLarge)
+            TextButton(onClick = { runtimeRefresh++ }) { Text("Refresh installed runtimes") }
             Text(
                 if (installedRuntimes.isEmpty()) "No compatible runtime is currently installed."
                 else "Installed runtimes: " + installedRuntimes.joinToString { "${it.id} (Java ${it.majorVersion}, ${it.architecture})" },
