@@ -121,3 +121,7 @@ A failed check blocks the next milestone. Do not mark a build or test as passed 
 7. Independent cloud Feature Store, Social Hub, ServerState, and Flame AI services.
 
 All work must preserve Minecraft's licensing and authentication requirements, provider API terms, app security, and user control over downloads and repairs.
+
+## Engineering gap register
+
+See [the implementation gap register](docs/implementation-gap-register.md) for the audited missing components, required acceptance evidence, security gates, and release milestones. The current CI build is Gate A only; it is not evidence of a playable Minecraft client.
