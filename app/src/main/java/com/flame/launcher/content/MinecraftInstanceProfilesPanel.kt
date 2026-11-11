@@ -1,5 +1,6 @@
 package com.flame.launcher.content
 
+import android.app.ActivityManager
 import android.content.Context
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -39,6 +40,15 @@ import androidx.compose.ui.unit.dp
 @Composable
 fun MinecraftInstanceProfilesPanel() {
     val context = LocalContext.current
+    val totalMemoryMb = remember(context) {
+        val manager = context.getSystemService(Context.ACTIVITY_SERVICE) as? ActivityManager
+        val memoryInfo = ActivityManager.MemoryInfo()
+        manager?.getMemoryInfo(memoryInfo)
+        memoryInfo.totalMem.takeIf { it > 0L }?.div(1024L * 1024L)?.toInt()
+    }
+    val recommendedMaximumMemoryMb = remember(totalMemoryMb) {
+        MinecraftInstanceLaunchSettings.recommendedMaximumMemoryMb(totalMemoryMb)
+    }
     val root = remember(context) { context.getDir("minecraft-instances", Context.MODE_PRIVATE) }
     val profileStore = remember(root) { MinecraftInstanceProfileStore(root) }
     val settingsStore = remember(root) { MinecraftInstanceLaunchSettingsStore(root) }
@@ -56,7 +66,7 @@ fun MinecraftInstanceProfilesPanel() {
     var loader by remember { mutableStateOf(MinecraftLoader.FABRIC) }
     var renameValue by remember { mutableStateOf("") }
     var minimumMemory by remember { mutableStateOf("512") }
-    var maximumMemory by remember { mutableStateOf("2048") }
+    var maximumMemory by remember { mutableStateOf(recommendedMaximumMemoryMb.toString()) }
     var width by remember { mutableStateOf("1280") }
     var height by remember { mutableStateOf("720") }
     var fullscreen by remember { mutableStateOf(false) }
@@ -87,7 +97,24 @@ fun MinecraftInstanceProfilesPanel() {
     }
 
     LaunchedEffect(selectedId, profiles) {
-        profiles.firstOrNull { it.id == selectedId }?.let(::loadSettings)
+        profiles.firstOrNull { it.id == selectedId }?.let { profile ->
+            when (val result = settingsStore.load(
+                profile,
+                MinecraftInstanceLaunchSettings(maximumMemoryMb = recommendedMaximumMemoryMb)
+            )) {
+                is MinecraftInstanceLaunchSettingsResult.Loaded -> {
+                    minimumMemory = result.settings.minimumMemoryMb.toString()
+                    maximumMemory = result.settings.maximumMemoryMb.toString()
+                    width = result.settings.width.toString()
+                    height = result.settings.height.toString()
+                    fullscreen = result.settings.fullscreen
+                    jvmArguments = result.settings.jvmArguments
+                    gameArguments = result.settings.gameArguments
+                }
+                is MinecraftInstanceLaunchSettingsResult.Failed -> message = result.reason
+                is MinecraftInstanceLaunchSettingsResult.Saved -> Unit
+            }
+        }
     }
 
     Column(
