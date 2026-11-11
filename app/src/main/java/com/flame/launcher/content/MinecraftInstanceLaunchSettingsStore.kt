@@ -12,7 +12,7 @@ import java.util.UUID
  */
 data class MinecraftInstanceLaunchSettings(
     val minimumMemoryMb: Int = 512,
-    val maximumMemoryMb: Int = 2048,
+    val maximumMemoryMb: Int = 1536,
     val width: Int = 1280,
     val height: Int = 720,
     val fullscreen: Boolean = false,
@@ -37,6 +37,13 @@ data class MinecraftInstanceLaunchSettings(
         length <= MAX_ARGUMENT_LENGTH && none { it.isISOControl() }
 
     companion object {
+        fun recommendedMaximumMemoryMb(totalMemoryMb: Int?): Int {
+            if (totalMemoryMb == null || totalMemoryMb <= 0) return 1536
+            val proportionalBudget = (totalMemoryMb.toLong() * 3L / 8L)
+                .coerceAtMost(2048L)
+                .toInt()
+            return ((proportionalBudget / 256) * 256).coerceIn(512, 2048)
+        }
         const val MIN_MEMORY_MB = 512
         const val MAX_MEMORY_MB = 8192
         const val MIN_WIDTH = 640
@@ -56,21 +63,34 @@ sealed interface MinecraftInstanceLaunchSettingsResult {
 /** Stores settings beside a validated profile, never in a caller-selected path. */
 class MinecraftInstanceLaunchSettingsStore(private val profilesRoot: File) {
     @Synchronized
-    fun load(profile: MinecraftInstanceProfile): MinecraftInstanceLaunchSettingsResult {
+    fun load(
+        profile: MinecraftInstanceProfile,
+        defaults: MinecraftInstanceLaunchSettings = MinecraftInstanceLaunchSettings()
+    ): MinecraftInstanceLaunchSettingsResult {
         val directory = validatedProfileDirectory(profile)
             ?: return MinecraftInstanceLaunchSettingsResult.Failed("Profile directory is invalid.")
         val file = File(directory, SETTINGS_FILE)
-        if (!file.exists()) return MinecraftInstanceLaunchSettingsResult.Loaded(MinecraftInstanceLaunchSettings())
+        if (!file.exists()) return MinecraftInstanceLaunchSettingsResult.Loaded(defaults)
         return try {
+            if (!file.isFile || file.canonicalFile.parentFile != directory ||
+                file.length() !in 1..MAX_SETTINGS_FILE_BYTES.toLong()
+            ) {
+                return MinecraftInstanceLaunchSettingsResult.Failed("Stored launch settings file is invalid or too large.")
+            }
             val properties = Properties().apply { file.inputStream().use { load(it) } }
+            val schema = properties.getProperty("schema")
+                ?: return MinecraftInstanceLaunchSettingsResult.Failed("Stored launch settings have no schema version.")
+            if (schema != SETTINGS_SCHEMA_VERSION) {
+                return MinecraftInstanceLaunchSettingsResult.Failed("Stored launch settings use an unsupported schema version.")
+            }
             val settings = MinecraftInstanceLaunchSettings(
-                minimumMemoryMb = properties.getProperty("minimumMemoryMb")?.toInt() ?: 512,
-                maximumMemoryMb = properties.getProperty("maximumMemoryMb")?.toInt() ?: 2048,
-                width = properties.getProperty("width")?.toInt() ?: 1280,
-                height = properties.getProperty("height")?.toInt() ?: 720,
-                fullscreen = properties.getProperty("fullscreen")?.toBooleanStrict() ?: false,
-                jvmArguments = properties.getProperty("jvmArguments") ?: "",
-                gameArguments = properties.getProperty("gameArguments") ?: ""
+                minimumMemoryMb = properties.getProperty("minimumMemoryMb")?.toInt() ?: defaults.minimumMemoryMb,
+                maximumMemoryMb = properties.getProperty("maximumMemoryMb")?.toInt() ?: defaults.maximumMemoryMb,
+                width = properties.getProperty("width")?.toInt() ?: defaults.width,
+                height = properties.getProperty("height")?.toInt() ?: defaults.height,
+                fullscreen = properties.getProperty("fullscreen")?.toBooleanStrict() ?: defaults.fullscreen,
+                jvmArguments = properties.getProperty("jvmArguments") ?: defaults.jvmArguments,
+                gameArguments = properties.getProperty("gameArguments") ?: defaults.gameArguments
             )
             settings.validationError()?.let {
                 return MinecraftInstanceLaunchSettingsResult.Failed("Stored launch settings are invalid: $it")
@@ -132,6 +152,8 @@ class MinecraftInstanceLaunchSettingsStore(private val profilesRoot: File) {
 
     companion object {
         private const val SETTINGS_FILE = "launch-settings.properties"
+        private const val SETTINGS_SCHEMA_VERSION = "1"
+        private const val MAX_SETTINGS_FILE_BYTES = 16 * 1024
         private val PROFILE_ID_PATTERN = Regex("profile-[A-Za-z0-9-]{36}")
     }
 }
