@@ -13,7 +13,9 @@ This register is based on the repository tree, project README, embedded-JVM desi
 - JVM ELF/dependency inspection, native library preflight/retention, launch argument parsing, VM option planning, process-session state model, and embedded/process host routing contracts.
 - OpenGL ES diagnostic surface.
 - Safe per-instance profile create/list/select/rename/delete with isolated content directories and atomic metadata/selection writes.
-- Per-instance launch preference persistence for memory bounds, resolution, fullscreen, and JVM/game argument text, with validation and profile-path checks.
+- Per-instance launch preference persistence for memory bounds, resolution, fullscreen, JVM/game argument text, and an optional preferred Java runtime ID, with validation and profile-path checks.
+- Per-profile Java runtime preference resolution with exact Java-major and device-architecture matching; explicit selections fail closed rather than silently falling back.
+- Launch-readiness preflight that checks profile/plan version agreement, settings validity, Mojang Java-major metadata, and installed compatible runtime selection. It reports typed blocking reasons and does not claim artifact installation or game launch readiness.
 - Device-RAM-aware conservative heap recommendations (including a 1.5 GB maximum recommendation for a 4 GB device) and translation of saved profile preferences into validated, shell-free JVM/game launch arguments. Launcher-owned paths, classpath, memory flags, display flags and authentication arguments cannot be overridden by profile text.
 - Unit-test suite and CI debug APK build.
 
@@ -32,7 +34,7 @@ This register is based on the repository tree, project README, embedded-JVM desi
 | Priority | Gap | Required implementation | Acceptance evidence |
 |---|---|---|---|
 | P1 | Accounts | Microsoft OAuth/device-code flow, token storage/refresh/revocation, entitlement/profile retrieval, and compliant offline profile support. Never log or expose tokens. | Auth success, cancellation, expired-token recovery, logout and offline behavior tested. |
-| P1 | Complete real game profiles | Java runtime selection remains unimplemented. Profile create/list/select/rename/delete/clone, settings persistence, device-RAM heap recommendations, and validated command-builder translation are implemented; the Play screen still does not start a selected profile. | Profile selection, launch-plan and content-isolation tests, followed by physical-device validation. |
+| P1 | Complete real game profiles | Complete game installation and launch integration remain unimplemented. Profile create/list/select/rename/delete/clone, settings persistence, per-profile Java runtime preference and ABI/major validation, readiness preflight, device-RAM heap recommendations, and validated command-builder translation are implemented; the Play screen still does not start a selected profile. | Profile selection, launch-plan and content-isolation tests, followed by physical-device validation. |
 | P1 | Loader-aware content lifecycle | Verify provider metadata, loader/version compatibility, required/optional dependencies, updates, uninstall and rollback across profiles. | Modrinth/CurseForge install/update/remove tests against real fixture packages and profile state. |
 | P1 | CurseForge credential protection | Replace client-held API-key model with a production backend proxy and rate limiting/abuse controls. | No provider secret in APK, logs, source or client network requests. |
 | P1 | Runtime certificate maintenance | Establish documented upstream certificate rotation, overlap period, expiry monitoring and rollback-safe trust updates. | Rotation test accepts new key, rejects unknown key, and handles old/new overlap. |
@@ -79,4 +81,4 @@ These should remain clearly marked as planned until each has a real service and 
 - Gate E — game: legitimate Minecraft client reaches the title screen and a world, with controls.
 - Gate F — stability: stop/restart, cancellation, low-memory, crash recovery and each advertised ABI are verified.
 
-Current evidence establishes profile/content foundations and Gate A only when the latest CI run passes. Gates B–F are not established by the current repository tests or APK build.
+Current evidence establishes profile/content foundations, runtime selection/readiness preflight, and Gate A (unit tests and debug APK build) on commit 943712b. The readiness preflight does not verify downloaded artifact completeness. Gates B–F are not established by the current repository tests or APK build.
