@@ -6,6 +6,8 @@ import java.nio.file.StandardCopyOption
 import java.util.Properties
 import java.util.UUID
 
+private val RUNTIME_ID_PATTERN = Regex("[A-Za-z0-9][A-Za-z0-9._-]{0,63}")
+
 /**
  * Per-instance launch preferences. These settings are persisted only; they do
  * not imply that a compatible JVM or Minecraft client is installed.
@@ -160,7 +162,6 @@ class MinecraftInstanceLaunchSettingsStore(private val profilesRoot: File) {
     companion object {
         private const val SETTINGS_FILE = "launch-settings.properties"
         private const val SETTINGS_SCHEMA_VERSION = "1"
-        private val RUNTIME_ID_PATTERN = Regex("[A-Za-z0-9][A-Za-z0-9._-]{0,63}")
         private const val MAX_SETTINGS_FILE_BYTES = 16 * 1024
         private val PROFILE_ID_PATTERN = Regex("profile-[A-Za-z0-9-]{36}")
     }
