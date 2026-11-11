@@ -116,7 +116,7 @@ class MinecraftLaunchReadinessValidatorTest {
             val profile = (MinecraftInstanceProfileStore(profilesRoot).createProfile(
                 "Readiness test",
                 "1.21",
-                MinecraftLoader.VANILLA
+                MinecraftLoader.FABRIC
             ) as MinecraftInstanceProfileResult.Created).profile
             val runtimes = File(root, "runtimes")
             runtimes.mkdirs()
