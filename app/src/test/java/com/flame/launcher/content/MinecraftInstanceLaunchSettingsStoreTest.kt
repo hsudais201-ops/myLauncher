@@ -24,7 +24,8 @@ class MinecraftInstanceLaunchSettingsStoreTest {
                 height = 1080,
                 fullscreen = true,
                 jvmArguments = "-XX:+UseG1GC",
-                gameArguments = "--demo"
+                gameArguments = "--demo",
+                javaRuntimeId = "temurin-21"
             )
             val store = MinecraftInstanceLaunchSettingsStore(profilesRoot)
             assertTrue(store.save(first, settings) is MinecraftInstanceLaunchSettingsResult.Saved)
@@ -44,6 +45,7 @@ class MinecraftInstanceLaunchSettingsStoreTest {
         assertTrue(MinecraftInstanceLaunchSettings(minimumMemoryMb = 3072, maximumMemoryMb = 2048).validationError() != null)
         assertTrue(MinecraftInstanceLaunchSettings(width = 320).validationError() != null)
         assertTrue(MinecraftInstanceLaunchSettings(jvmArguments = "-Xmx1G\nmalicious").validationError() != null)
+        assertTrue(MinecraftInstanceLaunchSettings(javaRuntimeId = "../outside").validationError() != null)
     }
 
     @Test
