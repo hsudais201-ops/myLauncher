@@ -14,6 +14,7 @@ This register is based on the repository tree, project README, embedded-JVM desi
 - OpenGL ES diagnostic surface.
 - Safe per-instance profile create/list/select/rename/delete with isolated content directories and atomic metadata/selection writes.
 - Per-instance launch preference persistence for memory bounds, resolution, fullscreen, and JVM/game argument text, with validation and profile-path checks.
+- Device-RAM-aware conservative heap recommendations (including a 1.5 GB maximum recommendation for a 4 GB device) and translation of saved profile preferences into validated, shell-free JVM/game launch arguments. Launcher-owned paths, classpath, memory flags, display flags and authentication arguments cannot be overridden by profile text.
 - Unit-test suite and CI debug APK build.
 
 ## Blocking gaps (must be implemented before claiming playable)
@@ -31,7 +32,7 @@ This register is based on the repository tree, project README, embedded-JVM desi
 | Priority | Gap | Required implementation | Acceptance evidence |
 |---|---|---|---|
 | P1 | Accounts | Microsoft OAuth/device-code flow, token storage/refresh/revocation, entitlement/profile retrieval, and compliant offline profile support. Never log or expose tokens. | Auth success, cancellation, expired-token recovery, logout and offline behavior tested. |
-| P1 | Complete real game profiles | Implement Java runtime selection, profile cloning, and wire persisted profile settings into a validated launch-plan builder. The profile manager UI, per-profile settings persistence, and device-RAM-based default heap recommendation now exist; they do not yet launch the game. | Create/clone/edit/delete profile; profile-specific launch-plan and content-isolation tests, followed by physical-device validation. |
+| P1 | Complete real game profiles | Java runtime selection and profile cloning remain unimplemented. Profile lifecycle, per-profile settings persistence, device-RAM-based heap recommendation, and validated translation of saved preferences into launch arguments are implemented; this does not yet create or execute a complete game launch plan. | Create/clone/edit/delete profile; profile-specific launch-argument and content-isolation tests, followed by physical-device validation. |
 | P1 | Loader-aware content lifecycle | Verify provider metadata, loader/version compatibility, required/optional dependencies, updates, uninstall and rollback across profiles. | Modrinth/CurseForge install/update/remove tests against real fixture packages and profile state. |
 | P1 | CurseForge credential protection | Replace client-held API-key model with a production backend proxy and rate limiting/abuse controls. | No provider secret in APK, logs, source or client network requests. |
 | P1 | Runtime certificate maintenance | Establish documented upstream certificate rotation, overlap period, expiry monitoring and rollback-safe trust updates. | Rotation test accepts new key, rejects unknown key, and handles old/new overlap. |
