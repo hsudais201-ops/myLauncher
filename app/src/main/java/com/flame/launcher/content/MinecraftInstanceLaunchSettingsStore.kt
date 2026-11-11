@@ -17,7 +17,8 @@ data class MinecraftInstanceLaunchSettings(
     val height: Int = 720,
     val fullscreen: Boolean = false,
     val jvmArguments: String = "",
-    val gameArguments: String = ""
+    val gameArguments: String = "",
+    val javaRuntimeId: String? = null
 ) {
     fun validationError(): String? {
         if (minimumMemoryMb !in MIN_MEMORY_MB..MAX_MEMORY_MB ||
@@ -26,6 +27,9 @@ data class MinecraftInstanceLaunchSettings(
         ) return "Memory must be between 512 and 8192 MB, with maximum at least minimum."
         if (width !in MIN_WIDTH..MAX_WIDTH || height !in MIN_HEIGHT..MAX_HEIGHT) {
             return "Resolution must be between 640×480 and 7680×4320."
+        }
+        if (javaRuntimeId != null && !RUNTIME_ID_PATTERN.matches(javaRuntimeId)) {
+            return "Preferred Java runtime ID is invalid."
         }
         if (!jvmArguments.isSafeArgumentText() || !gameArguments.isSafeArgumentText()) {
             return "Arguments are too long or contain unsupported control characters."
@@ -90,7 +94,9 @@ class MinecraftInstanceLaunchSettingsStore(private val profilesRoot: File) {
                 height = properties.getProperty("height")?.toInt() ?: defaults.height,
                 fullscreen = properties.getProperty("fullscreen")?.toBooleanStrict() ?: defaults.fullscreen,
                 jvmArguments = properties.getProperty("jvmArguments") ?: defaults.jvmArguments,
-                gameArguments = properties.getProperty("gameArguments") ?: defaults.gameArguments
+                gameArguments = properties.getProperty("gameArguments") ?: defaults.gameArguments,
+                javaRuntimeId = properties.getProperty("javaRuntimeId")?.takeIf(String::isNotBlank)
+                    ?: defaults.javaRuntimeId
             )
             settings.validationError()?.let {
                 return MinecraftInstanceLaunchSettingsResult.Failed("Stored launch settings are invalid: $it")
@@ -119,6 +125,7 @@ class MinecraftInstanceLaunchSettingsStore(private val profilesRoot: File) {
                 setProperty("fullscreen", settings.fullscreen.toString())
                 setProperty("jvmArguments", settings.jvmArguments)
                 setProperty("gameArguments", settings.gameArguments)
+                settings.javaRuntimeId?.let { setProperty("javaRuntimeId", it) }
             }
             val destination = File(directory, SETTINGS_FILE)
             val temporary = File(directory, "$SETTINGS_FILE.${UUID.randomUUID()}.tmp")
@@ -153,6 +160,7 @@ class MinecraftInstanceLaunchSettingsStore(private val profilesRoot: File) {
     companion object {
         private const val SETTINGS_FILE = "launch-settings.properties"
         private const val SETTINGS_SCHEMA_VERSION = "1"
+        private val RUNTIME_ID_PATTERN = Regex("[A-Za-z0-9][A-Za-z0-9._-]{0,63}")
         private const val MAX_SETTINGS_FILE_BYTES = 16 * 1024
         private val PROFILE_ID_PATTERN = Regex("profile-[A-Za-z0-9-]{36}")
     }
