@@ -12,6 +12,8 @@ This register is based on the repository tree, project README, embedded-JVM desi
 - Signed Mojo runtime package download, extraction, validation and transactional installation foundations.
 - JVM ELF/dependency inspection, native library preflight/retention, launch argument parsing, VM option planning, process-session state model, and embedded/process host routing contracts.
 - OpenGL ES diagnostic surface.
+- Safe per-instance profile create/list/select/rename/delete with isolated content directories and atomic metadata/selection writes.
+- Per-instance launch preference persistence for memory bounds, resolution, fullscreen, and JVM/game argument text, with validation and profile-path checks.
 - Unit-test suite and CI debug APK build.
 
 ## Blocking gaps (must be implemented before claiming playable)
@@ -29,7 +31,7 @@ This register is based on the repository tree, project README, embedded-JVM desi
 | Priority | Gap | Required implementation | Acceptance evidence |
 |---|---|---|---|
 | P1 | Accounts | Microsoft OAuth/device-code flow, token storage/refresh/revocation, entitlement/profile retrieval, and compliant offline profile support. Never log or expose tokens. | Auth success, cancellation, expired-token recovery, logout and offline behavior tested. |
-| P1 | Real game profiles | Persistent per-instance Minecraft version, loader, Java runtime, memory, resolution, JVM/game arguments, content target and isolation. | Create/clone/edit/delete profile; profile-specific launch and content isolation tests. |
+| P1 | Complete real game profiles | Remaining work: Java runtime selection, profile cloning, UI integration, device-aware memory defaults, and wiring persisted settings into a real launch plan. | Create/clone/edit/delete profile; profile-specific launch and content isolation tests, followed by physical-device validation. |
 | P1 | Loader-aware content lifecycle | Verify provider metadata, loader/version compatibility, required/optional dependencies, updates, uninstall and rollback across profiles. | Modrinth/CurseForge install/update/remove tests against real fixture packages and profile state. |
 | P1 | CurseForge credential protection | Replace client-held API-key model with a production backend proxy and rate limiting/abuse controls. | No provider secret in APK, logs, source or client network requests. |
 | P1 | Runtime certificate maintenance | Establish documented upstream certificate rotation, overlap period, expiry monitoring and rollback-safe trust updates. | Rotation test accepts new key, rejects unknown key, and handles old/new overlap. |
@@ -76,4 +78,4 @@ These should remain clearly marked as planned until each has a real service and 
 - Gate E — game: legitimate Minecraft client reaches the title screen and a world, with controls.
 - Gate F — stability: stop/restart, cancellation, low-memory, crash recovery and each advertised ABI are verified.
 
-Current evidence from the baseline establishes Gate A only. Gates B–F are not established by the current repository tests or APK build.
+Current evidence establishes profile/content foundations and Gate A only when the latest CI run passes. Gates B–F are not established by the current repository tests or APK build.
