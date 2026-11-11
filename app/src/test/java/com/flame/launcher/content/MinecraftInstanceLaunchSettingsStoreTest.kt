@@ -72,7 +72,7 @@ class MinecraftInstanceLaunchSettingsStoreTest {
             val profile = (profiles.createProfile("Main", "1.21", MinecraftLoader.FABRIC)
                 as MinecraftInstanceProfileResult.Created).profile
             File(profile.instanceDirectory, "launch-settings.properties").writeText(
-                "schema=99\\nminimumMemoryMb=512\\nmaximumMemoryMb=1536\\n"
+                "schema=99\nminimumMemoryMb=512\nmaximumMemoryMb=1536\n"
             )
 
             val result = MinecraftInstanceLaunchSettingsStore(profilesRoot).load(profile)
