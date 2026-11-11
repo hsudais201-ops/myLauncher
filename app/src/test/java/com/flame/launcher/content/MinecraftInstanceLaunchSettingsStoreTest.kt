@@ -63,4 +63,31 @@ class MinecraftInstanceLaunchSettingsStoreTest {
             root.deleteRecursively()
         }
     }
+    @Test
+    fun rejectsUnknownSettingsSchemaAndDoesNotSilentlyApplyDefaults() {
+        val root = Files.createTempDirectory("flame-launch-settings-schema-").toFile()
+        try {
+            val profilesRoot = File(root, "profiles")
+            val profiles = MinecraftInstanceProfileStore(profilesRoot)
+            val profile = (profiles.createProfile("Main", "1.21", MinecraftLoader.FABRIC)
+                as MinecraftInstanceProfileResult.Created).profile
+            File(profile.instanceDirectory, "launch-settings.properties").writeText(
+                "schema=99\\nminimumMemoryMb=512\\nmaximumMemoryMb=1536\\n"
+            )
+
+            val result = MinecraftInstanceLaunchSettingsStore(profilesRoot).load(profile)
+            assertTrue(result is MinecraftInstanceLaunchSettingsResult.Failed)
+        } finally {
+            root.deleteRecursively()
+        }
+    }
+
+    @Test
+    fun recommendsConservativeHeapForFourGigabyteAndSmallerDevices() {
+        assertEquals(1536, MinecraftInstanceLaunchSettings.recommendedMaximumMemoryMb(4096))
+        assertEquals(768, MinecraftInstanceLaunchSettings.recommendedMaximumMemoryMb(2048))
+        assertEquals(2048, MinecraftInstanceLaunchSettings.recommendedMaximumMemoryMb(8192))
+        assertEquals(1536, MinecraftInstanceLaunchSettings.recommendedMaximumMemoryMb(null))
+    }
+
 }
