@@ -31,7 +31,7 @@ This register is based on the repository tree, project README, embedded-JVM desi
 | Priority | Gap | Required implementation | Acceptance evidence |
 |---|---|---|---|
 | P1 | Accounts | Microsoft OAuth/device-code flow, token storage/refresh/revocation, entitlement/profile retrieval, and compliant offline profile support. Never log or expose tokens. | Auth success, cancellation, expired-token recovery, logout and offline behavior tested. |
-| P1 | Complete real game profiles | Remaining work: Java runtime selection, profile cloning, UI integration, device-aware memory defaults, and wiring persisted settings into a real launch plan. | Create/clone/edit/delete profile; profile-specific launch and content isolation tests, followed by physical-device validation. |
+| P1 | Complete real game profiles | Implement Java runtime selection, profile cloning, and wire persisted profile settings into a validated launch-plan builder. The profile manager UI, per-profile settings persistence, and device-RAM-based default heap recommendation now exist; they do not yet launch the game. | Create/clone/edit/delete profile; profile-specific launch-plan and content-isolation tests, followed by physical-device validation. |
 | P1 | Loader-aware content lifecycle | Verify provider metadata, loader/version compatibility, required/optional dependencies, updates, uninstall and rollback across profiles. | Modrinth/CurseForge install/update/remove tests against real fixture packages and profile state. |
 | P1 | CurseForge credential protection | Replace client-held API-key model with a production backend proxy and rate limiting/abuse controls. | No provider secret in APK, logs, source or client network requests. |
 | P1 | Runtime certificate maintenance | Establish documented upstream certificate rotation, overlap period, expiry monitoring and rollback-safe trust updates. | Rotation test accepts new key, rejects unknown key, and handles old/new overlap. |
@@ -60,12 +60,12 @@ These should remain clearly marked as planned until each has a real service and 
 
 ## Recommended implementation order
 
-1. Add a native bridge smoke-test target and a strict device/ABI support gate. Do not enable game launch yet.
-2. Implement VM creation and a tiny Java main smoke test for one supported Android ABI/device, including output and safe session termination.
-3. Wire the bridge to the existing process/session interfaces only after Gate 2 passes.
-4. Complete one end-to-end vanilla Minecraft installation and launch path before adding mod-loader complexity.
-5. Implement and validate the Android LWJGL backend; then test title screen, input, audio, pause/resume and stop.
-6. Add Microsoft/offline account flows and persistent game instances.
+1. Freeze a versioned Mojo/OpenJDK integration target and audit the upstream native bridge, Java runner, class-loader hooks, linker hints, and renderer loader as one system. Preserve LGPL-3.0 and file-level notices before adapting source.
+2. Add native smoke-test targets and a strict device/API/ABI support gate. Do not enable game launch yet.
+3. Port the VM lifecycle and Java-version-specific native-library hooks, then run a Java main smoke test on one supported physical device, including output and safe launcher-session termination.
+4. Port the Android LWJGL native loader and one renderer backend; validate EGL/OpenGL, resize, input, pause/resume, and teardown before wiring a game session.
+5. Connect profile preferences, verified client/libraries/natives/assets, runtime selection, account data, and process/session control into a fail-closed vanilla launch pipeline.
+6. Add compliant Microsoft/offline account flows and profile cloning; then expand loader compatibility.
 7. Complete service-backed Feature Store, Social Hub, ServerState and Flame AI independently.
 8. Expand the device/ABI compatibility matrix only when physical-device evidence exists.
 
