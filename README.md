@@ -43,6 +43,7 @@ Flame Launcher is an Android-first project targeting **Minecraft Java Edition** 
 - A host-agnostic process controller now owns launch-session state transitions (preparing, starting, running, stopping, exited, cancelled, and failed), keeps session snapshots, supports non-blocking graceful stop requests, and allows completed sessions to be released.
 - Runtime output and surfaced failure messages redact the launch access token. The controller deliberately does not log or stringify JVM arguments.
 - The launch-command builder now supports both process-based runtimes and embedded-JVM runtimes. Embedded commands carry a validated runtime home and contained `libjvm.so`; they cannot be converted into a desktop `ProcessBuilder`.
+- The launch-command builder accepts validated per-instance settings for heap bounds, initial window size, fullscreen, and optional arguments. Argument parsing is shell-free and blocks overrides of account, classpath and runtime-owned values. Extra arbitrary JVM arguments are process-runtime-only until they are approved for the embedded JNI option allowlist.
 - An embedded-JVM runtime layout resolver now derives the runtime `lib`, VM-specific, and optional `jli` native-library directories from the contained `libjvm.so` path, orders the extracted Minecraft native directory alongside them, and identifies optional `libawt_headless.so` / `libnio.so` preloads. The bridge contract receives this explicit layout instead of having to reconstruct paths. The resolver only describes paths; it does not mutate Android linker state or load libraries.
 - An `EmbeddedJvmProcessHost` adapter validates the runtime paths and converts the launcher's shell-free argument vector into a structured JNI invocation: JVM options, a validated absolute classpath, the main class, and game arguments. It adds the runtime-home and working-directory properties and verifies that the command classpath exactly matches the validated launch plan before forwarding to the narrow `AndroidJvmBridge` contract. The bridge session plugs into the existing process controller without calling `System.exit` on the Android app process.
 - Unit tests cover JNI argument parsing, classpath consistency, missing artifacts, invalid main classes, and the structured invocation passed to the bridge.
@@ -62,7 +63,7 @@ Flame Launcher is an Android-first project targeting **Minecraft Java Edition** 
 - This is not yet Minecraft world rendering. A compatible LWJGL-to-Android native bridge, graphics translation layer, and game launch integration are still required.
 
 ### Current boundaries
-- Content profiles are app-private content targets, not complete playable Minecraft installations.
+- Content profiles are app-private content targets, not complete playable Minecraft installations. Profile cloning now copies worlds, content and saved preferences to a separate identity, with bounded storage checks and background execution.
 - Verified version metadata is not equivalent to installed libraries, assets, natives, or client JAR files.
 - Java runtime catalog validation, archive downloading, and package installation are separate foundations; none is equivalent to a working JVM launch.
 - The OpenGL ES diagnostic renderer is not an implementation of Minecraft's LWJGL renderer.
@@ -124,4 +125,4 @@ All work must preserve Minecraft's licensing and authentication requirements, pr
 
 ## Engineering gap register
 
-See [the implementation gap register](docs/implementation-gap-register.md) for the audited missing components, required acceptance evidence, security gates, and release milestones. The current CI build is Gate A only; it is not evidence of a playable Minecraft client.
+See [the implementation gap register](docs/implementation-gap-register.md) for the audited missing components, required acceptance evidence, security gates, and release milestones. See the [Mojo JVM and renderer port audit](docs/mojo-bridge-port-audit.md) for the native integration plan. The current CI build is Gate A only; it is not evidence of a playable Minecraft client.

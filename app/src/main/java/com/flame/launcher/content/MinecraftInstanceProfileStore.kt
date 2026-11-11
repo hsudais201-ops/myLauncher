@@ -153,13 +153,19 @@ class MinecraftInstanceProfileStore(private val profilesRoot: File) {
             require(sourceDirectory.toPath().startsWith(root.toPath()) && sourceDirectory != root) {
                 "Source profile is outside the profile root."
             }
+            val totalBytes = estimateCloneSize(sourceDirectory)
+            val availableBytes = Files.getFileStore(root.toPath()).usableSpace
+            require(availableBytes >= totalBytes && availableBytes - totalBytes >= CLONE_FREE_SPACE_RESERVE_BYTES) {
+                "Not enough free space to safely clone this profile."
+            }
             val newId = "profile-${UUID.randomUUID()}"
             val staging = File(root, ".clone-${UUID.randomUUID()}.tmp")
             val destination = File(root, newId)
             require(staging.mkdir()) { "Could not create temporary clone directory." }
             try {
                 val sourcePath = sourceDirectory.toPath()
-                sourceDirectory.walkTopDown().sortedBy { it.toPath().nameCount }.forEach { entry ->
+                var copiedBytes = 0L
+                sourceDirectory.walkTopDown().forEach { entry ->
                     require(!Files.isSymbolicLink(entry.toPath())) {
                         "Cannot clone a profile containing symbolic links."
                     }
@@ -169,11 +175,23 @@ class MinecraftInstanceProfileStore(private val profilesRoot: File) {
                     if (entry.isDirectory) {
                         Files.createDirectories(target)
                     } else {
-                        require(entry.isFile) { "Profile contains an unsupported filesystem entry." }
+                        require(entry.isFile && entry.canRead()) {
+                            "Profile contains an unreadable or unsupported filesystem entry."
+                        }
+                        val expectedBytes = entry.length()
+                        require(expectedBytes >= 0L && expectedBytes <= MAX_CLONE_BYTES - copiedBytes) {
+                            "Profile changed or exceeds the clone size limit."
+                        }
                         Files.createDirectories(target.parent)
                         Files.copy(entry.toPath(), target)
+                        val copiedFileBytes = Files.size(target)
+                        require(copiedFileBytes == expectedBytes) {
+                            "A profile file changed while it was being cloned."
+                        }
+                        copiedBytes += copiedFileBytes
                     }
                 }
+                require(copiedBytes == totalBytes) { "Profile contents changed while being cloned." }
                 val metadata = File(staging, PROFILE_FILE)
                 val properties = Properties().apply {
                     metadata.inputStream().use { load(it) }
@@ -256,6 +274,34 @@ class MinecraftInstanceProfileStore(private val profilesRoot: File) {
         return MinecraftInstanceProfile(id, name, version, loader, canonicalDirectory, gameDirectory)
     }
 
+    /** Estimate clone cost before staging to avoid unexpected storage exhaustion. */
+    private fun estimateCloneSize(sourceDirectory: File): Long {
+        var entries = 0
+        var totalBytes = 0L
+        sourceDirectory.walkTopDown().forEach { entry ->
+            require(!Files.isSymbolicLink(entry.toPath())) {
+                "Cannot clone a profile containing symbolic links."
+            }
+            entries++
+            require(entries <= MAX_CLONE_ENTRIES) {
+                "Profile has too many filesystem entries to clone safely."
+            }
+            require(entry.canRead()) { "Profile contains an unreadable filesystem entry." }
+            when {
+                entry.isDirectory -> Unit
+                entry.isFile -> {
+                    val size = entry.length()
+                    require(size >= 0L && size <= MAX_CLONE_BYTES - totalBytes) {
+                        "Profile exceeds the maximum supported clone size."
+                    }
+                    totalBytes += size
+                }
+                else -> throw IllegalArgumentException("Profile contains an unsupported filesystem entry.")
+            }
+        }
+        return totalBytes
+    }
+
     private fun profileProperties(profile: MinecraftInstanceProfile) = Properties().apply {
         setProperty("schema", "1")
         setProperty("id", profile.id)
@@ -302,6 +348,9 @@ class MinecraftInstanceProfileStore(private val profilesRoot: File) {
 
     companion object {
         private const val PROFILE_FILE = "profile.properties"
+        private const val MAX_CLONE_ENTRIES = 100_000
+        private const val MAX_CLONE_BYTES = 32L * 1024 * 1024 * 1024
+        private const val CLONE_FREE_SPACE_RESERVE_BYTES = 64L * 1024 * 1024
         private val PROFILE_ID_PATTERN = Regex("profile-[A-Za-z0-9-]{36}")
         private val VERSION_PATTERN = Regex("[0-9]+\\.[0-9]+(?:\\.[0-9]+)?(?:-[A-Za-z0-9.-]+)?")
     }

@@ -311,4 +311,51 @@ class MinecraftLaunchCommandBuilderTest {
         }
     }
 
+
+    @Test
+    fun embeddedProfileSettingsStayOnGameSideAndUnsupportedJvmFlagsFailEarly() {
+        val f = fixture()
+        try {
+            val jvmLibrary = File(f.runtime.homeDirectory, "lib/server/libjvm.so").apply {
+                parentFile?.mkdirs()
+                writeBytes(byteArrayOf(8))
+            }
+            val embeddedRuntime = f.runtime.copy(jvmLibrary = jvmLibrary)
+            val settings = com.flame.launcher.content.MinecraftInstanceLaunchSettings(
+                minimumMemoryMb = 512,
+                maximumMemoryMb = 1024,
+                width = 1366,
+                height = 768,
+                fullscreen = true,
+                gameArguments = "--demo"
+            )
+            val command = MinecraftLaunchCommandBuilder.build(
+                f.plan, f.game, f.native, embeddedRuntime,
+                MinecraftLaunchAccount("Player", "12345678123412341234123456789abc", "token"),
+                profileSettings = settings
+            )
+            val invocation = EmbeddedJvmInvocationParser.parse(
+                arguments = command.arguments,
+                expectedClassPath = command.classPath,
+                runtimeHome = command.runtimeHome!!,
+                workingDirectory = command.workingDirectory
+            )
+            assertTrue(invocation.vmOptions.contains("-Xmx1024M"))
+            assertTrue(invocation.applicationArguments.containsAll(
+                listOf("--width", "1366", "--height", "768", "--fullscreen", "--demo")
+            ))
+            invocation.toVmCreationPlan()
+
+            assertThrows(IllegalArgumentException::class.java) {
+                MinecraftLaunchCommandBuilder.build(
+                    f.plan, f.game, f.native, embeddedRuntime,
+                    MinecraftLaunchAccount("Player", "12345678123412341234123456789abc", "token"),
+                    profileSettings = settings.copy(jvmArguments = "-XX:+UseG1GC")
+                )
+            }
+        } finally {
+            f.root.deleteRecursively()
+        }
+    }
+
 }

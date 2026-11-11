@@ -26,11 +26,15 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 /**
  * Profile and preference controls. This screen manages content instances only;
@@ -40,6 +44,7 @@ import androidx.compose.ui.unit.dp
 @Composable
 fun MinecraftInstanceProfilesPanel() {
     val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
     val totalMemoryMb = remember(context) {
         val manager = context.getSystemService(Context.ACTIVITY_SERVICE) as? ActivityManager
         val memoryInfo = ActivityManager.MemoryInfo()
@@ -66,6 +71,7 @@ fun MinecraftInstanceProfilesPanel() {
     var loader by remember { mutableStateOf(MinecraftLoader.FABRIC) }
     var renameValue by remember { mutableStateOf("") }
     var cloneName by remember { mutableStateOf("") }
+    var cloningProfile by remember { mutableStateOf(false) }
     var minimumMemory by remember { mutableStateOf("512") }
     var maximumMemory by remember { mutableStateOf(recommendedMaximumMemoryMb.toString()) }
     var width by remember { mutableStateOf("1280") }
@@ -236,21 +242,32 @@ fun MinecraftInstanceProfilesPanel() {
             )
             Button(
                 onClick = {
-                    when (val result = profileStore.cloneProfile(selected.id, cloneName)) {
-                        is MinecraftInstanceProfileResult.Created -> {
-                            cloneName = ""
-                            profileStore.selectProfile(result.profile.id)
-                            message = "Profile cloned with its own copy of worlds, content and settings."
-                            refresh()
-                            loadSettings(result.profile)
+                    val sourceId = selected.id
+                    val requestedName = cloneName
+                    cloningProfile = true
+                    coroutineScope.launch {
+                        try {
+                            when (val result = withContext(Dispatchers.IO) {
+                                profileStore.cloneProfile(sourceId, requestedName)
+                            }) {
+                                is MinecraftInstanceProfileResult.Created -> {
+                                    cloneName = ""
+                                    profileStore.selectProfile(result.profile.id)
+                                    message = "Profile cloned with its own copy of worlds, content and settings."
+                                    refresh()
+                                    loadSettings(result.profile)
+                                }
+                                is MinecraftInstanceProfileResult.Failed -> message = result.reason
+                                else -> message = "Could not clone profile."
+                            }
+                        } finally {
+                            cloningProfile = false
                         }
-                        is MinecraftInstanceProfileResult.Failed -> message = result.reason
-                        else -> message = "Could not clone profile."
                     }
                 },
-                enabled = cloneName.isNotBlank(),
+                enabled = cloneName.isNotBlank() && !cloningProfile,
                 modifier = Modifier.fillMaxWidth()
-            ) { Text("Clone profile") }
+            ) { Text(if (cloningProfile) "Cloning profile…" else "Clone profile") }
 
             Text("LAUNCH PREFERENCES", style = MaterialTheme.typography.labelLarge)
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {

@@ -21,6 +21,11 @@ object MinecraftLaunchCommandBuilder {
     ): MinecraftLaunchCommand {
         val profileOptions = profileSettings?.let(MinecraftLaunchProfileOptionsBuilder::build)
         val effectiveMemory = profileOptions?.memory ?: memory
+        require(runtime.executionKind != JavaRuntimeExecutionKind.EMBEDDED_JVM ||
+            profileOptions?.jvmArguments.isNullOrEmpty()
+        ) {
+            "Extra profile JVM arguments are not yet enabled for the embedded Android JVM."
+        }
         require(plan.versionId.matches(VERSION_ID)) { "Minecraft version ID is invalid." }
         require(plan.mainClass.length <= 256 && plan.mainClass.matches(MAIN_CLASS)) {
             "Minecraft main class is invalid."

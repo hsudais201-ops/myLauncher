@@ -152,8 +152,38 @@ class MinecraftInstanceProfileStoreTest {
             assertEquals("world-data", File(clone.contentDirectory, "saves/World/level.dat").readText())
             assertEquals(settings, (MinecraftInstanceLaunchSettingsStore(profilesRoot).load(clone)
                 as MinecraftInstanceLaunchSettingsResult.Loaded).settings)
+            File(clone.contentDirectory, "saves/World/level.dat").writeText("clone-only-data")
+            assertEquals("world-data", File(original.contentDirectory, "saves/World/level.dat").readText())
             assertEquals("Original", (store.listProfiles() as MinecraftInstanceProfileResult.Profiles)
                 .profiles.first { it.id == original.id }.name)
+        } finally {
+            root.deleteRecursively()
+        }
+    }
+
+
+    @Test
+    fun cloneRejectsSymbolicLinksWithoutPublishingPartialProfile() {
+        val root = Files.createTempDirectory("flame-profile-clone-link-").toFile()
+        try {
+            val profilesRoot = File(root, "profiles")
+            val outside = File(root, "outside").apply {
+                mkdirs()
+                resolve("private.txt").writeText("must-not-copy")
+            }
+            val store = MinecraftInstanceProfileStore(profilesRoot)
+            val source = (store.createProfile("Source", "1.21", MinecraftLoader.FABRIC)
+                as MinecraftInstanceProfileResult.Created).profile
+            Files.createSymbolicLink(
+                File(source.contentDirectory, "external-link").toPath(),
+                outside.toPath()
+            )
+
+            assertTrue(store.cloneProfile(source.id, "Unsafe copy") is MinecraftInstanceProfileResult.Failed)
+            val profiles = store.listProfiles() as MinecraftInstanceProfileResult.Profiles
+            assertEquals(listOf(source.id), profiles.profiles.map { it.id })
+            assertTrue(profilesRoot.listFiles().orEmpty().none { it.name.startsWith(".clone-") })
+            assertEquals("must-not-copy", File(outside, "private.txt").readText())
         } finally {
             root.deleteRecursively()
         }
