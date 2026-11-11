@@ -307,7 +307,7 @@ class MinecraftLaunchCommandBuilderTest {
             MinecraftLaunchProfileOptionsBuilder.parseJvmArguments("-Dexample.value=\"unfinished")
         }
         assertThrows(IllegalArgumentException::class.java) {
-            MinecraftLaunchProfileOptionsBuilder.parseJvmArguments("-Dexample.value=ok\\\")
+            MinecraftLaunchProfileOptionsBuilder.parseJvmArguments("-Dexample.value=ok\\")
         }
     }
 
