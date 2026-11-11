@@ -297,7 +297,7 @@ class MinecraftLaunchCommandBuilderTest {
     @Test
     fun tokenizerSupportsQuotesAndEscapedSpacesWithoutShellExecution() {
         val parsed = MinecraftLaunchProfileOptionsBuilder.parseJvmArguments(
-            "-Dexample.path=\"folder with spaces/file\" -Dexample.escaped=folder\\\\ with\\\\ spaces"
+            "-Dexample.path=\"folder with spaces/file\" -Dexample.escaped=folder\\ with\\ spaces"
         )
         assertEquals(
             listOf("-Dexample.path=folder with spaces/file", "-Dexample.escaped=folder with spaces"),
@@ -307,7 +307,7 @@ class MinecraftLaunchCommandBuilderTest {
             MinecraftLaunchProfileOptionsBuilder.parseJvmArguments("-Dexample.value=\"unfinished")
         }
         assertThrows(IllegalArgumentException::class.java) {
-            MinecraftLaunchProfileOptionsBuilder.parseJvmArguments("-Dexample.value=ok\\\\")
+            MinecraftLaunchProfileOptionsBuilder.parseJvmArguments("-Dexample.value=ok\\\")
         }
     }
 
