@@ -126,4 +126,37 @@ class MinecraftInstanceProfileStoreTest {
         }
     }
 
+
+    @Test
+    fun cloneCreatesNewIdentityAndCopiesContentAndLaunchSettings() {
+        val root = Files.createTempDirectory("flame-profile-clone-").toFile()
+        try {
+            val profilesRoot = File(root, "profiles")
+            val store = MinecraftInstanceProfileStore(profilesRoot)
+            val original = (store.createProfile("Original", "1.21", MinecraftLoader.FABRIC)
+                as MinecraftInstanceProfileResult.Created).profile
+            File(original.contentDirectory, "saves/World/level.dat").apply {
+                parentFile?.mkdirs()
+                writeText("world-data")
+            }
+            val settings = MinecraftInstanceLaunchSettings(
+                minimumMemoryMb = 768, maximumMemoryMb = 1280, width = 1600, height = 900,
+                fullscreen = true, jvmArguments = "-XX:+UseG1GC", gameArguments = "--demo"
+            )
+            assertTrue(MinecraftInstanceLaunchSettingsStore(profilesRoot).save(original, settings)
+                is MinecraftInstanceLaunchSettingsResult.Saved)
+
+            val clone = (store.cloneProfile(original.id, "Copy") as MinecraftInstanceProfileResult.Created).profile
+            assertTrue(clone.id != original.id)
+            assertEquals("Copy", clone.name)
+            assertEquals("world-data", File(clone.contentDirectory, "saves/World/level.dat").readText())
+            assertEquals(settings, (MinecraftInstanceLaunchSettingsStore(profilesRoot).load(clone)
+                as MinecraftInstanceLaunchSettingsResult.Loaded).settings)
+            assertEquals("Original", (store.listProfiles() as MinecraftInstanceProfileResult.Profiles)
+                .profiles.first { it.id == original.id }.name)
+        } finally {
+            root.deleteRecursively()
+        }
+    }
+
 }
