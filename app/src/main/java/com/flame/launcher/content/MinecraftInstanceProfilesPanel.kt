@@ -2,6 +2,7 @@ package com.flame.launcher.content
 
 import android.app.ActivityManager
 import android.content.Context
+import android.os.Build
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -57,6 +58,11 @@ fun MinecraftInstanceProfilesPanel() {
     val root = remember(context) { context.getDir("minecraft-instances", Context.MODE_PRIVATE) }
     val profileStore = remember(root) { MinecraftInstanceProfileStore(root) }
     val settingsStore = remember(root) { MinecraftInstanceLaunchSettingsStore(root) }
+    val runtimeRoot = remember(context) { context.getDir("java-runtimes", Context.MODE_PRIVATE) }
+    val runtimeManager = remember(runtimeRoot) {
+        JavaRuntimeManager(runtimeRoot, Build.SUPPORTED_ABIS.firstOrNull().orEmpty())
+    }
+    val installedRuntimes = remember(runtimeManager) { runtimeManager.discover() }
 
     fun readProfiles(): List<MinecraftInstanceProfile> =
         (profileStore.listProfiles() as? MinecraftInstanceProfileResult.Profiles)?.profiles.orEmpty()
@@ -79,6 +85,7 @@ fun MinecraftInstanceProfilesPanel() {
     var fullscreen by remember { mutableStateOf(false) }
     var jvmArguments by remember { mutableStateOf("") }
     var gameArguments by remember { mutableStateOf("") }
+    var javaRuntimeId by remember { mutableStateOf("") }
     var message by remember { mutableStateOf<String?>(null) }
     var deleteCandidate by remember { mutableStateOf<MinecraftInstanceProfile?>(null) }
 
@@ -97,6 +104,7 @@ fun MinecraftInstanceProfilesPanel() {
                 fullscreen = result.settings.fullscreen
                 jvmArguments = result.settings.jvmArguments
                 gameArguments = result.settings.gameArguments
+                javaRuntimeId = result.settings.javaRuntimeId.orEmpty()
             }
             is MinecraftInstanceLaunchSettingsResult.Failed -> message = result.reason
             is MinecraftInstanceLaunchSettingsResult.Saved -> Unit
@@ -117,6 +125,7 @@ fun MinecraftInstanceProfilesPanel() {
                     fullscreen = result.settings.fullscreen
                     jvmArguments = result.settings.jvmArguments
                     gameArguments = result.settings.gameArguments
+                    javaRuntimeId = result.settings.javaRuntimeId.orEmpty()
                 }
                 is MinecraftInstanceLaunchSettingsResult.Failed -> message = result.reason
                 is MinecraftInstanceLaunchSettingsResult.Saved -> Unit
@@ -269,6 +278,22 @@ fun MinecraftInstanceProfilesPanel() {
                 modifier = Modifier.fillMaxWidth()
             ) { Text(if (cloningProfile) "Cloning profile…" else "Clone profile") }
 
+            Text("JAVA RUNTIME", style = MaterialTheme.typography.labelLarge)
+            Text(
+                if (installedRuntimes.isEmpty()) "No compatible runtime is currently installed."
+                else "Installed runtimes: " + installedRuntimes.joinToString { "${it.id} (Java ${it.majorVersion}, ${it.architecture})" },
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            OutlinedTextField(
+                value = javaRuntimeId,
+                onValueChange = { javaRuntimeId = it },
+                label = { Text("Preferred runtime ID (blank = automatic)") },
+                supportingText = { Text("Choose an ID from the installed list above. It must match the Minecraft version and device ABI.") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth()
+            )
+
             Text("LAUNCH PREFERENCES", style = MaterialTheme.typography.labelLarge)
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedTextField(
@@ -337,7 +362,8 @@ fun MinecraftInstanceProfilesPanel() {
                             height = values[3],
                             fullscreen = fullscreen,
                             jvmArguments = jvmArguments,
-                            gameArguments = gameArguments
+                            gameArguments = gameArguments,
+                            javaRuntimeId = javaRuntimeId.trim().ifBlank { null }
                         )
                         when (val result = settingsStore.save(selected, settings)) {
                             is MinecraftInstanceLaunchSettingsResult.Saved -> message = "Preferences saved for ${selected.name}."
