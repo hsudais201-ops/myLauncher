@@ -70,4 +70,60 @@ class MinecraftInstanceProfileStoreTest {
             root.deleteRecursively()
         }
     }
+
+    @Test
+    fun renamesProfileAndPersistsTheNewName() {
+        val root = Files.createTempDirectory("flame-profiles-").toFile()
+        try {
+            val profilesRoot = File(root, "profiles")
+            val store = MinecraftInstanceProfileStore(profilesRoot)
+            val created = store.createProfile("Old name", "1.20.1", MinecraftLoader.FABRIC)
+                as MinecraftInstanceProfileResult.Created
+
+            val renamed = store.renameProfile(created.profile.id, "New name")
+            assertTrue(renamed is MinecraftInstanceProfileResult.Updated)
+            assertEquals("New name", (renamed as MinecraftInstanceProfileResult.Updated).profile.name)
+            val restored = MinecraftInstanceProfileStore(profilesRoot).listProfiles()
+                as MinecraftInstanceProfileResult.Profiles
+            assertEquals("New name", restored.profiles.single().name)
+            assertEquals(created.profile.id, restored.profiles.single().id)
+        } finally {
+            root.deleteRecursively()
+        }
+    }
+
+    @Test
+    fun deletingSelectedProfileClearsSelectionAndRemovesOnlyThatInstance() {
+        val root = Files.createTempDirectory("flame-profiles-").toFile()
+        try {
+            val profilesRoot = File(root, "profiles")
+            val store = MinecraftInstanceProfileStore(profilesRoot)
+            val first = (store.createProfile("First", "1.20.1", MinecraftLoader.FABRIC)
+                as MinecraftInstanceProfileResult.Created).profile
+            val second = (store.createProfile("Second", "1.21", MinecraftLoader.QUILT)
+                as MinecraftInstanceProfileResult.Created).profile
+            assertTrue(store.selectProfile(first.id) is MinecraftInstanceProfileResult.Selected)
+
+            val deleted = store.deleteProfile(first.id)
+            assertTrue(deleted is MinecraftInstanceProfileResult.Deleted)
+            assertFalse(first.instanceDirectory.exists())
+            assertTrue(second.instanceDirectory.exists())
+            assertTrue(store.selectedProfile() is MinecraftInstanceProfileResult.Failed)
+        } finally {
+            root.deleteRecursively()
+        }
+    }
+
+    @Test
+    fun refusesProfileMutationForUnknownOrMalformedIds() {
+        val root = Files.createTempDirectory("flame-profiles-").toFile()
+        try {
+            val store = MinecraftInstanceProfileStore(File(root, "profiles"))
+            assertTrue(store.renameProfile("../escape", "Name") is MinecraftInstanceProfileResult.Failed)
+            assertTrue(store.deleteProfile("../escape") is MinecraftInstanceProfileResult.Failed)
+        } finally {
+            root.deleteRecursively()
+        }
+    }
+
 }
