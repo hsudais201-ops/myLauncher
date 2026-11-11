@@ -137,6 +137,63 @@ class MinecraftInstanceProfileStore(private val profilesRoot: File) {
     }
 
     /**
+     * Clone a profile's complete private instance, including installed content
+     * and launch settings, into a fresh identity. Symlinks are rejected so a
+     * profile cannot copy data from outside the app-private profile root.
+     */
+    @Synchronized
+    fun cloneProfile(profileId: String, newName: String): MinecraftInstanceProfileResult {
+        val cleanName = validateName(newName)
+            ?: return MinecraftInstanceProfileResult.Failed("Profile name must be 1–48 safe characters.")
+        val source = findProfile(profileId)
+            ?: return MinecraftInstanceProfileResult.Failed("Profile does not exist.")
+        return try {
+            val root = profilesRoot.canonicalFile
+            val sourceDirectory = source.instanceDirectory.canonicalFile
+            require(sourceDirectory.toPath().startsWith(root.toPath()) && sourceDirectory != root) {
+                "Source profile is outside the profile root."
+            }
+            val newId = "profile-${UUID.randomUUID()}"
+            val staging = File(root, ".clone-${UUID.randomUUID()}.tmp")
+            val destination = File(root, newId)
+            require(staging.mkdir()) { "Could not create temporary clone directory." }
+            try {
+                val sourcePath = sourceDirectory.toPath()
+                sourceDirectory.walkTopDown().sortedBy { it.toPath().nameCount }.forEach { entry ->
+                    require(!Files.isSymbolicLink(entry.toPath())) {
+                        "Cannot clone a profile containing symbolic links."
+                    }
+                    val relative = sourcePath.relativize(entry.toPath())
+                    val target = staging.toPath().resolve(relative).normalize()
+                    require(target.startsWith(staging.toPath())) { "Profile contains an unsafe path." }
+                    if (entry.isDirectory) {
+                        Files.createDirectories(target)
+                    } else {
+                        require(entry.isFile) { "Profile contains an unsupported filesystem entry." }
+                        Files.createDirectories(target.parent)
+                        Files.copy(entry.toPath(), target)
+                    }
+                }
+                val metadata = File(staging, PROFILE_FILE)
+                val properties = Properties().apply {
+                    metadata.inputStream().use { load(it) }
+                    setProperty("id", newId)
+                    setProperty("name", cleanName)
+                }
+                writePropertiesAtomically(metadata, properties)
+                moveAtomically(staging, destination)
+            } finally {
+                if (staging.exists()) staging.deleteRecursively()
+            }
+            val cloned = findProfile(newId)
+                ?: throw IllegalStateException("Cloned profile failed validation.")
+            MinecraftInstanceProfileResult.Created(cloned)
+        } catch (error: Exception) {
+            MinecraftInstanceProfileResult.Failed(error.message ?: "Could not clone profile.")
+        }
+    }
+
+    /**
      * Delete only a validated profile directory beneath profilesRoot.
      * The currently selected pointer is cleared before deletion so a failed
      * filesystem removal cannot leave a dangling selected-profile reference.
