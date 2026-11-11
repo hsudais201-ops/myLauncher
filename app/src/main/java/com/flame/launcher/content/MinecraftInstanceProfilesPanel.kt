@@ -65,6 +65,7 @@ fun MinecraftInstanceProfilesPanel() {
     var minecraftVersion by remember { mutableStateOf("1.21.1") }
     var loader by remember { mutableStateOf(MinecraftLoader.FABRIC) }
     var renameValue by remember { mutableStateOf("") }
+    var cloneName by remember { mutableStateOf("") }
     var minimumMemory by remember { mutableStateOf("512") }
     var maximumMemory by remember { mutableStateOf(recommendedMaximumMemoryMb.toString()) }
     var width by remember { mutableStateOf("1280") }
@@ -225,6 +226,31 @@ fun MinecraftInstanceProfilesPanel() {
                 ) { Text("Rename") }
                 TextButton(onClick = { deleteCandidate = selected }) { Text("Delete") }
             }
+
+            OutlinedTextField(
+                value = cloneName,
+                onValueChange = { cloneName = it },
+                label = { Text("New cloned profile name") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth()
+            )
+            Button(
+                onClick = {
+                    when (val result = profileStore.cloneProfile(selected.id, cloneName)) {
+                        is MinecraftInstanceProfileResult.Created -> {
+                            cloneName = ""
+                            profileStore.selectProfile(result.profile.id)
+                            message = "Profile cloned with its own copy of worlds, content and settings."
+                            refresh()
+                            loadSettings(result.profile)
+                        }
+                        is MinecraftInstanceProfileResult.Failed -> message = result.reason
+                        else -> message = "Could not clone profile."
+                    }
+                },
+                enabled = cloneName.isNotBlank(),
+                modifier = Modifier.fillMaxWidth()
+            ) { Text("Clone profile") }
 
             Text("LAUNCH PREFERENCES", style = MaterialTheme.typography.labelLarge)
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
