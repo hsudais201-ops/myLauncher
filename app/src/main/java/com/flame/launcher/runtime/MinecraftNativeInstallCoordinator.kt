@@ -9,7 +9,8 @@ import java.io.File
  */
 class MinecraftNativeInstallCoordinator(
     private val artifactInstaller: MinecraftArtifactInstallCoordinator = MinecraftArtifactInstallCoordinator(),
-    private val extractor: MinecraftNativeArchiveExtractor = MinecraftNativeArchiveExtractor()
+    private val extractor: MinecraftNativeArchiveExtractor = MinecraftNativeArchiveExtractor(),
+    private val extractionValidator: MinecraftNativeExtractionValidator = MinecraftNativeExtractionValidator()
 ) {
     fun install(
         plan: MinecraftLaunchDependencyPlan,
@@ -34,7 +35,12 @@ class MinecraftNativeInstallCoordinator(
         val extracted = if (nativeArchives.isEmpty()) {
             emptyList()
         } else {
-            extractor.extract(nativeArchives, nativeDirectory)
+            val files = extractor.extract(nativeArchives, nativeDirectory)
+            val validation = extractionValidator.validate(nativeDirectory, files)
+            check(validation is MinecraftNativeExtractionValidation.Complete) {
+                "Minecraft native extraction did not pass completeness validation: $validation"
+            }
+            files
         }
         return MinecraftNativeInstallResult(installedArtifacts, extracted)
     }
