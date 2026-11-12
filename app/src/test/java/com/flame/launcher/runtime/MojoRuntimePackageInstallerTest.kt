@@ -4,6 +4,7 @@ import org.apache.commons.compress.archivers.tar.TarArchiveEntry
 import org.apache.commons.compress.archivers.tar.TarArchiveOutputStream
 import org.tukaani.xz.LZMA2Options
 import org.tukaani.xz.XZOutputStream
+import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertThrows
@@ -87,6 +88,49 @@ class MojoRuntimePackageInstallerTest {
             }
             assertTrue(JavaRuntimeManager(root, "aarch64").discover().isEmpty())
             assertFalse(File(root, "mojo-java-21-arm64").exists())
+        } finally {
+            root.deleteRecursively()
+            packageDir.deleteRecursively()
+        }
+    }
+
+    @Test
+    fun completionCallbackFailureDoesNotDeletePromotedRuntimeOrPreviousBackup() {
+        val root = Files.createTempDirectory("mojo-runtime-callback").toFile()
+        val packageDir = File(root.parentFile, "mojo-package-${System.nanoTime()}").apply { mkdir() }
+        try {
+            val universal = File(packageDir, "universal.tar.xz")
+            val platform = File(packageDir, "bin-arm64.tar.xz")
+            createArchive(universal) {
+                addFile("jre/release", "JAVA_VERSION=\"21.0.1\"\nOS_ARCH=\"aarch64\"\n".toByteArray())
+            }
+            createArchive(platform) {
+                addFile("jre/lib/server/libjvm.so", byteArrayOf(4, 5, 6))
+            }
+            installer(root).install(packageOf(universal, platform))
+
+            createArchive(platform) {
+                addFile("jre/lib/server/libjvm.so", byteArrayOf(8, 9, 10))
+            }
+            val replacement = installer(root).install(
+                packageOf(universal, platform),
+                onProgress = { progress ->
+                    if (progress is MojoRuntimeInstallProgress.Completed) {
+                        throw IllegalStateException("UI observer failed after completion.")
+                    }
+                }
+            )
+
+            assertEquals("mojo-java-21-arm64", replacement.id)
+            assertArrayEquals(
+                byteArrayOf(8, 9, 10),
+                File(root, "mojo-java-21-arm64/lib/server/libjvm.so").readBytes()
+            )
+            assertEquals(
+                listOf("mojo-java-21-arm64"),
+                JavaRuntimeManager(root, "aarch64").discover().map { it.id }
+            )
+            assertTrue(root.listFiles().orEmpty().none { it.name.startsWith(".mojo-backup-") })
         } finally {
             root.deleteRecursively()
             packageDir.deleteRecursively()
