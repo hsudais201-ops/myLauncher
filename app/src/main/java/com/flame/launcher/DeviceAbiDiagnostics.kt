@@ -3,9 +3,9 @@ package com.flame.launcher
 /**
  * Snapshot of Android ABI selection and the architecture of this app process.
  *
- * The preferred Android ABI is used for runtime matching. The other fields are
- * diagnostic only: device CPU capability does not guarantee that this APK
- * contains or can load a native library for every listed ABI.
+ * Runtime matching must use the architecture reported by the running process
+ * when available. Build.SUPPORTED_ABIS describes device support and may start
+ * with a 64-bit ABI even when this APK process is 32-bit.
  */
 internal data class DeviceAbiDiagnostics(
     val supportedAbis: List<String>,
@@ -15,8 +15,9 @@ internal data class DeviceAbiDiagnostics(
     val nativeLibraryDirectory: String?
 ) {
     val preferredAbi: String
-        get() = supportedAbis.firstOrNull().orEmpty()
-            .ifBlank { processArchitecture.orEmpty() }
+        get() = processArchitecture?.trim()?.takeIf { it.isNotEmpty() }
+            ?: supportedAbis.firstNotNullOfOrNull { it.trim().takeIf(String::isNotEmpty) }
+            ?: ""
 
     fun displayLines(): List<String> = listOf(
         "Android preferred ABIs: " + supportedAbis.displayValue(),

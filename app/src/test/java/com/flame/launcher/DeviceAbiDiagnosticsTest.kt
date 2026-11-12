@@ -6,30 +6,30 @@ import org.junit.Test
 
 class DeviceAbiDiagnosticsTest {
     @Test
-    fun preferredAbiUsesFirstAndroidSupportedAbi() {
+    fun runtimeMatchingPrefersActualProcessArchitectureOverDeviceAbiOrder() {
         val diagnostics = DeviceAbiDiagnostics(
             supportedAbis = listOf("x86_64", "x86"),
             supported64BitAbis = listOf("x86_64"),
             supported32BitAbis = listOf("x86"),
-            processArchitecture = "amd64",
-            nativeLibraryDirectory = "/data/app/example/lib/x86_64"
+            processArchitecture = "i686",
+            nativeLibraryDirectory = "/data/app/example/lib/x86"
         )
 
-        assertEquals("x86_64", diagnostics.preferredAbi)
+        assertEquals("i686", diagnostics.preferredAbi)
     }
 
     @Test
-    fun processArchitectureIsFallbackWhenAndroidAbiListIsEmpty() {
+    fun firstNonBlankDeviceAbiIsFallbackWhenProcessArchitectureIsUnavailable() {
         val diagnostics = DeviceAbiDiagnostics(
-            supportedAbis = emptyList(),
-            supported64BitAbis = emptyList(),
-            supported32BitAbis = emptyList(),
-            processArchitecture = "amd64",
+            supportedAbis = listOf("", "x86_64", "x86"),
+            supported64BitAbis = listOf("x86_64"),
+            supported32BitAbis = listOf("x86"),
+            processArchitecture = null,
             nativeLibraryDirectory = null
         )
 
-        assertEquals("amd64", diagnostics.preferredAbi)
-        assertTrue(diagnostics.displayLines().any { it == "Android preferred ABIs: Unavailable" })
+        assertEquals("x86_64", diagnostics.preferredAbi)
+        assertTrue(diagnostics.displayLines().any { it == "App process architecture: Unavailable" })
         assertTrue(diagnostics.displayLines().any { it == "Native library directory: Unavailable" })
     }
 
@@ -49,6 +49,7 @@ class DeviceAbiDiagnosticsTest {
         assertTrue(lines.contains("Android 32-bit ABIs: x86"))
         assertTrue(lines.contains("App process architecture: amd64"))
         assertTrue(lines.contains("Native library directory: /data/app/example/lib/x86_64"))
+        assertEquals("amd64", diagnostics.preferredAbi)
     }
 
     @Test
