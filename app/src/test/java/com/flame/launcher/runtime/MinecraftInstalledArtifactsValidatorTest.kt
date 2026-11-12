@@ -113,6 +113,25 @@ class MinecraftInstalledArtifactsValidatorTest {
     }
 
     @Test
+    fun propagatesThreadCancellation() {
+        val root = Files.createTempDirectory("flame-installed-cancel-").toFile()
+        try {
+            val cancelled = Thread.currentThread()
+            cancelled.interrupt()
+            try {
+                MinecraftInstalledArtifactsValidator().validate(root, plan())
+                throw AssertionError("Expected artifact validation cancellation.")
+            } catch (_: InterruptedException) {
+                // Cancellation must escape instead of being reported as corruption.
+            } finally {
+                Thread.interrupted()
+            }
+        } finally {
+            root.deleteRecursively()
+        }
+    }
+
+    @Test
     fun rejectsAssetEntriesInTheWrongPlanAndDuplicateDestinations() {
         val root = Files.createTempDirectory("flame-installed-plan-").toFile()
         try {
