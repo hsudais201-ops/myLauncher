@@ -198,8 +198,8 @@ fun JavaRuntimeStatusPanel() {
                             }
                         ) {
                             Text(
-                                if (preparingRuntimeId == runtime.id) "Preparing JVM…"
-                                else "Prepare and retain JVM (restart required to change)"
+                                if (preparingRuntimeId == runtime.id) "Checking and retaining JVM libraries…"
+                                else "Preflight and retain JVM libraries"
                             )
                         }
                     }
@@ -253,7 +253,7 @@ fun JavaRuntimeStatusPanel() {
                     )
                 }
                 Text(
-                    text = "Runtime compatibility uses the preferred Android ABI. This diagnostic does not prove that the embedded JVM can start; Minecraft remains unavailable until its native runtime bridge is verified.",
+                    text = "Runtime matching uses the app process architecture when available, with Android ABI data as fallback. A successful linker preflight only means native libraries were accepted and retained: it does not create a Java VM or start Minecraft. Game launch remains disabled until a safe Android JVM bridge is implemented and device-verified.",
                     color = Color(0xFF9AA4B2),
                     fontSize = 11.sp,
                     lineHeight = 16.sp
