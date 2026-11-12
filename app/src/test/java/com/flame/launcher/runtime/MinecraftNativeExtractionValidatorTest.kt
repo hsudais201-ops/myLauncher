@@ -8,7 +8,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class MinecraftNativeExtractionValidatorTest {
-    private fun elfHeader(): ByteArray = ByteArray(20).apply {
+    private fun elfHeader(): ByteArray = ByteArray(64).apply {
         this[0] = 0x7f
         this[1] = 'E'.code.toByte()
         this[2] = 'L'.code.toByte()
@@ -16,8 +16,12 @@ class MinecraftNativeExtractionValidatorTest {
         this[4] = 2
         this[5] = 1
         this[6] = 1
+        this[16] = 3
         this[18] = 62
+        this[20] = 1
+        this[52] = 64
     }
+
     @Test
     fun acceptsExactExtractedFileSetAndReportsHashes() {
         val root = Files.createTempDirectory("flame-native-verify-").toFile()
@@ -26,14 +30,12 @@ class MinecraftNativeExtractionValidatorTest {
                 parentFile.mkdirs()
                 writeBytes(elfHeader())
             }
-            val second = File(root, "libglfw.so").apply {
-                writeBytes(elfHeader())
-            }
+            val second = File(root, "libglfw.so").apply { writeBytes(elfHeader()) }
             val result = MinecraftNativeExtractionValidator().validate(root, listOf(first, second))
             assertTrue(result is MinecraftNativeExtractionValidation.Complete)
             val complete = result as MinecraftNativeExtractionValidation.Complete
             assertEquals(2, complete.verifiedFileCount)
-            assertEquals(40L, complete.verifiedBytes)
+            assertEquals(128L, complete.verifiedBytes)
             assertEquals(
                 MessageDigest.getInstance("SHA-1").digest(elfHeader())
                     .joinToString("") { "%02x".format(it) },
@@ -49,7 +51,7 @@ class MinecraftNativeExtractionValidatorTest {
         val root = Files.createTempDirectory("flame-native-diff-").toFile()
         try {
             val expected = File(root, "libexpected.so").apply { writeBytes(byteArrayOf(1)) }
-            val unexpected = File(root, "libunexpected.so").apply { writeBytes(byteArrayOf(2)) }
+            File(root, "libunexpected.so").writeBytes(byteArrayOf(2))
             expected.delete()
             val result = MinecraftNativeExtractionValidator().validate(root, listOf(expected))
             assertTrue(result is MinecraftNativeExtractionValidation.Incomplete)
