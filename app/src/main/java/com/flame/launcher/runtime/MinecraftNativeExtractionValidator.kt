@@ -101,7 +101,7 @@ class MinecraftNativeExtractionValidator {
     }
 
     private fun isSafeRelativePath(path: String): Boolean =
-        path.isNotBlank() && !path.startsWith('/') && '\\\\' !in path && ':' !in path &&
+        path.isNotBlank() && !path.startsWith('/') && '\' !in path && ':' !in path &&
             path.split('/').all { it.isNotBlank() && it != "." && it != ".." }
 
     private fun sha1(file: File): String {
