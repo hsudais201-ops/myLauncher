@@ -8,24 +8,34 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class MinecraftNativeExtractionValidatorTest {
+    private fun elfHeader(): ByteArray = ByteArray(20).apply {
+        this[0] = 0x7f
+        this[1] = 'E'.code.toByte()
+        this[2] = 'L'.code.toByte()
+        this[3] = 'F'.code.toByte()
+        this[4] = 2
+        this[5] = 1
+        this[6] = 1
+        this[18] = 62
+    }
     @Test
     fun acceptsExactExtractedFileSetAndReportsHashes() {
         val root = Files.createTempDirectory("flame-native-verify-").toFile()
         try {
             val first = File(root, "org/lwjgl/liblwjgl.so").apply {
                 parentFile.mkdirs()
-                writeBytes(byteArrayOf(1, 2, 3))
+                writeBytes(elfHeader())
             }
             val second = File(root, "libglfw.so").apply {
-                writeBytes(byteArrayOf(4, 5))
+                writeBytes(elfHeader())
             }
             val result = MinecraftNativeExtractionValidator().validate(root, listOf(first, second))
             assertTrue(result is MinecraftNativeExtractionValidation.Complete)
             val complete = result as MinecraftNativeExtractionValidation.Complete
             assertEquals(2, complete.verifiedFileCount)
-            assertEquals(5L, complete.verifiedBytes)
+            assertEquals(40L, complete.verifiedBytes)
             assertEquals(
-                MessageDigest.getInstance("SHA-1").digest(byteArrayOf(1, 2, 3))
+                MessageDigest.getInstance("SHA-1").digest(elfHeader())
                     .joinToString("") { "%02x".format(it) },
                 complete.sha1ByPath["org/lwjgl/liblwjgl.so"]
             )
