@@ -21,6 +21,28 @@ class JvmElfDynamicMetadataReaderTest {
 
 
     @Test
+    fun rejectsElfExecutableInsteadOfSharedObject() {
+        withElf64(
+            neededOffset = 1,
+            stringTable = byteArrayOf(0, *"libverify.so".toByteArray(), 0),
+            elfType = 2
+        ) { file ->
+            assertTrue(runCatching { JvmElfDynamicMetadataReaderImpl().inspect(file) }.isFailure)
+        }
+    }
+
+    @Test
+    fun rejectsUnsupportedElfHeaderVersion() {
+        withElf64(
+            neededOffset = 1,
+            stringTable = byteArrayOf(0, *"libverify.so".toByteArray(), 0),
+            elfVersion = 2
+        ) { file ->
+            assertTrue(runCatching { JvmElfDynamicMetadataReaderImpl().inspect(file) }.isFailure)
+        }
+    }
+
+    @Test
     fun readsNeededNamesFromElf32BigEndianDynamicSection() {
         withElf32BigEndian { file ->
             assertEquals(
@@ -88,6 +110,8 @@ class JvmElfDynamicMetadataReaderTest {
         terminateDynamic: Boolean = true,
         rpathOffset: Long? = null,
         runpathOffset: Long? = null,
+        elfType: Int = 3,
+        elfVersion: Int = 1,
         block: (File) -> Unit
     ) {
         val file = Files.createTempFile("flame-elf64", ".so").toFile()
@@ -101,6 +125,8 @@ class JvmElfDynamicMetadataReaderTest {
             bytes[4] = 2 // ELFCLASS64
             bytes[5] = 1 // ELFDATA2LSB
             bytes[6] = 1 // EV_CURRENT
+            out.putShort(16, elfType.toShort()) // ET_DYN by default
+            out.putInt(20, elfVersion) // EV_CURRENT by default
             out.putLong(32, 64L) // e_phoff
             out.putShort(52, 64.toShort())
             out.putShort(54, 56.toShort())
@@ -163,6 +189,8 @@ class JvmElfDynamicMetadataReaderTest {
             bytes[4] = 1 // ELFCLASS32
             bytes[5] = 2 // ELFDATA2MSB
             bytes[6] = 1 // EV_CURRENT
+            out.putShort(16, 3.toShort()) // ET_DYN
+            out.putInt(20, 1) // EV_CURRENT
             out.putInt(28, 52)
             out.putShort(40, 52.toShort())
             out.putShort(42, 32.toShort())

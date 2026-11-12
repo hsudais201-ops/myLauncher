@@ -45,12 +45,18 @@ class JvmElfDynamicMetadataReaderImpl : JvmElfDynamicMetadataReader {
             val headerSize = if (elfClass == ELFCLASS32) ELF32_HEADER_SIZE else ELF64_HEADER_SIZE
             require(length >= headerSize) { "ELF header is truncated." }
             val header = buffer(readBytes(file, 0, headerSize, length), order)
+            require(header.u16(16) == ET_DYN) {
+                "ELF input is not a shared object (ET_DYN)."
+            }
+            require(header.u32(20) == EV_CURRENT.toLong()) {
+                "Unsupported ELF header version."
+            }
             val phoff = if (elfClass == ELFCLASS32) header.u32(28) else header.u64(32)
             val ehsize = header.u16(if (elfClass == ELFCLASS32) 40 else 52)
             val phentsize = header.u16(if (elfClass == ELFCLASS32) 42 else 54)
             val phnum = header.u16(if (elfClass == ELFCLASS32) 44 else 56)
             val expectedPhSize = if (elfClass == ELFCLASS32) ELF32_PROGRAM_HEADER_SIZE else ELF64_PROGRAM_HEADER_SIZE
-            require(ehsize >= headerSize && ehsize <= length) { "Invalid ELF header size." }
+            require(ehsize == headerSize && ehsize <= length) { "Invalid ELF header size." }
             require(phentsize >= expectedPhSize) { "Invalid program-header entry size." }
             require(phnum > 0) { "ELF has no program headers." }
             requireRange(phoff, phentsize.toLong() * phnum, length, "Program-header table")
@@ -247,6 +253,7 @@ class JvmElfDynamicMetadataReaderImpl : JvmElfDynamicMetadataReader {
         private const val ELFDATA2LSB = 1
         private const val ELFDATA2MSB = 2
         private const val EV_CURRENT = 1
+        private const val ET_DYN = 3
         private const val PT_LOAD = 1
         private const val PT_DYNAMIC = 2
         private const val DT_NULL = 0L
