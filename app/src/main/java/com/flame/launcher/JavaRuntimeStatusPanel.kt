@@ -37,8 +37,16 @@ import kotlinx.coroutines.withContext
 @Composable
 fun JavaRuntimeStatusPanel() {
     val context = LocalContext.current
-    val deviceAbi = Build.SUPPORTED_ABIS.firstOrNull()
-        ?: System.getProperty("os.arch").orEmpty()
+    val abiDiagnostics = remember(context) {
+        DeviceAbiDiagnostics(
+            supportedAbis = Build.SUPPORTED_ABIS.toList(),
+            supported64BitAbis = Build.SUPPORTED_64_BIT_ABIS.toList(),
+            supported32BitAbis = Build.SUPPORTED_32_BIT_ABIS.toList(),
+            processArchitecture = System.getProperty("os.arch"),
+            nativeLibraryDirectory = context.applicationInfo.nativeLibraryDir
+        )
+    }
+    val deviceAbi = abiDiagnostics.preferredAbi
     val normalizedDeviceAbi = remember(deviceAbi) {
         JavaRuntimeManager.normalizeArchitecture(deviceAbi) ?: "unknown"
     }
@@ -228,12 +236,29 @@ fun JavaRuntimeStatusPanel() {
                     )
                 }
             }
-            Text(
-                text = "Device ABI: " + deviceAbi + ". Android JVM execution still needs the matching native runtime bridge before a game can launch.",
-                color = Color(0xFF9AA4B2),
-                fontSize = 11.sp,
-                lineHeight = 16.sp
-            )
+            Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                Text(
+                    text = "DEVICE ABI DIAGNOSTICS",
+                    color = Color(0xFFFF7A1A),
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = 1.1.sp
+                )
+                abiDiagnostics.displayLines().forEach { line ->
+                    Text(
+                        text = line,
+                        color = Color(0xFF9AA4B2),
+                        fontSize = 10.sp,
+                        lineHeight = 14.sp
+                    )
+                }
+                Text(
+                    text = "Runtime compatibility uses the preferred Android ABI. This diagnostic does not prove that the embedded JVM can start; Minecraft remains unavailable until its native runtime bridge is verified.",
+                    color = Color(0xFF9AA4B2),
+                    fontSize = 11.sp,
+                    lineHeight = 16.sp
+                )
+            }
             MojoRuntimeInstallPanel(onInstalled = { refreshKey++ })
         }
     }
