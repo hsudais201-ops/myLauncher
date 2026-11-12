@@ -68,6 +68,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.flame.launcher.content.MinecraftInstanceProfilesPanel
 import com.flame.launcher.navigation.FlameNavigation
 import com.flame.launcher.navigation.LauncherSection
 import com.flame.launcher.render.FlameRenderSurface
@@ -385,6 +386,7 @@ private fun PlayPage() {
         title = "Play Minecraft",
         subtitle = "Choose a Mojang release, inspect its verified launch metadata, and prepare a compatible Java runtime."
     )
+    MinecraftInstanceProfilesPanel()
     JavaRuntimeStatusPanel()
     MinecraftVersionCatalogPanel()
     Card(

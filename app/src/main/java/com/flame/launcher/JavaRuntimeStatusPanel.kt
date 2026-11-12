@@ -37,8 +37,16 @@ import kotlinx.coroutines.withContext
 @Composable
 fun JavaRuntimeStatusPanel() {
     val context = LocalContext.current
-    val deviceAbi = Build.SUPPORTED_ABIS.firstOrNull()
-        ?: System.getProperty("os.arch").orEmpty()
+    val abiDiagnostics = remember(context) {
+        DeviceAbiDiagnostics(
+            supportedAbis = Build.SUPPORTED_ABIS.toList(),
+            supported64BitAbis = Build.SUPPORTED_64_BIT_ABIS.toList(),
+            supported32BitAbis = Build.SUPPORTED_32_BIT_ABIS.toList(),
+            processArchitecture = System.getProperty("os.arch"),
+            nativeLibraryDirectory = context.applicationInfo.nativeLibraryDir
+        )
+    }
+    val deviceAbi = abiDiagnostics.preferredAbi
     val normalizedDeviceAbi = remember(deviceAbi) {
         JavaRuntimeManager.normalizeArchitecture(deviceAbi) ?: "unknown"
     }
@@ -190,8 +198,8 @@ fun JavaRuntimeStatusPanel() {
                             }
                         ) {
                             Text(
-                                if (preparingRuntimeId == runtime.id) "Preparing JVM…"
-                                else "Prepare and retain JVM (restart required to change)"
+                                if (preparingRuntimeId == runtime.id) "Checking and retaining JVM libraries…"
+                                else "Preflight and retain JVM libraries"
                             )
                         }
                     }
@@ -228,12 +236,29 @@ fun JavaRuntimeStatusPanel() {
                     )
                 }
             }
-            Text(
-                text = "Device ABI: " + deviceAbi + ". Android JVM execution still needs the matching native runtime bridge before a game can launch.",
-                color = Color(0xFF9AA4B2),
-                fontSize = 11.sp,
-                lineHeight = 16.sp
-            )
+            Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                Text(
+                    text = "DEVICE ABI DIAGNOSTICS",
+                    color = Color(0xFFFF7A1A),
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = 1.1.sp
+                )
+                abiDiagnostics.displayLines().forEach { line ->
+                    Text(
+                        text = line,
+                        color = Color(0xFF9AA4B2),
+                        fontSize = 10.sp,
+                        lineHeight = 14.sp
+                    )
+                }
+                Text(
+                    text = "Runtime matching uses the app process architecture when available, with Android ABI data as fallback. A successful linker preflight only means native libraries were accepted and retained: it does not create a Java VM or start Minecraft. Game launch remains disabled until a safe Android JVM bridge is implemented and device-verified.",
+                    color = Color(0xFF9AA4B2),
+                    fontSize = 11.sp,
+                    lineHeight = 16.sp
+                )
+            }
             MojoRuntimeInstallPanel(onInstalled = { refreshKey++ })
         }
     }

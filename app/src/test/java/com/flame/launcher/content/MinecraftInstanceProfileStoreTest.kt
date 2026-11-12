@@ -70,4 +70,123 @@ class MinecraftInstanceProfileStoreTest {
             root.deleteRecursively()
         }
     }
+
+    @Test
+    fun renamesProfileAndPersistsTheNewName() {
+        val root = Files.createTempDirectory("flame-profiles-").toFile()
+        try {
+            val profilesRoot = File(root, "profiles")
+            val store = MinecraftInstanceProfileStore(profilesRoot)
+            val created = store.createProfile("Old name", "1.20.1", MinecraftLoader.FABRIC)
+                as MinecraftInstanceProfileResult.Created
+
+            val renamed = store.renameProfile(created.profile.id, "New name")
+            assertTrue(renamed is MinecraftInstanceProfileResult.Updated)
+            assertEquals("New name", (renamed as MinecraftInstanceProfileResult.Updated).profile.name)
+            val restored = MinecraftInstanceProfileStore(profilesRoot).listProfiles()
+                as MinecraftInstanceProfileResult.Profiles
+            assertEquals("New name", restored.profiles.single().name)
+            assertEquals(created.profile.id, restored.profiles.single().id)
+        } finally {
+            root.deleteRecursively()
+        }
+    }
+
+    @Test
+    fun deletingSelectedProfileClearsSelectionAndRemovesOnlyThatInstance() {
+        val root = Files.createTempDirectory("flame-profiles-").toFile()
+        try {
+            val profilesRoot = File(root, "profiles")
+            val store = MinecraftInstanceProfileStore(profilesRoot)
+            val first = (store.createProfile("First", "1.20.1", MinecraftLoader.FABRIC)
+                as MinecraftInstanceProfileResult.Created).profile
+            val second = (store.createProfile("Second", "1.21", MinecraftLoader.QUILT)
+                as MinecraftInstanceProfileResult.Created).profile
+            assertTrue(store.selectProfile(first.id) is MinecraftInstanceProfileResult.Selected)
+
+            val deleted = store.deleteProfile(first.id)
+            assertTrue(deleted is MinecraftInstanceProfileResult.Deleted)
+            assertFalse(first.instanceDirectory.exists())
+            assertTrue(second.instanceDirectory.exists())
+            assertTrue(store.selectedProfile() is MinecraftInstanceProfileResult.Failed)
+        } finally {
+            root.deleteRecursively()
+        }
+    }
+
+    @Test
+    fun refusesProfileMutationForUnknownOrMalformedIds() {
+        val root = Files.createTempDirectory("flame-profiles-").toFile()
+        try {
+            val store = MinecraftInstanceProfileStore(File(root, "profiles"))
+            assertTrue(store.renameProfile("../escape", "Name") is MinecraftInstanceProfileResult.Failed)
+            assertTrue(store.deleteProfile("../escape") is MinecraftInstanceProfileResult.Failed)
+        } finally {
+            root.deleteRecursively()
+        }
+    }
+
+
+    @Test
+    fun cloneCreatesNewIdentityAndCopiesContentAndLaunchSettings() {
+        val root = Files.createTempDirectory("flame-profile-clone-").toFile()
+        try {
+            val profilesRoot = File(root, "profiles")
+            val store = MinecraftInstanceProfileStore(profilesRoot)
+            val original = (store.createProfile("Original", "1.21", MinecraftLoader.FABRIC)
+                as MinecraftInstanceProfileResult.Created).profile
+            File(original.contentDirectory, "saves/World/level.dat").apply {
+                parentFile?.mkdirs()
+                writeText("world-data")
+            }
+            val settings = MinecraftInstanceLaunchSettings(
+                minimumMemoryMb = 768, maximumMemoryMb = 1280, width = 1600, height = 900,
+                fullscreen = true, jvmArguments = "-XX:+UseG1GC", gameArguments = "--demo"
+            )
+            assertTrue(MinecraftInstanceLaunchSettingsStore(profilesRoot).save(original, settings)
+                is MinecraftInstanceLaunchSettingsResult.Saved)
+
+            val clone = (store.cloneProfile(original.id, "Copy") as MinecraftInstanceProfileResult.Created).profile
+            assertTrue(clone.id != original.id)
+            assertEquals("Copy", clone.name)
+            assertEquals("world-data", File(clone.contentDirectory, "saves/World/level.dat").readText())
+            assertEquals(settings, (MinecraftInstanceLaunchSettingsStore(profilesRoot).load(clone)
+                as MinecraftInstanceLaunchSettingsResult.Loaded).settings)
+            File(clone.contentDirectory, "saves/World/level.dat").writeText("clone-only-data")
+            assertEquals("world-data", File(original.contentDirectory, "saves/World/level.dat").readText())
+            assertEquals("Original", (store.listProfiles() as MinecraftInstanceProfileResult.Profiles)
+                .profiles.first { it.id == original.id }.name)
+        } finally {
+            root.deleteRecursively()
+        }
+    }
+
+
+    @Test
+    fun cloneRejectsSymbolicLinksWithoutPublishingPartialProfile() {
+        val root = Files.createTempDirectory("flame-profile-clone-link-").toFile()
+        try {
+            val profilesRoot = File(root, "profiles")
+            val outside = File(root, "outside").apply {
+                mkdirs()
+                resolve("private.txt").writeText("must-not-copy")
+            }
+            val store = MinecraftInstanceProfileStore(profilesRoot)
+            val source = (store.createProfile("Source", "1.21", MinecraftLoader.FABRIC)
+                as MinecraftInstanceProfileResult.Created).profile
+            Files.createSymbolicLink(
+                File(source.contentDirectory, "external-link").toPath(),
+                outside.toPath()
+            )
+
+            assertTrue(store.cloneProfile(source.id, "Unsafe copy") is MinecraftInstanceProfileResult.Failed)
+            val profiles = store.listProfiles() as MinecraftInstanceProfileResult.Profiles
+            assertEquals(listOf(source.id), profiles.profiles.map { it.id })
+            assertTrue(profilesRoot.listFiles().orEmpty().none { it.name.startsWith(".clone-") })
+            assertEquals("must-not-copy", File(outside, "private.txt").readText())
+        } finally {
+            root.deleteRecursively()
+        }
+    }
+
 }

@@ -1,5 +1,6 @@
 package com.flame.launcher.runtime
 
+import com.flame.launcher.content.MinecraftInstanceLaunchSettings
 import java.io.File
 
 /**
@@ -15,8 +16,16 @@ object MinecraftLaunchCommandBuilder {
         nativeDirectory: File,
         runtime: JavaRuntimeInstallation,
         account: MinecraftLaunchAccount,
-        memory: MinecraftLaunchMemory = MinecraftLaunchMemory()
+        memory: MinecraftLaunchMemory = MinecraftLaunchMemory(),
+        profileSettings: MinecraftInstanceLaunchSettings? = null
     ): MinecraftLaunchCommand {
+        val profileOptions = profileSettings?.let(MinecraftLaunchProfileOptionsBuilder::build)
+        val effectiveMemory = profileOptions?.memory ?: memory
+        require(runtime.executionKind != JavaRuntimeExecutionKind.EMBEDDED_JVM ||
+            profileOptions?.jvmArguments.isNullOrEmpty()
+        ) {
+            "Extra profile JVM arguments are not yet enabled for the embedded Android JVM."
+        }
         require(plan.versionId.matches(VERSION_ID)) { "Minecraft version ID is invalid." }
         require(plan.mainClass.length <= 256 && plan.mainClass.matches(MAIN_CLASS)) {
             "Minecraft main class is invalid."
@@ -34,8 +43,8 @@ object MinecraftLaunchCommandBuilder {
         require(account.accessToken.isNotBlank() && account.accessToken.length <= MAX_TOKEN_LENGTH) {
             "Minecraft access token is missing or invalid."
         }
-        require(memory.minimumMb in MIN_HEAP_MB..MAX_HEAP_MB &&
-            memory.maximumMb in memory.minimumMb..MAX_HEAP_MB
+        require(effectiveMemory.minimumMb in MIN_HEAP_MB..MAX_HEAP_MB &&
+            effectiveMemory.maximumMb in effectiveMemory.minimumMb..MAX_HEAP_MB
         ) { "Minecraft memory settings are invalid." }
 
         val gameRoot = gameDirectory.canonicalFile
@@ -62,12 +71,13 @@ object MinecraftLaunchCommandBuilder {
         require(plan.assetIndexId.matches(ASSET_INDEX_ID)) { "Minecraft asset index ID is invalid." }
 
         val jvmArguments = listOf(
-            "-Xms${memory.minimumMb}M",
-            "-Xmx${memory.maximumMb}M",
+            "-Xms${effectiveMemory.minimumMb}M",
+            "-Xmx${effectiveMemory.maximumMb}M",
             "-Djava.library.path=${nativeRoot.absolutePath}",
             "-Dorg.lwjgl.librarypath=${nativeRoot.absolutePath}",
             "-Dminecraft.launcher.brand=FlameLauncher",
-            "-Dminecraft.launcher.version=0.1.0",
+            "-Dminecraft.launcher.version=0.1.0"
+        ) + profileOptions?.jvmArguments.orEmpty() + listOf(
             "-cp",
             classPath.joinToString(File.pathSeparator)
         )
@@ -82,7 +92,16 @@ object MinecraftLaunchCommandBuilder {
             "--accessToken", account.accessToken,
             "--userType", account.userType,
             "--versionType", "release"
-        )
+        ) + profileOptions?.let { options ->
+            buildList {
+                add("--width")
+                add(options.width.toString())
+                add("--height")
+                add(options.height.toString())
+                if (options.fullscreen) add("--fullscreen")
+                addAll(options.gameArguments)
+            }
+        }.orEmpty()
         require(account.userType in setOf("msa", "legacy", "mojang")) {
             "Minecraft account type is invalid."
         }

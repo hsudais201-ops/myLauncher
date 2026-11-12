@@ -29,17 +29,24 @@ class JavaRuntimeManager(
             .toList()
     }
 
-    fun resolve(requiredMajorVersion: Int): JavaRuntimeResolution {
+    fun resolve(requiredMajorVersion: Int, preferredRuntimeId: String? = null): JavaRuntimeResolution {
         require(requiredMajorVersion in 1..100) { "Required Java major version is invalid." }
+        require(preferredRuntimeId == null || ID_PATTERN.matches(preferredRuntimeId)) {
+            "Preferred Java runtime ID is invalid."
+        }
         val discovered = discover()
         val candidates = discovered.filter {
             it.majorVersion == requiredMajorVersion &&
                 it.architecture == targetArchitecture
         }
-        val selected = candidates.maxWithOrNull(Comparator { left, right ->
-            compareVersions(left.version, right.version).takeIf { it != 0 }
-                ?: left.id.compareTo(right.id)
-        })
+        val selected = if (preferredRuntimeId != null) {
+            candidates.firstOrNull { it.id == preferredRuntimeId }
+        } else {
+            candidates.maxWithOrNull(Comparator { left, right ->
+                compareVersions(left.version, right.version).takeIf { it != 0 }
+                    ?: left.id.compareTo(right.id)
+            })
+        }
         return if (selected != null) {
             JavaRuntimeResolution.Available(selected)
         } else {
@@ -48,11 +55,20 @@ class JavaRuntimeManager(
                 .map { it.majorVersion }
                 .distinct()
                 .sorted()
-            JavaRuntimeResolution.Unavailable(
-                requiredMajorVersion = requiredMajorVersion,
-                deviceArchitecture = targetArchitecture,
-                availableMajors = availableMajors
-            )
+            if (preferredRuntimeId != null) {
+                JavaRuntimeResolution.SelectionUnavailable(
+                    requiredMajorVersion = requiredMajorVersion,
+                    preferredRuntimeId = preferredRuntimeId,
+                    deviceArchitecture = targetArchitecture,
+                    availableMajors = availableMajors
+                )
+            } else {
+                JavaRuntimeResolution.Unavailable(
+                    requiredMajorVersion = requiredMajorVersion,
+                    deviceArchitecture = targetArchitecture,
+                    availableMajors = availableMajors
+                )
+            }
         }
     }
 
@@ -183,6 +199,13 @@ sealed interface JavaRuntimeResolution {
 
     data class Unavailable(
         val requiredMajorVersion: Int,
+        val deviceArchitecture: String,
+        val availableMajors: List<Int>
+    ) : JavaRuntimeResolution
+
+    data class SelectionUnavailable(
+        val requiredMajorVersion: Int,
+        val preferredRuntimeId: String,
         val deviceArchitecture: String,
         val availableMajors: List<Int>
     ) : JavaRuntimeResolution

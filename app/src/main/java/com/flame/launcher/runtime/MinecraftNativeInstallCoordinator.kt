@@ -9,7 +9,8 @@ import java.io.File
  */
 class MinecraftNativeInstallCoordinator(
     private val artifactInstaller: MinecraftArtifactInstallCoordinator = MinecraftArtifactInstallCoordinator(),
-    private val extractor: MinecraftNativeArchiveExtractor = MinecraftNativeArchiveExtractor()
+    private val extractor: MinecraftNativeArchiveExtractor = MinecraftNativeArchiveExtractor(),
+    private val extractionValidator: MinecraftNativeExtractionValidator = MinecraftNativeExtractionValidator()
 ) {
     fun install(
         plan: MinecraftLaunchDependencyPlan,
@@ -17,11 +18,20 @@ class MinecraftNativeInstallCoordinator(
         nativeDirectory: File,
         onProgress: (MinecraftArtifactInstallProgress) -> Unit = {}
     ): MinecraftNativeInstallResult {
+        // Validate the complete native subset before downloading anything. A
+        // malformed plan must not leave newly installed artifacts behind.
+        require(plan.nativeLibraries.all { it.kind == MinecraftPlannedDownloadKind.NATIVE }) {
+            "Minecraft native plan contains a non-native artifact."
+        }
+        require(plan.nativeLibraries.map { it.relativePath }.distinct().size == plan.nativeLibraries.size) {
+            "Minecraft native plan contains duplicate archive paths."
+        }
+        require(plan.nativeLibraries.all { native -> plan.downloads.any { it == native } }) {
+            "Minecraft native plan references an archive absent from the download plan."
+        }
+
         val installedArtifacts = artifactInstaller.install(plan, gameDirectory, onProgress)
         val nativeArchives = plan.nativeLibraries.map { planned ->
-            require(planned.kind == MinecraftPlannedDownloadKind.NATIVE) {
-                "Minecraft native plan contains a non-native artifact."
-            }
             val archive = File(gameDirectory, planned.relativePath)
             require(archive.isFile && archive.length() == planned.descriptor.size) {
                 "Verified Minecraft native archive is missing."
@@ -34,7 +44,12 @@ class MinecraftNativeInstallCoordinator(
         val extracted = if (nativeArchives.isEmpty()) {
             emptyList()
         } else {
-            extractor.extract(nativeArchives, nativeDirectory)
+            extractor.extract(nativeArchives, nativeDirectory) { stagedDirectory, stagedFiles ->
+                val validation = extractionValidator.validate(stagedDirectory, stagedFiles)
+                check(validation is MinecraftNativeExtractionValidation.Complete) {
+                    "Minecraft native extraction did not pass completeness validation: $validation"
+                }
+            }
         }
         return MinecraftNativeInstallResult(installedArtifacts, extracted)
     }

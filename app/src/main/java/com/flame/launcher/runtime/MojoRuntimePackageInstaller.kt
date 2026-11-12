@@ -105,12 +105,13 @@ class MojoRuntimePackageInstaller(
             } else null
 
             var promoted = false
+            val installed: JavaRuntimeInstallation
             try {
                 check(runtimeHome.renameTo(destination)) {
                     "Unable to promote the validated Mojo runtime."
                 }
                 promoted = true
-                val installed = JavaRuntimeManager(root, targetArchitecture)
+                installed = JavaRuntimeManager(root, targetArchitecture)
                     .discover()
                     .firstOrNull { it.id == id }
                     ?: throw IllegalStateException("Installed Mojo runtime failed final validation.")
@@ -118,14 +119,6 @@ class MojoRuntimePackageInstaller(
                     installed.architecture == architecture &&
                     installed.jvmLibrary?.isFile == true
                 ) { "Installed Mojo runtime metadata changed during promotion." }
-                backup?.deleteRecursively()
-                onProgress(
-                    MojoRuntimeInstallProgress.Completed(
-                        installed,
-                        universalResult.expandedBytes + platformResult.expandedBytes
-                    )
-                )
-                return installed
             } catch (failure: Exception) {
                 if (promoted) destination.deleteRecursively()
                 if (backup != null && backup.exists() && !backup.renameTo(destination)) {
@@ -135,6 +128,21 @@ class MojoRuntimePackageInstaller(
                 }
                 throw failure
             }
+
+            // Promotion is committed now. A UI/progress observer must not be able
+            // to turn a successful install into a reported failure or trigger rollback.
+            backup?.deleteRecursively()
+            try {
+                onProgress(
+                    MojoRuntimeInstallProgress.Completed(
+                        installed,
+                        universalResult.expandedBytes + platformResult.expandedBytes
+                    )
+                )
+            } catch (_: Exception) {
+                // Completion notifications are best-effort after the commit point.
+            }
+            return installed
         } finally {
             staging.deleteRecursively()
         }

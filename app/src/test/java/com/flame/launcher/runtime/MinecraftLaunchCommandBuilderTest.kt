@@ -228,4 +228,134 @@ class MinecraftLaunchCommandBuilderTest {
         val runtime: JavaRuntimeInstallation,
         val plan: MinecraftLaunchDependencyPlan
     )
+
+    @Test
+    fun appliesProfileMemoryDisplayAndSafeExtraArguments() {
+        val f = fixture()
+        try {
+            val settings = com.flame.launcher.content.MinecraftInstanceLaunchSettings(
+                minimumMemoryMb = 768,
+                maximumMemoryMb = 1280,
+                width = 1600,
+                height = 900,
+                fullscreen = true,
+                jvmArguments = "-XX:+UseG1GC -Dflame.note=\"hello world\"",
+                gameArguments = "--demo --disableChat"
+            )
+            val command = MinecraftLaunchCommandBuilder.build(
+                f.plan,
+                f.game,
+                f.native,
+                f.runtime,
+                MinecraftLaunchAccount("Player", "12345678123412341234123456789abc", "token"),
+                profileSettings = settings
+            )
+
+            assertTrue(command.arguments.contains("-Xms768M"))
+            assertTrue(command.arguments.contains("-Xmx1280M"))
+            assertTrue(command.arguments.contains("-XX:+UseG1GC"))
+            assertTrue(command.arguments.contains("-Dflame.note=hello world"))
+            assertTrue(command.arguments.containsAll(listOf("--width", "1600", "--height", "900", "--fullscreen")))
+            assertTrue(command.arguments.containsAll(listOf("--demo", "--disableChat")))
+        } finally {
+            f.root.deleteRecursively()
+        }
+    }
+
+    @Test
+    fun rejectsProfileArgumentsThatOverrideLauncherOwnedValues() {
+        val blockedJvmValues = listOf(
+            "-Xmx512M",
+            "-Djava.library.path=/tmp",
+            "--class-path=/tmp/override.jar",
+            "-javaagent:override.jar",
+            "-XX:OnError=touch /tmp/owned"
+        )
+        blockedJvmValues.forEach { value ->
+            assertThrows(IllegalArgumentException::class.java) {
+                MinecraftLaunchProfileOptionsBuilder.build(
+                    com.flame.launcher.content.MinecraftInstanceLaunchSettings(jvmArguments = value)
+                )
+            }
+        }
+
+        val blockedGameValues = listOf(
+            "--accessToken stolen",
+            "--username AnotherPlayer",
+            "--gameDir /tmp/other",
+            "--width 1"
+        )
+        blockedGameValues.forEach { value ->
+            assertThrows(IllegalArgumentException::class.java) {
+                MinecraftLaunchProfileOptionsBuilder.build(
+                    com.flame.launcher.content.MinecraftInstanceLaunchSettings(gameArguments = value)
+                )
+            }
+        }
+    }
+
+    @Test
+    fun tokenizerSupportsQuotesAndEscapedSpacesWithoutShellExecution() {
+        val parsed = MinecraftLaunchProfileOptionsBuilder.parseJvmArguments(
+            "-Dexample.path=\"folder with spaces/file\" -Dexample.escaped=folder\\ with\\ spaces"
+        )
+        assertEquals(
+            listOf("-Dexample.path=folder with spaces/file", "-Dexample.escaped=folder with spaces"),
+            parsed
+        )
+        assertThrows(IllegalArgumentException::class.java) {
+            MinecraftLaunchProfileOptionsBuilder.parseJvmArguments("-Dexample.value=\"unfinished")
+        }
+        assertThrows(IllegalArgumentException::class.java) {
+            MinecraftLaunchProfileOptionsBuilder.parseJvmArguments("-Dexample.value=ok" + '\\')
+        }
+    }
+
+
+    @Test
+    fun embeddedProfileSettingsStayOnGameSideAndUnsupportedJvmFlagsFailEarly() {
+        val f = fixture()
+        try {
+            val jvmLibrary = File(f.runtime.homeDirectory, "lib/server/libjvm.so").apply {
+                parentFile?.mkdirs()
+                writeBytes(byteArrayOf(8))
+            }
+            val embeddedRuntime = f.runtime.copy(jvmLibrary = jvmLibrary)
+            val settings = com.flame.launcher.content.MinecraftInstanceLaunchSettings(
+                minimumMemoryMb = 512,
+                maximumMemoryMb = 1024,
+                width = 1366,
+                height = 768,
+                fullscreen = true,
+                gameArguments = "--demo"
+            )
+            val command = MinecraftLaunchCommandBuilder.build(
+                f.plan, f.game, f.native, embeddedRuntime,
+                MinecraftLaunchAccount("Player", "12345678123412341234123456789abc", "token"),
+                profileSettings = settings
+            )
+            val invocation = EmbeddedJvmInvocationParser.parse(
+                arguments = command.arguments,
+                expectedClassPath = command.classPath,
+                runtimeHome = command.runtimeHome!!,
+                workingDirectory = command.workingDirectory
+            )
+            assertTrue(invocation.vmOptions.contains("-Xmx1024M"))
+            assertTrue(invocation.applicationArguments.containsAll(
+                listOf("--width", "1366", "--height", "768", "--fullscreen", "--demo")
+            ))
+            invocation.toVmCreationPlan()
+
+            assertThrows(IllegalArgumentException::class.java) {
+                MinecraftLaunchCommandBuilder.build(
+                    f.plan, f.game, f.native, embeddedRuntime,
+                    MinecraftLaunchAccount("Player", "12345678123412341234123456789abc", "token"),
+                    profileSettings = settings.copy(jvmArguments = "-XX:+UseG1GC")
+                )
+            }
+        } finally {
+            f.root.deleteRecursively()
+        }
+    }
+
 }

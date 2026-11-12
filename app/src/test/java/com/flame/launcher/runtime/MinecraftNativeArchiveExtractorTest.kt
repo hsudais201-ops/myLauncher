@@ -106,4 +106,33 @@ class MinecraftNativeArchiveExtractorTest {
             root.deleteRecursively()
         }
     }
+ 
+    @Test
+    fun validationFailurePreservesPreviouslyInstalledNativeDirectory() {
+        val root = Files.createTempDirectory("flame-native-validation-rollback").toFile()
+        try {
+            val destination = File(root, "natives/current").apply { mkdirs() }
+            File(destination, "working.so").writeBytes(byteArrayOf(9, 8, 7))
+            val zip = archive(root, listOf("new.so" to byteArrayOf(1, 2, 3)))
+
+            assertThrows(IllegalStateException::class.java) {
+                MinecraftNativeArchiveExtractor().extract(
+                    listOf(MinecraftNativeArchiveExtractor.MinecraftNativeArchive(zip)),
+                    destination
+                ) { _, _ ->
+                    throw IllegalStateException("Staged native validation failed.")
+                }
+            }
+
+            assertEquals(
+                byteArrayOf(9, 8, 7).toList(),
+                File(destination, "working.so").readBytes().toList()
+            )
+            assertFalse(File(destination, "new.so").exists())
+            assertTrue(root.listFiles().orEmpty().none { it.name.contains(".stage-") })
+        } finally {
+            root.deleteRecursively()
+        }
+    }
+
 }

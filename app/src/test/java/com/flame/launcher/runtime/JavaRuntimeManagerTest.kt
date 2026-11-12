@@ -48,6 +48,23 @@ class JavaRuntimeManagerTest {
     }
 
     @Test
+    fun resolvesExplicitRuntimeIdAndRejectsWrongMajorSelection() {
+        val root = Files.createTempDirectory("flame-runtime-selection").toFile()
+        try {
+            createEmbeddedRuntime(root, "java-17", "17.0.12", "aarch64")
+            createEmbeddedRuntime(root, "java-21", "21.0.4", "aarch64")
+            val manager = JavaRuntimeManager(root, "arm64-v8a")
+            val selected = manager.resolve(21, "java-21")
+            assertTrue(selected is JavaRuntimeResolution.Available)
+            assertEquals("java-21", (selected as JavaRuntimeResolution.Available).installation.id)
+            val mismatch = manager.resolve(17, "java-21")
+            assertTrue(mismatch is JavaRuntimeResolution.SelectionUnavailable)
+        } finally {
+            root.deleteRecursively()
+        }
+    }
+
+    @Test
     fun rejectsRuntimeForDifferentArchitectureAndReportsAvailableMajors() {
         val root = Files.createTempDirectory("flame-runtime-abi").toFile()
         try {

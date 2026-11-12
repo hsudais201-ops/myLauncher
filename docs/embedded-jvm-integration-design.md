@@ -30,6 +30,10 @@ The upstream MojoLauncher implementation is useful as a technical reference, not
 
 Review upstream licensing and preserve required notices before adapting any implementation. This design document contains no copied upstream source.
 
+## Current Mojo upstream port audit
+
+A source-level audit of the current MojoLauncher VM launcher, Java runner, Java-version-specific native-library hooks, Android linker hints, LWJGL dynamic loader, native build targets, runtime ABI policy and licensing is maintained in [the Mojo bridge port audit](mojo-bridge-port-audit.md). The key finding is that these parts form one integrated Android port. Flame's current ELF inspection and symbol probe is not a substitute for the VM lifecycle or renderer. Use the audit as the implementation checklist and verify the exact runtime manifest and physical-device ABI before selecting a supported combination.
+
 ## Required startup stages
 
 1. **Preflight** — confirm runtime ABI, Java version, ELF dependency graph, storage paths, native extraction, and supported Android API level. Fail before loading if any dependency is unresolved.
@@ -37,7 +41,7 @@ Review upstream licensing and preserve required notices before adapting any impl
 3. **Prepare Android linker compatibility** — investigate Android linker namespaces and API-level-specific library lookup. Any library hinting must be bounded, reversible where safe, and limited to libraries belonging to the selected runtime. Never override Android system libraries.
 4. **Install VM lifecycle hooks** — provide controlled handling for OpenJDK's `exit` and `abort` callbacks. A Java `System.exit` must end the game session, not terminate the Android launcher process. Fatal VM aborts need a defined crash-reporting policy; they must not be disguised as normal session completion.
 5. **Create VM** — validate every `JavaVMOption`, use a version-compatible `JavaVMInitArgs`, preserve unrecognized-option policy, and create the VM exactly once per Android process unless a proven runtime implementation supports more. Creation failure must release only temporary resources; do not unload a partially initialized runtime if VM-owned threads may exist.
-6. **Install Java native-library hooks** — support the exact OpenJDK versions shipped by the runtime catalog. Hook signatures differ between Java 8, 17, and 21+. Detect method signatures at runtime, validate every JNI lookup, and fail with a stage-specific diagnostic rather than registering a mismatched function pointer.
+6. **Install Java native-library hooks** — support the exact OpenJDK versions shipped by the runtime catalog. Hook signatures differ between Java 8, 17, 21 and 25. Detect method signatures at runtime, validate every JNI lookup, and fail with a stage-specific diagnostic rather than registering a mismatched function pointer.
 7. **Configure class loading and launch context** — set the game class path and runtime properties without allowing user options to override launcher-managed paths. Use a dedicated class loader where required and preserve Minecraft's argument boundaries.
 8. **Invoke the game entry point** — resolve the requested main class and method, check and report all pending JNI exceptions, and run the game on a controlled attached native thread.
 9. **LWJGL integration** — intercept or adapt native loading only through a tested Android-compatible backend. The backend must provide EGL/OpenGL ES context and surface lifecycle, input translation, display sizing, audio, and library lookup. The current GLSurfaceView diagnostic renderer is not an LWJGL backend.

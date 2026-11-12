@@ -26,7 +26,11 @@ class MinecraftNativeArchiveExtractor(
         require(maxTotalBytes in 1..ABSOLUTE_MAX_TOTAL_BYTES)
     }
 
-    fun extract(archives: List<MinecraftNativeArchive>, destination: File): List<File> {
+    fun extract(
+        archives: List<MinecraftNativeArchive>,
+        destination: File,
+        validateStaged: (File, List<File>) -> Unit = { _, _ -> }
+    ): List<File> {
         require(archives.isNotEmpty()) { "No Minecraft native archives were supplied." }
         require(archives.size <= MAX_ARCHIVES) { "Too many Minecraft native archives." }
         archives.forEach {
@@ -112,6 +116,8 @@ class MinecraftNativeArchiveExtractor(
                 }
             }
             require(extracted.isNotEmpty()) { "Minecraft native archives contained no extractable files." }
+            // Validate the complete staged tree before replacing a previously working native directory.
+            validateStaged(stage, extracted.values.toList())
             if (destination.exists()) {
                 require(destination.isDirectory) { "Minecraft native destination is not a directory." }
                 backup = File(parent, ".${destination.name}.backup-${UUID.randomUUID()}")
