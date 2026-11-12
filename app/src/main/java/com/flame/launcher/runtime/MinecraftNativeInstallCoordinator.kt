@@ -44,12 +44,12 @@ class MinecraftNativeInstallCoordinator(
         val extracted = if (nativeArchives.isEmpty()) {
             emptyList()
         } else {
-            val files = extractor.extract(nativeArchives, nativeDirectory)
-            val validation = extractionValidator.validate(nativeDirectory, files)
-            check(validation is MinecraftNativeExtractionValidation.Complete) {
-                "Minecraft native extraction did not pass completeness validation: $validation"
+            extractor.extract(nativeArchives, nativeDirectory) { stagedDirectory, stagedFiles ->
+                val validation = extractionValidator.validate(stagedDirectory, stagedFiles)
+                check(validation is MinecraftNativeExtractionValidation.Complete) {
+                    "Minecraft native extraction did not pass completeness validation: $validation"
+                }
             }
-            files
         }
         return MinecraftNativeInstallResult(installedArtifacts, extracted)
     }
