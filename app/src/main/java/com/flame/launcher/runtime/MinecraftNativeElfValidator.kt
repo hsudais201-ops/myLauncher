@@ -53,7 +53,7 @@ class MinecraftNativeElfValidator {
             ) return null
             val elfClass = bytes[4].toInt() and 0xff
             val dataEncoding = bytes[5].toInt() and 0xff
-            if (elfClass !in 1..2 || dataEncoding !in 1..2) return null
+            if (elfClass !in 1..2 || dataEncoding !in 1..2 || (bytes[6].toInt() and 0xff) != 1) return null
             val first = bytes[18].toInt() and 0xff
             val second = bytes[19].toInt() and 0xff
             val machine = if (dataEncoding == ELF_DATA_LSB) first or (second shl 8)
