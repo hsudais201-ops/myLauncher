@@ -48,10 +48,19 @@ class MinecraftInstalledArtifactsValidator {
             val file = resolveSafeFile(root, item.relativePath)
             if (file == null || !file.isFile) {
                 missing += item.relativePath
-            } else if (file.length() != item.descriptor.size ||
-                !runCatching { sha1(file) == item.descriptor.sha1.lowercase() }.getOrDefault(false)
-            ) {
-                corrupt += item.relativePath
+            } else {
+                val digestMatches = if (file.length() != item.descriptor.size) {
+                    false
+                } else {
+                    try {
+                        sha1(file) == item.descriptor.sha1.lowercase()
+                    } catch (cancelled: InterruptedException) {
+                        throw cancelled
+                    } catch (_: Exception) {
+                        false
+                    }
+                }
+                if (!digestMatches) corrupt += item.relativePath
             }
         }
 
