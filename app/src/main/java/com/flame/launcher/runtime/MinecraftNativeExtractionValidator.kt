@@ -9,7 +9,10 @@ import java.nio.file.Files
  * the extractor. Rejects symlinks, unexpected files, missing files and unsafe
  * paths. This is a post-extraction integrity check, not a binary ABI check.
  */
-class MinecraftNativeExtractionValidator {
+class MinecraftNativeExtractionValidator(
+    private val deviceArchitecture: String = System.getProperty("os.arch").orEmpty(),
+    private val elfValidator: MinecraftNativeElfValidator = MinecraftNativeElfValidator()
+) {
     fun validate(
         nativeDirectory: File,
         extractedFiles: List<File>
@@ -67,13 +70,18 @@ class MinecraftNativeExtractionValidator {
         return if (missing.isEmpty() && corrupt.isEmpty() && unexpected.isEmpty() &&
             actual == expected
         ) {
-            MinecraftNativeExtractionValidation.Complete(
-                verifiedFileCount = expected.size,
-                verifiedBytes = discovered.sumOf { it.length() },
-                sha1ByPath = discovered.associate {
-                    it.relativeTo(root).invariantSeparatorsPath to sha1(it)
-                }
-            )
+            val elfValidation = elfValidator.validate(discovered, deviceArchitecture)
+            if (elfValidation !is MinecraftNativeElfValidation.Compatible) {
+                MinecraftNativeExtractionValidation.InvalidBinary(elfValidation)
+            } else {
+                MinecraftNativeExtractionValidation.Complete(
+                    verifiedFileCount = expected.size,
+                    verifiedBytes = discovered.sumOf { it.length() },
+                    sha1ByPath = discovered.associate {
+                        it.relativeTo(root).invariantSeparatorsPath to sha1(it)
+                    }
+                )
+            }
         } else {
             MinecraftNativeExtractionValidation.Incomplete(missing, corrupt, unexpected)
         }
@@ -138,6 +146,7 @@ sealed interface MinecraftNativeExtractionValidation {
         val unexpectedFiles: List<String>
     ) : MinecraftNativeExtractionValidation
 
+    data class InvalidBinary(val validation: MinecraftNativeElfValidation) : MinecraftNativeExtractionValidation
     data object InvalidDirectory : MinecraftNativeExtractionValidation
     data object InvalidPlan : MinecraftNativeExtractionValidation
 }
