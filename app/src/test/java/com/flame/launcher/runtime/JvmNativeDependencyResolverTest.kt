@@ -78,6 +78,39 @@ class JvmNativeDependencyResolverTest {
     }
 
     @Test
+    fun rejectsCyclicRuntimeDependenciesInsteadOfReturningUnsafeLoadOrder() {
+        val root = Files.createTempDirectory("flame-elf-cycle").toFile()
+        try {
+            val home = File(root, "runtime").apply { mkdirs() }
+            val lib = File(home, "lib").apply { mkdirs() }
+            val vm = File(lib, "server").apply { mkdirs() }
+            val jvm = File(vm, "libjvm.so").apply { writeBytes(byteArrayOf(1)) }
+            val first = File(lib, "libfirst.so").apply { writeBytes(byteArrayOf(2)) }
+            val second = File(lib, "libsecond.so").apply { writeBytes(byteArrayOf(3)) }
+            val metadata = mapOf(
+                jvm.canonicalFile to listOf("libfirst.so"),
+                first.canonicalFile to listOf("libsecond.so"),
+                second.canonicalFile to listOf("libfirst.so")
+            )
+            val resolver = JvmNativeDependencyResolver(
+                JvmElfDynamicMetadataReader { file ->
+                    JvmElfDynamicMetadata(metadata[file.canonicalFile].orEmpty())
+                }
+            )
+
+            val result = resolver.resolve(jvm, home, listOf(lib, vm))
+
+            assertTrue(result is JvmNativeDependencyResolution.Rejected)
+            assertTrue(
+                (result as JvmNativeDependencyResolution.Rejected)
+                    .diagnostic.contains("Cyclic ELF dependency")
+            )
+        } finally {
+            root.deleteRecursively()
+        }
+    }
+
+    @Test
     fun reportsUnresolvedDependencyWithoutAttemptingToLoadAnything() {
         val root = Files.createTempDirectory("flame-elf-missing").toFile()
         try {

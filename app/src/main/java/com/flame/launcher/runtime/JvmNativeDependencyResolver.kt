@@ -85,14 +85,23 @@ class JvmNativeDependencyResolver(
         val resolved = linkedMapOf<String, File>()
         val system = linkedSetOf<String>()
         val visited = linkedSetOf<File>()
+        val visiting = linkedSetOf<File>()
         val ordered = linkedSetOf<File>()
         var failure: JvmNativeDependencyResolution? = null
 
         // Visit each dependency before its requester. Android's linker may not
         // discover private JRE directories by SONAME, so the native bridge
         // explicitly retains these absolute paths before loading libjvm.
+        // A cycle has no dependency-first ordering; reject it rather than
+        // returning an order whose linker behavior depends on incidental paths.
         fun visit(requester: File) {
-            if (failure != null || !visited.add(requester)) return
+            if (failure != null || requester in visited) return
+            if (!visiting.add(requester)) {
+                failure = JvmNativeDependencyResolution.Rejected(
+                    "Cyclic ELF dependency detected at ${requester.name}."
+                )
+                return
+            }
             val needed = try {
                 metadataReader.inspect(requester).neededLibraries
             } catch (error: Exception) {
@@ -142,10 +151,18 @@ class JvmNativeDependencyResolver(
                     return
                 }
                 resolved[name] = dependency
+                if (dependency in visiting) {
+                    failure = JvmNativeDependencyResolution.Rejected(
+                        "Cyclic ELF dependency detected: ${requester.name} requires ${dependency.name}."
+                    )
+                    return
+                }
                 visit(dependency)
                 if (failure != null) return
                 if (dependency != root) ordered += dependency
             }
+            visiting.remove(requester)
+            visited += requester
         }
 
         visit(root)
