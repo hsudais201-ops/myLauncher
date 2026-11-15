@@ -961,6 +961,128 @@ fn remove_resource_pack(file_name: String, game_directory: String) -> Result<(),
     std::fs::remove_file(path).map_err(|e| format!("Could not remove resource pack: {e}"))
 }
 
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct WorldEntry { folder_name: String, display_name: String, size_bytes: u64, modified_unix: u64 }
+
+fn valid_world_folder(name: &str) -> bool {
+    !name.is_empty() && name.len() <= 180 &&
+        name.chars().all(|c| c.is_ascii_alphanumeric() || matches!(c, ' ' | '_' | '-' | '.' | '(' | ')'))
+        && name != "." && name != ".."
+}
+
+fn copy_world_tree(source: &Path, destination: &Path) -> Result<u64, String> {
+    let metadata = std::fs::symlink_metadata(source).map_err(|e| format!("Cannot inspect {}: {e}", source.display()))?;
+    if metadata.file_type().is_symlink() { return Err("World folders containing symbolic links cannot be copied.".into()); }
+    if metadata.is_dir() {
+        std::fs::create_dir_all(destination).map_err(|e| format!("Cannot create {}: {e}", destination.display()))?;
+        let mut total = 0u64;
+        for entry in std::fs::read_dir(source).map_err(|e| format!("Cannot read {}: {e}", source.display()))? {
+            let entry = entry.map_err(|e| e.to_string())?;
+            total = total.saturating_add(copy_world_tree(&entry.path(), &destination.join(entry.file_name()))?);
+        }
+        Ok(total)
+    } else if metadata.is_file() {
+        if let Some(parent) = destination.parent() { std::fs::create_dir_all(parent).map_err(|e| e.to_string())?; }
+        std::fs::copy(source, destination).map_err(|e| format!("Could not copy {}: {e}", source.display()))?;
+        Ok(metadata.len())
+    } else { Err("World contains an unsupported filesystem entry.".into()) }
+}
+
+fn inspect_world(folder: &Path) -> Result<(u64, u64), String> {
+    if !folder.join("level.dat").is_file() { return Err("This folder does not contain a Minecraft level.dat file.".into()); }
+    let mut bytes = 0u64;
+    let mut newest = 0u64;
+    fn walk(path: &Path, bytes: &mut u64, newest: &mut u64) -> Result<(), String> {
+        for entry in std::fs::read_dir(path).map_err(|e| e.to_string())? {
+            let entry = entry.map_err(|e| e.to_string())?;
+            let meta = std::fs::symlink_metadata(entry.path()).map_err(|e| e.to_string())?;
+            if meta.file_type().is_symlink() { continue; }
+            if meta.is_dir() { walk(&entry.path(), bytes, newest)?; }
+            else if meta.is_file() {
+                *bytes = bytes.saturating_add(meta.len());
+                if let Ok(t) = meta.modified() {
+                    let secs = t.duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_secs();
+                    *newest = (*newest).max(secs);
+                }
+            }
+        }
+        Ok(())
+    }
+    walk(folder, &mut bytes, &mut newest)?;
+    Ok((bytes, newest))
+}
+
+#[tauri::command]
+fn list_worlds(game_directory: String) -> Result<Vec<WorldEntry>, String> {
+    let saves = configured_game_root(&game_directory)?.join("saves");
+    if !saves.exists() { return Ok(Vec::new()); }
+    let mut worlds = Vec::new();
+    for entry in std::fs::read_dir(&saves).map_err(|e| format!("Cannot read worlds folder: {e}"))? {
+        let entry = entry.map_err(|e| e.to_string())?;
+        let path = entry.path();
+        let meta = std::fs::symlink_metadata(&path).map_err(|e| e.to_string())?;
+        if !meta.is_dir() || meta.file_type().is_symlink() { continue; }
+        let name = entry.file_name().to_string_lossy().to_string();
+        if let Ok((size_bytes, modified_unix)) = inspect_world(&path) {
+            worlds.push(WorldEntry { folder_name: name.clone(), display_name: name, size_bytes, modified_unix });
+        }
+    }
+    worlds.sort_by(|a,b| b.modified_unix.cmp(&a.modified_unix));
+    Ok(worlds)
+}
+
+#[tauri::command]
+fn import_world(source_path: String, game_directory: String) -> Result<WorldEntry, String> {
+    let source = PathBuf::from(source_path.trim());
+    if !source.is_dir() { return Err("Select an extracted Minecraft world folder containing level.dat.".into()); }
+    let name = source.file_name().and_then(|n| n.to_str()).ok_or("Invalid world folder name")?;
+    if !valid_world_folder(name) { return Err("World folder name contains unsupported characters.".into()); }
+    let (size_bytes, modified_unix) = inspect_world(&source)?;
+    let saves = configured_game_root(&game_directory)?.join("saves");
+    std::fs::create_dir_all(&saves).map_err(|e| e.to_string())?;
+    let destination = saves.join(name);
+    if destination.exists() { return Err("A world with that folder name already exists.".into()); }
+    copy_world_tree(&source, &destination)?;
+    Ok(WorldEntry { folder_name: name.to_string(), display_name: name.to_string(), size_bytes, modified_unix })
+}
+
+#[tauri::command]
+fn export_world(folder_name: String, destination_path: String, game_directory: String) -> Result<String, String> {
+    if !valid_world_folder(&folder_name) { return Err("Invalid world folder name.".into()); }
+    let source = configured_game_root(&game_directory)?.join("saves").join(&folder_name);
+    inspect_world(&source)?;
+    let destination = PathBuf::from(destination_path.trim());
+    if destination.as_os_str().is_empty() || destination.exists() { return Err("Choose a new, non-existing destination folder.".into()); }
+    if let Some(parent) = destination.parent() { std::fs::create_dir_all(parent).map_err(|e| e.to_string())?; }
+    copy_world_tree(&source, &destination)?;
+    Ok(destination.display().to_string())
+}
+
+#[tauri::command]
+fn backup_world(folder_name: String, game_directory: String) -> Result<String, String> {
+    if !valid_world_folder(&folder_name) { return Err("Invalid world folder name.".into()); }
+    let root = configured_game_root(&game_directory)?;
+    let source = root.join("saves").join(&folder_name);
+    inspect_world(&source)?;
+    let stamp = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_secs();
+    let backup_root = root.join("backups");
+    std::fs::create_dir_all(&backup_root).map_err(|e| e.to_string())?;
+    let destination = backup_root.join(format!("{folder_name}-{stamp}"));
+    copy_world_tree(&source, &destination)?;
+    Ok(destination.display().to_string())
+}
+
+#[tauri::command]
+fn remove_world(folder_name: String, game_directory: String) -> Result<(), String> {
+    if !valid_world_folder(&folder_name) { return Err("Invalid world folder name.".into()); }
+    let saves = configured_game_root(&game_directory)?.join("saves");
+    let path = saves.join(&folder_name);
+    inspect_world(&path)?;
+    std::fs::remove_dir_all(path).map_err(|e| format!("Could not remove world: {e}"))
+}
+
 #[tauri::command]
 fn detect_java() -> Vec<JavaRuntime> {
     let mut candidates: Vec<PathBuf> = Vec::new();
@@ -1007,7 +1129,7 @@ fn save_preferences(preferences: Preferences) -> Result<(), String> {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
-        .invoke_handler(tauri::generate_handler![get_versions, detect_java, load_preferences, save_preferences, install_version, install_fabric, install_forge, list_mods, import_mod, set_mod_enabled, remove_mod, list_resource_packs, import_resource_pack, set_resource_pack_enabled, remove_resource_pack, launch_version])
+        .invoke_handler(tauri::generate_handler![get_versions, detect_java, load_preferences, save_preferences, install_version, install_fabric, install_forge, list_mods, import_mod, set_mod_enabled, remove_mod, list_resource_packs, import_resource_pack, set_resource_pack_enabled, remove_resource_pack, list_worlds, import_world, export_world, backup_world, remove_world, launch_version])
         .run(tauri::generate_context!())
         .expect("error while running MFLegend");
 }
