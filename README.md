@@ -8,7 +8,7 @@ The intended product is an Android phone/tablet app with a touch-friendly interf
 
 - Android phones and tablets are the primary target; this is not a Windows, macOS, or Linux desktop launcher.
 - Touch-first navigation, readable mobile layouts, and support for optional external keyboards and mice.
-- Complete Android game-file operations through SAF; the current implementation can select a folder and persist its URI permission, but does not yet read, write, or manage Minecraft files.
+- A complete end-user game-file manager and launcher-engine integration. Kotlin SAF storage primitives now support listing, streaming reads/writes, creating, and deleting documents, but are not yet connected to game browsing or installation workflows.
 - A supported Android Java runtime and native graphics/input integration are required to run Minecraft: Java Edition. Android's built-in ART runtime alone is not a drop-in replacement for a desktop Java runtime.
 - Account authentication must use a secure, supported Microsoft/Xbox/Minecraft sign-in flow before online play is enabled.
 
@@ -31,7 +31,7 @@ The Android port is **not yet complete**. In particular, this repository does no
 - A verified successful Gradle build or installable APK (the Android Gradle module is present, but build verification has not yet been completed).
 - Android-compatible JVM/runtime distribution and lifecycle management.
 - OpenGL/Vulkan renderer integration, native library ABI packaging, or touch-to-game input bridge.
-- SAF-backed game-file operations and an Android-aware storage abstraction; initial folder selection and persisted URI permission are implemented, but file operations are not.
+- SAF-backed UI and launcher-engine integration; the Kotlin storage adapter exists, but game browsing, recursive scanning, and installation workflows are not yet connected.
 - Microsoft account, Xbox Live/XSTS, or Minecraft Services authentication.
 - Verified gameplay on physical Android devices.
 
