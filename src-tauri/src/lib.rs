@@ -184,6 +184,141 @@ async fn install_version(version_id: String, game_directory: String) -> Result<I
     Ok(InstallResult { version_id, game_directory: root.display().to_string(), downloaded_files: downloaded, skipped_files: skipped, assets_downloaded })
 }
 
+
+fn launch_os_name() -> &'static str { if cfg!(target_os = "windows") { "windows" } else if cfg!(target_os = "macos") { "osx" } else { "linux" } }
+fn launch_rules_allow(rules: Option<&Vec<Value>>) -> bool {
+    let Some(rules) = rules else { return true; };
+    let mut allowed = false;
+    for rule in rules {
+        let action = rule.get("action").and_then(Value::as_str).unwrap_or("disallow");
+        let os = rule.get("os");
+        let name_ok = os.and_then(|v| v.get("name")).and_then(Value::as_str).map(|v| v == launch_os_name()).unwrap_or(true);
+        if name_ok { allowed = action == "allow"; }
+    }
+    allowed
+}
+fn offline_uuid(username: &str) -> String {
+    let h = format!("{:x}", md5::compute(format!("OfflinePlayer:{username}")));
+    format!("{}-{}-{}-{}-{}", &h[0..8], &h[8..12], &h[12..16], &h[16..20], &h[20..32])
+}
+fn extract_native_archive(path: &Path, out_dir: &Path) -> Result<(), String> {
+    use std::io;
+    let file = std::fs::File::open(path).map_err(|e| e.to_string())?;
+    let mut zip = zip::ZipArchive::new(file).map_err(|e| e.to_string())?;
+    std::fs::create_dir_all(out_dir).map_err(|e| e.to_string())?;
+    for i in 0..zip.len() {
+        let mut entry = zip.by_index(i).map_err(|e| e.to_string())?;
+        let name = entry.name().to_string();
+        if name.starts_with("META-INF/") || name.ends_with('/') { continue; }
+        let rel = Path::new(&name);
+        if rel.components().any(|c| !matches!(c, Component::Normal(_))) { return Err("Unsafe path in native archive".into()); }
+        let target = out_dir.join(rel);
+        if let Some(parent) = target.parent() { std::fs::create_dir_all(parent).map_err(|e| e.to_string())?; }
+        let mut output = std::fs::File::create(target).map_err(|e| e.to_string())?;
+        io::copy(&mut entry, &mut output).map_err(|e| e.to_string())?;
+    }
+    Ok(())
+}
+fn collect_launch_args(v: &Value) -> Vec<String> {
+    match v {
+        Value::String(s) => vec![s.clone()],
+        Value::Array(a) => a.iter().flat_map(collect_launch_args).collect(),
+        Value::Object(o) => if launch_rules_allow(o.get("rules").and_then(Value::as_array)) { collect_launch_args(o.get("value").unwrap_or(&Value::Null)) } else { Vec::new() },
+        _ => Vec::new()
+    }
+}
+#[tauri::command]
+async fn launch_version(version_id: String, game_directory: String, username: String, java_path: String, ram_mb: u32) -> Result<u32, String> {
+    let username = username.trim();
+    if username.len() < 3 || username.len() > 16 || !username.chars().all(|c| c.is_ascii_alphanumeric() || c == '_') { return Err("Enter a valid offline username (3–16 letters, numbers, or underscores).".into()); }
+    if !(1024..=16384).contains(&ram_mb) { return Err("RAM allocation must be between 1024 and 16384 MB".into()); }
+    if version_id.is_empty() || !version_id.chars().all(|c| c.is_ascii_alphanumeric() || c == '.' || c == '_' || c == '-') { return Err("Invalid version ID".into()); }
+    let root = if game_directory.trim().is_empty() { dirs::data_dir().ok_or("Cannot locate application data directory")?.join("mflegend").join("game") } else { PathBuf::from(game_directory.trim()) };
+    let version_dir = root.join("versions").join(&version_id);
+    let metadata_path = version_dir.join(format!("{version_id}.json"));
+    if !metadata_path.is_file() { return Err("Install this Minecraft version before playing.".into()); }
+    let metadata: Value = serde_json::from_slice(&tokio::fs::read(metadata_path).await.map_err(|e| e.to_string())?).map_err(|e| e.to_string())?;
+    let native_dir = version_dir.join("natives");
+    tokio::fs::create_dir_all(&native_dir).await.map_err(|e| e.to_string())?;
+    let mut cp = Vec::<String>::new();
+    if let Some(libs) = metadata.get("libraries").and_then(Value::as_array) {
+        for lib in libs {
+            if !library_allowed(lib) { continue; }
+            if let Some(artifact) = lib.get("downloads").and_then(|v| v.get("artifact")) {
+                if let Some(p) = artifact.get("path").and_then(Value::as_str) {
+                    let full = safe_join(&root.join("libraries"), p)?;
+                    if full.is_file() { cp.push(full.display().to_string()); }
+                }
+            }
+            if let Some(classifiers) = lib.get("downloads").and_then(|v| v.get("classifiers")) {
+                let key = lib.get("natives").and_then(|v| v.get(launch_os_name())).and_then(Value::as_str).unwrap_or("");
+                let arch = if std::env::consts::ARCH == "x86_64" { "64" } else { "32" };
+                if !key.is_empty() {
+                    if let Some(native) = classifiers.get(&key.replace("${arch}", arch)) {
+                        if let Some(p) = native.get("path").and_then(Value::as_str) {
+                            let full = safe_join(&root.join("libraries"), p)?;
+                            if full.is_file() {
+                                let dest = native_dir.clone();
+                                tokio::task::spawn_blocking(move || extract_native_archive(&full, &dest)).await.map_err(|e| e.to_string())??;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    let jar = version_dir.join(format!("{version_id}.jar"));
+    if !jar.is_file() { return Err("Minecraft client JAR is missing. Install this version first.".into()); }
+    cp.push(jar.display().to_string());
+    let cp_value = cp.join(if cfg!(windows) { ";" } else { ":" });
+    let assets = root.join("assets");
+    let asset_index = metadata.get("assets").and_then(Value::as_str).or_else(|| metadata.get("assetIndex").and_then(|v| v.get("id")).and_then(Value::as_str)).unwrap_or("");
+    let mut vars = std::collections::HashMap::<String, String>::new();
+    vars.insert("${auth_player_name}".into(), username.into());
+    vars.insert("${version_name}".into(), version_id.clone());
+    vars.insert("${game_directory}".into(), root.display().to_string());
+    vars.insert("${assets_root}".into(), assets.display().to_string());
+    vars.insert("${assets_index_name}".into(), asset_index.into());
+    vars.insert("${auth_uuid}".into(), offline_uuid(username));
+    vars.insert("${auth_access_token}".into(), "0".into());
+    vars.insert("${user_type}".into(), "legacy".into());
+    vars.insert("${version_type}".into(), "release".into());
+    vars.insert("${natives_directory}".into(), native_dir.display().to_string());
+    vars.insert("${launcher_name}".into(), "MFLegend".into());
+    vars.insert("${launcher_version}".into(), "0.1.0".into());
+    vars.insert("${classpath}".into(), cp_value.clone());
+    vars.insert("${classpath_separator}".into(), if cfg!(windows) { ";" } else { ":" }.into());
+    vars.insert("${library_directory}".into(), root.join("libraries").display().to_string());
+    vars.insert("${clientid}".into(), "".into());
+    vars.insert("${auth_xuid}".into(), "".into());
+    vars.insert("${resolution_width}".into(), "1280".into());
+    vars.insert("${resolution_height}".into(), "720".into());
+    let main = metadata.get("mainClass").and_then(Value::as_str).ok_or("Minecraft mainClass missing")?;
+    let mut args = vec![format!("-Xmx{}M", ram_mb), format!("-Xms{}M", std::cmp::min(1024, ram_mb)), format!("-Djava.library.path={}", native_dir.display()), "-cp".into(), cp_value, main.into()];
+    if let Some(jvm) = metadata.get("arguments").and_then(|v| v.get("jvm")) {
+        let mut extra = Vec::new();
+        for mut a in collect_launch_args(jvm) {
+            for (k, v) in &vars { a = a.replace(k, v); }
+            if !a.contains("${") && a != "-cp" && a != "-classpath" && !a.starts_with("-Xmx") && !a.starts_with("-Xms") { extra.push(a); }
+        }
+        args.splice(0..0, extra);
+    }
+    if let Some(game) = metadata.get("arguments").and_then(|v| v.get("game")) {
+        for mut a in collect_launch_args(game) {
+            for (k, v) in &vars { a = a.replace(k, v); }
+            if !a.contains("${") { args.push(a); }
+        }
+    } else if let Some(legacy) = metadata.get("minecraftArguments").and_then(Value::as_str) {
+        for mut a in legacy.split_whitespace().map(str::to_string) {
+            for (k, v) in &vars { a = a.replace(k, v); }
+            if !a.contains("${") { args.push(a); }
+        }
+    } else { return Err("Minecraft launch arguments missing".into()); }
+    let java = if java_path.trim().is_empty() { "java".to_string() } else { java_path };
+    let child = Command::new(&java).args(&args).current_dir(&root).spawn().map_err(|e| format!("Could not start Java at {java}: {e}"))?;
+    Ok(child.id())
+}
+
 #[tauri::command]
 fn detect_java() -> Vec<JavaRuntime> {
     let mut candidates: Vec<PathBuf> = Vec::new();
@@ -230,7 +365,7 @@ fn save_preferences(preferences: Preferences) -> Result<(), String> {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
-        .invoke_handler(tauri::generate_handler![get_versions, detect_java, load_preferences, save_preferences, install_version])
+        .invoke_handler(tauri::generate_handler![get_versions, detect_java, load_preferences, save_preferences, install_version, launch_version])
         .run(tauri::generate_context!())
         .expect("error while running MFLegend");
 }
