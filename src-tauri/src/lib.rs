@@ -95,21 +95,37 @@ async fn download_verified(client: &reqwest::Client, url: &str, destination: &Pa
     Ok(true)
 }
 
-fn library_allowed(library: &Value) -> bool {
-    let Some(rules) = library.get("rules").and_then(Value::as_array) else { return true; };
+fn rule_matches(rule: &Value, features: &serde_json::Map<String, Value>) -> bool {
+    let os = rule.get("os");
+    let name_matches = os.and_then(|v| v.get("name")).and_then(Value::as_str)
+        .map(|name| name == launch_os_name()).unwrap_or(true);
+    let arch_matches = os.and_then(|v| v.get("arch")).and_then(Value::as_str)
+        .map(|arch| arch == std::env::consts::ARCH).unwrap_or(true);
+    let features_match = rule.get("features").and_then(Value::as_object).map(|required| {
+        required.iter().all(|(key, expected)| features.get(key) == Some(expected))
+    }).unwrap_or(true);
+    name_matches && arch_matches && features_match
+}
+
+fn rules_allow(rules: Option<&Vec<Value>>, features: &serde_json::Map<String, Value>) -> bool {
+    let Some(rules) = rules else { return true; };
     let mut allowed = false;
     for rule in rules {
-        let action = rule.get("action").and_then(Value::as_str).unwrap_or("disallow");
-        let os = rule.get("os");
-        let os_matches = os.is_none() || os.and_then(|v| v.get("name")).and_then(Value::as_str).map(|v| v == "linux").unwrap_or(true);
-        let arch_matches = os.and_then(|v| v.get("arch")).and_then(Value::as_str).map(|v| {
-            let current = std::env::consts::ARCH;
-            v == current || (v == "x86" && current == "x86")
-        }).unwrap_or(true);
-        let feature_rules = rule.get("features").is_some();
-        if os_matches && arch_matches && !feature_rules { allowed = action == "allow"; }
+        if rule_matches(rule, features) {
+            allowed = rule.get("action").and_then(Value::as_str) == Some("allow");
+        }
     }
     allowed
+}
+
+fn default_features() -> serde_json::Map<String, Value> {
+    // MFLegend currently launches ordinary offline sessions without demo mode,
+    // custom resolution, or quick-play integration.
+    serde_json::Map::new()
+}
+
+fn library_allowed(library: &Value) -> bool {
+    rules_allow(library.get("rules").and_then(Value::as_array), &default_features())
 }
 
 #[tauri::command]
@@ -201,15 +217,7 @@ async fn install_version(version_id: String, game_directory: String) -> Result<I
 
 fn launch_os_name() -> &'static str { if cfg!(target_os = "windows") { "windows" } else if cfg!(target_os = "macos") { "osx" } else { "linux" } }
 fn launch_rules_allow(rules: Option<&Vec<Value>>) -> bool {
-    let Some(rules) = rules else { return true; };
-    let mut allowed = false;
-    for rule in rules {
-        let action = rule.get("action").and_then(Value::as_str).unwrap_or("disallow");
-        let os = rule.get("os");
-        let name_ok = os.and_then(|v| v.get("name")).and_then(Value::as_str).map(|v| v == launch_os_name()).unwrap_or(true);
-        if name_ok { allowed = action == "allow"; }
-    }
-    allowed
+    rules_allow(rules, &default_features())
 }
 fn offline_uuid(username: &str) -> String {
     let h = format!("{:x}", md5::compute(format!("OfflinePlayer:{username}")));
@@ -240,6 +248,52 @@ fn collect_launch_args(v: &Value) -> Vec<String> {
         Value::Object(o) => if launch_rules_allow(o.get("rules").and_then(Value::as_array)) { collect_launch_args(o.get("value").unwrap_or(&Value::Null)) } else { Vec::new() },
         _ => Vec::new()
     }
+}
+
+fn tokenize_legacy_arguments(input: &str) -> Result<Vec<String>, String> {
+    let mut args = Vec::new();
+    let mut current = String::new();
+    let mut quote: Option<char> = None;
+    let mut escaped = false;
+    let mut started = false;
+
+    for ch in input.chars() {
+        if escaped {
+            current.push(ch);
+            escaped = false;
+            started = true;
+            continue;
+        }
+        if ch == '\\\\' {
+            escaped = true;
+            started = true;
+            continue;
+        }
+        if ch == '"' || ch == '\'' {
+            if quote == Some(ch) {
+                quote = None;
+            } else if quote.is_none() {
+                quote = Some(ch);
+            } else {
+                current.push(ch);
+            }
+            started = true;
+            continue;
+        }
+        if ch.is_whitespace() && quote.is_none() {
+            if started {
+                args.push(std::mem::take(&mut current));
+                started = false;
+            }
+        } else {
+            current.push(ch);
+            started = true;
+        }
+    }
+    if escaped { current.push('\\\\'); }
+    if quote.is_some() { return Err("Minecraft legacy launch arguments contain an unterminated quote".into()); }
+    if started { args.push(current); }
+    Ok(args)
 }
 #[tauri::command]
 async fn launch_version(version_id: String, game_directory: String, username: String, java_path: String, ram_mb: u32) -> Result<u32, String> {
@@ -323,7 +377,7 @@ async fn launch_version(version_id: String, game_directory: String, username: St
             if !a.contains("${") { args.push(a); }
         }
     } else if let Some(legacy) = metadata.get("minecraftArguments").and_then(Value::as_str) {
-        for mut a in legacy.split_whitespace().map(str::to_string) {
+        for mut a in tokenize_legacy_arguments(legacy)? {
             for (k, v) in &vars { a = a.replace(k, v); }
             if !a.contains("${") { args.push(a); }
         }
@@ -409,4 +463,47 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![get_versions, detect_java, load_preferences, save_preferences, install_version, launch_version])
         .run(tauri::generate_context!())
         .expect("error while running MFLegend");
+}
+
+
+#[cfg(test)]
+mod launch_argument_tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn legacy_arguments_preserve_quoted_spaces() {
+        let parsed = tokenize_legacy_arguments(r#"--username "Player One" --gameDir 'my worlds/save'"#).unwrap();
+        assert_eq!(parsed, vec!["--username", "Player One", "--gameDir", "my worlds/save"]);
+    }
+
+    #[test]
+    fn legacy_arguments_reject_unclosed_quotes() {
+        assert!(tokenize_legacy_arguments(r#"--username "unfinished"#).is_err());
+    }
+
+    #[test]
+    fn rules_apply_feature_flags_and_last_matching_rule() {
+        let features = serde_json::Map::new();
+        let rules = vec![
+            json!({"action":"allow"}),
+            json!({"action":"disallow","features":{"has_custom_resolution":true}}),
+            json!({"action":"disallow","os":{"name":"not-this-platform"}})
+        ];
+        assert!(rules_allow(Some(&rules), &features));
+        let denied = vec![
+            json!({"action":"allow"}),
+            json!({"action":"disallow","os":{"name":launch_os_name()}})
+        ];
+        assert!(!rules_allow(Some(&denied), &features));
+    }
+
+    #[test]
+    fn feature_rules_require_matching_feature_values() {
+        let mut features = serde_json::Map::new();
+        features.insert("is_demo_user".into(), Value::Bool(true));
+        let rules = vec![json!({"action":"allow","features":{"is_demo_user":true}})];
+        assert!(rules_allow(Some(&rules), &features));
+        assert!(!rules_allow(Some(&rules), &serde_json::Map::new()));
+    }
 }
