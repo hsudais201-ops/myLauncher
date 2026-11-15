@@ -589,7 +589,7 @@ async fn install_official_parent(root: &Path, version_id: &str) -> Result<(), St
     }
     tokio::fs::create_dir_all(&version_dir).await.map_err(|e| e.to_string())?;
     let bytes = serde_json::to_vec_pretty(&metadata).map_err(|e| e.to_string())?;
-    tokio::fs::write(&metadata_path, bytes).await.map_err(|e| e.to_string())?;
+    write_file_atomic(&metadata_path, &bytes).await?;
 
     let download = metadata.get("downloads").and_then(|v| v.get("client"))
         .ok_or_else(|| format!("Parent version {version_id} has no client download"))?;
