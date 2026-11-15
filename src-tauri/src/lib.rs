@@ -24,7 +24,20 @@ struct JavaRuntime { path: String, version: String, architecture: String }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
+struct InstallationProfile {
+    id: String,
+    name: String,
+    version_id: String,
+    game_directory: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
 struct Preferences {
+    #[serde(default)]
+    installations: Vec<InstallationProfile>,
+    #[serde(default)]
+    selected_installation_id: String,
     selected_version: String,
     #[serde(default)]
     selected_java_path: String,
@@ -35,7 +48,7 @@ struct Preferences {
 }
 impl Default for Preferences {
     fn default() -> Self {
-        Self { selected_version: String::new(), selected_java_path: String::new(), ram_mb: 2048, game_directory: String::new(), accent: "#8b5cf6".into(), theme: "dark".into() }
+        Self { installations: Vec::new(), selected_installation_id: String::new(), selected_version: String::new(), selected_java_path: String::new(), ram_mb: 2048, game_directory: String::new(), accent: "#8b5cf6".into(), theme: "dark".into() }
     }
 }
 
