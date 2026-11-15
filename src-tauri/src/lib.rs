@@ -327,6 +327,33 @@ async fn launch_version(version_id: String, game_directory: String, username: St
         }
     } else { return Err("Minecraft launch arguments missing".into()); }
     let java = if java_path.trim().is_empty() { "java".to_string() } else { java_path };
+    let java_probe = Command::new(&java).arg("-version").output()
+        .map_err(|e| format!("Could not inspect Java at {java}: {e}"))?;
+    let java_text = format!("{}\\n{}", String::from_utf8_lossy(&java_probe.stderr), String::from_utf8_lossy(&java_probe.stdout));
+    let detected_major = java_text.lines()
+        .find_map(|line| {
+            let start = line.find('"')? + 1;
+            let version = line.get(start..)?.split('"').next()?;
+            let first = version.split('.').next()?;
+            if first == "1" {
+                version.split('.').nth(1)?.parse::<u32>().ok()
+            } else {
+                first.parse::<u32>().ok()
+            }
+        })
+        .ok_or_else(|| format!("Could not determine the Java version reported by {java}"))?;
+    let required_major = metadata.get("javaVersion")
+        .and_then(|v| v.get("majorVersion"))
+        .and_then(Value::as_u64)
+        .map(|v| v as u32);
+    if let Some(required) = required_major {
+        if detected_major < required {
+            return Err(format!("Minecraft {version_id} requires Java {required} or newer, but {java} reports Java {detected_major}. Select a compatible Java runtime in Settings."));
+        }
+    }
+    if !java_probe.status.success() {
+        return Err(format!("Java runtime check failed for {java}: {}", java_text.trim()));
+    }
     let child = Command::new(&java).args(&args).current_dir(&root).spawn().map_err(|e| format!("Could not start Java at {java}: {e}"))?;
     Ok(child.id())
 }
