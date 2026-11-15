@@ -15,3 +15,55 @@
 
 .mod-list{display:grid;gap:9px;margin-top:14px}.mod-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:13px 15px;background:#141720;border:1px solid #292e3b;border-radius:10px}.mod-file{display:flex;align-items:center;gap:12px;min-width:0}.mod-file>svg{color:#b79df3;flex-shrink:0}.mod-file>div{display:grid;gap:5px;min-width:0}.mod-file strong{font-size:11px;overflow-wrap:anywhere}.mod-file small,.muted-note{font-size:10px;color:#858b9d}.mod-actions{display:flex;gap:7px;flex-shrink:0}.text-input{min-width:0;flex:1;background:#1a1e29;border:1px solid #303545;border-radius:8px;color:#e6e5ee;padding:10px 12px;font:inherit;font-size:11px}.setting-row{display:flex;align-items:center;justify-content:space-between;gap:12px}.setting-row>div{display:grid;gap:5px}.setting-row strong{font-size:12px}.setting-row small{font-size:10px;color:#858b9d;overflow-wrap:anywhere}.danger-button{color:#e89a9a;border-color:#674040}.muted-note{line-height:1.6;margin-top:14px}
 @media(max-width:650px){.mod-row{align-items:flex-start;flex-direction:column}.mod-actions{width:100%}.mod-actions button{flex:1}.choice-row{flex-wrap:wrap}.text-input{width:100%;flex-basis:100%}}
+
+
+.skin-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: 16px;
+  margin-top: 18px;
+}
+.skin-card {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--border, rgba(255,255,255,.1));
+  border-radius: 14px;
+  background: var(--panel, rgba(255,255,255,.035));
+}
+.skin-preview {
+  min-height: 180px;
+  display: grid;
+  place-items: center;
+  padding: 18px;
+  background-color: rgba(127,127,127,.08);
+  background-image: linear-gradient(45deg, rgba(127,127,127,.08) 25%, transparent 25%), linear-gradient(-45deg, rgba(127,127,127,.08) 25%, transparent 25%), linear-gradient(45deg, transparent 75%, rgba(127,127,127,.08) 75%), linear-gradient(-45deg, transparent 75%, rgba(127,127,127,.08) 75%);
+  background-size: 18px 18px;
+  background-position: 0 0, 0 9px, 9px -9px, -9px 0;
+}
+.skin-preview img {
+  display: block;
+  width: 128px;
+  height: 128px;
+  object-fit: contain;
+  image-rendering: pixelated;
+}
+.skin-card-info {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 7px;
+  padding: 13px;
+  min-width: 0;
+}
+.skin-card-info strong {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+.skin-card-info small {
+  color: var(--muted, #999);
+}
+.skin-card-info .outline-button {
+  margin-top: 5px;
+}
