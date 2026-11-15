@@ -219,6 +219,87 @@ async fn install_version(version_id: String, game_directory: String) -> Result<I
 }
 
 
+
+fn valid_version_id(id: &str) -> bool {
+    !id.is_empty() && id.len() <= 64 &&
+        id.chars().all(|c| c.is_ascii_alphanumeric() || c == '.' || c == '_' || c == '-')
+}
+
+fn merge_inherited_metadata(parent: &mut Value, child: Value) {
+    match (parent, child) {
+        (Value::Object(parent), Value::Object(child)) => {
+            for (key, child_value) in child {
+                if key == "inheritsFrom" { continue; }
+                match (parent.get_mut(&key), child_value) {
+                    (Some(Value::Array(parent_array)), Value::Array(child_array))
+                        if key == "libraries" => parent_array.extend(child_array),
+                    (Some(Value::Object(parent_object)), Value::Object(child_object))
+                        if key == "arguments" => {
+                            let mut nested_parent = Value::Object(parent_object.clone());
+                            merge_inherited_metadata(&mut nested_parent, Value::Object(child_object));
+                            if let Value::Object(merged) = nested_parent {
+                                *parent_object = merged;
+                            }
+                        }
+                    (Some(existing), Value::Array(child_array))
+                        if key == "jvm" || key == "game" => {
+                            if let Value::Array(parent_array) = existing {
+                                parent_array.extend(child_array);
+                            } else {
+                                *existing = Value::Array(child_array);
+                            }
+                        }
+                    (Some(existing), child_value) => merge_inherited_metadata(existing, child_value),
+                    (None, child_value) => { parent.insert(key, child_value); }
+                }
+            }
+        }
+        (parent, child) => *parent = child,
+    }
+}
+
+fn resolve_version_metadata(root: &Path, version_id: &str) -> Result<(Value, String), String> {
+    if !valid_version_id(version_id) { return Err("Invalid version ID".into()); }
+    let mut current_id = version_id.to_string();
+    let mut seen = HashSet::new();
+    let mut chain = Vec::<(String, Value)>::new();
+
+    loop {
+        if !seen.insert(current_id.clone()) {
+            return Err(format!("Version inheritance cycle detected at {current_id}"));
+        }
+        if chain.len() >= 32 {
+            return Err("Version inheritance exceeds the 32-version safety limit".into());
+        }
+        let path = root.join("versions").join(&current_id).join(format!("{current_id}.json"));
+        let bytes = std::fs::read(&path)
+            .map_err(|e| format!("Could not read version metadata for {current_id}: {e}. Install the parent version first."))?;
+        let metadata: Value = serde_json::from_slice(&bytes)
+            .map_err(|e| format!("Invalid metadata for version {current_id}: {e}"))?;
+        let parent_id = metadata.get("inheritsFrom").and_then(Value::as_str).map(str::to_string);
+        chain.push((current_id.clone(), metadata));
+        match parent_id {
+            Some(parent) => {
+                if !valid_version_id(&parent) {
+                    return Err(format!("Version {current_id} contains an invalid inheritsFrom ID"));
+                }
+                current_id = parent;
+            }
+            None => break,
+        }
+    }
+
+    let base_jar_id = chain.first().and_then(|(_, metadata)| metadata.get("jar"))
+        .and_then(Value::as_str).map(str::to_string)
+        .unwrap_or_else(|| chain.get(1).map(|(id, _)| id.clone()).unwrap_or_else(|| version_id.to_string()));
+    let mut iter = chain.into_iter().rev();
+    let (_, mut merged) = iter.next().ok_or("Version metadata chain is empty")?;
+    for (_, child) in iter {
+        merge_inherited_metadata(&mut merged, child);
+    }
+    Ok((merged, base_jar_id))
+}
+
 fn launch_os_name() -> &'static str { if cfg!(target_os = "windows") { "windows" } else if cfg!(target_os = "macos") { "osx" } else { "linux" } }
 fn launch_rules_allow(rules: Option<&Vec<Value>>) -> bool {
     rules_allow(rules, &default_features())
@@ -304,12 +385,12 @@ async fn launch_version(version_id: String, game_directory: String, username: St
     let username = username.trim();
     if username.len() < 3 || username.len() > 16 || !username.chars().all(|c| c.is_ascii_alphanumeric() || c == '_') { return Err("Enter a valid offline username (3–16 letters, numbers, or underscores).".into()); }
     if !(1024..=16384).contains(&ram_mb) { return Err("RAM allocation must be between 1024 and 16384 MB".into()); }
-    if version_id.is_empty() || !version_id.chars().all(|c| c.is_ascii_alphanumeric() || c == '.' || c == '_' || c == '-') { return Err("Invalid version ID".into()); }
+    if !valid_version_id(&version_id) { return Err("Invalid version ID".into()); }
     let root = if game_directory.trim().is_empty() { dirs::data_dir().ok_or("Cannot locate application data directory")?.join("mflegend").join("game") } else { PathBuf::from(game_directory.trim()) };
     let version_dir = root.join("versions").join(&version_id);
     let metadata_path = version_dir.join(format!("{version_id}.json"));
     if !metadata_path.is_file() { return Err("Install this Minecraft version before playing.".into()); }
-    let metadata: Value = serde_json::from_slice(&tokio::fs::read(metadata_path).await.map_err(|e| e.to_string())?).map_err(|e| e.to_string())?;
+    let (metadata, base_jar_id) = resolve_version_metadata(&root, &version_id)?;
     let native_dir = version_dir.join("natives");
     tokio::fs::create_dir_all(&native_dir).await.map_err(|e| e.to_string())?;
     let mut cp = Vec::<String>::new();
@@ -363,8 +444,10 @@ async fn launch_version(version_id: String, game_directory: String, username: St
             missing_libraries.len()
         ));
     }
-    let jar = version_dir.join(format!("{version_id}.jar"));
-    if !jar.is_file() { return Err("Minecraft client JAR is missing. Install this version first.".into()); }
+    let jar = root.join("versions").join(&base_jar_id).join(format!("{base_jar_id}.jar"));
+    if !jar.is_file() {
+        return Err(format!("Minecraft client JAR for base version {base_jar_id} is missing. Install that parent version first."));
+    }
     cp.push(jar.display().to_string());
     let cp_value = cp.join(if cfg!(windows) { ";" } else { ":" });
     let assets = root.join("assets");
@@ -512,6 +595,33 @@ pub fn run() {
 mod launch_argument_tests {
     use super::*;
     use serde_json::json;
+
+    #[test]
+    fn inherited_metadata_combines_libraries_and_child_overrides() {
+        let mut parent = json!({
+            "mainClass":"parent.Main",
+            "libraries":[{"name":"parent:lib:1"}],
+            "arguments":{"jvm":["-Dparent=true"],"game":["--parent"]}
+        });
+        merge_inherited_metadata(&mut parent, json!({
+            "inheritsFrom":"base",
+            "mainClass":"child.Main",
+            "libraries":[{"name":"child:lib:1"}],
+            "arguments":{"jvm":["-Dchild=true"],"game":["--child"]}
+        }));
+        assert_eq!(parent["mainClass"], "child.Main");
+        assert_eq!(parent["libraries"].as_array().unwrap().len(), 2);
+        assert_eq!(parent["arguments"]["jvm"].as_array().unwrap().len(), 2);
+        assert_eq!(parent["arguments"]["game"].as_array().unwrap().len(), 2);
+        assert!(parent.get("inheritsFrom").is_none());
+    }
+
+    #[test]
+    fn version_ids_reject_path_traversal() {
+        assert!(valid_version_id("1.21.1"));
+        assert!(!valid_version_id("../outside"));
+        assert!(!valid_version_id(""));
+    }
 
     #[test]
     fn legacy_arguments_preserve_quoted_spaces() {
