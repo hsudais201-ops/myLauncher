@@ -8,6 +8,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -22,11 +23,15 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Extension
+import androidx.compose.material.icons.filled.Folder
+import androidx.compose.material.icons.filled.InsertDriveFile
+import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -35,6 +40,8 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -47,6 +54,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import com.mflegend.flamelauncher.storage.SafGameStorage
 
 private val Flame = Color(0xFFFF6A2A)
 private val Background = Color(0xFF101116)
@@ -122,7 +132,7 @@ private fun FlameLauncherApp() {
                 when (selectedTab) {
                     0 -> HomeScreen()
                     1 -> InfoScreen("Game versions", "Browse and install supported Minecraft Java versions. Version downloads will be connected after the Android storage and engine layers are ready.")
-                    2 -> InfoScreen("Your library", "Mods, resource packs, worlds and local profiles will appear here after Android document-provider support is implemented.")
+                    2 -> LibraryScreen(gameFolderUri)
                     else -> SettingsScreen(gameFolderUri, folderPermissionError, onChooseFolder = { folderPicker.launch(null) })
                 }
                 Text("Created and maintained by MFLegend", color = Muted, fontSize = 12.sp, modifier = Modifier.padding(top = 8.dp))
@@ -174,6 +184,100 @@ private fun FeatureLine(title: String, detail: String) {
     Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
         Text(title, color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
         Text(detail, color = Muted, fontSize = 12.sp)
+    }
+}
+
+
+@Composable
+private fun LibraryScreen(folderUri: String?) {
+    val context = LocalContext.current
+    val directoryStack = remember(folderUri) {
+        mutableStateListOf<Uri>().apply {
+            if (folderUri != null) {
+                val tree = Uri.parse(folderUri)
+                val rootId = android.provider.DocumentsContract.getTreeDocumentId(tree)
+                add(android.provider.DocumentsContract.buildDocumentUriUsingTree(tree, rootId))
+            }
+        }
+    }
+    val currentDirectory = directoryStack.lastOrNull()
+    var entries by remember(folderUri) { mutableStateOf<List<SafGameStorage.Entry>>(emptyList()) }
+    var loading by remember(folderUri) { mutableStateOf(false) }
+    var loadError by remember(folderUri) { mutableStateOf<String?>(null) }
+
+    LaunchedEffect(folderUri, currentDirectory) {
+        if (folderUri == null || currentDirectory == null) {
+            entries = emptyList()
+            return@LaunchedEffect
+        }
+        loading = true
+        loadError = null
+        try {
+            entries = withContext(Dispatchers.IO) {
+                SafGameStorage(context.contentResolver, Uri.parse(folderUri)).listChildren(currentDirectory)
+            }
+        } catch (error: Exception) {
+            entries = emptyList()
+            loadError = if (error is SecurityException) {
+                "Folder access expired. Choose the game folder again in Settings."
+            } else {
+                error.localizedMessage ?: "Could not read this folder."
+            }
+        } finally {
+            loading = false
+        }
+    }
+
+    Card(colors = CardDefaults.cardColors(containerColor = Panel), shape = RoundedCornerShape(20.dp)) {
+        Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                if (directoryStack.size > 1) {
+                    androidx.compose.material3.IconButton(onClick = { directoryStack.removeAt(directoryStack.lastIndex) }) {
+                        androidx.compose.material3.Icon(Icons.Default.ArrowBack, contentDescription = "Go to parent folder")
+                    }
+                }
+                Column(Modifier.weight(1f)) {
+                    Text("Game folder", color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.Bold)
+                    Text(if (folderUri == null) "No folder selected" else "Browse selected Android folder", color = Muted, fontSize = 12.sp)
+                }
+            }
+            if (folderUri == null) {
+                Text("Choose a game folder in Settings to browse its contents.", color = Muted, fontSize = 14.sp)
+            } else if (loading) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    CircularProgressIndicator()
+                    Text("Reading folder…", color = Muted, fontSize = 13.sp)
+                }
+            } else if (loadError != null) {
+                Text(loadError ?: "Unable to read folder.", color = Color(0xFFFF9A82), fontSize = 13.sp)
+            } else if (entries.isEmpty()) {
+                Text("This folder is empty, or the document provider returned no items.", color = Muted, fontSize = 13.sp)
+            } else {
+                Text("\${entries.size} item(s)", color = Muted, fontSize = 11.sp)
+                entries.forEach { entry ->
+                    Row(
+                        modifier = Modifier.fillMaxWidth()
+                            .clickable(enabled = entry.isDirectory) { directoryStack.add(entry.uri) }
+                            .padding(vertical = 9.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        androidx.compose.material3.Icon(
+                            if (entry.isDirectory) Icons.Default.Folder else Icons.Default.InsertDriveFile,
+                            contentDescription = null,
+                            tint = if (entry.isDirectory) Flame else Muted
+                        )
+                        Column(Modifier.weight(1f)) {
+                            Text(entry.name.ifBlank { "Unnamed item" }, color = Color.White, fontSize = 14.sp)
+                            Text(if (entry.isDirectory) "Folder" else entry.mimeType, color = Muted, fontSize = 11.sp)
+                        }
+                        if (entry.sizeBytes != null && !entry.isDirectory) {
+                            Text("\${entry.sizeBytes} B", color = Muted, fontSize = 10.sp)
+                        }
+                    }
+                }
+            }
+        }
     }
 }
 
