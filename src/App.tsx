@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 import {
-  Activity, Archive, ArrowDownToLine, BookOpen, Check, ChevronDown, CircleHelp,
+  Activity, Archive, BookOpen, Check, ChevronDown, CircleHelp,
   Cpu, FolderOpen, Gamepad2, HardDrive, Home, Layers3, Moon, Package, Palette,
   Play, RefreshCw, Search, Settings, ShieldCheck, Sparkles, Sun, Terminal,
   UserRound, WandSparkles, X
 } from "lucide-react";
 import { detectJava, desktopAvailable, getVersions, loadPreferences, savePreferences } from "./api";
-import type { JavaRuntime, Preferences, Version } from "./types";
+import type { Preferences, Version } from "./types";
 
 type Page = "Home" | "Play" | "Installations" | "Versions" | "Mod Manager" | "Resource Packs" | "Worlds" | "Skins" | "Java Runtime" | "Settings" | "About";
 const nav: { label: Page; icon: typeof Home; group: string }[] = [
