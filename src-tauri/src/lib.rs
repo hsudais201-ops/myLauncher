@@ -383,6 +383,76 @@ fn tokenize_legacy_arguments(input: &str) -> Result<Vec<String>, String> {
 }
 
 
+
+#[derive(Deserialize)]
+struct ForgePromotions {
+    promos: std::collections::HashMap<String, String>,
+}
+
+async fn install_forge_profile(game_version: &str, game_directory: &str, java_path: &str) -> Result<InstallResult, String> {
+    if !valid_version_id(game_version) { return Err("Invalid Minecraft game version".into()); }
+    let root = if game_directory.trim().is_empty() {
+        dirs::data_dir().ok_or("Cannot locate application data directory")?.join("mflegend").join("game")
+    } else { PathBuf::from(game_directory.trim()) };
+    // Forge's client installer expects the base Minecraft files to be present.
+    install_version(game_version.to_string(), root.display().to_string()).await?;
+
+    let client = http_client()?;
+    let response = client.get("https://files.minecraftforge.net/net/minecraftforge/forge/promotions_slim.json")
+        .send().await.map_err(|e| format!("Forge version lookup failed: {e}"))?;
+    if !response.status().is_success() { return Err(format!("Forge promotions returned HTTP {}", response.status())); }
+    let promotions: ForgePromotions = response.json().await.map_err(|e| format!("Invalid Forge promotions: {e}"))?;
+    let forge_version = promotions.promos.get(&format!("{game_version}-recommended"))
+        .or_else(|| promotions.promos.get(&format!("{game_version}-latest")))
+        .ok_or_else(|| format!("Forge does not publish a recommended or latest installer for Minecraft {game_version}"))?;
+    if !valid_version_id(forge_version) { return Err("Forge returned an invalid loader version".into()); }
+
+    let artifact = format!("{game_version}-{forge_version}");
+    let installer_name = format!("forge-{artifact}-installer.jar");
+    let installer_url = format!("https://maven.minecraftforge.net/net/minecraftforge/forge/{artifact}/{installer_name}");
+    let installer_path = safe_join(&root.join("mflegend-downloads"), &installer_name)?;
+    download_verified(&client, &installer_url, &installer_path, None).await?;
+
+    let java = if java_path.trim().is_empty() { "java".to_string() } else { java_path.trim().to_string() };
+    let install_root = root.clone();
+    let installer_for_run = installer_path.clone();
+    let output = tokio::task::spawn_blocking(move || {
+        Command::new(&java).arg("-jar").arg(&installer_for_run).arg("--installClient").arg(&install_root).output()
+            .map_err(|e| format!("Could not run Forge installer with {java}: {e}"))
+    }).await.map_err(|e| format!("Forge installer task failed: {e}"))??;
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    if !output.status.success() {
+        return Err(format!("Forge installer failed ({}). {} {}", output.status, stdout.trim(), stderr.trim()));
+    }
+
+    let prefix = format!("{game_version}-forge-");
+    let mut installed_id = None;
+    let versions_dir = root.join("versions");
+    for entry in std::fs::read_dir(&versions_dir).map_err(|e| format!("Cannot inspect installed Forge profiles: {e}"))? {
+        let entry = entry.map_err(|e| e.to_string())?;
+        let name = entry.file_name().to_string_lossy().to_string();
+        if name.starts_with(&prefix) && valid_version_id(&name) {
+            let metadata = entry.path().join(format!("{name}.json"));
+            if metadata.is_file() { installed_id = Some(name); break; }
+        }
+    }
+    let version_id = installed_id.ok_or_else(|| format!("Forge installer completed but did not create a recognizable profile. Installer output: {}", stdout.trim()))?;
+    let _ = tokio::fs::remove_file(&installer_path).await;
+    Ok(InstallResult {
+        version_id,
+        game_directory: root.display().to_string(),
+        downloaded_files: 1,
+        skipped_files: 0,
+        assets_downloaded: 0,
+    })
+}
+
+#[tauri::command]
+async fn install_forge(game_version: String, game_directory: String, java_path: String) -> Result<InstallResult, String> {
+    install_forge_profile(&game_version, &game_directory, &java_path).await
+}
+
 fn maven_artifact_path(coordinate: &str) -> Result<String, String> {
     let (coordinate, extension) = coordinate.split_once('@').unwrap_or((coordinate, "jar"));
     let parts: Vec<&str> = coordinate.split(':').collect();
@@ -779,7 +849,7 @@ fn save_preferences(preferences: Preferences) -> Result<(), String> {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
-        .invoke_handler(tauri::generate_handler![get_versions, detect_java, load_preferences, save_preferences, install_version, install_fabric, launch_version])
+        .invoke_handler(tauri::generate_handler![get_versions, detect_java, load_preferences, save_preferences, install_version, install_fabric, install_forge, launch_version])
         .run(tauri::generate_context!())
         .expect("error while running MFLegend");
 }
