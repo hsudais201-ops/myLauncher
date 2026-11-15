@@ -962,6 +962,72 @@ fn remove_resource_pack(file_name: String, game_directory: String) -> Result<(),
 }
 
 
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct SkinEntry { file_name: String, file_path: String, width: u32, height: u32, size_bytes: u64 }
+
+fn valid_skin_filename(name: &str) -> bool {
+    !name.is_empty() && name.len() <= 120 && name.to_ascii_lowercase().ends_with(".png")
+        && name.chars().all(|c| c.is_ascii_alphanumeric() || matches!(c, ' ' | '_' | '-' | '.' | '(' | ')'))
+        && name != "." && name != ".."
+}
+
+fn skin_dimensions(path: &Path) -> Result<(u32,u32,u64),String> {
+    let meta = std::fs::symlink_metadata(path).map_err(|e| format!("Cannot inspect skin: {e}"))?;
+    if !meta.is_file() || meta.file_type().is_symlink() { return Err("Skin must be a regular PNG file.".into()); }
+    let bytes = std::fs::read(path).map_err(|e| format!("Cannot read skin PNG: {e}"))?;
+    if bytes.len() < 24 || &bytes[0..8] != b"\x89PNG\r\n\x1a\n" { return Err("File is not a valid PNG image.".into()); }
+    if &bytes[12..16] != b"IHDR" { return Err("PNG image is missing its IHDR header.".into()); }
+    let width = u32::from_be_bytes(bytes[16..20].try_into().map_err(|_| "Invalid PNG width")?);
+    let height = u32::from_be_bytes(bytes[20..24].try_into().map_err(|_| "Invalid PNG height")?);
+    let valid_size = width >= 64 && width <= 1024 && height >= 32 && height <= 1024
+        && width % 64 == 0 && (height == width || height * 2 == width);
+    if !valid_size { return Err("Minecraft skin PNG must be 64×64 (modern) or 64×32 (classic), or an integer-scaled equivalent.".into()); }
+    Ok((width,height,meta.len()))
+}
+
+#[tauri::command]
+fn list_skins(game_directory: String) -> Result<Vec<SkinEntry>,String> {
+    let folder = configured_game_root(&game_directory)?.join("skins");
+    if !folder.exists() { return Ok(Vec::new()); }
+    let mut result = Vec::new();
+    for entry in std::fs::read_dir(&folder).map_err(|e| format!("Cannot read skins folder: {e}"))? {
+        let entry = entry.map_err(|e| e.to_string())?;
+        let path = entry.path();
+        let name = entry.file_name().to_string_lossy().to_string();
+        if !valid_skin_filename(&name) { continue; }
+        if let Ok((width,height,size_bytes)) = skin_dimensions(&path) {
+            result.push(SkinEntry { file_name: name, file_path: path.to_string_lossy().to_string(), width,height,size_bytes });
+        }
+    }
+    result.sort_by(|a,b| a.file_name.to_lowercase().cmp(&b.file_name.to_lowercase()));
+    Ok(result)
+}
+
+#[tauri::command]
+fn import_skin(source_path: String, game_directory: String) -> Result<SkinEntry,String> {
+    let source = PathBuf::from(source_path.trim());
+    let source_name = source.file_name().and_then(|n| n.to_str()).ok_or("Invalid skin filename")?;
+    if !valid_skin_filename(source_name) { return Err("Choose a PNG file with a safe filename.".into()); }
+    let (width,height,size_bytes) = skin_dimensions(&source)?;
+    let folder = configured_game_root(&game_directory)?.join("skins");
+    std::fs::create_dir_all(&folder).map_err(|e| e.to_string())?;
+    let destination = folder.join(source_name);
+    if destination.exists() { return Err("A skin with that filename already exists.".into()); }
+    std::fs::copy(&source,&destination).map_err(|e| format!("Could not import skin: {e}"))?;
+    Ok(SkinEntry { file_name: source_name.to_string(), file_path: destination.to_string_lossy().to_string(), width,height,size_bytes })
+}
+
+#[tauri::command]
+fn remove_skin(file_name: String, game_directory: String) -> Result<(),String> {
+    if !valid_skin_filename(&file_name) { return Err("Invalid skin filename.".into()); }
+    let folder = configured_game_root(&game_directory)?.join("skins");
+    let path = folder.join(&file_name);
+    skin_dimensions(&path)?;
+    std::fs::remove_file(path).map_err(|e| format!("Could not remove skin: {e}"))
+}
+
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 struct WorldEntry { folder_name: String, display_name: String, size_bytes: u64, modified_unix: u64 }
@@ -1144,7 +1210,7 @@ fn save_preferences(preferences: Preferences) -> Result<(), String> {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
-        .invoke_handler(tauri::generate_handler![get_versions, detect_java, load_preferences, save_preferences, install_version, install_fabric, install_forge, list_mods, import_mod, set_mod_enabled, remove_mod, list_resource_packs, import_resource_pack, set_resource_pack_enabled, remove_resource_pack, list_worlds, import_world, export_world, backup_world, remove_world, launch_version])
+        .invoke_handler(tauri::generate_handler![get_versions, detect_java, load_preferences, save_preferences, install_version, install_fabric, install_forge, list_mods, import_mod, set_mod_enabled, remove_mod, list_resource_packs, import_resource_pack, set_resource_pack_enabled, remove_resource_pack, list_worlds, import_world, export_world, backup_world, remove_world, list_skins, import_skin, remove_skin, launch_version])
         .run(tauri::generate_context!())
         .expect("error while running MFLegend");
 }
