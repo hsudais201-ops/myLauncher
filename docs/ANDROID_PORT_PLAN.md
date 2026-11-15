@@ -10,7 +10,8 @@ This document is the source of truth for the Android migration. The existing Tau
 
 - Native Kotlin/Jetpack Compose Android application module and branded navigation shell are committed.
 - Settings can open the Android SAF tree picker, request persistable read/write URI access, and save the selected tree URI in app preferences.
-- The saved URI is not a filesystem path. Actual document traversal, file reads/writes, imports, downloads, and Rust-engine integration remain unimplemented.
+- A Kotlin SAF storage adapter now supports direct-child listing, stream-based reads/writes, directory/file creation, and document deletion while checking that document URIs remain inside the selected tree.
+- The adapter is not yet wired into the UI or launcher engine; recursive game-directory scanning, imports, downloads, and Rust-engine integration remain unimplemented.
 - Gradle build, debug APK generation, and physical-device installation have not yet been verified.
 
 ## 1. Target architecture
@@ -42,7 +43,8 @@ This document is the source of truth for the Android migration. The existing Tau
 
 ### Phase B — Storage and launcher engine
 - [x] Implement initial SAF game-directory selection and persist URI permissions in the Android UI.
-- [ ] Build a SAF-aware storage abstraction for listing, reading, writing, creating, and deleting documents; never pass a tree URI to desktop `PathBuf` logic as if it were a normal path.
+- [x] Add a SAF-aware Kotlin storage abstraction for listing, reading, writing, creating, and deleting documents.
+- [ ] Integrate the SAF adapter into UI browsing and launcher-engine operations; never pass a tree URI to desktop `PathBuf` logic as if it were a normal path.
 - Refactor Rust filesystem operations behind interfaces so Android document URIs are not treated as ordinary desktop paths.
 - Port metadata/version browsing and verified downloads.
 - Add cancellation, progress reporting, retry handling, and low-storage checks.
