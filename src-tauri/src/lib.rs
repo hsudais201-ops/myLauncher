@@ -1061,6 +1061,15 @@ mod launch_argument_tests {
     }
 
     #[test]
+    fn resource_pack_filenames_are_confined_to_zip_archives() {
+        assert!(valid_pack_filename("faithful-32x.zip"));
+        assert!(valid_pack_filename("pack (updated).zip.disabled"));
+        assert!(!valid_pack_filename("../outside.zip"));
+        assert!(!valid_pack_filename("nested/pack.zip"));
+        assert!(!valid_pack_filename("pack.jar"));
+    }
+
+    #[test]
     fn version_ids_reject_path_traversal() {
         assert!(valid_version_id("1.21.1"));
         assert!(!valid_version_id("../outside"));
