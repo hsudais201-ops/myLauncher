@@ -87,3 +87,25 @@ export async function removeResourcePack(fileName: string, gameDirectory: string
   if (!isDesktop) throw new Error("Resource pack management requires the native MFLegend desktop app.");
   return invoke("remove_resource_pack", { fileName, gameDirectory });
 }
+
+export type WorldEntry = { folderName: string; displayName: string; sizeBytes: number; modifiedUnix: number };
+export async function listWorlds(gameDirectory: string): Promise<WorldEntry[]> {
+  if (!isDesktop) throw new Error("World management requires the native MFLegend desktop app.");
+  return invoke<WorldEntry[]>("list_worlds", { gameDirectory });
+}
+export async function importWorld(sourcePath: string, gameDirectory: string): Promise<WorldEntry> {
+  if (!isDesktop) throw new Error("World import requires the native MFLegend desktop app.");
+  return invoke<WorldEntry>("import_world", { sourcePath, gameDirectory });
+}
+export async function exportWorld(folderName: string, destinationPath: string, gameDirectory: string): Promise<string> {
+  if (!isDesktop) throw new Error("World export requires the native MFLegend desktop app.");
+  return invoke<string>("export_world", { folderName, destinationPath, gameDirectory });
+}
+export async function backupWorld(folderName: string, gameDirectory: string): Promise<string> {
+  if (!isDesktop) throw new Error("World backups require the native MFLegend desktop app.");
+  return invoke<string>("backup_world", { folderName, gameDirectory });
+}
+export async function removeWorld(folderName: string, gameDirectory: string): Promise<void> {
+  if (!isDesktop) throw new Error("World removal requires the native MFLegend desktop app.");
+  return invoke("remove_world", { folderName, gameDirectory });
+}
