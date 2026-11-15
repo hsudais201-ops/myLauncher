@@ -268,7 +268,7 @@ fn tokenize_legacy_arguments(input: &str) -> Result<Vec<String>, String> {
             started = true;
             continue;
         }
-        if ch == '\\\\' {
+        if ch == char::from(92) {
             escaped = true;
             started = true;
             continue;
