@@ -381,6 +381,110 @@ fn tokenize_legacy_arguments(input: &str) -> Result<Vec<String>, String> {
     if started { args.push(current); }
     Ok(args)
 }
+
+async fn install_official_parent(root: &Path, version_id: &str) -> Result<(), String> {
+    if !valid_version_id(version_id) { return Err("Invalid inherited parent version ID".into()); }
+    let version_dir = root.join("versions").join(version_id);
+    let metadata_path = version_dir.join(format!("{version_id}.json"));
+    let jar_path = version_dir.join(format!("{version_id}.jar"));
+    if metadata_path.is_file() && jar_path.is_file() { return Ok(()); }
+
+    let client = http_client()?;
+    let response = client.get(MANIFEST_URL).send().await.map_err(|e| format!("Could not retrieve parent version manifest: {e}"))?;
+    if !response.status().is_success() { return Err(format!("Parent version manifest returned HTTP {}", response.status())); }
+    let manifest: Manifest = response.json().await.map_err(|e| format!("Invalid parent version manifest: {e}"))?;
+    let entry = manifest.versions.into_iter().find(|entry| entry.id == version_id)
+        .ok_or_else(|| format!("Parent version {version_id} is not in the official Mojang manifest. Install it manually or provide its files."))?;
+    let response = client.get(&entry.url).send().await.map_err(|e| format!("Could not retrieve parent metadata: {e}"))?;
+    if !response.status().is_success() { return Err(format!("Parent metadata returned HTTP {}", response.status())); }
+    let metadata: Value = response.json().await.map_err(|e| format!("Invalid parent metadata: {e}"))?;
+    if metadata.get("id").and_then(Value::as_str) != Some(version_id) {
+        return Err(format!("Mojang returned mismatched metadata for parent {version_id}"));
+    }
+    tokio::fs::create_dir_all(&version_dir).await.map_err(|e| e.to_string())?;
+    let bytes = serde_json::to_vec_pretty(&metadata).map_err(|e| e.to_string())?;
+    tokio::fs::write(&metadata_path, bytes).await.map_err(|e| e.to_string())?;
+
+    let download = metadata.get("downloads").and_then(|v| v.get("client"))
+        .ok_or_else(|| format!("Parent version {version_id} has no client download"))?;
+    let url = download.get("url").and_then(Value::as_str).ok_or("Parent client URL is missing")?;
+    download_verified(&client, url, &jar_path, download.get("sha1").and_then(Value::as_str)).await?;
+
+    if let Some(libraries) = metadata.get("libraries").and_then(Value::as_array) {
+        for library in libraries {
+            if !library_allowed(library) { continue; }
+            if let Some(artifact) = library.get("downloads").and_then(|v| v.get("artifact")) {
+                if let (Some(url), Some(path)) = (artifact.get("url").and_then(Value::as_str), artifact.get("path").and_then(Value::as_str)) {
+                    let destination = safe_join(&root.join("libraries"), path)?;
+                    download_verified(&client, url, &destination, artifact.get("sha1").and_then(Value::as_str)).await?;
+                }
+            }
+            if let Some(classifiers) = library.get("downloads").and_then(|v| v.get("classifiers")) {
+                let native_key = library.get("natives").and_then(|v| v.get(launch_os_name())).and_then(Value::as_str).unwrap_or("");
+                let arch = if std::env::consts::ARCH == "x86_64" { "64" } else { "32" };
+                if !native_key.is_empty() {
+                    if let Some(native) = classifiers.get(&native_key.replace("${arch}", arch)) {
+                        if let (Some(url), Some(path)) = (native.get("url").and_then(Value::as_str), native.get("path").and_then(Value::as_str)) {
+                            let destination = safe_join(&root.join("libraries"), path)?;
+                            download_verified(&client, url, &destination, native.get("sha1").and_then(Value::as_str)).await?;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    if let Some(index) = metadata.get("assetIndex") {
+        let id = index.get("id").and_then(Value::as_str).ok_or("Parent asset index ID is missing")?;
+        let url = index.get("url").and_then(Value::as_str).ok_or("Parent asset index URL is missing")?;
+        let index_path = root.join("assets").join("indexes").join(format!("{id}.json"));
+        download_verified(&client, url, &index_path, index.get("sha1").and_then(Value::as_str)).await?;
+        let data: Value = serde_json::from_slice(&tokio::fs::read(&index_path).await.map_err(|e| e.to_string())?)
+            .map_err(|e| format!("Invalid parent asset index: {e}"))?;
+        if let Some(objects) = data.get("objects").and_then(Value::as_object) {
+            for object in objects.values() {
+                let hash = object.get("hash").and_then(Value::as_str).ok_or("Parent asset hash is missing")?;
+                if hash.len() != 40 || !hash.chars().all(|c| c.is_ascii_hexdigit()) { return Err("Parent asset index contains an invalid SHA-1 hash".into()); }
+                let relative = format!("{}/{}", &hash[..2], hash);
+                let destination = safe_join(&root.join("assets").join("objects"), &relative)?;
+                let asset_url = format!("https://resources.download.minecraft.net/{}/{}", &hash[..2], hash);
+                download_verified(&client, &asset_url, &destination, Some(hash)).await?;
+            }
+        }
+    }
+    if let Some(logging) = metadata.get("logging").and_then(|v| v.get("client")).and_then(|v| v.get("file")) {
+        if let (Some(url), Some(id)) = (logging.get("url").and_then(Value::as_str), logging.get("id").and_then(Value::as_str)) {
+            let destination = safe_join(&root.join("assets").join("log_configs"), id)?;
+            download_verified(&client, url, &destination, logging.get("sha1").and_then(Value::as_str)).await?;
+        }
+    }
+    Ok(())
+}
+
+async fn ensure_inherited_parents(root: &Path, version_id: &str) -> Result<(), String> {
+    let mut current = version_id.to_string();
+    let mut seen = HashSet::new();
+    for _ in 0..32 {
+        if !seen.insert(current.clone()) {
+            return Err(format!("Version inheritance cycle detected at {current}"));
+        }
+        let path = root.join("versions").join(&current).join(format!("{current}.json"));
+        let bytes = tokio::fs::read(&path).await
+            .map_err(|e| format!("Could not read version metadata for {current}: {e}"))?;
+        let metadata: Value = serde_json::from_slice(&bytes)
+            .map_err(|e| format!("Invalid metadata for version {current}: {e}"))?;
+        let Some(parent) = metadata.get("inheritsFrom").and_then(Value::as_str) else { return Ok(()); };
+        if !valid_version_id(parent) { return Err(format!("Version {current} contains an invalid inheritsFrom ID")); }
+        let parent_path = root.join("versions").join(parent).join(format!("{parent}.json"));
+        let parent_jar = root.join("versions").join(parent).join(format!("{parent}.jar"));
+        if !parent_path.is_file() || !parent_jar.is_file() {
+            install_official_parent(root, parent).await?;
+        }
+        current = parent.to_string();
+    }
+    Err("Version inheritance exceeds the 32-version safety limit".into())
+}
+
 #[tauri::command]
 async fn launch_version(version_id: String, game_directory: String, username: String, java_path: String, ram_mb: u32) -> Result<u32, String> {
     let username = username.trim();
@@ -391,6 +495,7 @@ async fn launch_version(version_id: String, game_directory: String, username: St
     let version_dir = root.join("versions").join(&version_id);
     let metadata_path = version_dir.join(format!("{version_id}.json"));
     if !metadata_path.is_file() { return Err("Install this Minecraft version before playing.".into()); }
+    ensure_inherited_parents(&root, &version_id).await?;
     let (metadata, base_jar_id) = resolve_version_metadata(&root, &version_id)?;
     let native_dir = version_dir.join("natives");
     tokio::fs::create_dir_all(&native_dir).await.map_err(|e| e.to_string())?;
