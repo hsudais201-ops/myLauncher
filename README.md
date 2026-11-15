@@ -8,7 +8,7 @@ The intended product is an Android phone/tablet app with a touch-friendly interf
 
 - Android phones and tablets are the primary target; this is not a Windows, macOS, or Linux desktop launcher.
 - Touch-first navigation, readable mobile layouts, and support for optional external keyboards and mice.
-- A complete end-user game-file manager and launcher-engine integration. Kotlin SAF storage primitives now support listing, streaming reads/writes, creating, and deleting documents, but are not yet connected to game browsing or installation workflows.
+- A complete end-user game-file manager and launcher-engine integration. Kotlin SAF storage primitives support listing, streaming reads/writes, creating, and deleting documents, and the Library tab now provides basic read-only folder browsing. Game installation and full file-management workflows are not connected yet.
 - A supported Android Java runtime and native graphics/input integration are required to run Minecraft: Java Edition. Android's built-in ART runtime alone is not a drop-in replacement for a desktop Java runtime.
 - Account authentication must use a secure, supported Microsoft/Xbox/Minecraft sign-in flow before online play is enabled.
 
@@ -31,7 +31,7 @@ The Android port is **not yet complete**. In particular, this repository does no
 - A verified successful Gradle build or installable APK (the Android Gradle module is present, but build verification has not yet been completed).
 - Android-compatible JVM/runtime distribution and lifecycle management.
 - OpenGL/Vulkan renderer integration, native library ABI packaging, or touch-to-game input bridge.
-- SAF-backed UI and launcher-engine integration; the Kotlin storage adapter exists, but game browsing, recursive scanning, and installation workflows are not yet connected.
+- SAF-backed game installation, file management, recursive scanning, and launcher-engine integration; the current Library tab only browses folders and files.
 - Microsoft account, Xbox Live/XSTS, or Minecraft Services authentication.
 - Verified gameplay on physical Android devices.
 
