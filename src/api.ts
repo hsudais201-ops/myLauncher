@@ -37,6 +37,11 @@ export async function installVersion(versionId: string, gameDirectory: string): 
   return invoke<InstallResult>("install_version", { versionId, gameDirectory });
 }
 
+export async function installFabric(gameVersion: string, gameDirectory: string): Promise<InstallResult> {
+  if (!isDesktop) throw new Error("Fabric installation requires the native MFLegend desktop app.");
+  return invoke<InstallResult>("install_fabric", { gameVersion, gameDirectory });
+}
+
 export async function launchVersion(versionId: string, gameDirectory: string, username: string, javaPath: string, ramMb: number): Promise<number> {
   if (!isDesktop) throw new Error("Launching Minecraft requires the native MFLegend desktop app.");
   return invoke<number>("launch_version", { versionId, gameDirectory, username, javaPath, ramMb });
