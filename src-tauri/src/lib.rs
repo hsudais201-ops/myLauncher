@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use sha1::{Digest, Sha1};
 use serde_json::Value;
-use std::{collections::HashSet, path::{Component, Path, PathBuf}, process::Command, sync::atomic::{AtomicU64, Ordering}};
+use std::{collections::{HashMap, HashSet}, path::{Component, Path, PathBuf}, process::{Child, Command}, sync::{atomic::{AtomicU64, Ordering}, Mutex, OnceLock}, time::{SystemTime, UNIX_EPOCH}};
 
 const MANIFEST_URL: &str = "https://launchermeta.mojang.com/mc/game/version_manifest_v2.json";
 
@@ -713,6 +713,61 @@ async fn ensure_inherited_parents(root: &Path, version_id: &str) -> Result<(), S
     Err("Version inheritance exceeds the 32-version safety limit".into())
 }
 
+struct RunningGame {
+    child: Child,
+    version_id: String,
+    username: String,
+    started_at: u64,
+}
+static RUNNING_GAMES: OnceLock<Mutex<HashMap<u32, RunningGame>>> = OnceLock::new();
+
+fn running_games() -> &'static Mutex<HashMap<u32, RunningGame>> {
+    RUNNING_GAMES.get_or_init(|| Mutex::new(HashMap::new()))
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct RunningGameInfo {
+    pid: u32,
+    version_id: String,
+    username: String,
+    started_at: u64,
+}
+
+#[tauri::command]
+fn list_running_games() -> Result<Vec<RunningGameInfo>, String> {
+    let mut games = running_games().lock().map_err(|_| "Running game registry is unavailable".to_string())?;
+    let mut finished = Vec::new();
+    for (pid, game) in games.iter_mut() {
+        if game.child.try_wait().map_err(|e| format!("Could not inspect Minecraft process {pid}: {e}"))?.is_some() {
+            finished.push(*pid);
+        }
+    }
+    for pid in finished { games.remove(&pid); }
+    let mut result: Vec<_> = games.iter().map(|(pid, game)| RunningGameInfo {
+        pid: *pid,
+        version_id: game.version_id.clone(),
+        username: game.username.clone(),
+        started_at: game.started_at,
+    }).collect();
+    result.sort_by_key(|game| game.started_at);
+    Ok(result)
+}
+
+#[tauri::command]
+fn stop_running_game(pid: u32) -> Result<(), String> {
+    let mut games = running_games().lock().map_err(|_| "Running game registry is unavailable".to_string())?;
+    let game = games.get_mut(&pid).ok_or_else(|| format!("Minecraft process {pid} is not tracked or has already exited"))?;
+    if let Some(status) = game.child.try_wait().map_err(|e| format!("Could not inspect Minecraft process {pid}: {e}"))? {
+        games.remove(&pid);
+        return Err(format!("Minecraft process {pid} has already exited ({status})"));
+    }
+    game.child.kill().map_err(|e| format!("Could not stop Minecraft process {pid}: {e}"))?;
+    let _ = game.child.wait();
+    games.remove(&pid);
+    Ok(())
+}
+
 #[tauri::command]
 async fn launch_version(version_id: String, game_directory: String, username: String, java_path: String, ram_mb: u32) -> Result<u32, String> {
     let username = username.trim();
@@ -874,7 +929,10 @@ async fn launch_version(version_id: String, game_directory: String, username: St
         return Err(format!("Java runtime check failed for {java}: {}", java_text.trim()));
     }
     let child = Command::new(&java).args(&args).current_dir(&root).spawn().map_err(|e| format!("Could not start Java at {java}: {e}"))?;
-    Ok(child.id())
+    let pid = child.id();
+    let started_at = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs();
+    running_games().lock().map_err(|_| "Running game registry is unavailable".to_string())?.insert(pid, RunningGame { child, version_id: version_id.clone(), username: username.to_string(), started_at });
+    Ok(pid)
 }
 
 
@@ -1331,7 +1389,7 @@ fn save_preferences(preferences: Preferences) -> Result<(), String> {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
-        .invoke_handler(tauri::generate_handler![get_versions, detect_java, load_preferences, save_preferences, install_version, install_fabric, install_forge, list_mods, import_mod, set_mod_enabled, remove_mod, list_resource_packs, import_resource_pack, set_resource_pack_enabled, remove_resource_pack, list_worlds, import_world, export_world, backup_world, remove_world, list_installed_versions, list_skins, import_skin, remove_skin, launch_version])
+        .invoke_handler(tauri::generate_handler![get_versions, detect_java, load_preferences, save_preferences, install_version, install_fabric, install_forge, list_mods, import_mod, set_mod_enabled, remove_mod, list_resource_packs, import_resource_pack, set_resource_pack_enabled, remove_resource_pack, list_worlds, import_world, export_world, backup_world, remove_world, list_installed_versions, list_skins, import_skin, remove_skin, launch_version, list_running_games, stop_running_game])
         .run(tauri::generate_context!())
         .expect("error while running MFLegend");
 }
