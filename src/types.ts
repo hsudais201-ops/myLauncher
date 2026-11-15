@@ -13,3 +13,11 @@ export type Preferences = {
   accent: string;
   theme: "dark" | "light";
 };
+
+export type InstallResult = {
+  versionId: string;
+  gameDirectory: string;
+  downloadedFiles: number;
+  skippedFiles: number;
+  assetsDownloaded: number;
+};
