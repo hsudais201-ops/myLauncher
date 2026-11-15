@@ -109,3 +109,17 @@ export async function removeWorld(folderName: string, gameDirectory: string): Pr
   if (!isDesktop) throw new Error("World removal requires the native MFLegend desktop app.");
   return invoke("remove_world", { folderName, gameDirectory });
 }
+
+export type SkinEntry = { fileName: string; filePath: string; width: number; height: number; sizeBytes: number };
+export async function listSkins(gameDirectory: string): Promise<SkinEntry[]> {
+  if (!isDesktop) throw new Error("Skin file management requires the native MFLegend desktop app.");
+  return invoke<SkinEntry[]>("list_skins", { gameDirectory });
+}
+export async function importSkin(sourcePath: string, gameDirectory: string): Promise<SkinEntry> {
+  if (!isDesktop) throw new Error("Skin import requires the native MFLegend desktop app.");
+  return invoke<SkinEntry>("import_skin", { sourcePath, gameDirectory });
+}
+export async function removeSkin(fileName: string, gameDirectory: string): Promise<void> {
+  if (!isDesktop) throw new Error("Skin removal requires the native MFLegend desktop app.");
+  return invoke("remove_skin", { fileName, gameDirectory });
+}
