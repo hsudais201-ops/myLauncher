@@ -1271,8 +1271,10 @@ fn detect_java() -> Vec<JavaRuntime> {
         let canonical = path.canonicalize().unwrap_or(path.clone());
         if !seen.insert(canonical.clone()) { continue; }
         let output = match Command::new(&canonical).arg("-XshowSettings:properties").arg("-version").output() { Ok(v) => v, Err(_) => continue };
+        if !output.status.success() { continue; }
         let text = format!("{}\n{}", String::from_utf8_lossy(&output.stderr), String::from_utf8_lossy(&output.stdout));
         let version = text.lines().find(|l| l.contains("java.version =")).and_then(|l| l.split('=').nth(1)).map(str::trim).unwrap_or("Unknown").to_string();
+        if version == "Unknown" || parse_java_major(&version).is_none() { continue; }
         let architecture = text.lines().find(|l| l.contains("os.arch =")).and_then(|l| l.split('=').nth(1)).map(str::trim).unwrap_or(std::env::consts::ARCH).to_string();
         found.push(JavaRuntime { path: canonical.display().to_string(), version, architecture });
     }
