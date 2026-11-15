@@ -8,6 +8,7 @@ export type Version = {
 export type JavaRuntime = { path: string; version: string; architecture: string };
 export type InstallationProfile = { id: string; name: string; versionId: string; gameDirectory: string; };
 export type Preferences = {
+  microsoftClientId: string;
   installations: InstallationProfile[];
   selectedInstallationId: string;
   selectedVersion: string;
