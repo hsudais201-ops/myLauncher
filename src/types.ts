@@ -6,7 +6,10 @@ export type Version = {
   releaseTime: string;
 };
 export type JavaRuntime = { path: string; version: string; architecture: string };
+export type InstallationProfile = { id: string; name: string; versionId: string; gameDirectory: string; };
 export type Preferences = {
+  installations: InstallationProfile[];
+  selectedInstallationId: string;
   selectedVersion: string;
   selectedJavaPath: string;
   ramMb: number;
