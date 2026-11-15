@@ -56,7 +56,18 @@ function App() {
     (filter === "all" || v.type === filter) && v.id.toLowerCase().includes(search.toLowerCase())
   ).slice(0, 100), [versions, filter, search]);
 
-  async function runInstall() {\n    if (!prefs.selectedVersion) { setError("Choose a Minecraft version first."); return; }\n    setInstallBusy(true); setInstallStatus("Preparing official game files…"); setError("");\n    try {\n      const result = await installVersion(prefs.selectedVersion, prefs.gameDirectory);\n      setInstallStatus(`Installed ${result.versionId}. Downloaded ${result.downloadedFiles} files (${result.assetsDownloaded} assets); reused ${result.skippedFiles} verified files. Location: ${result.gameDirectory}`);\n      if (!prefs.gameDirectory) { const next = { ...prefs, gameDirectory: result.gameDirectory }; setPrefs(next); await savePreferences(next); }\n    } catch (e) { setError(e instanceof Error ? e.message : "Minecraft installation failed."); setInstallStatus(""); }\n    finally { setInstallBusy(false); }\n  }\n\n  async function update(next: Preferences) {
+  async function runInstall() {
+    if (!prefs.selectedVersion) { setError("Choose a Minecraft version first."); return; }
+    setInstallBusy(true); setInstallStatus("Preparing official game files…"); setError("");
+    try {
+      const result = await installVersion(prefs.selectedVersion, prefs.gameDirectory);
+      setInstallStatus(`Installed ${result.versionId}. Downloaded ${result.downloadedFiles} files (${result.assetsDownloaded} assets); reused ${result.skippedFiles} verified files. Location: ${result.gameDirectory}`);
+      if (!prefs.gameDirectory) { const next = { ...prefs, gameDirectory: result.gameDirectory }; setPrefs(next); await savePreferences(next); }
+    } catch (e) { setError(e instanceof Error ? e.message : "Minecraft installation failed."); setInstallStatus(""); }
+    finally { setInstallBusy(false); }
+  }
+
+  async function update(next: Preferences) {
     setPrefs(next); setSaved(false);
     try { await savePreferences(next); setSaved(true); window.setTimeout(() => setSaved(false), 1800); }
     catch (e) { setError(e instanceof Error ? e.message : "Could not save preferences."); }
