@@ -152,6 +152,18 @@ async fn install_version(version_id: String, game_directory: String) -> Result<I
             let sha = artifact.get("sha1").and_then(Value::as_str);
             if download_verified(&client, url, &destination, sha).await? { downloaded += 1; } else { skipped += 1; }
         }
+        if let Some(classifiers) = library.get("downloads").and_then(|v| v.get("classifiers")) {
+            let native_key = library.get("natives").and_then(|v| v.get(launch_os_name())).and_then(Value::as_str).unwrap_or("");
+            if !native_key.is_empty() {
+                let arch = if std::env::consts::ARCH == "x86_64" { "64" } else { "32" };
+                if let Some(native) = classifiers.get(&native_key.replace("${arch}", arch)) {
+                    if let (Some(url), Some(relative)) = (native.get("url").and_then(Value::as_str), native.get("path").and_then(Value::as_str)) {
+                        let destination = safe_join(&root.join("libraries"), relative)?;
+                        if download_verified(&client, url, &destination, native.get("sha1").and_then(Value::as_str)).await? { downloaded += 1; } else { skipped += 1; }
+                    }
+                }
+            }
+        }
     }
 
     let mut assets_downloaded = 0usize;
