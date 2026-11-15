@@ -51,3 +51,21 @@ export async function launchVersion(versionId: string, gameDirectory: string, us
   if (!isDesktop) throw new Error("Launching Minecraft requires the native MFLegend desktop app.");
   return invoke<number>("launch_version", { versionId, gameDirectory, username, javaPath, ramMb });
 }
+
+export type ModEntry = { fileName: string; enabled: boolean; sizeBytes: number };
+export async function listMods(gameDirectory: string): Promise<ModEntry[]> {
+  if (!isDesktop) throw new Error("Mod management requires the native MFLegend desktop app.");
+  return invoke<ModEntry[]>("list_mods", { gameDirectory });
+}
+export async function importMod(sourcePath: string, gameDirectory: string): Promise<ModEntry> {
+  if (!isDesktop) throw new Error("Mod import requires the native MFLegend desktop app.");
+  return invoke<ModEntry>("import_mod", { sourcePath, gameDirectory });
+}
+export async function setModEnabled(fileName: string, enabled: boolean, gameDirectory: string): Promise<void> {
+  if (!isDesktop) throw new Error("Mod management requires the native MFLegend desktop app.");
+  return invoke("set_mod_enabled", { fileName, enabled, gameDirectory });
+}
+export async function removeMod(fileName: string, gameDirectory: string): Promise<void> {
+  if (!isDesktop) throw new Error("Mod management requires the native MFLegend desktop app.");
+  return invoke("remove_mod", { fileName, gameDirectory });
+}
