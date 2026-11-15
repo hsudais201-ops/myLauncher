@@ -119,9 +119,13 @@ fn rules_allow(rules: Option<&Vec<Value>>, features: &serde_json::Map<String, Va
 }
 
 fn default_features() -> serde_json::Map<String, Value> {
-    // MFLegend currently launches ordinary offline sessions without demo mode,
-    // custom resolution, or quick-play integration.
-    serde_json::Map::new()
+    // These flags describe the launch modes MFLegend currently supports.
+    let mut features = serde_json::Map::new();
+    for name in ["is_demo_user", "has_custom_resolution", "has_quick_plays_support",
+                 "is_quick_play_singleplayer", "is_quick_play_multiplayer", "is_quick_play_realms"] {
+        features.insert(name.into(), Value::Bool(false));
+    }
+    features
 }
 
 fn library_allowed(library: &Value) -> bool {
@@ -290,7 +294,7 @@ fn tokenize_legacy_arguments(input: &str) -> Result<Vec<String>, String> {
             started = true;
         }
     }
-    if escaped { current.push('\\\\'); }
+    if escaped { current.push(char::from(92)); }
     if quote.is_some() { return Err("Minecraft legacy launch arguments contain an unterminated quote".into()); }
     if started { args.push(current); }
     Ok(args)
