@@ -69,3 +69,21 @@ export async function removeMod(fileName: string, gameDirectory: string): Promis
   if (!isDesktop) throw new Error("Mod management requires the native MFLegend desktop app.");
   return invoke("remove_mod", { fileName, gameDirectory });
 }
+
+export type ResourcePackEntry = { fileName: string; enabled: boolean; sizeBytes: number };
+export async function listResourcePacks(gameDirectory: string): Promise<ResourcePackEntry[]> {
+  if (!isDesktop) throw new Error("Resource pack management requires the native MFLegend desktop app.");
+  return invoke<ResourcePackEntry[]>("list_resource_packs", { gameDirectory });
+}
+export async function importResourcePack(sourcePath: string, gameDirectory: string): Promise<ResourcePackEntry> {
+  if (!isDesktop) throw new Error("Resource pack import requires the native MFLegend desktop app.");
+  return invoke<ResourcePackEntry>("import_resource_pack", { sourcePath, gameDirectory });
+}
+export async function setResourcePackEnabled(fileName: string, enabled: boolean, gameDirectory: string): Promise<void> {
+  if (!isDesktop) throw new Error("Resource pack management requires the native MFLegend desktop app.");
+  return invoke("set_resource_pack_enabled", { fileName, enabled, gameDirectory });
+}
+export async function removeResourcePack(fileName: string, gameDirectory: string): Promise<void> {
+  if (!isDesktop) throw new Error("Resource pack management requires the native MFLegend desktop app.");
+  return invoke("remove_resource_pack", { fileName, gameDirectory });
+}
