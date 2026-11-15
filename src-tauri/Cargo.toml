@@ -1,7 +1,7 @@
 [package]
 name = "mflegend"
 version = "0.1.0"
-description = "MFLegend Minecraft Java Edition launcher"
+description = "Flame Launcher Minecraft Java Edition launcher"
 authors = ["MFLegend"]
 edition = "2021"
 
