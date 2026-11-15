@@ -254,6 +254,7 @@ function App() {
     const name = newProfileName.trim();
     const directory = newProfileDirectory.trim();
     if (!name || !directory) { setError("Enter a profile name and an absolute game directory."); return; }
+    if (prefs.installations.some(profile => profile.name.toLowerCase() === name.toLowerCase())) { setError("An installation with that name already exists."); return; }
     if (!directory.startsWith("/")) { setError("Use an absolute game directory path."); return; }
     const id = "profile-" + Date.now().toString(36);
     if (prefs.installations.some(profile => profile.gameDirectory.trim() === directory)) { setError("Each installation profile must use a different game directory."); return; }
