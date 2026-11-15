@@ -5,9 +5,9 @@ import {
   Play, RefreshCw, Search, Settings, ShieldCheck, Sparkles, Sun, Terminal,
   UserRound, WandSparkles, X
 } from "lucide-react";
-import { detectJava, desktopAvailable, getVersions, importMod, installFabric, installForge, installVersion, launchVersion, listMods, loadPreferences, removeMod, savePreferences, setModEnabled } from "./api";
+import { detectJava, desktopAvailable, getVersions, importMod, installFabric, installForge, installVersion, launchVersion, listMods, listResourcePacks, loadPreferences, removeMod, removeResourcePack, savePreferences, setModEnabled, setResourcePackEnabled, importResourcePack } from "./api";
 import type { JavaRuntime, Preferences, Version } from "./types";
-import type { ModEntry } from "./api";
+import type { ModEntry, ResourcePackEntry } from "./api";
 
 type Page = "Home" | "Play" | "Installations" | "Versions" | "Mod Manager" | "Resource Packs" | "Worlds" | "Skins" | "Java Runtime" | "Settings" | "About";
 const nav: { label: Page; icon: typeof Home; group: string }[] = [
@@ -43,6 +43,9 @@ function App() {
   const [mods, setMods] = useState<ModEntry[]>([]);
   const [modSourcePath, setModSourcePath] = useState("");
   const [modsBusy, setModsBusy] = useState(false);
+  const [resourcePacks, setResourcePacks] = useState<ResourcePackEntry[]>([]);
+  const [packSourcePath, setPackSourcePath] = useState("");
+  const [packsBusy, setPacksBusy] = useState(false);
 
   async function refresh() {
     setBusy(true); setError("");
@@ -90,6 +93,35 @@ function App() {
     try { await removeMod(mod.fileName, prefs.gameDirectory); await refreshMods(); }
     catch (e) { setError(e instanceof Error ? e.message : "Could not remove mod."); }
     finally { setModsBusy(false); }
+  }
+
+  async function refreshResourcePacks() {
+    setPacksBusy(true);
+    try { setResourcePacks(await listResourcePacks(prefs.gameDirectory)); }
+    catch (e) { setError(e instanceof Error ? e.message : "Could not read resource packs folder."); }
+    finally { setPacksBusy(false); }
+  }
+  useEffect(() => { if (page === "Resource Packs" && desktopAvailable) void refreshResourcePacks(); }, [page, prefs.gameDirectory]);
+
+  async function addResourcePack() {
+    if (!packSourcePath.trim()) { setError("Enter the full path to a resource-pack .zip file."); return; }
+    setPacksBusy(true); setError("");
+    try { await importResourcePack(packSourcePath.trim(), prefs.gameDirectory); setPackSourcePath(""); await refreshResourcePacks(); }
+    catch (e) { setError(e instanceof Error ? e.message : "Could not import resource pack."); }
+    finally { setPacksBusy(false); }
+  }
+  async function toggleResourcePack(pack: ResourcePackEntry) {
+    setPacksBusy(true); setError("");
+    try { await setResourcePackEnabled(pack.fileName, !pack.enabled, prefs.gameDirectory); await refreshResourcePacks(); }
+    catch (e) { setError(e instanceof Error ? e.message : "Could not change resource pack state."); }
+    finally { setPacksBusy(false); }
+  }
+  async function deleteResourcePack(pack: ResourcePackEntry) {
+    if (!window.confirm(`Permanently remove ${pack.fileName}?`)) return;
+    setPacksBusy(true); setError("");
+    try { await removeResourcePack(pack.fileName, prefs.gameDirectory); await refreshResourcePacks(); }
+    catch (e) { setError(e instanceof Error ? e.message : "Could not remove resource pack."); }
+    finally { setPacksBusy(false); }
   }
 
   async function runInstall() {
@@ -168,7 +200,7 @@ function App() {
         {page === "Installations" && <><PageHeader eyebrow="PROFILES" title="Installations" subtitle="Install vanilla Minecraft or create a Fabric mod-loader profile."/><div className="feature-notice"><div className="notice-icon"><Layers3 size={22}/></div><h2>{prefs.selectedVersion || "Choose a version"}</h2><p>{prefs.selectedVersion ? "Install the official Mojang game files, or create a Fabric profile for the selected Minecraft version. Fabric libraries are downloaded now; the inherited Minecraft parent files are prepared automatically at launch." : "Select a release or snapshot in the Versions section before installing."}</p><div className="choice-row"><button className="play-button" disabled={installBusy || !prefs.selectedVersion || !desktopAvailable} onClick={() => void runInstall()}>{installBusy ? <><RefreshCw size={16}/> Working…</> : <><HardDrive size={16}/> Install vanilla</>}</button><button className="outline-button" disabled={installBusy || !prefs.selectedVersion || !desktopAvailable} onClick={() => void runFabricInstall()}><Package size={16}/> Install Fabric</button><button className="outline-button" disabled={installBusy || !prefs.selectedVersion || !desktopAvailable} onClick={() => void runForgeInstall()}><Package size={16}/> Install Forge</button></div><button className="outline-button" onClick={() => setPage("Versions")}>Browse versions</button>{!desktopAvailable && <p>Installation requires the native Tauri desktop app; browser preview cannot write game files.</p>}{installStatus && <p className="setting-note">{installStatus}</p>}</div></>}
         {page === "Play" && <><PageHeader eyebrow="GAME SESSION" title="Play Minecraft" subtitle="Launch an installed vanilla Java Edition version."/><div className="feature-notice"><div className="notice-icon"><Play size={22}/></div><h2>{prefs.selectedVersion || "Choose a version"}</h2><p>Offline launch is available for local worlds and servers that permit offline-mode connections. Microsoft account authentication is not implemented yet, so official online-mode servers will not accept this session.</p><label className="field-label" htmlFor="player-name">PLAYER NAME</label><input id="player-name" className="search-box" value={playerName} maxLength={16} onChange={e=>setPlayerName(e.target.value)} placeholder="Player name"/><p className="setting-note">Java: {java[0]?.version || "System Java (java on PATH)"} · Memory: ${(prefs.ramMb/1024).toFixed(1)} GB</p><button className="play-button" disabled={launchBusy || !desktopAvailable || !prefs.selectedVersion} onClick={()=>void runLaunch()}>{launchBusy?<><RefreshCw size={16}/> Starting…</>:<><Play size={17} fill="currentColor"/> Launch Minecraft</>}</button><button className="outline-button" onClick={()=>setPage("Installations")}>Install or repair version</button>{!desktopAvailable&&<p>Launching requires the native desktop app.</p>}{launchStatus&&<p className="setting-note">{launchStatus}</p>}</div></>}
         {page === "Mod Manager" && <><PageHeader eyebrow="CUSTOMIZE" title="Mod manager" subtitle="Import and manage local mod files for the selected game directory."/><div className="settings-card"><div className="setting-row"><div><strong>Mods folder</strong><small>{prefs.gameDirectory ? `${prefs.gameDirectory}/mods` : "Default MFLegend game directory /mods"}</small></div><button className="outline-button" disabled={!desktopAvailable || modsBusy} onClick={() => void refreshMods()}><RefreshCw size={15}/> Refresh</button></div><div className="setting-row"><div><strong>Import a mod</strong><small>Use the full file path to a downloaded .jar or .zip mod.</small></div></div><div className="choice-row"><input className="text-input" value={modSourcePath} onChange={e=>setModSourcePath(e.target.value)} placeholder="/path/to/mod.jar"/><button className="play-button" disabled={!desktopAvailable || modsBusy || !modSourcePath.trim()} onClick={()=>void addMod()}>Import mod</button></div></div><div className="section-title-row"><div><div className="section-kicker">LOCAL MOD FILES</div><h2>{mods.length} mods</h2></div></div>{!desktopAvailable ? <FeatureNotice title="Desktop app required" text="Mod files can only be managed by the native MFLegend app." icon={Package}/> : modsBusy && !mods.length ? <p>Reading mods folder…</p> : mods.length === 0 ? <FeatureNotice title="No mods found" text="Import a compatible Fabric or Forge .jar mod to get started." icon={Package}/> : <div className="mod-list">{mods.map(mod=><div className="mod-row" key={mod.fileName}><div className="mod-file"><Package size={18}/><div><strong>{mod.fileName}</strong><small>{(mod.sizeBytes/1024/1024).toFixed(2)} MB · {mod.enabled ? "Enabled" : "Disabled"}</small></div></div><div className="mod-actions"><button className="outline-button" disabled={modsBusy} onClick={()=>void toggleMod(mod)}>{mod.enabled ? "Disable" : "Enable"}</button><button className="outline-button danger-button" disabled={modsBusy} onClick={()=>void deleteMod(mod)}>Remove</button></div></div>)}</div>}<p className="muted-note">Only place mods compatible with your selected loader and Minecraft version in this folder. Removing a mod permanently deletes its file.</p></>}
-        {page === "Resource Packs" && <><PageHeader eyebrow="CUSTOMIZE" title="Resource packs" subtitle="Your textures, your style."/><FeatureNotice title="Resource pack management is not connected" text="Pack discovery, import, enable/disable, and previews will be added after local game-directory management." icon={WandSparkles}/></>}
+        {page === "Resource Packs" && <><PageHeader eyebrow="CUSTOMIZE" title="Resource packs" subtitle="Import and manage local Minecraft resource-pack archives."/><div className="settings-card"><div className="setting-row"><div><strong>Resource packs folder</strong><small>{prefs.gameDirectory ? `${prefs.gameDirectory}/resourcepacks` : "Default MFLegend game directory /resourcepacks"}</small></div><button className="outline-button" disabled={!desktopAvailable || packsBusy} onClick={() => void refreshResourcePacks()}><RefreshCw size={15}/> Refresh</button></div><div className="setting-row"><div><strong>Import a resource pack</strong><small>Select the full path to a downloaded .zip pack archive.</small></div></div><div className="choice-row"><input className="text-input" value={packSourcePath} onChange={e=>setPackSourcePath(e.target.value)} placeholder="/path/to/resource-pack.zip"/><button className="play-button" disabled={!desktopAvailable || packsBusy || !packSourcePath.trim()} onClick={()=>void addResourcePack()}>Import pack</button></div></div><div className="section-title-row"><div><div className="section-kicker">LOCAL RESOURCE PACKS</div><h2>{resourcePacks.length} packs</h2></div></div>{!desktopAvailable ? <FeatureNotice title="Desktop app required" text="Resource packs can only be managed by the native MFLegend app." icon={WandSparkles}/> : packsBusy && !resourcePacks.length ? <p>Reading resource packs folder…</p> : resourcePacks.length === 0 ? <FeatureNotice title="No resource packs found" text="Import a Minecraft resource-pack .zip archive to get started." icon={WandSparkles}/> : <div className="mod-list">{resourcePacks.map(pack=><div className="mod-row" key={pack.fileName}><div className="mod-file"><WandSparkles size={18}/><div><strong>{pack.fileName}</strong><small>{(pack.sizeBytes/1024/1024).toFixed(2)} MB · {pack.enabled ? "Available in Minecraft" : "Disabled"}</small></div></div><div className="mod-actions"><button className="outline-button" disabled={packsBusy} onClick={()=>void toggleResourcePack(pack)}>{pack.enabled ? "Disable" : "Enable"}</button><button className="outline-button danger-button" disabled={packsBusy} onClick={()=>void deleteResourcePack(pack)}>Remove</button></div></div>)}</div>}<p className="muted-note">Only .zip archives are supported. Disabled packs are renamed with .disabled and will not appear in Minecraft's resource-pack list. Choose enabled packs inside Minecraft's Options → Resource Packs screen.</p></>}
         {page === "Worlds" && <><PageHeader eyebrow="YOUR BUILDS" title="Worlds" subtitle="Keep your worlds organized and backed up."/><FeatureNotice title="World scanning is not enabled yet" text="World listing, backups, import/export, and safe deletion need a configured game directory." icon={FolderOpen}/></>}
         {page === "Skins" && <><PageHeader eyebrow="IDENTITY" title="Player skins" subtitle="Your character, your look."/><FeatureNotice title="Account connection is not enabled yet" text="Microsoft sign-in and skin changes will use official account flows. Credentials will never be stored as plain text." icon={UserRound}/></>}
         {page === "About" && <><PageHeader eyebrow="ABOUT THE PROJECT" title="MFLegend" subtitle="A lightweight, native Minecraft Java Edition launcher."/><div className="about-card"><div className="brand-mark large-mark">MF</div><h2>MFLegend <span>0.1.0</span></h2><p>Built for clarity, control, and low-memory Linux devices.</p><div className="about-line"><span>Desktop shell</span><b>{desktopAvailable?"Tauri 2":"Web preview"}</b></div><div className="about-line"><span>Version metadata</span><b>Official Mojang manifest</b></div><div className="about-line"><span>License</span><b>Project license to be defined</b></div></div></>}
