@@ -1044,7 +1044,10 @@ fn import_world(source_path: String, game_directory: String) -> Result<WorldEntr
     std::fs::create_dir_all(&saves).map_err(|e| e.to_string())?;
     let destination = saves.join(name);
     if destination.exists() { return Err("A world with that folder name already exists.".into()); }
-    copy_world_tree(&source, &destination)?;
+    if let Err(error) = copy_world_tree(&source, &destination) {
+        let _ = std::fs::remove_dir_all(&destination);
+        return Err(error);
+    }
     Ok(WorldEntry { folder_name: name.to_string(), display_name: name.to_string(), size_bytes, modified_unix })
 }
 
@@ -1055,8 +1058,15 @@ fn export_world(folder_name: String, destination_path: String, game_directory: S
     inspect_world(&source)?;
     let destination = PathBuf::from(destination_path.trim());
     if destination.as_os_str().is_empty() || destination.exists() { return Err("Choose a new, non-existing destination folder.".into()); }
+    let source_real = std::fs::canonicalize(&source).map_err(|e| format!("Cannot resolve world folder: {e}"))?;
     if let Some(parent) = destination.parent() { std::fs::create_dir_all(parent).map_err(|e| e.to_string())?; }
-    copy_world_tree(&source, &destination)?;
+    let parent_real = destination.parent().ok_or("Export destination must have a parent folder")?;
+    let parent_real = std::fs::canonicalize(parent_real).map_err(|e| e.to_string())?;
+    if parent_real.starts_with(&source_real) { return Err("Export destination cannot be inside the world being copied.".into()); }
+    if let Err(error) = copy_world_tree(&source, &destination) {
+        let _ = std::fs::remove_dir_all(&destination);
+        return Err(error);
+    }
     Ok(destination.display().to_string())
 }
 
@@ -1066,11 +1076,14 @@ fn backup_world(folder_name: String, game_directory: String) -> Result<String, S
     let root = configured_game_root(&game_directory)?;
     let source = root.join("saves").join(&folder_name);
     inspect_world(&source)?;
-    let stamp = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_secs();
+    let stamp = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_nanos();
     let backup_root = root.join("backups");
     std::fs::create_dir_all(&backup_root).map_err(|e| e.to_string())?;
     let destination = backup_root.join(format!("{folder_name}-{stamp}"));
-    copy_world_tree(&source, &destination)?;
+    if let Err(error) = copy_world_tree(&source, &destination) {
+        let _ = std::fs::remove_dir_all(&destination);
+        return Err(error);
+    }
     Ok(destination.display().to_string())
 }
 
