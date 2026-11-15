@@ -1,8 +1,12 @@
 package com.mflegend.flamelauncher
 
+import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -33,9 +37,11 @@ import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
@@ -56,7 +62,26 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 private fun FlameLauncherApp() {
+    val context = LocalContext.current
+    val preferences = remember { context.getSharedPreferences("flame_launcher", android.content.Context.MODE_PRIVATE) }
     var selectedTab by remember { mutableIntStateOf(0) }
+    var gameFolderUri by remember { mutableStateOf(preferences.getString("game_tree_uri", null)) }
+    var folderPermissionError by remember { mutableStateOf<String?>(null) }
+    val folderPicker = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocumentTree()
+    ) { uri: Uri? ->
+        if (uri != null) {
+            val permissionFlags = Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+            try {
+                context.contentResolver.takePersistableUriPermission(uri, permissionFlags)
+                preferences.edit().putString("game_tree_uri", uri.toString()).apply()
+                gameFolderUri = uri.toString()
+                folderPermissionError = null
+            } catch (error: SecurityException) {
+                folderPermissionError = "Android could not retain access to this folder. Please choose it again."
+            }
+        }
+    }
     MaterialTheme(colorScheme = darkColorScheme(
         primary = Flame,
         secondary = Color(0xFFFFB36B),
@@ -98,7 +123,7 @@ private fun FlameLauncherApp() {
                     0 -> HomeScreen()
                     1 -> InfoScreen("Game versions", "Browse and install supported Minecraft Java versions. Version downloads will be connected after the Android storage and engine layers are ready.")
                     2 -> InfoScreen("Your library", "Mods, resource packs, worlds and local profiles will appear here after Android document-provider support is implemented.")
-                    else -> InfoScreen("Settings", "Mobile runtime, memory, game storage and control preferences will be configured here.")
+                    else -> SettingsScreen(gameFolderUri, folderPermissionError, onChooseFolder = { folderPicker.launch(null) })
                 }
                 Text("Created and maintained by MFLegend", color = Muted, fontSize = 12.sp, modifier = Modifier.padding(top = 8.dp))
             }
@@ -150,6 +175,30 @@ private fun FeatureLine(title: String, detail: String) {
         Text(title, color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
         Text(detail, color = Muted, fontSize = 12.sp)
     }
+}
+
+@Composable
+private fun SettingsScreen(folderUri: String?, error: String?, onChooseFolder: () -> Unit) {
+    Card(colors = CardDefaults.cardColors(containerColor = Panel), shape = RoundedCornerShape(20.dp)) {
+        Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Text("Settings", color = Color.White, fontSize = 23.sp, fontWeight = FontWeight.Bold)
+            Text("GAME STORAGE", color = Flame, fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.5.sp)
+            Text("Choose a folder for Flame Launcher to request persistent Android document-provider access. This saves permission only; game file management is not connected yet.", color = Muted, fontSize = 13.sp)
+            Button(onClick = onChooseFolder, modifier = Modifier.fillMaxWidth()) {
+                Text(if (folderUri == null) "Choose game folder" else "Change game folder")
+            }
+            if (folderUri != null) {
+                Text("Selected folder permission saved", color = Color(0xFF8DD9A8), fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+                Text(folderUri, color = Muted, fontSize = 11.sp)
+            } else {
+                Text("No game folder selected", color = Muted, fontSize = 12.sp)
+            }
+            if (error != null) {
+                Text(error, color = Color(0xFFFF9A82), fontSize = 12.sp)
+            }
+        }
+    }
+    InfoScreen("Device settings", "Android Java runtime, memory limits, graphics and touch-control preferences will be added in later stages.")
 }
 
 @Composable
