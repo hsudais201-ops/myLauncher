@@ -2,13 +2,13 @@
 
 Flame Launcher is an **Android-first launcher for Minecraft: Java Edition**, owned and maintained by **MFLegend**.
 
-The intended product is an Android phone/tablet app with a touch-friendly interface. The repository currently contains an earlier Tauri 2 + Rust + React desktop-oriented implementation. That code is a source of reusable launcher logic, **not an Android-ready release**. The Android application shell, Android-compatible Java runtime, graphics/input integration, and Android packaging still need to be implemented.
+The intended product is an Android phone/tablet app with a touch-friendly interface. The repository currently contains an earlier Tauri 2 + Rust + React desktop-oriented implementation. That code is a source of reusable launcher logic, **not an Android-ready release**. A native Android application shell and initial SAF folder-permission flow are now present. The Android-compatible Java runtime, graphics/input integration, and a verified installable release still need to be implemented.
 
 ## Android product direction
 
 - Android phones and tablets are the primary target; this is not a Windows, macOS, or Linux desktop launcher.
 - Touch-first navigation, readable mobile layouts, and support for optional external keyboards and mice.
-- Android storage access using the Storage Access Framework and scoped-storage-compatible APIs.
+- Complete Android game-file operations through SAF; the current implementation can select a folder and persist its URI permission, but does not yet read, write, or manage Minecraft files.
 - A supported Android Java runtime and native graphics/input integration are required to run Minecraft: Java Edition. Android's built-in ART runtime alone is not a drop-in replacement for a desktop Java runtime.
 - Account authentication must use a secure, supported Microsoft/Xbox/Minecraft sign-in flow before online play is enabled.
 
@@ -28,10 +28,10 @@ These features were implemented in the previous desktop-oriented app. Each nativ
 
 The Android port is **not yet complete**. In particular, this repository does not yet provide:
 
-- A buildable Android application module or installable APK.
+- A verified successful Gradle build or installable APK (the Android Gradle module is present, but build verification has not yet been completed).
 - Android-compatible JVM/runtime distribution and lifecycle management.
 - OpenGL/Vulkan renderer integration, native library ABI packaging, or touch-to-game input bridge.
-- Android storage permission/document-picker integration for game files.
+- SAF-backed game-file operations and an Android-aware storage abstraction; initial folder selection and persisted URI permission are implemented, but file operations are not.
 - Microsoft account, Xbox Live/XSTS, or Minecraft Services authentication.
 - Verified gameplay on physical Android devices.
 
