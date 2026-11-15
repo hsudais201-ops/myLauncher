@@ -386,7 +386,7 @@ fn tokenize_legacy_arguments(input: &str) -> Result<Vec<String>, String> {
 fn maven_artifact_path(coordinate: &str) -> Result<String, String> {
     let (coordinate, extension) = coordinate.split_once('@').unwrap_or((coordinate, "jar"));
     let parts: Vec<&str> = coordinate.split(':').collect();
-    if !(3..=4).contains(&parts.len()) || parts.iter().any(|part| part.is_empty() || part.contains('/') || part.contains('\\\\') || *part == "." || *part == "..") {
+    if !(3..=4).contains(&parts.len()) || parts.iter().any(|part| part.is_empty() || part.contains('/') || part.contains('\\') || *part == "." || *part == "..") {
         return Err(format!("Invalid Maven library coordinate: {coordinate}"));
     }
     let group = parts[0].split('.').collect::<Vec<_>>();
@@ -808,6 +808,19 @@ mod launch_argument_tests {
         assert_eq!(parent["arguments"]["jvm"].as_array().unwrap().len(), 2);
         assert_eq!(parent["arguments"]["game"].as_array().unwrap().len(), 2);
         assert!(parent.get("inheritsFrom").is_none());
+    }
+
+    #[test]
+    fn fabric_maven_coordinates_resolve_to_safe_paths() {
+        assert_eq!(
+            maven_artifact_path("net.fabricmc:fabric-loader:0.16.10").unwrap(),
+            "net/fabricmc/fabric-loader/0.16.10/fabric-loader-0.16.10.jar"
+        );
+        assert_eq!(
+            maven_artifact_path("org.example:runtime:1.2:natives-linux").unwrap(),
+            "org/example/runtime/1.2/runtime-1.2-natives-linux.jar"
+        );
+        assert!(maven_artifact_path("../escape:lib:1").is_err());
     }
 
     #[test]
