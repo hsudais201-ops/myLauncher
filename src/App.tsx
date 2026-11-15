@@ -256,6 +256,7 @@ function App() {
     if (!name || !directory) { setError("Enter a profile name and an absolute game directory."); return; }
     if (!directory.startsWith("/")) { setError("Use an absolute game directory path."); return; }
     const id = "profile-" + Date.now().toString(36);
+    if (prefs.installations.some(profile => profile.gameDirectory.trim() === directory)) { setError("Each installation profile must use a different game directory."); return; }
     const profile: InstallationProfile = { id, name, versionId: prefs.selectedVersion, gameDirectory: directory };
     await update({ ...prefs, installations: [...prefs.installations, profile], selectedInstallationId: id, gameDirectory: directory });
     setNewProfileName(""); setNewProfileDirectory("");
@@ -269,8 +270,9 @@ function App() {
     await update({ ...prefs, installations: prefs.installations.filter(item => item.id !== profile.id) });
   }
   async function update(next: Preferences) {
-    setPrefs(next); setSaved(false);
-    try { await savePreferences(next); setSaved(true); window.setTimeout(() => setSaved(false), 1800); }
+    const synchronized = { ...next, installations: next.installations.map(profile => profile.id === next.selectedInstallationId ? { ...profile, versionId: next.selectedVersion, gameDirectory: next.gameDirectory } : profile) };
+    setPrefs(synchronized); setSaved(false);
+    try { await savePreferences(synchronized); setSaved(true); window.setTimeout(() => setSaved(false), 1800); }
     catch (e) { setError(e instanceof Error ? e.message : "Could not save preferences."); }
   }
 
