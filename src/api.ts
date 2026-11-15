@@ -13,6 +13,8 @@ export async function detectJava(): Promise<JavaRuntime[]> {
   return isDesktop ? invoke<JavaRuntime[]>("detect_java") : [];
 }
 const defaults: Preferences = {
+  installations: [],
+  selectedInstallationId: "",
   selectedVersion: "",
   selectedJavaPath: "",
   ramMb: 2048,
