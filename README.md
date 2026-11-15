@@ -1,6 +1,6 @@
-# MFLegend
+# Flame Launcher
 
-MFLegend is a native Minecraft: Java Edition launcher built with Tauri 2, Rust, React, TypeScript, and Vite. The current target environment is Linux, including Chromebook Linux containers.
+Flame Launcher is a native Minecraft: Java Edition launcher, created and maintained by MFLegend built with Tauri 2, Rust, React, TypeScript, and Vite. The current target environment is Linux, including Chromebook Linux containers.
 
 ## Current features
 
@@ -37,7 +37,7 @@ For a frontend-only preview: `npm run dev`.
 
 ## Microsoft application configuration
 
-To prepare for a future Microsoft device-code flow, register a **public/native desktop application** in Microsoft Entra, enable the device-code flow, and enter its Application (client) ID in MFLegend Settings. Do not create or embed a client secret. Supplying a Client ID does not currently enable sign-in.
+To prepare for a future Microsoft device-code flow, register a **public/native desktop application** in Microsoft Entra, enable the device-code flow, and enter its Application (client) ID in Flame Launcher Settings. Do not create or embed a client secret. Supplying a Client ID does not currently enable sign-in.
 
 ## Security and distribution
 
