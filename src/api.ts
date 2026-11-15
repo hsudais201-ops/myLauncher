@@ -36,3 +36,8 @@ export async function installVersion(versionId: string, gameDirectory: string): 
   if (!isDesktop) throw new Error("Minecraft installation is available in the MFLegend desktop app, not browser preview.");
   return invoke<InstallResult>("install_version", { versionId, gameDirectory });
 }
+
+export async function launchVersion(versionId: string, gameDirectory: string, username: string, javaPath: string, ramMb: number): Promise<number> {
+  if (!isDesktop) throw new Error("Launching Minecraft requires the native MFLegend desktop app.");
+  return invoke<number>("launch_version", { versionId, gameDirectory, username, javaPath, ramMb });
+}
