@@ -674,6 +674,20 @@ async fn launch_version(version_id: String, game_directory: String, username: St
                 } else {
                     missing_libraries.push(format!("{library_name} (artifact path missing from metadata)"));
                 }
+            } else {
+                // Forge and older mod-loader profiles often use Maven coordinates instead of Mojang's downloads.artifact shape.
+                let relative = maven_artifact_path(library_name)?;
+                let full = safe_join(&root.join("libraries"), &relative)?;
+                if full.is_file() {
+                    if library_name.contains(":natives-") {
+                        let dest = native_dir.clone();
+                        tokio::task::spawn_blocking(move || extract_native_archive(&full, &dest)).await.map_err(|e| e.to_string())??;
+                    } else {
+                        cp.push(full.display().to_string());
+                    }
+                } else {
+                    missing_libraries.push(format!("{library_name} ({relative})"));
+                }
             }
             if let Some(classifiers) = lib.get("downloads").and_then(|v| v.get("classifiers")) {
                 let key = lib.get("natives").and_then(|v| v.get(launch_os_name())).and_then(Value::as_str).unwrap_or("");
