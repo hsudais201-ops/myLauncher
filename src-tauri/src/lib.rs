@@ -35,6 +35,8 @@ struct InstallationProfile {
 #[serde(rename_all = "camelCase")]
 struct Preferences {
     #[serde(default)]
+    microsoft_client_id: String,
+    #[serde(default)]
     installations: Vec<InstallationProfile>,
     #[serde(default)]
     selected_installation_id: String,
@@ -48,7 +50,7 @@ struct Preferences {
 }
 impl Default for Preferences {
     fn default() -> Self {
-        Self { installations: Vec::new(), selected_installation_id: String::new(), selected_version: String::new(), selected_java_path: String::new(), ram_mb: 2048, game_directory: String::new(), accent: "#8b5cf6".into(), theme: "dark".into() }
+        Self { microsoft_client_id: String::new(), installations: Vec::new(), selected_installation_id: String::new(), selected_version: String::new(), selected_java_path: String::new(), ram_mb: 2048, game_directory: String::new(), accent: "#8b5cf6".into(), theme: "dark".into() }
     }
 }
 
