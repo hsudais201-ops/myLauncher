@@ -3,7 +3,6 @@ package com.mflegend.flamelauncher.storage
 import android.content.ContentResolver
 import android.net.Uri
 import android.provider.DocumentsContract
-import android.provider.OpenableColumns
 import android.provider.DocumentsContract.Document
 import java.io.InputStream
 import java.io.OutputStream
@@ -124,6 +123,6 @@ class SafGameStorage(
 
     private fun validateDisplayName(name: String) {
         require(name.isNotBlank() && name != "." && name != "..") { "A valid document name is required." }
-        require('/' !in name && '\\\\' !in name) { "Document names cannot contain path separators." }
+        require('/' !in name && '\\' !in name) { "Document names cannot contain path separators." }
     }
 }
