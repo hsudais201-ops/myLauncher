@@ -875,7 +875,7 @@ fn set_mod_enabled(file_name: String, enabled: bool, game_directory: String) -> 
     let lower = file_name.to_ascii_lowercase();
     let (from, to) = if enabled {
         if !lower.ends_with(".jar.disabled") && !lower.ends_with(".zip.disabled") { return Err("This mod is already enabled.".into()); }
-        (source, dir.join(file_name.strip_suffix(".disabled").ok_or("Invalid disabled filename")?))
+        (source, dir.join(&file_name[..file_name.len() - ".disabled".len()]))
     } else {
         if !(lower.ends_with(".jar") || lower.ends_with(".zip")) { return Err("This mod is already disabled.".into()); }
         (source, dir.join(format!("{file_name}.disabled")))
@@ -980,6 +980,15 @@ mod launch_argument_tests {
             "org/example/runtime/1.2/runtime-1.2-natives-linux.jar"
         );
         assert!(maven_artifact_path("../escape:lib:1").is_err());
+    }
+
+    #[test]
+    fn mod_filenames_are_confined_and_supported_extensions_are_safe() {
+        assert!(valid_mod_filename("sodium-fabric.jar"));
+        assert!(valid_mod_filename("example mod.zip.disabled"));
+        assert!(!valid_mod_filename("../outside.jar"));
+        assert!(!valid_mod_filename("nested/mod.jar"));
+        assert!(!valid_mod_filename("bad\\\\name.jar"));
     }
 
     #[test]
