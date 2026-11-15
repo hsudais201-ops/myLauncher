@@ -270,6 +270,26 @@ async fn install_version(version_id: String, game_directory: String) -> Result<I
 
 
 
+fn parse_java_major(version: &str) -> Option<u32> {
+    let version = version.trim();
+    let first = version.split('.').next()?;
+    let major = if first == "1" {
+        version.split('.').nth(1)?
+    } else {
+        first
+    };
+    let digits: String = major.chars().take_while(|c| c.is_ascii_digit()).collect();
+    if digits.is_empty() { None } else { digits.parse::<u32>().ok() }
+}
+
+fn java_major_from_output(output: &str) -> Option<u32> {
+    output.lines().find_map(|line| {
+        let start = line.find('"')? + 1;
+        let version = line.get(start..)?.split('"').next()?;
+        parse_java_major(version)
+    })
+}
+
 fn valid_version_id(id: &str) -> bool {
     !id.is_empty() && id.len() <= 64 &&
         id.chars().all(|c| c.is_ascii_alphanumeric() || c == '.' || c == '_' || c == '-')
@@ -839,17 +859,7 @@ async fn launch_version(version_id: String, game_directory: String, username: St
     let java_probe = Command::new(&java).arg("-version").output()
         .map_err(|e| format!("Could not inspect Java at {java}: {e}"))?;
     let java_text = format!("{}\n{}", String::from_utf8_lossy(&java_probe.stderr), String::from_utf8_lossy(&java_probe.stdout));
-    let detected_major = java_text.lines()
-        .find_map(|line| {
-            let start = line.find('"')? + 1;
-            let version = line.get(start..)?.split('"').next()?;
-            let first = version.split('.').next()?;
-            if first == "1" {
-                version.split('.').nth(1)?.parse::<u32>().ok()
-            } else {
-                first.parse::<u32>().ok()
-            }
-        })
+    let detected_major = java_major_from_output(&java_text)
         .ok_or_else(|| format!("Could not determine the Java version reported by {java}"))?;
     let required_major = metadata.get("javaVersion")
         .and_then(|v| v.get("majorVersion"))
@@ -1329,6 +1339,22 @@ pub fn run() {
 mod launch_argument_tests {
     use super::*;
     use serde_json::json;
+
+    #[test]
+    fn java_version_parser_supports_legacy_modern_and_early_access_versions() {
+        assert_eq!(parse_java_major("1.8.0_402"), Some(8));
+        assert_eq!(parse_java_major("17.0.10"), Some(17));
+        assert_eq!(parse_java_major("21-ea"), Some(21));
+        assert_eq!(parse_java_major("22.0.1+8"), Some(22));
+        assert_eq!(parse_java_major("unknown"), None);
+    }
+
+    #[test]
+    fn java_output_parser_reads_quoted_runtime_version() {
+        assert_eq!(java_major_from_output("openjdk version \"21.0.2\" 2024-01-16"), Some(21));
+        assert_eq!(java_major_from_output("java version \"1.8.0_402\""), Some(8));
+        assert_eq!(java_major_from_output("no version data"), None);
+    }
 
     #[test]
     fn sha1_checksums_require_exactly_40_hexadecimal_characters() {
