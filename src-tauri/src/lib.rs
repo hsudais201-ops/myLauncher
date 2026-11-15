@@ -382,6 +382,94 @@ fn tokenize_legacy_arguments(input: &str) -> Result<Vec<String>, String> {
     Ok(args)
 }
 
+
+fn maven_artifact_path(coordinate: &str) -> Result<String, String> {
+    let (coordinate, extension) = coordinate.split_once('@').unwrap_or((coordinate, "jar"));
+    let parts: Vec<&str> = coordinate.split(':').collect();
+    if !(3..=4).contains(&parts.len()) || parts.iter().any(|part| part.is_empty() || part.contains('/') || part.contains('\\\\') || *part == "." || *part == "..") {
+        return Err(format!("Invalid Maven library coordinate: {coordinate}"));
+    }
+    let group = parts[0].split('.').collect::<Vec<_>>();
+    if group.iter().any(|part| part.is_empty() || !part.chars().all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-')) {
+        return Err(format!("Invalid Maven group in library coordinate: {coordinate}"));
+    }
+    if !extension.chars().all(|c| c.is_ascii_alphanumeric()) {
+        return Err(format!("Invalid Maven extension in library coordinate: {coordinate}"));
+    }
+    let artifact = parts[1];
+    let version = parts[2];
+    let classifier = parts.get(3).copied();
+    let file = match classifier {
+        Some(classifier) => format!("{artifact}-{version}-{classifier}.{extension}"),
+        None => format!("{artifact}-{version}.{extension}"),
+    };
+    Ok(format!("{}/{}/{}/{}", group.join("/"), artifact, version, file))
+}
+
+async fn install_fabric_profile(game_version: &str, game_directory: &str) -> Result<InstallResult, String> {
+    if !valid_version_id(game_version) { return Err("Invalid Minecraft game version".into()); }
+    let root = if game_directory.trim().is_empty() {
+        dirs::data_dir().ok_or("Cannot locate application data directory")?.join("mflegend").join("game")
+    } else { PathBuf::from(game_directory.trim()) };
+    tokio::fs::create_dir_all(&root).await.map_err(|e| format!("Cannot create game directory: {e}"))?;
+    let client = http_client()?;
+
+    let versions_url = format!("https://meta.fabricmc.net/v2/versions/loader/{game_version}");
+    let response = client.get(&versions_url).send().await.map_err(|e| format!("Fabric version lookup failed: {e}"))?;
+    if !response.status().is_success() { return Err(format!("Fabric metadata returned HTTP {}", response.status())); }
+    let loaders: Vec<Value> = response.json().await.map_err(|e| format!("Invalid Fabric loader list: {e}"))?;
+    let loader = loaders.iter().find(|entry| entry.get("loader").and_then(|v| v.get("stable")).and_then(Value::as_bool) == Some(true))
+        .or_else(|| loaders.first()).ok_or_else(|| format!("No Fabric loader is available for Minecraft {game_version}"))?;
+    let loader_version = loader.get("loader").and_then(|v| v.get("version")).and_then(Value::as_str)
+        .ok_or("Fabric loader version is missing")?;
+    let profile_url = format!("https://meta.fabricmc.net/v2/versions/loader/{game_version}/{loader_version}/profile/json");
+    let response = client.get(&profile_url).send().await.map_err(|e| format!("Fabric profile download failed: {e}"))?;
+    if !response.status().is_success() { return Err(format!("Fabric profile returned HTTP {}", response.status())); }
+    let profile: Value = response.json().await.map_err(|e| format!("Invalid Fabric profile: {e}"))?;
+    let version_id = profile.get("id").and_then(Value::as_str).ok_or("Fabric profile has no version ID")?.to_string();
+    if !valid_version_id(&version_id) { return Err("Fabric returned an unsafe version ID".into()); }
+    if profile.get("inheritsFrom").and_then(Value::as_str) != Some(game_version) {
+        return Err("Fabric profile does not inherit from the selected Minecraft version".into());
+    }
+    let version_dir = root.join("versions").join(&version_id);
+    tokio::fs::create_dir_all(&version_dir).await.map_err(|e| e.to_string())?;
+    let metadata_path = version_dir.join(format!("{version_id}.json"));
+    let bytes = serde_json::to_vec_pretty(&profile).map_err(|e| e.to_string())?;
+    tokio::fs::write(&metadata_path, bytes).await.map_err(|e| e.to_string())?;
+
+    let mut downloaded = 0usize;
+    let mut skipped = 0usize;
+    if let Some(libraries) = profile.get("libraries").and_then(Value::as_array) {
+        for library in libraries {
+            if !library_allowed(library) { continue; }
+            let coordinate = library.get("name").and_then(Value::as_str)
+                .ok_or("A Fabric library is missing its Maven coordinate")?;
+            let relative = maven_artifact_path(coordinate)?;
+            let base_url = library.get("url").and_then(Value::as_str).unwrap_or("https://maven.fabricmc.net/");
+            if !base_url.starts_with("https://") { return Err(format!("Refusing non-HTTPS Fabric library URL: {base_url}")); }
+            let url = format!("{}/{}", base_url.trim_end_matches('/'), relative);
+            let destination = safe_join(&root.join("libraries"), &relative)?;
+            if download_verified(&client, &url, &destination, library.get("sha1").and_then(Value::as_str)).await? {
+                downloaded += 1;
+            } else {
+                skipped += 1;
+            }
+        }
+    }
+    Ok(InstallResult {
+        version_id,
+        game_directory: root.display().to_string(),
+        downloaded_files: downloaded,
+        skipped_files: skipped,
+        assets_downloaded: 0,
+    })
+}
+
+#[tauri::command]
+async fn install_fabric(game_version: String, game_directory: String) -> Result<InstallResult, String> {
+    install_fabric_profile(&game_version, &game_directory).await
+}
+
 async fn install_official_parent(root: &Path, version_id: &str) -> Result<(), String> {
     if !valid_version_id(version_id) { return Err("Invalid inherited parent version ID".into()); }
     let version_dir = root.join("versions").join(version_id);
@@ -691,7 +779,7 @@ fn save_preferences(preferences: Preferences) -> Result<(), String> {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
-        .invoke_handler(tauri::generate_handler![get_versions, detect_java, load_preferences, save_preferences, install_version, launch_version])
+        .invoke_handler(tauri::generate_handler![get_versions, detect_java, load_preferences, save_preferences, install_version, install_fabric, launch_version])
         .run(tauri::generate_context!())
         .expect("error while running MFLegend");
 }
