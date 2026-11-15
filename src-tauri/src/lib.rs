@@ -1249,6 +1249,7 @@ fn load_preferences() -> Result<Preferences, String> {
 #[tauri::command]
 fn save_preferences(preferences: Preferences) -> Result<(), String> {
     if !(1024..=16384).contains(&preferences.ram_mb) { return Err("RAM allocation must be between 1024 and 16384 MB".into()); }
+    if preferences.microsoft_client_id.len() > 128 || preferences.microsoft_client_id.chars().any(char::is_whitespace) { return Err("Microsoft application client ID must be a compact identifier of at most 128 characters".into()); }
     if !preferences.accent.starts_with('#') || preferences.accent.len() != 7 { return Err("Invalid accent color".into()); }
     let mut profile_ids = HashSet::new();
     let mut profile_directories = HashSet::new();
