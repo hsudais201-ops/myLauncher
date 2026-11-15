@@ -1164,6 +1164,41 @@ fn remove_world(folder_name: String, game_directory: String) -> Result<(), Strin
     std::fs::remove_dir_all(path).map_err(|e| format!("Could not remove world: {e}"))
 }
 
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct InstalledVersion {
+    id: String,
+    version_type: String,
+    inherits_from: Option<String>,
+    main_class: Option<String>,
+}
+
+#[tauri::command]
+fn list_installed_versions(game_directory: String) -> Result<Vec<InstalledVersion>, String> {
+    let root = configured_game_root(&game_directory)?.join("versions");
+    if !root.exists() { return Ok(Vec::new()); }
+    let mut entries = Vec::new();
+    let dirs = std::fs::read_dir(&root).map_err(|e| format!("Cannot read versions directory: {e}"))?;
+    for item in dirs {
+        let item = item.map_err(|e| e.to_string())?;
+        let path = item.path();
+        if !path.is_dir() { continue; }
+        let id = match path.file_name().and_then(|n| n.to_str()) { Some(v) if valid_version_id(v) => v.to_string(), _ => continue };
+        let metadata_path = path.join(format!("{id}.json"));
+        if !metadata_path.is_file() { continue; }
+        let content = match std::fs::read_to_string(metadata_path) { Ok(v) => v, Err(_) => continue };
+        let metadata: Value = match serde_json::from_str(&content) { Ok(v) => v, Err(_) => continue };
+        entries.push(InstalledVersion {
+            id,
+            version_type: metadata.get("type").and_then(Value::as_str).unwrap_or("custom").to_string(),
+            inherits_from: metadata.get("inheritsFrom").and_then(Value::as_str).map(str::to_string),
+            main_class: metadata.get("mainClass").and_then(Value::as_str).map(str::to_string),
+        });
+    }
+    entries.sort_by(|a,b| a.id.cmp(&b.id));
+    Ok(entries)
+}
+
 #[tauri::command]
 fn detect_java() -> Vec<JavaRuntime> {
     let mut candidates: Vec<PathBuf> = Vec::new();
@@ -1210,7 +1245,7 @@ fn save_preferences(preferences: Preferences) -> Result<(), String> {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
-        .invoke_handler(tauri::generate_handler![get_versions, detect_java, load_preferences, save_preferences, install_version, install_fabric, install_forge, list_mods, import_mod, set_mod_enabled, remove_mod, list_resource_packs, import_resource_pack, set_resource_pack_enabled, remove_resource_pack, list_worlds, import_world, export_world, backup_world, remove_world, list_skins, import_skin, remove_skin, launch_version])
+        .invoke_handler(tauri::generate_handler![get_versions, detect_java, load_preferences, save_preferences, install_version, install_fabric, install_forge, list_mods, import_mod, set_mod_enabled, remove_mod, list_resource_packs, import_resource_pack, set_resource_pack_enabled, remove_resource_pack, list_worlds, import_world, export_world, backup_world, remove_world, list_installed_versions, list_skins, import_skin, remove_skin, launch_version])
         .run(tauri::generate_context!())
         .expect("error while running MFLegend");
 }
