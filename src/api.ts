@@ -124,3 +124,9 @@ export async function removeSkin(fileName: string, gameDirectory: string): Promi
   if (!isDesktop) throw new Error("Skin removal requires the native MFLegend desktop app.");
   return invoke("remove_skin", { fileName, gameDirectory });
 }
+
+export type InstalledVersion = { id: string; versionType: string; inheritsFrom?: string; mainClass?: string };
+export async function listInstalledVersions(gameDirectory: string): Promise<InstalledVersion[]> {
+  if (!isDesktop) throw new Error("Installed profile scanning requires the native MFLegend desktop app.");
+  return invoke<InstalledVersion[]>("list_installed_versions", { gameDirectory });
+}
