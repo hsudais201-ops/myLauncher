@@ -6,6 +6,13 @@
 
 This document is the source of truth for the Android migration. The existing Tauri desktop application is a prototype and must not be described as a working Android launcher.
 
+## Current implementation snapshot
+
+- Native Kotlin/Jetpack Compose Android application module and branded navigation shell are committed.
+- Settings can open the Android SAF tree picker, request persistable read/write URI access, and save the selected tree URI in app preferences.
+- The saved URI is not a filesystem path. Actual document traversal, file reads/writes, imports, downloads, and Rust-engine integration remain unimplemented.
+- Gradle build, debug APK generation, and physical-device installation have not yet been verified.
+
 ## 1. Target architecture
 
 ### Android application layer
@@ -34,7 +41,8 @@ This document is the source of truth for the Android migration. The existing Tau
 - Add CI that builds a debug APK and reports the artifact; do not call the app playable yet.
 
 ### Phase B — Storage and launcher engine
-- Implement SAF-based game-directory selection and persist URI permissions.
+- [x] Implement initial SAF game-directory selection and persist URI permissions in the Android UI.
+- [ ] Build a SAF-aware storage abstraction for listing, reading, writing, creating, and deleting documents; never pass a tree URI to desktop `PathBuf` logic as if it were a normal path.
 - Refactor Rust filesystem operations behind interfaces so Android document URIs are not treated as ordinary desktop paths.
 - Port metadata/version browsing and verified downloads.
 - Add cancellation, progress reporting, retry handling, and low-storage checks.
