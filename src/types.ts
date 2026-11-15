@@ -8,6 +8,7 @@ export type Version = {
 export type JavaRuntime = { path: string; version: string; architecture: string };
 export type Preferences = {
   selectedVersion: string;
+  selectedJavaPath: string;
   ramMb: number;
   gameDirectory: string;
   accent: string;
