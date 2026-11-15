@@ -329,7 +329,7 @@ async fn launch_version(version_id: String, game_directory: String, username: St
     let java = if java_path.trim().is_empty() { "java".to_string() } else { java_path };
     let java_probe = Command::new(&java).arg("-version").output()
         .map_err(|e| format!("Could not inspect Java at {java}: {e}"))?;
-    let java_text = format!("{}\\n{}", String::from_utf8_lossy(&java_probe.stderr), String::from_utf8_lossy(&java_probe.stdout));
+    let java_text = format!("{}\n{}", String::from_utf8_lossy(&java_probe.stderr), String::from_utf8_lossy(&java_probe.stdout));
     let detected_major = java_text.lines()
         .find_map(|line| {
             let start = line.find('"')? + 1;
