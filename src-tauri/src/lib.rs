@@ -991,6 +991,8 @@ fn copy_world_tree(source: &Path, destination: &Path) -> Result<u64, String> {
 }
 
 fn inspect_world(folder: &Path) -> Result<(u64, u64), String> {
+    let root_meta = std::fs::symlink_metadata(folder).map_err(|e| format!("Cannot inspect world folder: {e}"))?;
+    if !root_meta.is_dir() || root_meta.file_type().is_symlink() { return Err("World path must be a real directory, not a symbolic link.".into()); }
     if !folder.join("level.dat").is_file() { return Err("This folder does not contain a Minecraft level.dat file.".into()); }
     let mut bytes = 0u64;
     let mut newest = 0u64;
@@ -1057,7 +1059,7 @@ fn export_world(folder_name: String, destination_path: String, game_directory: S
     let source = configured_game_root(&game_directory)?.join("saves").join(&folder_name);
     inspect_world(&source)?;
     let destination = PathBuf::from(destination_path.trim());
-    if destination.as_os_str().is_empty() || destination.exists() { return Err("Choose a new, non-existing destination folder.".into()); }
+    if !destination.is_absolute() || destination.exists() { return Err("Choose an absolute path to a new, non-existing destination folder.".into()); }
     let source_real = std::fs::canonicalize(&source).map_err(|e| format!("Cannot resolve world folder: {e}"))?;
     if let Some(parent) = destination.parent() { std::fs::create_dir_all(parent).map_err(|e| e.to_string())?; }
     let parent_real = destination.parent().ok_or("Export destination must have a parent folder")?;
@@ -1202,6 +1204,15 @@ mod launch_argument_tests {
         assert!(!valid_pack_filename("../outside.zip"));
         assert!(!valid_pack_filename("nested/pack.zip"));
         assert!(!valid_pack_filename("pack.jar"));
+    }
+
+    #[test]
+    fn world_folder_names_are_safe() {
+        assert!(valid_world_folder("Survival World 2026"));
+        assert!(valid_world_folder("Build_(creative).backup"));
+        assert!(!valid_world_folder("../outside"));
+        assert!(!valid_world_folder("nested/world"));
+        assert!(!valid_world_folder(".."));
     }
 
     #[test]
