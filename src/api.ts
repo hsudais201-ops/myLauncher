@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import type { JavaRuntime, Preferences, Version } from "./types";
+import type { InstallResult, JavaRuntime, Preferences, Version } from "./types";
 
 const isDesktop = "__TAURI_INTERNALS__" in window;
 export async function getVersions(): Promise<Version[]> {
@@ -30,3 +30,9 @@ export async function savePreferences(value: Preferences): Promise<void> {
   localStorage.setItem("mflegend-preferences", JSON.stringify(value));
 }
 export const desktopAvailable = isDesktop;
+
+// Downloads the official client, libraries, asset index, and asset objects into the selected game directory.
+export async function installVersion(versionId: string, gameDirectory: string): Promise<InstallResult> {
+  if (!isDesktop) throw new Error("Minecraft installation is available in the MFLegend desktop app, not browser preview.");
+  return invoke<InstallResult>("install_version", { versionId, gameDirectory });
+}
