@@ -99,10 +99,14 @@ async fn write_file_atomic(destination: &Path, bytes: &[u8]) -> Result<(), Strin
 
 static DOWNLOAD_TEMP_SEQUENCE: AtomicU64 = AtomicU64::new(0);
 
+fn valid_sha1(value: &str) -> bool {
+    value.len() == 40 && value.chars().all(|c| c.is_ascii_hexdigit())
+}
+
 async fn download_verified(client: &reqwest::Client, url: &str, destination: &Path, expected_sha1: Option<&str>) -> Result<bool, String> {
     if !url.starts_with("https://") { return Err("Refusing a non-HTTPS download URL".into()); }
     if let Some(expected) = expected_sha1 {
-        if expected.len() != 40 || !expected.chars().all(|c| c.is_ascii_hexdigit()) {
+        if !valid_sha1(expected) {
             return Err(format!("Invalid SHA-1 checksum supplied for {url}"));
         }
     }
@@ -1325,6 +1329,15 @@ pub fn run() {
 mod launch_argument_tests {
     use super::*;
     use serde_json::json;
+
+    #[test]
+    fn sha1_checksums_require_exactly_40_hexadecimal_characters() {
+        assert!(valid_sha1("0123456789abcdef0123456789abcdef01234567"));
+        assert!(valid_sha1("ABCDEF0123456789ABCDEF0123456789ABCDEF01"));
+        assert!(!valid_sha1("0123456789abcdef"));
+        assert!(!valid_sha1("g123456789abcdef0123456789abcdef01234567"));
+        assert!(!valid_sha1(""));
+    }
 
     #[test]
     fn inherited_metadata_combines_libraries_and_child_overrides() {
