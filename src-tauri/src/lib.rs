@@ -1248,6 +1248,29 @@ fn load_preferences() -> Result<Preferences, String> {
 fn save_preferences(preferences: Preferences) -> Result<(), String> {
     if !(1024..=16384).contains(&preferences.ram_mb) { return Err("RAM allocation must be between 1024 and 16384 MB".into()); }
     if !preferences.accent.starts_with('#') || preferences.accent.len() != 7 { return Err("Invalid accent color".into()); }
+    let mut profile_ids = HashSet::new();
+    let mut profile_directories = HashSet::new();
+    for profile in &preferences.installations {
+        if profile.id.is_empty() || !profile.id.chars().all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_') {
+            return Err("Installation profile has an invalid ID".into());
+        }
+        if profile.name.trim().is_empty() || profile.name.len() > 64 {
+            return Err("Installation profile names must contain 1–64 characters".into());
+        }
+        if !profile_ids.insert(profile.id.clone()) {
+            return Err("Installation profile IDs must be unique".into());
+        }
+        if !profile.game_directory.trim().is_empty() {
+            let directory = Path::new(&profile.game_directory);
+            if !directory.is_absolute() { return Err("Installation game directories must be absolute paths".into()); }
+            if !profile_directories.insert(directory.to_string_lossy().to_lowercase()) {
+                return Err("Installation profiles must use separate game directories".into());
+            }
+        }
+    }
+    if !preferences.selected_installation_id.is_empty() && !profile_ids.contains(&preferences.selected_installation_id) {
+        return Err("The selected installation profile does not exist".into());
+    }
     let path = preferences_path()?;
     let temp = path.with_extension("json.tmp");
     let data = serde_json::to_vec_pretty(&preferences).map_err(|e| e.to_string())?;
