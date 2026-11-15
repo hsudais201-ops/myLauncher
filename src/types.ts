@@ -21,3 +21,5 @@ export type InstallResult = {
   skippedFiles: number;
   assetsDownloaded: number;
 };
+
+export type LaunchResult = { processId: number };
