@@ -313,31 +313,55 @@ async fn launch_version(version_id: String, game_directory: String, username: St
     let native_dir = version_dir.join("natives");
     tokio::fs::create_dir_all(&native_dir).await.map_err(|e| e.to_string())?;
     let mut cp = Vec::<String>::new();
+    let mut missing_libraries = Vec::<String>::new();
     if let Some(libs) = metadata.get("libraries").and_then(Value::as_array) {
         for lib in libs {
             if !library_allowed(lib) { continue; }
+            let library_name = lib.get("name").and_then(Value::as_str).unwrap_or("unnamed library");
             if let Some(artifact) = lib.get("downloads").and_then(|v| v.get("artifact")) {
                 if let Some(p) = artifact.get("path").and_then(Value::as_str) {
                     let full = safe_join(&root.join("libraries"), p)?;
-                    if full.is_file() { cp.push(full.display().to_string()); }
+                    if full.is_file() {
+                        cp.push(full.display().to_string());
+                    } else {
+                        missing_libraries.push(format!("{library_name} ({p})"));
+                    }
+                } else {
+                    missing_libraries.push(format!("{library_name} (artifact path missing from metadata)"));
                 }
             }
             if let Some(classifiers) = lib.get("downloads").and_then(|v| v.get("classifiers")) {
                 let key = lib.get("natives").and_then(|v| v.get(launch_os_name())).and_then(Value::as_str).unwrap_or("");
                 let arch = if std::env::consts::ARCH == "x86_64" { "64" } else { "32" };
                 if !key.is_empty() {
-                    if let Some(native) = classifiers.get(&key.replace("${arch}", arch)) {
+                    let classifier_key = key.replace("${arch}", arch);
+                    if let Some(native) = classifiers.get(&classifier_key) {
                         if let Some(p) = native.get("path").and_then(Value::as_str) {
                             let full = safe_join(&root.join("libraries"), p)?;
                             if full.is_file() {
                                 let dest = native_dir.clone();
                                 tokio::task::spawn_blocking(move || extract_native_archive(&full, &dest)).await.map_err(|e| e.to_string())??;
+                            } else {
+                                missing_libraries.push(format!("{library_name} native ({p})"));
                             }
+                        } else {
+                            missing_libraries.push(format!("{library_name} native (classifier path missing)"));
                         }
+                    } else {
+                        missing_libraries.push(format!("{library_name} native (missing classifier {classifier_key})"));
                     }
                 }
             }
         }
+    }
+    if !missing_libraries.is_empty() {
+        let shown = missing_libraries.iter().take(5).cloned().collect::<Vec<_>>().join(", ");
+        let remaining = missing_libraries.len().saturating_sub(5);
+        let suffix = if remaining > 0 { format!(" and {remaining} more") } else { String::new() };
+        return Err(format!(
+            "This installation is incomplete: {} required library file(s) are missing: {shown}{suffix}. Open Installations and reinstall this version.",
+            missing_libraries.len()
+        ));
     }
     let jar = version_dir.join(format!("{version_id}.jar"));
     if !jar.is_file() { return Err("Minecraft client JAR is missing. Install this version first.".into()); }
