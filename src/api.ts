@@ -56,6 +56,16 @@ export async function launchVersion(versionId: string, gameDirectory: string, us
   return invoke<number>("launch_version", { versionId, gameDirectory, username, javaPath, ramMb });
 }
 
+export type RunningGame = { pid: number; versionId: string; username: string; startedAt: number };
+export async function listRunningGames(): Promise<RunningGame[]> {
+  if (!isDesktop) return [];
+  return invoke<RunningGame[]>("list_running_games");
+}
+export async function stopRunningGame(pid: number): Promise<void> {
+  if (!isDesktop) throw new Error("Stopping Minecraft processes requires the native MFLegend desktop app.");
+  return invoke("stop_running_game", { pid });
+}
+
 export type ModEntry = { fileName: string; enabled: boolean; sizeBytes: number };
 export async function listMods(gameDirectory: string): Promise<ModEntry[]> {
   if (!isDesktop) throw new Error("Mod management requires the native MFLegend desktop app.");
