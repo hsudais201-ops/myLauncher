@@ -290,8 +290,8 @@ fn resolve_version_metadata(root: &Path, version_id: &str) -> Result<(Value, Str
     }
 
     let base_jar_id = chain.iter()
-        .find_map(|(id, metadata)| metadata.get("jar").and_then(Value::as_str)
-            .map(str::to_string).or_else(|| if id == version_id { None } else { Some(id.clone()) }))
+        .find_map(|(_, metadata)| metadata.get("jar").and_then(Value::as_str).map(str::to_string))
+        .or_else(|| chain.last().map(|(id, _)| id.clone()))
         .unwrap_or_else(|| version_id.to_string());
     let mut iter = chain.into_iter().rev();
     let (_, mut merged) = iter.next().ok_or("Version metadata chain is empty")?;
