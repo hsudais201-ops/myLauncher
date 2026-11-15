@@ -14,6 +14,7 @@ export async function detectJava(): Promise<JavaRuntime[]> {
 }
 const defaults: Preferences = {
   selectedVersion: "",
+  selectedJavaPath: "",
   ramMb: 2048,
   gameDirectory: "",
   accent: "#8b5cf6",
