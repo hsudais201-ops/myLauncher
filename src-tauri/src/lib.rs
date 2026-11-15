@@ -353,6 +353,8 @@ async fn launch_version(version_id: String, game_directory: String, username: St
     vars.insert("${assets_index_name}".into(), asset_index.into());
     vars.insert("${auth_uuid}".into(), offline_uuid(username));
     vars.insert("${auth_access_token}".into(), "0".into());
+    vars.insert("${auth_session}".into(), "0".into());
+    vars.insert("${user_properties}".into(), "{}".into());
     vars.insert("${user_type}".into(), "legacy".into());
     vars.insert("${version_type}".into(), "release".into());
     vars.insert("${natives_directory}".into(), native_dir.display().to_string());
@@ -361,12 +363,24 @@ async fn launch_version(version_id: String, game_directory: String, username: St
     vars.insert("${classpath}".into(), cp_value.clone());
     vars.insert("${classpath_separator}".into(), if cfg!(windows) { ";" } else { ":" }.into());
     vars.insert("${library_directory}".into(), root.join("libraries").display().to_string());
+    let logging_file = metadata.get("logging").and_then(|v| v.get("client")).and_then(|v| v.get("file"));
+    if let Some(id) = logging_file.and_then(|v| v.get("id")).and_then(Value::as_str) {
+        let path = safe_join(&assets.join("log_configs"), id)?;
+        vars.insert("${path}".into(), path.display().to_string());
+    }
     vars.insert("${clientid}".into(), "".into());
     vars.insert("${auth_xuid}".into(), "".into());
     vars.insert("${resolution_width}".into(), "1280".into());
     vars.insert("${resolution_height}".into(), "720".into());
     let main = metadata.get("mainClass").and_then(Value::as_str).ok_or("Minecraft mainClass missing")?;
     let mut args = vec![format!("-Xmx{}M", ram_mb), format!("-Xms{}M", std::cmp::min(1024, ram_mb)), format!("-Djava.library.path={}", native_dir.display()), "-cp".into(), cp_value, main.into()];
+    if let Some(logging) = metadata.get("logging").and_then(|v| v.get("client")) {
+        if let Some(argument) = logging.get("argument").and_then(Value::as_str) {
+            let mut resolved = argument.to_string();
+            for (key, value) in &vars { resolved = resolved.replace(key, value); }
+            if !resolved.contains("${") { args.insert(0, resolved); }
+        }
+    }
     if let Some(jvm) = metadata.get("arguments").and_then(|v| v.get("jvm")) {
         let mut extra = Vec::new();
         for mut a in collect_launch_args(jvm) {
