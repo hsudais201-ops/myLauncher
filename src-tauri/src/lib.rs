@@ -84,6 +84,19 @@ fn safe_join(root: &Path, relative: &str) -> Result<PathBuf, String> {
     Ok(root.join(rel))
 }
 
+async fn write_file_atomic(destination: &Path, bytes: &[u8]) -> Result<(), String> {
+    if let Some(parent) = destination.parent() {
+        tokio::fs::create_dir_all(parent).await.map_err(|e| format!("Could not create metadata directory: {e}"))?;
+    }
+    let temporary = destination.with_extension("mflegend-tmp");
+    tokio::fs::write(&temporary, bytes).await.map_err(|e| format!("Could not write temporary metadata: {e}"))?;
+    if let Err(error) = tokio::fs::rename(&temporary, destination).await {
+        let _ = tokio::fs::remove_file(&temporary).await;
+        return Err(format!("Could not atomically finalize metadata: {error}"));
+    }
+    Ok(())
+}
+
 async fn download_verified(client: &reqwest::Client, url: &str, destination: &Path, expected_sha1: Option<&str>) -> Result<bool, String> {
     if !url.starts_with("https://") { return Err("Refusing a non-HTTPS download URL".into()); }
     if let Some(parent) = destination.parent() { tokio::fs::create_dir_all(parent).await.map_err(|e| e.to_string())?; }
@@ -172,7 +185,7 @@ async fn install_version(version_id: String, game_directory: String) -> Result<I
     tokio::fs::create_dir_all(&version_dir).await.map_err(|e| e.to_string())?;
     let metadata_path = version_dir.join(format!("{version_id}.json"));
     let metadata_bytes = serde_json::to_vec_pretty(&metadata).map_err(|e| e.to_string())?;
-    tokio::fs::write(&metadata_path, metadata_bytes).await.map_err(|e| e.to_string())?;
+    write_file_atomic(&metadata_path, &metadata_bytes).await?;
 
     let client_download = metadata.get("downloads").and_then(|v| v.get("client")).ok_or("This Minecraft version has no downloadable client JAR")?;
     let client_url = client_download.get("url").and_then(Value::as_str).ok_or("Client download URL is missing")?;
@@ -520,7 +533,7 @@ async fn install_fabric_profile(game_version: &str, game_directory: &str) -> Res
     tokio::fs::create_dir_all(&version_dir).await.map_err(|e| e.to_string())?;
     let metadata_path = version_dir.join(format!("{version_id}.json"));
     let bytes = serde_json::to_vec_pretty(&profile).map_err(|e| e.to_string())?;
-    tokio::fs::write(&metadata_path, bytes).await.map_err(|e| e.to_string())?;
+    write_file_atomic(&metadata_path, &bytes).await?;
 
     let mut downloaded = 0usize;
     let mut skipped = 0usize;
