@@ -26,6 +26,8 @@ struct JavaRuntime { path: String, version: String, architecture: String }
 #[serde(rename_all = "camelCase")]
 struct Preferences {
     selected_version: String,
+    #[serde(default)]
+    selected_java_path: String,
     ram_mb: u32,
     game_directory: String,
     accent: String,
@@ -33,7 +35,7 @@ struct Preferences {
 }
 impl Default for Preferences {
     fn default() -> Self {
-        Self { selected_version: String::new(), ram_mb: 2048, game_directory: String::new(), accent: "#8b5cf6".into(), theme: "dark".into() }
+        Self { selected_version: String::new(), selected_java_path: String::new(), ram_mb: 2048, game_directory: String::new(), accent: "#8b5cf6".into(), theme: "dark".into() }
     }
 }
 
