@@ -892,6 +892,75 @@ fn remove_mod(file_name: String, game_directory: String) -> Result<(), String> {
     std::fs::remove_file(path).map_err(|e| format!("Could not remove mod: {e}"))
 }
 
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct ResourcePackEntry { file_name: String, enabled: bool, size_bytes: u64 }
+
+fn valid_pack_filename(name: &str) -> bool {
+    !name.is_empty() && name.len() <= 240 &&
+        name.chars().all(|c| c.is_ascii_alphanumeric() || matches!(c, '.' | '_' | '-' | ' ' | '(' | ')'))
+}
+#[tauri::command]
+fn list_resource_packs(game_directory: String) -> Result<Vec<ResourcePackEntry>, String> {
+    let dir = configured_game_root(&game_directory)?.join("resourcepacks");
+    if !dir.exists() { return Ok(Vec::new()); }
+    let mut packs = Vec::new();
+    for entry in std::fs::read_dir(&dir).map_err(|e| format!("Cannot read resource packs folder: {e}"))? {
+        let entry = entry.map_err(|e| e.to_string())?;
+        if !entry.path().is_file() { continue; }
+        let name = entry.file_name().to_string_lossy().to_string();
+        let lower = name.to_ascii_lowercase();
+        let enabled = lower.ends_with(".zip");
+        let disabled = lower.ends_with(".zip.disabled");
+        if !enabled && !disabled { continue; }
+        let size_bytes = entry.metadata().map_err(|e| e.to_string())?.len();
+        packs.push(ResourcePackEntry { file_name: name, enabled, size_bytes });
+    }
+    packs.sort_by(|a,b| a.file_name.to_lowercase().cmp(&b.file_name.to_lowercase()));
+    Ok(packs)
+}
+#[tauri::command]
+fn import_resource_pack(source_path: String, game_directory: String) -> Result<ResourcePackEntry, String> {
+    let source = PathBuf::from(source_path.trim());
+    if !source.is_file() { return Err("Select an existing resource-pack .zip file.".into()); }
+    let name = source.file_name().and_then(|n| n.to_str()).ok_or("Invalid resource-pack filename")?;
+    if !valid_pack_filename(name) || !name.to_ascii_lowercase().ends_with(".zip") {
+        return Err("Only .zip resource packs with safe filenames are supported.".into());
+    }
+    let dir = configured_game_root(&game_directory)?.join("resourcepacks");
+    std::fs::create_dir_all(&dir).map_err(|e| format!("Cannot create resource packs folder: {e}"))?;
+    let destination = dir.join(name);
+    if destination.exists() { return Err("A resource pack with that filename already exists.".into()); }
+    std::fs::copy(&source, &destination).map_err(|e| format!("Could not import resource pack: {e}"))?;
+    let size_bytes = std::fs::metadata(&destination).map_err(|e| e.to_string())?.len();
+    Ok(ResourcePackEntry { file_name: name.to_string(), enabled: true, size_bytes })
+}
+#[tauri::command]
+fn set_resource_pack_enabled(file_name: String, enabled: bool, game_directory: String) -> Result<(), String> {
+    if !valid_pack_filename(&file_name) { return Err("Invalid resource-pack filename.".into()); }
+    let dir = configured_game_root(&game_directory)?.join("resourcepacks");
+    let source = dir.join(&file_name);
+    let lower = file_name.to_ascii_lowercase();
+    let (from, to) = if enabled {
+        if !lower.ends_with(".zip.disabled") { return Err("This resource pack is already enabled.".into()); }
+        (source, dir.join(&file_name[..file_name.len() - ".disabled".len()]))
+    } else {
+        if !lower.ends_with(".zip") { return Err("This resource pack is already disabled.".into()); }
+        (source, dir.join(format!("{file_name}.disabled")))
+    };
+    if !from.is_file() { return Err("Resource pack file was not found.".into()); }
+    if to.exists() { return Err("Destination filename already exists.".into()); }
+    std::fs::rename(from, to).map_err(|e| format!("Could not change resource pack state: {e}"))
+}
+#[tauri::command]
+fn remove_resource_pack(file_name: String, game_directory: String) -> Result<(), String> {
+    if !valid_pack_filename(&file_name) { return Err("Invalid resource-pack filename.".into()); }
+    let path = configured_game_root(&game_directory)?.join("resourcepacks").join(&file_name);
+    if !path.is_file() { return Err("Resource pack file was not found.".into()); }
+    std::fs::remove_file(path).map_err(|e| format!("Could not remove resource pack: {e}"))
+}
+
 #[tauri::command]
 fn detect_java() -> Vec<JavaRuntime> {
     let mut candidates: Vec<PathBuf> = Vec::new();
@@ -938,7 +1007,7 @@ fn save_preferences(preferences: Preferences) -> Result<(), String> {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
-        .invoke_handler(tauri::generate_handler![get_versions, detect_java, load_preferences, save_preferences, install_version, install_fabric, install_forge, list_mods, import_mod, set_mod_enabled, remove_mod, launch_version])
+        .invoke_handler(tauri::generate_handler![get_versions, detect_java, load_preferences, save_preferences, install_version, install_fabric, install_forge, list_mods, import_mod, set_mod_enabled, remove_mod, list_resource_packs, import_resource_pack, set_resource_pack_enabled, remove_resource_pack, launch_version])
         .run(tauri::generate_context!())
         .expect("error while running MFLegend");
 }
