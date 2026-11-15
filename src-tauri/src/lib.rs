@@ -1273,6 +1273,15 @@ mod launch_argument_tests {
     }
 
     #[test]
+    fn skin_filenames_are_confined_to_png_files() {
+        assert!(valid_skin_filename("Alex Skin.png"));
+        assert!(valid_skin_filename("my_skin-2.png"));
+        assert!(!valid_skin_filename("../outside.png"));
+        assert!(!valid_skin_filename("skin.jpg"));
+        assert!(!valid_skin_filename("folder/skin.png"));
+    }
+
+    #[test]
     fn world_folder_names_are_safe() {
         assert!(valid_world_folder("Survival World 2026"));
         assert!(valid_world_folder("Build_(creative).backup"));
