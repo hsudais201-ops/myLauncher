@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use sha1::{Digest, Sha1};
 use serde_json::Value;
-use std::{collections::HashSet, path::{Component, Path, PathBuf}, process::Command};
+use std::{collections::HashSet, path::{Component, Path, PathBuf}, process::Command, sync::atomic::{AtomicU64, Ordering}};
 
 const MANIFEST_URL: &str = "https://launchermeta.mojang.com/mc/game/version_manifest_v2.json";
 
@@ -97,9 +97,18 @@ async fn write_file_atomic(destination: &Path, bytes: &[u8]) -> Result<(), Strin
     Ok(())
 }
 
+static DOWNLOAD_TEMP_SEQUENCE: AtomicU64 = AtomicU64::new(0);
+
 async fn download_verified(client: &reqwest::Client, url: &str, destination: &Path, expected_sha1: Option<&str>) -> Result<bool, String> {
     if !url.starts_with("https://") { return Err("Refusing a non-HTTPS download URL".into()); }
-    if let Some(parent) = destination.parent() { tokio::fs::create_dir_all(parent).await.map_err(|e| e.to_string())?; }
+    if let Some(expected) = expected_sha1 {
+        if expected.len() != 40 || !expected.chars().all(|c| c.is_ascii_hexdigit()) {
+            return Err(format!("Invalid SHA-1 checksum supplied for {url}"));
+        }
+    }
+    if let Some(parent) = destination.parent() {
+        tokio::fs::create_dir_all(parent).await.map_err(|e| e.to_string())?;
+    }
     if destination.is_file() {
         if let Some(expected) = expected_sha1 {
             let existing = tokio::fs::read(destination).await.map_err(|e| e.to_string())?;
@@ -108,18 +117,27 @@ async fn download_verified(client: &reqwest::Client, url: &str, destination: &Pa
         }
     }
     let response = client.get(url).send().await.map_err(|e| format!("Download failed for {url}: {e}"))?;
-    if !response.status().is_success() { return Err(format!("Download returned HTTP {} for {url}", response.status())); }
+    if !response.status().is_success() {
+        return Err(format!("Download returned HTTP {} for {url}", response.status()));
+    }
     let bytes = response.bytes().await.map_err(|e| format!("Could not read download: {e}"))?;
     if let Some(expected) = expected_sha1 {
         let digest = format!("{:x}", Sha1::digest(&bytes));
-        if !digest.eq_ignore_ascii_case(expected) { return Err(format!("SHA-1 verification failed for {url}")); }
+        if !digest.eq_ignore_ascii_case(expected) {
+            return Err(format!("SHA-1 verification failed for {url}"));
+        }
     }
-    let temporary = destination.with_extension("mflegend-download");
-    tokio::fs::write(&temporary, &bytes).await.map_err(|e| e.to_string())?;
-    tokio::fs::rename(&temporary, destination).await.map_err(|e| {
-        let _ = std::fs::remove_file(&temporary);
-        format!("Could not finalize downloaded file: {e}")
-    })?;
+    let sequence = DOWNLOAD_TEMP_SEQUENCE.fetch_add(1, Ordering::Relaxed);
+    let file_name = destination.file_name().and_then(|name| name.to_str()).ok_or("Invalid download destination filename")?;
+    let temporary = destination.with_file_name(format!(".{file_name}.{}.{}.tmp", std::process::id(), sequence));
+    if let Err(error) = tokio::fs::write(&temporary, &bytes).await {
+        let _ = tokio::fs::remove_file(&temporary).await;
+        return Err(format!("Could not write temporary download: {error}"));
+    }
+    if let Err(error) = tokio::fs::rename(&temporary, destination).await {
+        let _ = tokio::fs::remove_file(&temporary).await;
+        return Err(format!("Could not finalize downloaded file: {error}"));
+    }
     Ok(true)
 }
 
