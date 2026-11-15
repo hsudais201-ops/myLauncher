@@ -1,47 +1,54 @@
 # Flame Launcher
 
-Flame Launcher is a native Minecraft: Java Edition launcher, created and maintained by MFLegend built with Tauri 2, Rust, React, TypeScript, and Vite. The current target environment is Linux, including Chromebook Linux containers.
+Flame Launcher is an **Android-first launcher for Minecraft: Java Edition**, owned and maintained by **MFLegend**.
 
-## Current features
+The intended product is an Android phone/tablet app with a touch-friendly interface. The repository currently contains an earlier Tauri 2 + Rust + React desktop-oriented implementation. That code is a source of reusable launcher logic, **not an Android-ready release**. The Android application shell, Android-compatible Java runtime, graphics/input integration, and Android packaging still need to be implemented.
+
+## Android product direction
+
+- Android phones and tablets are the primary target; this is not a Windows, macOS, or Linux desktop launcher.
+- Touch-first navigation, readable mobile layouts, and support for optional external keyboards and mice.
+- Android storage access using the Storage Access Framework and scoped-storage-compatible APIs.
+- A supported Android Java runtime and native graphics/input integration are required to run Minecraft: Java Edition. Android's built-in ART runtime alone is not a drop-in replacement for a desktop Java runtime.
+- Account authentication must use a secure, supported Microsoft/Xbox/Minecraft sign-in flow before online play is enabled.
+
+## Reusable work already present in the repository
 
 - Mojang version manifest browsing and version selection.
-- Vanilla installation pipeline for client JARs, libraries, asset indexes, and assets, with SHA-1 verification.
+- Vanilla metadata, client/library/asset download pipeline with SHA-1 verification.
 - Fabric installer integration and an initial Forge installer workflow.
-- Offline-mode Java launch with runtime selection, memory allocation, inherited version metadata, and launch argument handling.
-- Separate installation profiles with independent game directories; create, select, rename, duplicate, and remove launcher entries without deleting their files.
-- Installed version/profile scanning.
-- Local mod and resource-pack file management.
-- World import, export, backup, and removal.
-- Local PNG skin library and preview.
-- Theme, accent, Java runtime, and game-directory preferences.
-- Microsoft Entra public application Client ID configuration in Settings, preparing for a future device-code sign-in flow.
+- Version inheritance and launch-argument resolution.
+- Installation profiles and isolated game directories.
+- Local mod/resource-pack/world/skin management logic.
+- Preferences, Java version parsing, and runtime validation helpers.
 
-## Important limitations
+These features were implemented in the previous desktop-oriented app. Each native filesystem, process, and runtime integration must be reviewed and adapted before it can be considered Android-compatible.
 
-- Microsoft account sign-in, Xbox Live/XSTS exchange, Minecraft Services authentication, and secure token storage are **not implemented**. The Client ID field only stores public application configuration; it does not sign users in.
-- Launch currently uses an offline identity. Official online-mode servers generally require Microsoft authentication.
-- The skin library is local-only; it does not equip or upload skins to a Minecraft account.
-- Forge installer compatibility and all game-version combinations require additional runtime testing.
-- Installation and launch require the native desktop app; browser preview cannot perform those operations.
+## Android migration status
 
-## Development
+The Android port is **not yet complete**. In particular, this repository does not yet provide:
 
-Prerequisites: Node.js 20+, Rust stable, and the Tauri Linux system dependencies for your distribution.
+- A buildable Android application module or installable APK.
+- Android-compatible JVM/runtime distribution and lifecycle management.
+- OpenGL/Vulkan renderer integration, native library ABI packaging, or touch-to-game input bridge.
+- Android storage permission/document-picker integration for game files.
+- Microsoft account, Xbox Live/XSTS, or Minecraft Services authentication.
+- Verified gameplay on physical Android devices.
+
+See [docs/ANDROID_PORT_PLAN.md](docs/ANDROID_PORT_PLAN.md) for the implementation sequence and technical constraints.
+
+## Development of the existing desktop prototype
+
+The current prototype's web frontend can still be inspected with Node.js 20+:
 
 ```bash
 npm install
-npm run tauri dev
+npm run dev
 ```
 
-For a frontend-only preview: `npm run dev`.
+The Tauri desktop build commands describe the legacy prototype and do **not** produce the Android app. Do not publish the desktop build as Flame Launcher's Android release.
 
-## Microsoft application configuration
+## Ownership
 
-To prepare for a future Microsoft device-code flow, register a **public/native desktop application** in Microsoft Entra, enable the device-code flow, and enter its Application (client) ID in Flame Launcher Settings. Do not create or embed a client secret. Supplying a Client ID does not currently enable sign-in.
-
-## Security and distribution
-
-- Never store Microsoft passwords or client secrets in launcher preferences.
-- Implement token persistence only through an operating-system credential store (such as Secret Service/libsecret or the platform equivalent).
-- Obtain Minecraft assets and libraries through official metadata and legitimate distribution endpoints.
-- Review Mojang/Microsoft terms before distributing builds.
+**Product:** Flame Launcher  
+**Owner / maintainer:** MFLegend
