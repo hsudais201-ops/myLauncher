@@ -14,6 +14,8 @@ class JavaRuntimeMetadataTest {
         assertEquals(17, JavaRuntimeMetadata.parseJavaMajor("17.0.9"))
         assertEquals(21, JavaRuntimeMetadata.parseJavaMajor("21-ea"))
         assertEquals(17, JavaRuntimeMetadata.parseJavaMajor("17.0.9+9-LTS"))
+        assertEquals(21, JavaRuntimeMetadata.parseJavaMajor("21-ea+24"))
+        assertEquals(8, JavaRuntimeMetadata.parseJavaMajor("1.8.0_402-b06"))
     }
 
     @Test fun rejectsMalformedJavaVersions() {
@@ -22,6 +24,10 @@ class JavaRuntimeMetadataTest {
         assertNull(JavaRuntimeMetadata.parseJavaMajor("preview-17"))
         assertNull(JavaRuntimeMetadata.parseJavaMajor("17garbage"))
         assertNull(JavaRuntimeMetadata.parseJavaMajor("17-"))
+        assertNull(JavaRuntimeMetadata.parseJavaMajor("17..9"))
+        assertNull(JavaRuntimeMetadata.parseJavaMajor("17.foo"))
+        assertNull(JavaRuntimeMetadata.parseJavaMajor("17+"))
+        assertNull(JavaRuntimeMetadata.parseJavaMajor("17-ea+"))
     }
 
     @Test fun parsesQuotedReleaseMetadataAndIgnoresInvalidKeys() {
