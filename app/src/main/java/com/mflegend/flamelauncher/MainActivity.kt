@@ -253,7 +253,22 @@ private fun LibraryScreen(folderUri: String?) {
             } else if (entries.isEmpty()) {
                 Text("This folder is empty, or the document provider returned no items.", color = Muted, fontSize = 13.sp)
             } else {
-                Text("\${entries.size} item(s)", color = Muted, fontSize = 11.sp)
+                if (directoryStack.size == 1) {
+                    val expectedFolders = listOf("versions", "assets", "libraries", "mods", "resourcepacks", "saves")
+                    val foundFolders = entries.filter { it.isDirectory && it.name.lowercase() in expectedFolders }
+                    Card(colors = CardDefaults.cardColors(containerColor = Color(0xFF242630)), shape = RoundedCornerShape(14.dp)) {
+                        Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Text("MINECRAFT DIRECTORY CHECK", color = Flame, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                            if (foundFolders.isEmpty()) {
+                                Text("No standard Minecraft folders detected at this level.", color = Muted, fontSize = 12.sp)
+                            } else {
+                                Text("Detected: " + foundFolders.joinToString { it.name }, color = Color.White, fontSize = 12.sp)
+                            }
+                            Text(if (foundFolders.any { it.name.equals("versions", ignoreCase = true) }) "Version directory found — installed versions can be inspected next." else "No versions directory detected at this level.", color = Muted, fontSize = 11.sp)
+                        }
+                    }
+                }
+                Text(entries.size.toString() + " item(s)", color = Muted, fontSize = 11.sp)
                 entries.forEach { entry ->
                     Row(
                         modifier = Modifier.fillMaxWidth()
@@ -272,7 +287,7 @@ private fun LibraryScreen(folderUri: String?) {
                             Text(if (entry.isDirectory) "Folder" else entry.mimeType, color = Muted, fontSize = 11.sp)
                         }
                         if (entry.sizeBytes != null && !entry.isDirectory) {
-                            Text("\${entry.sizeBytes} B", color = Muted, fontSize = 10.sp)
+                            Text(entry.sizeBytes.toString() + " B", color = Muted, fontSize = 10.sp)
                         }
                     }
                 }
