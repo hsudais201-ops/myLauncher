@@ -139,8 +139,7 @@ class MojangAssetDownloader {
     ) {
         val oldFile = storage.listChildren(directory).firstOrNull { !it.isDirectory && it.name == name }
         val temporaryName = ".$name.download"
-        storage.listChildren(directory).firstOrNull { !it.isDirectory && it.name == temporaryName }?.let { storage.delete(it.uri) }
-        val uri = storage.createFile(directory, temporaryName, "application/json")
+        val uri = storage.createTemporaryFile(directory, temporaryName, "application/json")
         try {
             storage.openOutput(uri).use { output ->
                 output.write(bytes)
