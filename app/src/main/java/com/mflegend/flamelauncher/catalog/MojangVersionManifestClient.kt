@@ -1,0 +1,80 @@
+package com.mflegend.flamelauncher.catalog
+
+import org.json.JSONObject
+import java.net.HttpURLConnection
+import java.net.URL
+
+data class MojangVersion(
+    val id: String,
+    val type: String,
+    val url: String,
+    val releaseTime: String,
+    val sha1: String?
+)
+
+data class MojangVersionManifest(
+    val latestRelease: String?,
+    val latestSnapshot: String?,
+    val versions: List<MojangVersion>
+)
+
+/** Fetches Mojang public version metadata; this does not download game files. */
+class MojangVersionManifestClient {
+    fun fetch(): MojangVersionManifest {
+        val connection = (URL(MANIFEST_URL).openConnection() as HttpURLConnection).apply {
+            requestMethod = "GET"
+            connectTimeout = 15_000
+            readTimeout = 20_000
+            setRequestProperty("Accept", "application/json")
+            setRequestProperty("User-Agent", "FlameLauncher-Android/0.1.0")
+        }
+        try {
+            val status = connection.responseCode
+            require(status in 200..299) { "Mojang manifest request failed (HTTP $status)." }
+            val body = connection.inputStream.use { input ->
+                val output = java.io.ByteArrayOutputStream()
+                val buffer = ByteArray(8192)
+                var total = 0
+                while (true) {
+                    val count = input.read(buffer)
+                    if (count < 0) break
+                    total += count
+                    require(total <= MAX_RESPONSE_BYTES) { "Mojang manifest is larger than expected." }
+                    output.write(buffer, 0, count)
+                }
+                output.toString(Charsets.UTF_8.name())
+            }
+            val root = JSONObject(body)
+            val latest = root.optJSONObject("latest")
+            val array = root.getJSONArray("versions")
+            val versions = buildList {
+                for (index in 0 until array.length()) {
+                    val item = array.getJSONObject(index)
+                    val id = item.optString("id")
+                    val url = item.optString("url")
+                    if (id.isNotBlank() && url.startsWith("https://")) {
+                        add(MojangVersion(
+                            id = id,
+                            type = item.optString("type", "unknown"),
+                            url = url,
+                            releaseTime = item.optString("releaseTime"),
+                            sha1 = item.optString("sha1").takeIf { it.isNotBlank() }
+                        ))
+                    }
+                }
+            }
+            return MojangVersionManifest(
+                latestRelease = latest?.optString("release")?.takeIf { it.isNotBlank() },
+                latestSnapshot = latest?.optString("snapshot")?.takeIf { it.isNotBlank() },
+                versions = versions
+            )
+        } finally {
+            connection.disconnect()
+        }
+    }
+
+    private companion object {
+        const val MANIFEST_URL = "https://piston-meta.mojang.com/mc/game/version_manifest_v2.json"
+        const val MAX_RESPONSE_BYTES = 8 * 1024 * 1024
+    }
+}
