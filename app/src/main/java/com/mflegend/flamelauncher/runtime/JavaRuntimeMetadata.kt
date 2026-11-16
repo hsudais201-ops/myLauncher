@@ -3,24 +3,34 @@ package com.mflegend.flamelauncher.runtime
 /** Pure Java release metadata helpers, independent of Android APIs. */
 internal object JavaRuntimeMetadata {
     private val releaseKey = Regex("[A-Z][A-Z0-9_]*")
+    private val javaVersionPattern = Regex("^(?:1\\.)?([0-9]+)(?:[._+\\-][A-Za-z0-9._+\\-]+)?$")
 
     fun parseReleaseFile(content: String): Map<String, String> {
         val values = mutableMapOf<String, String>()
+        val ambiguousKeys = mutableSetOf<String>()
         for (line in content.lineSequence()) {
             val separator = line.indexOf('=')
             if (separator <= 0) continue
             val key = line.substring(0, separator).trim()
             val rawValue = line.substring(separator + 1).trim()
-            if (!releaseKey.matches(key)) continue
-            val value = rawValue.removeSurrounding("\"")
-            if ('\u0000' !in value) values[key] = value
+            if (!releaseKey.matches(key) || key in ambiguousKeys) continue
+            if (values.containsKey(key)) {
+                values.remove(key)
+                ambiguousKeys += key
+                continue
+            }
+            val hasOpeningQuote = rawValue.startsWith('"')
+            val hasClosingQuote = rawValue.endsWith('"')
+            if (hasOpeningQuote != hasClosingQuote) continue
+            val value = if (hasOpeningQuote) rawValue.substring(1, rawValue.length - 1) else rawValue
+            if ('\u0000' !in value && '"' !in value) values[key] = value
         }
         return values
     }
 
     fun parseJavaMajor(version: String): Int? {
-        val normalized = version.removePrefix("1.")
-        return normalized.substringBefore('.').substringBefore('-').toIntOrNull()
+        val match = javaVersionPattern.matchEntire(version.trim()) ?: return null
+        return match.groupValues[1].toIntOrNull()
     }
 
     fun normalizeArchitecture(architecture: String): String = when (architecture.trim().lowercase()) {
