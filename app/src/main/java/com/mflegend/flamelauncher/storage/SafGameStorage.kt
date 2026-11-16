@@ -192,6 +192,20 @@ class SafGameStorage(
         }
     }
 
+    /** Finds one named directory and rejects file or duplicate-name collisions. */
+    fun findDirectory(parentUri: Uri, displayName: String): Entry? {
+        requireInTree(parentUri)
+        validateDisplayName(displayName)
+        val matches = listChildren(parentUri).filter { it.name == displayName }
+        require(matches.none { !it.isDirectory }) {
+            "A file already occupies the folder name '$displayName'."
+        }
+        require(matches.size <= 1) {
+            "The storage provider returned multiple folders named '$displayName'. Resolve the duplicate before continuing."
+        }
+        return matches.singleOrNull()
+    }
+
     /**
      * Finds a named file in a directory and fails closed on directory or duplicate-name
      * collisions instead of silently treating them as a missing destination.
