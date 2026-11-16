@@ -91,6 +91,16 @@ class JavaRuntimeMetadataTest {
         }
     }
 
+    @Test fun rejectsNestedSymlinkThatResolvesInsideManagedDirectory() {
+        withTempDirectory { root ->
+            val realDirectory = Files.createDirectories(root.resolve("real/lib/server"))
+            Files.createFile(realDirectory.resolve("libjvm.so"))
+            val linkedDirectory = root.resolve("linked")
+            Files.createSymbolicLink(linkedDirectory, root.resolve("real"))
+            assertFalse(RuntimePathPolicy.isSafeChild(root.toFile(), linkedDirectory.resolve("lib/server/libjvm.so").toFile()))
+        }
+    }
+
     @Test fun rejectsSymlinkThatResolvesOutsideManagedDirectory() {
         withTempDirectory { root ->
             withTempDirectory { outside ->
