@@ -27,7 +27,7 @@ class MojangLibraryDownloader {
         gameRoot: Uri,
         control: DownloadControl = DownloadControl()
     ): LibraryDownloadResult {
-        val metadata = JSONObject(metadataBytes.toString(Charsets.UTF_8.name()))
+        val metadata = JSONObject(metadataBytes.toString(Charsets.UTF_8))
         val libraries = metadata.optJSONArray("libraries")
             ?: return LibraryDownloadResult(0, 0, 0, 0)
         require(libraries.length() <= MAX_LIBRARY_COUNT) { "Version metadata contains too many libraries." }
