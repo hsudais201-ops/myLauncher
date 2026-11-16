@@ -75,8 +75,7 @@ class MojangClientJarDownloader {
             val actualSha1 = digest.digest().joinToString("") { "%02x".format(it) }
             require(actualSha1.equals(expectedSha1, ignoreCase = true)) { "Client JAR SHA-1 verification failed." }
             control.checkpoint()
-            oldFile?.let { storage.delete(it.uri) }
-            val finalUri = storage.rename(fileUri, fileName)
+            val finalUri = storage.replaceWithVerifiedFile(fileUri, oldFile?.uri, fileName)
                 ?: error("The storage provider could not finalize the verified client JAR.")
             return ClientJarDownloadResult(finalUri, total)
         } catch (error: Exception) {
