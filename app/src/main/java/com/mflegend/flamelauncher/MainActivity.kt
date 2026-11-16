@@ -47,6 +47,7 @@ import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
@@ -604,7 +605,11 @@ private fun LibraryScreen(folderUri: String?) {
 private fun SettingsScreen(folderUri: String?, error: String?, onChooseFolder: () -> Unit) {
     val context = LocalContext.current
     val runtime = remember { AndroidRuntimeEnvironment.inspect(context) }
-    val runtimeScan = remember(runtime) { AndroidJavaRuntimeManager(context).scan(runtime) }
+    val runtimeScan by produceState<AndroidJavaRuntimeManager.ScanResult?>(initialValue = null, runtime) {
+        value = withContext(Dispatchers.IO) {
+            AndroidJavaRuntimeManager(context).scan(runtime)
+        }
+    }
 
     Card(colors = CardDefaults.cardColors(containerColor = Panel), shape = RoundedCornerShape(20.dp)) {
         Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -640,7 +645,9 @@ private fun SettingsScreen(folderUri: String?, error: String?, onChooseFolder: (
             Text("App process: ${if (runtime.is64BitProcess) "64-bit" else "32-bit"}", color = Muted, fontSize = 12.sp)
             Text("App heap limit: ${runtime.maxHeapMb} MB · Device memory class: ${runtime.memoryClassMb?.let { "$it MB" } ?: "Unknown"}", color = Muted, fontSize = 12.sp)
             Text("Available processor cores: ${runtime.processorCount}", color = Muted, fontSize = 12.sp)
-            if (runtimeScan.abiMatchedRuntimes.isNotEmpty()) {
+            if (runtimeScan == null) {
+                Text("Checking app-private Java runtime storage…", color = Muted, fontSize = 12.sp)
+            } else if (runtimeScan.abiMatchedRuntimes.isNotEmpty()) {
                 Text(
                     "ABI-matched runtime candidates found: ${runtimeScan.abiMatchedRuntimes.joinToString { "Java ${it.javaMajorVersion} (${it.id})" }}",
                     color = Color(0xFF8DD9A8),
@@ -656,7 +663,7 @@ private fun SettingsScreen(folderUri: String?, error: String?, onChooseFolder: (
                 color = Muted,
                 fontSize = 12.sp
             )
-            runtimeScan.warnings.take(2).forEach { warning ->
+            runtimeScan?.warnings?.take(2)?.forEach { warning ->
                 Text(warning, color = Color(0xFFFFB36B), fontSize = 11.sp)
             }
         }
