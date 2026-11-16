@@ -29,12 +29,16 @@ class MojangVersionInstaller(
             "Invalid version identifier."
         }
         control.progress("Version metadata", 0, null)
+        control.checkpoint()
+        control.progress("Version metadata", 0, null)
         val metadataBytes = manifestClient.fetchVersionMetadata(version)
+        control.checkpoint()
         control.progress("Version metadata", 1, 1)
         val root = storage.root()
         val versionsDirectory = findOrCreateDirectory(storage, root, "versions")
         val versionDirectory = findOrCreateDirectory(storage, versionsDirectory, version.id)
         saveMetadata(storage, versionDirectory, version.id + ".json", metadataBytes)
+        control.progress("Version metadata", 1, 1)
 
         val clientJar = clientJarDownloader.download(
             version.id,
