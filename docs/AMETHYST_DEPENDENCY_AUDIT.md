@@ -24,6 +24,17 @@ The recursive tree did not contain gitlinks at the previously suspected SDL, SDL
 
 Do not use a moving submodule branch or current upstream HEAD as a substitute for the exact gitlink recorded by the reviewed parent commit.
 
+### License check of the two pinned gitlinks
+
+The two gitlink commits were inspected independently:
+
+| Submodule | Pinned commit | License evidence at that commit | Flame Launcher decision |
+|---|---|---|---|
+| MioLibPatcher | `9a1f807f2b8e7abfd921a3ed5a69e23ed6540b0c` | Recursive tree contains no file named LICENSE, COPYING, or NOTICE; build declares Javassist 3.29.2-GA | **Stop**: no license was established for the submodule source. Do not copy, link, or redistribute it without explicit permission or verified licensing evidence. Audit Javassist's own license separately if ever considered. |
+| androidnsbypass | `9f57982abf007aacc45becfc9328ae06fa6bbe3b` | Root `LICENSE` grants MIT-style terms; `LICENSE-BSD-2-Clause` is also present for included material | Potentially reusable only after tracing which files carry each notice, preserving both applicable notices, and reviewing the exact native build integration. This is not blanket approval for the parent project. |
+
+The license observations above are from the exact pinned trees, not from current default branches. A missing license file is not permission to use the code.
+
 ## License evidence visible at the pinned commit
 
 The repository root `LICENSE` is GNU LGPL version 3. The README's dependency section separately identifies a mixed set of upstream components and license statements. The root LGPL license does not automatically relicense those dependencies or establish that all binaries can be redistributed together.
