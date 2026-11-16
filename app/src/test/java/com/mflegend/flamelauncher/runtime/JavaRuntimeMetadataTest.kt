@@ -89,6 +89,16 @@ class JavaRuntimeMetadataTest {
         }
     }
 
+    @Test fun rejectsSymlinksEvenWhenTheyPointInsideTheManagedDirectory() {
+        withTempDirectory { root ->
+            val target = Files.createDirectory(root.resolve("real-runtime"))
+            val link = root.resolve("linked-runtime")
+            Files.createSymbolicLink(link, target)
+            assertTrue(RuntimePathPolicy.isSymbolicLink(link.toFile()))
+            assertTrue(RuntimePathPolicy.isDirectChild(root.toFile(), link.toFile()))
+        }
+    }
+
     private fun withTempDirectory(block: (Path) -> Unit) {
         val directory = Files.createTempDirectory("flame-runtime-path-test")
         try {
