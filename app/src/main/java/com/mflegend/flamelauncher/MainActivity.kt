@@ -434,7 +434,7 @@ private fun VersionsScreen(folderUri: String?) {
                                                 } catch (error: CancellationException) {
                                                     metadataDownloadMessage = item.id + ": cancelled. Verified completed files were kept; choose Install files again to continue."
                                                 } catch (error: Exception) {
-                                                    metadataDownloadMessage = item.id + ": installation stopped — " + (error.localizedMessage ?: "Download failed.")
+                                                    metadataDownloadMessage = item.id + ": installation stopped — " + (error.localizedMessage ?: "Download failed.") + " Verified completed files were kept. Fix the issue and retry Install files; existing files are checked again."
                                                 } finally {
                                                     installId = null
                                                     activeInstallControl = null
