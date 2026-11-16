@@ -134,11 +134,24 @@ class SafGameStorage(
     fun createDirectory(parentUri: Uri, displayName: String): Uri {
         requireInTree(parentUri)
         validateDisplayName(displayName)
-        return providerCall("creating a folder") {
+        val created = providerCall("creating a folder") {
             requireNotNull(
                 DocumentsContract.createDocument(resolver, parentUri, Document.MIME_TYPE_DIR, displayName)
             ) { "The document provider returned no folder." }
         }
+        // Providers can return an unexpected document or expose duplicate names.
+        // Confirm the created URI is a unique, visible directory before using it.
+        requireInTree(created)
+        val createdId = DocumentsContract.getDocumentId(created)
+        val visibleEntries = listChildren(parentUri).filter { it.name == displayName }
+        require(
+            visibleEntries.size == 1 &&
+                visibleEntries.single().documentId == createdId &&
+                visibleEntries.single().isDirectory
+        ) {
+            "The storage provider did not create one distinct folder with the requested name."
+        }
+        return created
     }
 
     fun createFile(parentUri: Uri, displayName: String, mimeType: String = "application/octet-stream"): Uri {
