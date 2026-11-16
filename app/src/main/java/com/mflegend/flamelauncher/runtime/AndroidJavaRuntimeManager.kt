@@ -65,7 +65,7 @@ class AndroidJavaRuntimeManager(context: Context) {
             }
 
             val properties = try {
-                parseReleaseFile(releaseFile.readText(Charsets.UTF_8))
+                JavaRuntimeMetadata.parseReleaseFile(releaseFile.readText(Charsets.UTF_8))
             } catch (_: Exception) {
                 warnings += "Ignored ${directory.name}: Java release metadata is invalid."
                 continue
@@ -76,7 +76,7 @@ class AndroidJavaRuntimeManager(context: Context) {
                 warnings += "Ignored ${directory.name}: JAVA_VERSION or OS_ARCH is missing."
                 continue
             }
-            val major = parseJavaMajor(version)
+            val major = JavaRuntimeMetadata.parseJavaMajor(version)
             if (major == null || major < MINIMUM_JAVA_MAJOR) {
                 warnings += "Ignored ${directory.name}: unsupported Java version metadata."
                 continue
@@ -88,10 +88,12 @@ class AndroidJavaRuntimeManager(context: Context) {
                 continue
             }
 
-            val normalizedArchitecture = normalizeArchitecture(architecture)
-            val compatible = environment.is64BitProcess &&
-                environment.supportedAbis.contains("arm64-v8a") &&
-                normalizedArchitecture == "arm64"
+            val normalizedArchitecture = JavaRuntimeMetadata.normalizeArchitecture(architecture)
+            val compatible = JavaRuntimeMetadata.matchesInitialArm64Process(
+                normalizedArchitecture,
+                environment.is64BitProcess,
+                environment.supportedAbis
+            )
             runtimes += InstalledRuntime(
                 id = directory.name,
                 javaVersion = version,
@@ -121,38 +123,10 @@ class AndroidJavaRuntimeManager(context: Context) {
         return candidate.canonicalPath.startsWith(homePath)
     }
 
-    private fun parseReleaseFile(content: String): Map<String, String> {
-        val values = mutableMapOf<String, String>()
-        for (line in content.lineSequence()) {
-            val separator = line.indexOf('=')
-            if (separator <= 0) continue
-            val key = line.substring(0, separator).trim()
-            val rawValue = line.substring(separator + 1).trim()
-            if (!RELEASE_KEY.matches(key)) continue
-            val value = rawValue.removeSurrounding("\"")
-            if ('\u0000' !in value) values[key] = value
-        }
-        return values
-    }
-
-    private fun parseJavaMajor(version: String): Int? {
-        val normalized = version.removePrefix("1.")
-        return normalized.substringBefore('.').substringBefore('-').toIntOrNull()
-    }
-
-    private fun normalizeArchitecture(architecture: String): String = when (architecture.lowercase()) {
-        "aarch64", "arm64", "arm64-v8a" -> "arm64"
-        "x86_64", "amd64" -> "x86_64"
-        "x86", "i386", "i686" -> "x86"
-        "arm", "arm32", "armv7l" -> "arm"
-        else -> architecture.lowercase()
-    }
-
     companion object {
         private const val RUNTIME_DIRECTORY = "java-runtimes"
         private const val MINIMUM_JAVA_MAJOR = 8
         private const val MAX_RELEASE_FILE_BYTES = 64L * 1024L
         private val RUNTIME_ID = Regex("[A-Za-z0-9._-]{1,80}")
-        private val RELEASE_KEY = Regex("[A-Z][A-Z0-9_]*")
     }
 }
