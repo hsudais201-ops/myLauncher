@@ -25,6 +25,8 @@ class JavaRuntimeMetadataTest {
         assertNull(JavaRuntimeMetadata.parseJavaMajor("17garbage"))
         assertNull(JavaRuntimeMetadata.parseJavaMajor("17-"))
         assertNull(JavaRuntimeMetadata.parseJavaMajor("17..9"))
+        assertNull(JavaRuntimeMetadata.parseJavaMajor("1.17"))
+        assertNull(JavaRuntimeMetadata.parseJavaMajor("1."))
         assertNull(JavaRuntimeMetadata.parseJavaMajor("17.foo"))
         assertNull(JavaRuntimeMetadata.parseJavaMajor("17+"))
         assertNull(JavaRuntimeMetadata.parseJavaMajor("17-ea+"))
