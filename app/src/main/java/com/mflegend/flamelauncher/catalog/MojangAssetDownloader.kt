@@ -69,7 +69,7 @@ class MojangAssetDownloader {
 
             val prefix = hash.substring(0, 2)
             val prefixDir = findOrCreateDirectory(storage, objectsDir, prefix)
-            val existing = storage.listChildren(prefixDir).firstOrNull { !it.isDirectory && it.name == hash }
+            val existing = storage.findFile(prefixDir, hash)
             if (existing != null && isVerified(storage, existing.uri, size, hash)) {
                 present++
                 continue
