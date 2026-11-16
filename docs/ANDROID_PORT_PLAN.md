@@ -14,7 +14,8 @@ This document is the source of truth for the Android migration. The existing Tau
 - The Library tab now browses direct child folders and files from the selected SAF tree, loading provider queries off the main thread and allowing folder navigation.
 - At the selected folder root, the Library tab now checks for standard Minecraft directories (`versions`, `assets`, `libraries`, `mods`, `resourcepacks`, and `saves`) and reports which are present.
 - The Versions tab scans the selected game root's `versions` directory, reads matching `<version-id>.json` files through SAF, and displays parsed version ID, type, release time, main class, inheritance, and asset-index metadata.
-- Version scanning is metadata discovery only; download/install, client JAR validation, library resolution, file import/export, and Rust-engine integration remain unimplemented.
+- The Versions tab fetches Mojang's public HTTPS version manifest and displays the latest release/snapshot plus a preview of available versions.
+- The official catalog is metadata-only: version JSON detail fetching, client/library/asset downloads, SHA-1 verification, installation, file import/export, and Rust-engine integration remain unimplemented.
 - Gradle build, debug APK generation, and physical-device installation have not yet been verified.
 
 ## 1. Target architecture
