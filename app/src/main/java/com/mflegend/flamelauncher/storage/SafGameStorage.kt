@@ -192,6 +192,23 @@ class SafGameStorage(
         }
     }
 
+    /**
+     * Finds a named file in a directory and fails closed on directory or duplicate-name
+     * collisions instead of silently treating them as a missing destination.
+     */
+    fun findFile(parentUri: Uri, displayName: String): Entry? {
+        requireInTree(parentUri)
+        validateDisplayName(displayName)
+        val matches = listChildren(parentUri).filter { it.name == displayName }
+        require(matches.none { it.isDirectory }) {
+            "A folder already occupies the file name '$displayName'."
+        }
+        require(matches.size <= 1) {
+            "The storage provider returned multiple files named '$displayName'. Resolve the duplicate before continuing."
+        }
+        return matches.singleOrNull()
+    }
+
     /** Renames a verified temporary document within the selected tree. */
     fun rename(uri: Uri, displayName: String): Uri {
         requireInTree(uri)
