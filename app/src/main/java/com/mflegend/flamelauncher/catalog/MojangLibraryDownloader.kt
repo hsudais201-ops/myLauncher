@@ -68,7 +68,7 @@ class MojangLibraryDownloader {
                 parent = findOrCreateDirectory(storage, parent, segment)
             }
             val fileName = segments.last()
-            val existing = storage.listChildren(parent).firstOrNull { !it.isDirectory && it.name == fileName }
+            val existing = storage.findFile(parent, fileName)
             if (existing != null && isVerified(storage, existing.uri, expectedSize, sha1)) {
                 present++
                 continue
