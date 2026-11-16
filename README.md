@@ -35,7 +35,7 @@ The Android port is **not yet complete**. In particular, this repository does no
 - Microsoft account, Xbox Live/XSTS, or Minecraft Services authentication.
 - Verified gameplay on physical Android devices.
 
-See [docs/ANDROID_PORT_PLAN.md](docs/ANDROID_PORT_PLAN.md) for the implementation sequence and technical constraints.
+See [docs/ANDROID_PORT_PLAN.md](docs/ANDROID_PORT_PLAN.md) for the implementation sequence and technical constraints, and [docs/ANDROID_RUNTIME_INTEGRATION_ASSESSMENT.md](docs/ANDROID_RUNTIME_INTEGRATION_ASSESSMENT.md) for the current JVM/renderer reference and licensing gates.
 
 ## Development of the existing desktop prototype
 
