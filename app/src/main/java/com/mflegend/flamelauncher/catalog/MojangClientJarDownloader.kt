@@ -18,7 +18,8 @@ class MojangClientJarDownloader {
         versionId: String,
         metadataBytes: ByteArray,
         storage: SafGameStorage,
-        versionDirectory: Uri
+        versionDirectory: Uri,
+        control: DownloadControl = DownloadControl()
     ): ClientJarDownloadResult {
         require(versionId.matches(Regex("[A-Za-z0-9._-]{1,100}"))) { "Invalid version identifier." }
         val metadata = JSONObject(metadataBytes.toString(Charsets.UTF_8.name()))
@@ -35,10 +36,10 @@ class MojangClientJarDownloader {
         require(expectedSize in 1..MAX_CLIENT_JAR_BYTES) { "Client JAR size is missing or exceeds the safety limit." }
 
         val fileName = "$versionId.jar"
-        storage.listChildren(versionDirectory).firstOrNull { !it.isDirectory && it.name == fileName }?.let {
-            storage.delete(it.uri)
-        }
-        val fileUri = storage.createFile(versionDirectory, fileName, "application/java-archive")
+        val oldFile = storage.listChildren(versionDirectory).firstOrNull { !it.isDirectory && it.name == fileName }
+        val temporaryName = ".$fileName.download"
+        storage.listChildren(versionDirectory).firstOrNull { !it.isDirectory && it.name == temporaryName }?.let { storage.delete(it.uri) }
+        val fileUri = storage.createFile(versionDirectory, temporaryName, "application/java-archive")
         val connection = (downloadUrl.openConnection() as HttpURLConnection).apply {
             requestMethod = "GET"
             connectTimeout = 20_000
@@ -55,6 +56,7 @@ class MojangClientJarDownloader {
                 storage.openOutput(fileUri).use { output ->
                     val buffer = ByteArray(64 * 1024)
                     while (true) {
+                        control.checkpoint()
                         val count = input.read(buffer)
                         if (count < 0) break
                         total += count
@@ -63,6 +65,7 @@ class MojangClientJarDownloader {
                         }
                         digest.update(buffer, 0, count)
                         output.write(buffer, 0, count)
+                        control.progress("Client JAR", total, expectedSize)
                     }
                     output.flush()
                 }
@@ -70,7 +73,11 @@ class MojangClientJarDownloader {
             require(total == expectedSize) { "Client JAR size verification failed: expected $expectedSize bytes, received $total." }
             val actualSha1 = digest.digest().joinToString("") { "%02x".format(it) }
             require(actualSha1.equals(expectedSha1, ignoreCase = true)) { "Client JAR SHA-1 verification failed." }
-            return ClientJarDownloadResult(fileUri, total)
+            control.checkpoint()
+            oldFile?.let { storage.delete(it.uri) }
+            val finalUri = android.provider.DocumentsContract.renameDocument(storage.contentResolver(), fileUri, fileName)
+                ?: error("The storage provider could not finalize the verified client JAR.")
+            return ClientJarDownloadResult(finalUri, total)
         } catch (error: Exception) {
             runCatching { storage.delete(fileUri) }
             throw error
