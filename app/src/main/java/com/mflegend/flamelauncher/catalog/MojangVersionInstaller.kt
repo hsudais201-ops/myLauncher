@@ -74,6 +74,5 @@ class MojangVersionInstaller(
     }
 
     private fun findOrCreateDirectory(storage: SafGameStorage, parent: Uri, name: String): Uri =
-        storage.listChildren(parent).firstOrNull { it.isDirectory && it.name == name }?.uri
-            ?: storage.createDirectory(parent, name)
+        storage.findDirectory(parent, name)?.uri ?: storage.createDirectory(parent, name)
 }
