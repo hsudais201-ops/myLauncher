@@ -48,6 +48,9 @@ class AndroidJavaRuntimeManager(context: Context) {
         if (!runtimeRoot.exists()) {
             return ScanResult(emptyList(), listOf("No Android Java runtime has been installed."))
         }
+        if (RuntimePathPolicy.isSymbolicLink(runtimeRoot)) {
+            return ScanResult(emptyList(), listOf("The private Java runtime directory must not be a symbolic link."))
+        }
         if (!runtimeRoot.isDirectory) {
             return ScanResult(emptyList(), listOf("The private Java runtime location is not a directory."))
         }
@@ -77,6 +80,10 @@ class AndroidJavaRuntimeManager(context: Context) {
         }
 
         for (directory in children) {
+            if (RuntimePathPolicy.isSymbolicLink(directory)) {
+                warnings += "Ignored ${directory.name}: symbolic-link runtime folders are not allowed."
+                continue
+            }
             if (!directory.isDirectory || !RuntimePathPolicy.isRuntimeId(directory.name)) continue
             val canonicalHome = try {
                 directory.canonicalFile
@@ -93,7 +100,11 @@ class AndroidJavaRuntimeManager(context: Context) {
             }
 
             val releaseFile = File(canonicalHome, "release")
-            if (!RuntimePathPolicy.isSafeChild(canonicalHome, releaseFile) || !releaseFile.isFile || releaseFile.length() > MAX_RELEASE_FILE_BYTES) {
+            if (RuntimePathPolicy.isSymbolicLink(releaseFile) ||
+                !RuntimePathPolicy.isSafeChild(canonicalHome, releaseFile) ||
+                !releaseFile.isFile ||
+                releaseFile.length() > MAX_RELEASE_FILE_BYTES
+            ) {
                 warnings += "Ignored ${directory.name}: Java release metadata is missing or invalid."
                 continue
             }
@@ -168,7 +179,10 @@ class AndroidJavaRuntimeManager(context: Context) {
         )
         return candidates.firstOrNull {
             try {
-                RuntimePathPolicy.isSafeChild(home, it) && it.isFile && it.length() > 0L
+                !RuntimePathPolicy.isSymbolicLink(it) &&
+                    RuntimePathPolicy.isSafeChild(home, it) &&
+                    it.isFile &&
+                    it.length() > 0L
             } catch (_: IOException) {
                 false
             } catch (_: SecurityException) {
