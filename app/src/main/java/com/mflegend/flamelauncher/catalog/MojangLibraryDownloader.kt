@@ -6,6 +6,7 @@ import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
 import java.security.MessageDigest
+import java.util.concurrent.CancellationException
 
 data class LibraryDownloadResult(
     val downloaded: Int,
@@ -36,9 +37,15 @@ class MojangLibraryDownloader {
         var present = 0
         var skipped = 0
         var totalBytes = 0L
+        val eligibleCount = (0 until libraries.length()).count { i ->
+            val item = libraries.optJSONObject(i)
+            item != null && !item.has("rules") && item.optJSONObject("downloads")?.optJSONObject("artifact") != null
+        }
+        var completedCount = 0
 
         for (index in 0 until libraries.length()) {
             control.checkpoint()
+            if (cancelled()) throw CancellationException("Download cancelled.")
             val library = libraries.optJSONObject(index) ?: continue
             // Do not guess how desktop OS rules should map to Android.
             if (library.has("rules")) {
@@ -69,6 +76,8 @@ class MojangLibraryDownloader {
             val existing = storage.listChildren(parent).firstOrNull { !it.isDirectory && it.name == fileName }
             if (existing != null && isVerified(storage, existing.uri, expectedSize, sha1)) {
                 present++
+                completedCount++
+                onProgress(completedCount, eligibleCount, relativePath)
                 continue
             }
             require(totalBytes <= MAX_TOTAL_BYTES - expectedSize) {
