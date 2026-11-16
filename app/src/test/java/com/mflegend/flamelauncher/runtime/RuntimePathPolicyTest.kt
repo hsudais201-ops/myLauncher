@@ -67,4 +67,28 @@ class RuntimePathPolicyTest {
             outside.delete()
         }
     }
+
+    @Test fun acceptsRegularDescendantsInsideRuntimeHome() {
+        val home = Files.createTempDirectory("flame-runtime-home").toFile()
+        try {
+            val libraryDirectory = File(home, "lib/server").apply { mkdirs() }
+            val jvm = File(libraryDirectory, "libjvm.so").apply { writeBytes(byteArrayOf(1, 2, 3)) }
+            assertTrue(RuntimePathPolicy.isSafeChild(home, jvm))
+        } finally {
+            home.deleteRecursively()
+        }
+    }
+
+    @Test fun rejectsSiblingPathsThatShareTheParentNamePrefix() {
+        val parent = Files.createTempDirectory("flame-runtime-root").toFile()
+        val sibling = File(parent.parentFile, parent.name + "-outside").apply { mkdir() }
+        try {
+            val candidate = File(sibling, "release").apply { writeText("JAVA_VERSION=17") }
+            assertFalse(RuntimePathPolicy.isSafeChild(parent, candidate))
+        } finally {
+            parent.deleteRecursively()
+            sibling.deleteRecursively()
+        }
+    }
+
 }
