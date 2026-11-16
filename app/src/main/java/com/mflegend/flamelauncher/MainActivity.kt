@@ -56,7 +56,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
-import androidx.lifecycle.LifecycleOwner
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
@@ -621,6 +621,7 @@ private fun LibraryScreen(folderUri: String?) {
 @Composable
 private fun SettingsScreen(folderUri: String?, error: String?, onChooseFolder: () -> Unit) {
     val context = LocalContext.current
+    val lifecycleOwner = LocalLifecycleOwner.current
     fun checkPersistedFolderAccess(): Boolean =
         folderUri?.let { selectedUri ->
             val selectedTree = Uri.parse(selectedUri)
@@ -634,15 +635,14 @@ private fun SettingsScreen(folderUri: String?, error: String?, onChooseFolder: (
     var hasPersistedFolderAccess by remember(folderUri) {
         mutableStateOf(checkPersistedFolderAccess())
     }
-    DisposableEffect(context, folderUri) {
-        val owner = context as? LifecycleOwner
+    DisposableEffect(lifecycleOwner, folderUri) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
                 hasPersistedFolderAccess = checkPersistedFolderAccess()
             }
         }
-        owner?.lifecycle?.addObserver(observer)
-        onDispose { owner?.lifecycle?.removeObserver(observer) }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
     val runtime = remember { AndroidRuntimeEnvironment.inspect(context) }
     val runtimeScan by produceState<AndroidJavaRuntimeManager.ScanResult?>(initialValue = null, runtime) {
