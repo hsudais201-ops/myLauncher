@@ -127,10 +127,7 @@ class SafGameStorage(
             return finalUri
         } catch (error: Exception) {
             if (backupUri != null) {
-                runCatching {
-                    val current = listChildren(rootDocumentUri).firstOrNull { !it.isDirectory && it.name == finalName }
-                    if (current == null) rename(backupUri, finalName)
-                }
+                runCatching { rename(backupUri, finalName) }
             }
             throw error
         }
