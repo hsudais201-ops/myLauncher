@@ -42,6 +42,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.getValue
@@ -53,6 +54,9 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.LifecycleOwner
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
@@ -617,7 +621,7 @@ private fun LibraryScreen(folderUri: String?) {
 @Composable
 private fun SettingsScreen(folderUri: String?, error: String?, onChooseFolder: () -> Unit) {
     val context = LocalContext.current
-    val hasPersistedFolderAccess = remember(folderUri) {
+    fun checkPersistedFolderAccess(): Boolean =
         folderUri?.let { selectedUri ->
             val selectedTree = Uri.parse(selectedUri)
             context.contentResolver.persistedUriPermissions.any { permission ->
@@ -626,6 +630,19 @@ private fun SettingsScreen(folderUri: String?, error: String?, onChooseFolder: (
                     permission.isWritePermission
             }
         } ?: false
+
+    var hasPersistedFolderAccess by remember(folderUri) {
+        mutableStateOf(checkPersistedFolderAccess())
+    }
+    DisposableEffect(context, folderUri) {
+        val owner = context as? LifecycleOwner
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                hasPersistedFolderAccess = checkPersistedFolderAccess()
+            }
+        }
+        owner?.lifecycle?.addObserver(observer)
+        onDispose { owner?.lifecycle?.removeObserver(observer) }
     }
     val runtime = remember { AndroidRuntimeEnvironment.inspect(context) }
     val runtimeScan by produceState<AndroidJavaRuntimeManager.ScanResult?>(initialValue = null, runtime) {
