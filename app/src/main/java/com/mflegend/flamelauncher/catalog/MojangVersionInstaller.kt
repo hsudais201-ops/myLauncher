@@ -28,7 +28,6 @@ class MojangVersionInstaller(
         require(version.id.matches(Regex("[A-Za-z0-9._-]{1,100}"))) {
             "Invalid version identifier."
         }
-        control.progress("Version metadata", 0, null)
         control.checkpoint()
         control.progress("Version metadata", 0, null)
         val metadataBytes = manifestClient.fetchVersionMetadata(version)
@@ -59,15 +58,17 @@ class MojangVersionInstaller(
     }
 
     private fun saveMetadata(storage: SafGameStorage, directory: Uri, name: String, bytes: ByteArray) {
-        storage.listChildren(directory).firstOrNull { !it.isDirectory && it.name == name }?.let {
-            storage.delete(it.uri)
-        }
-        val uri = storage.createFile(directory, name, "application/json")
+        val existing = storage.listChildren(directory).firstOrNull { !it.isDirectory && it.name == name }
+        val temporaryName = ".$name.download"
+        storage.listChildren(directory).firstOrNull { !it.isDirectory && it.name == temporaryName }?.let { storage.delete(it.uri) }
+        val uri = storage.createFile(directory, temporaryName, "application/json")
         try {
             storage.openOutput(uri).use { output ->
                 output.write(bytes)
                 output.flush()
             }
+            existing?.let { storage.delete(it.uri) }
+            storage.rename(uri, name)
         } catch (error: Exception) {
             runCatching { storage.delete(uri) }
             throw error
