@@ -295,8 +295,7 @@ private fun VersionsScreen(folderUri: String?) {
                                                             ?.uri ?: storage.createDirectory(versionsDir, item.id)
                                                         val bytes = MojangVersionManifestClient().fetchVersionMetadata(item)
                                                         val fileName = item.id + ".json"
-                                                        val existingMetadata = storage.listChildren(versionDir)
-                                                            .firstOrNull { !it.isDirectory && it.name == fileName }
+                                                        val existingMetadata = storage.findFile(versionDir, fileName)
                                                         val temporaryName = ".$fileName.download"
                                                         val temporaryUri = storage.createTemporaryFile(
                                                             versionDir,
