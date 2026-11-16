@@ -610,3 +610,86 @@ private fun LibraryScreen(folderUri: String?) {
                 }
             }
         }
+        }
+    }
+}
+
+@Composable
+private fun SettingsScreen(folderUri: String?, error: String?, onChooseFolder: () -> Unit) {
+    val context = LocalContext.current
+    val runtime = remember { AndroidRuntimeEnvironment.inspect(context) }
+    val runtimeScan by produceState<AndroidJavaRuntimeManager.ScanResult?>(initialValue = null, runtime) {
+        value = withContext(Dispatchers.IO) {
+            AndroidJavaRuntimeManager(context).scan(runtime)
+        }
+    }
+    val scanResult = runtimeScan
+
+    Card(colors = CardDefaults.cardColors(containerColor = Panel), shape = RoundedCornerShape(20.dp)) {
+        Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Text("Settings", color = Color.White, fontSize = 23.sp, fontWeight = FontWeight.Bold)
+            Text("GAME STORAGE", color = Flame, fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.5.sp)
+            Text("Choose a game folder. Flame Launcher can browse it and install supported vanilla version files. Android-specific native dependencies, runtime integration, and game launching are still in development.", color = Muted, fontSize = 13.sp)
+            Button(onClick = onChooseFolder, modifier = Modifier.fillMaxWidth()) {
+                Text(if (folderUri == null) "Choose game folder" else "Change game folder")
+            }
+            if (folderUri != null) {
+                Text("Selected folder permission saved", color = Color(0xFF8DD9A8), fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+                Text(folderUri, color = Muted, fontSize = 11.sp)
+            } else {
+                Text("No game folder selected", color = Muted, fontSize = 12.sp)
+            }
+            if (error != null) {
+                Text(error, color = Color(0xFFFF9A82), fontSize = 12.sp)
+            }
+        }
+    }
+    Card(colors = CardDefaults.cardColors(containerColor = Panel), shape = RoundedCornerShape(20.dp)) {
+        Column(Modifier.fillMaxWidth().padding(20.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text("JAVA RUNTIME READINESS", color = Flame, fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.2.sp)
+            Text(
+                if (runtime.supportsInitialArm64Runtime) "ARM64 device capability detected" else "Initial ARM64 target not confirmed",
+                color = if (runtime.supportsInitialArm64Runtime) Color(0xFF8DD9A8) else Color(0xFFFFB36B),
+                fontSize = 15.sp,
+                fontWeight = FontWeight.SemiBold
+            )
+            Text("Android API: ${runtime.androidApiLevel}", color = Muted, fontSize = 12.sp)
+            Text("Primary ABI: ${runtime.primaryAbi ?: "Unknown"}", color = Muted, fontSize = 12.sp)
+            Text("Supported ABIs: ${runtime.supportedAbis.joinToString().ifBlank { "Unknown" }}", color = Muted, fontSize = 12.sp)
+            Text("App process: ${if (runtime.is64BitProcess) "64-bit" else "32-bit"}", color = Muted, fontSize = 12.sp)
+            Text("App heap limit: ${runtime.maxHeapMb} MB · Device memory class: ${runtime.memoryClassMb?.let { "$it MB" } ?: "Unknown"}", color = Muted, fontSize = 12.sp)
+            Text("Available processor cores: ${runtime.processorCount}", color = Muted, fontSize = 12.sp)
+            if (scanResult == null) {
+                Text("Checking app-private Java runtime storage…", color = Muted, fontSize = 12.sp)
+            } else if (scanResult.abiMatchedRuntimes.isNotEmpty()) {
+                Text(
+                    "ABI-matched runtime candidates found: ${scanResult.abiMatchedRuntimes.joinToString { "Java ${it.javaMajorVersion} (${it.id})" }}",
+                    color = Color(0xFF8DD9A8),
+                    fontSize = 12.sp
+                )
+            } else if (scanResult.runtimes.isNotEmpty()) {
+                Text("Java runtime candidates were found, but none match this app process ABI.", color = Color(0xFFFFB36B), fontSize = 12.sp)
+            } else {
+                Text("No ABI-matched Minecraft Java runtime candidate is installed in Flame Launcher's private runtime storage.", color = Muted, fontSize = 12.sp)
+            }
+            Text(
+                "ABI matching is not proof of Android linker or native-library compatibility. The scan does not load or start a JVM; Minecraft launching remains unavailable until a supported Android runtime, native dependencies, and graphics bridge are integrated.",
+                color = Muted,
+                fontSize = 12.sp
+            )
+            scanResult?.warnings?.take(2)?.forEach { warning ->
+                Text(warning, color = Color(0xFFFFB36B), fontSize = 11.sp)
+            }
+        }
+    }
+}
+
+@Composable
+private fun InfoScreen(title: String, detail: String) {
+    Card(colors = CardDefaults.cardColors(containerColor = Panel), shape = RoundedCornerShape(20.dp)) {
+        Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Text(title, color = Color.White, fontSize = 23.sp, fontWeight = FontWeight.Bold)
+            Text(detail, color = Muted, fontSize = 14.sp)
+        }
+    }
+}
