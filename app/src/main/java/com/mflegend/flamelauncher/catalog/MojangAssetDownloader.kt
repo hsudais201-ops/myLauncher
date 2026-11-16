@@ -80,7 +80,6 @@ class MojangAssetDownloader {
             if (existing != null && isVerified(storage, existing.uri, size, hash)) {
                 present++
                 completedCount++
-                control.progress("Assets", completedCount.toLong(), objectCount.toLong())
                 continue
             }
             val temporaryName = ".$hash.download"
