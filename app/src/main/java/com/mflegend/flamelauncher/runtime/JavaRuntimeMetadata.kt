@@ -7,6 +7,7 @@ internal object JavaRuntimeMetadata {
 
     fun parseReleaseFile(content: String): Map<String, String> {
         val values = mutableMapOf<String, String>()
+        val seenKeys = mutableSetOf<String>()
         val ambiguousKeys = mutableSetOf<String>()
         for (line in content.lineSequence()) {
             val separator = line.indexOf('=')
@@ -14,7 +15,7 @@ internal object JavaRuntimeMetadata {
             val key = line.substring(0, separator).trim()
             val rawValue = line.substring(separator + 1).trim()
             if (!releaseKey.matches(key) || key in ambiguousKeys) continue
-            if (values.containsKey(key)) {
+            if (!seenKeys.add(key)) {
                 values.remove(key)
                 ambiguousKeys += key
                 continue
