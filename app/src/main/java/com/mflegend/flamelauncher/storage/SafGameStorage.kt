@@ -168,7 +168,10 @@ class SafGameStorage(
         requireInTree(temporaryUri)
         existingUri?.let { requireInTree(it) }
         validateDisplayName(finalName)
-        require(existingUri == null || existingUri != temporaryUri) {
+        require(
+            existingUri == null ||
+                DocumentsContract.getDocumentId(existingUri) != DocumentsContract.getDocumentId(temporaryUri)
+        ) {
             "The temporary document and existing destination must be different files."
         }
         val backupUri = existingUri?.let { rename(it, ".$finalName.backup") }
