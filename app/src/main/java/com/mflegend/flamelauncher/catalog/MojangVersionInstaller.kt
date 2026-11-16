@@ -20,11 +20,17 @@ class MojangVersionInstaller(
     private val libraryDownloader: MojangLibraryDownloader = MojangLibraryDownloader(),
     private val assetDownloader: MojangAssetDownloader = MojangAssetDownloader()
 ) {
-    fun install(version: MojangVersion, storage: SafGameStorage): MojangVersionInstallResult {
+    fun install(
+        version: MojangVersion,
+        storage: SafGameStorage,
+        control: DownloadControl = DownloadControl()
+    ): MojangVersionInstallResult {
         require(version.id.matches(Regex("[A-Za-z0-9._-]{1,100}"))) {
             "Invalid version identifier."
         }
+        control.progress("Version metadata", 0, null)
         val metadataBytes = manifestClient.fetchVersionMetadata(version)
+        control.progress("Version metadata", 1, 1)
         val root = storage.root()
         val versionsDirectory = findOrCreateDirectory(storage, root, "versions")
         val versionDirectory = findOrCreateDirectory(storage, versionsDirectory, version.id)
@@ -34,10 +40,11 @@ class MojangVersionInstaller(
             version.id,
             metadataBytes,
             storage,
-            versionDirectory
+            versionDirectory,
+            control
         )
-        val libraries = libraryDownloader.download(metadataBytes, storage, root)
-        val assets = assetDownloader.download(metadataBytes, storage, root)
+        val libraries = libraryDownloader.download(metadataBytes, storage, root, control)
+        val assets = assetDownloader.download(metadataBytes, storage, root, control)
 
         return MojangVersionInstallResult(
             versionId = version.id,
