@@ -298,10 +298,11 @@ private fun VersionsScreen(folderUri: String?) {
                                                         val existingMetadata = storage.listChildren(versionDir)
                                                             .firstOrNull { !it.isDirectory && it.name == fileName }
                                                         val temporaryName = ".$fileName.download"
-                                                        storage.listChildren(versionDir)
-                                                            .firstOrNull { !it.isDirectory && it.name == temporaryName }
-                                                            ?.let { storage.delete(it.uri) }
-                                                        val temporaryUri = storage.createFile(versionDir, temporaryName, "application/json")
+                                                        val temporaryUri = storage.createTemporaryFile(
+                                                            versionDir,
+                                                            temporaryName,
+                                                            "application/json"
+                                                        )
                                                         try {
                                                             storage.openOutput(temporaryUri).use { output ->
                                                                 output.write(bytes)
