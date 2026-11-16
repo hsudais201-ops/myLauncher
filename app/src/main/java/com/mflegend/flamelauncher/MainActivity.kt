@@ -610,7 +610,6 @@ private fun LibraryScreen(folderUri: String?) {
                 }
             }
         }
-        }
     }
 }
 
