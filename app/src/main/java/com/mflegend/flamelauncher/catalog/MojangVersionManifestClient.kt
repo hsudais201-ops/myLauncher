@@ -25,6 +25,7 @@ class MojangVersionManifestClient {
             requestMethod = "GET"
             connectTimeout = 15_000
             readTimeout = 20_000
+            instanceFollowRedirects = false
             setRequestProperty("Accept", "application/json")
             setRequestProperty("User-Agent", "FlameLauncher-Android/0.1.0")
         }
@@ -52,7 +53,8 @@ class MojangVersionManifestClient {
                     val item = array.getJSONObject(index)
                     val id = item.optString("id")
                     val url = item.optString("url")
-                    if (id.isNotBlank() && url.startsWith("https://")) {
+                    val approvedUrl = runCatching { MojangMetadataEndpointPolicy.isApproved(URL(url)) }.getOrDefault(false)
+                    if (id.matches(Regex("[A-Za-z0-9._-]{1,100}")) && approvedUrl) {
                         add(MojangVersion(
                             id = id,
                             type = item.optString("type", "unknown"),
@@ -80,13 +82,14 @@ class MojangVersionManifestClient {
     ): ByteArray {
         control?.checkpoint()
         val metadataUrl = URL(version.url)
-        require(metadataUrl.protocol == "https" && metadataUrl.host == "piston-meta.mojang.com") {
+        require(MojangMetadataEndpointPolicy.isApproved(metadataUrl)) {
             "Version metadata URL is not an approved Mojang HTTPS endpoint."
         }
         val connection = (metadataUrl.openConnection() as HttpURLConnection).apply {
             requestMethod = "GET"
             connectTimeout = 15_000
             readTimeout = 20_000
+            instanceFollowRedirects = false
             setRequestProperty("Accept", "application/json")
             setRequestProperty("User-Agent", "FlameLauncher-Android/0.1.0")
         }
