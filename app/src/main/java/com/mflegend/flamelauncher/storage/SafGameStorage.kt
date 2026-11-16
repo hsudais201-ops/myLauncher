@@ -161,11 +161,27 @@ class SafGameStorage(
         requireInTree(parentUri)
         validateDisplayName(displayName)
         require(mimeType.isNotBlank()) { "A MIME type is required." }
-        return providerCall("creating a file") {
+        require(listChildren(parentUri).none { it.name == displayName }) {
+            "A document already occupies the requested file name '$displayName'."
+        }
+        val created = providerCall("creating a file") {
             requireNotNull(
                 DocumentsContract.createDocument(resolver, parentUri, mimeType, displayName)
             ) { "The document provider returned no file." }
         }
+        // Confirm that the provider created one distinct, visible file rather than
+        // returning a reused URI, a directory, or an ambiguous duplicate.
+        requireInTree(created)
+        val createdId = DocumentsContract.getDocumentId(created)
+        val visibleEntries = listChildren(parentUri).filter { it.name == displayName }
+        require(
+            visibleEntries.size == 1 &&
+                visibleEntries.single().documentId == createdId &&
+                !visibleEntries.single().isDirectory
+        ) {
+            "The storage provider did not create one distinct file with the requested name."
+        }
+        return created
     }
 
     /**
