@@ -162,8 +162,7 @@ class MojangLibraryDownloader {
     }.getOrDefault(false)
 
     private fun findOrCreateDirectory(storage: SafGameStorage, parent: Uri, name: String): Uri {
-        return storage.listChildren(parent).firstOrNull { it.isDirectory && it.name == name }?.uri
-            ?: storage.createDirectory(parent, name)
+        return storage.findDirectory(parent, name)?.uri ?: storage.createDirectory(parent, name)
     }
 
     private fun validateArtifactPath(path: String): List<String> {
