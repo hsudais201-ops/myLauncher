@@ -79,6 +79,9 @@ class MojangLibraryDownloader {
             val fileUri = storage.createFile(parent, temporaryName, "application/java-archive")
             try {
                 downloadOne(url, storage, fileUri, expectedSize, sha1, control)
+                require(DownloadedFileVerifier.matches(storage.openInput(fileUri), expectedSize, sha1, control)) {
+                    "Stored library artifact verification failed: $relativePath"
+                }
                 control.checkpoint()
                 storage.replaceWithVerifiedFile(fileUri, existing?.uri, fileName)
                 totalBytes += expectedSize
