@@ -25,6 +25,30 @@ class RuntimeLaunchReadinessTest {
         assertTrue(readiness.missingRequirements.any { it.contains("physical Android device") })
     }
 
+    @Test fun eachIndividualRequirementBlocksLaunch() {
+        val complete = RuntimeLaunchReadiness(
+            compatibleJvmLoaded = true,
+            nativeDependenciesResolved = true,
+            graphicsSurfaceReady = true,
+            inputAndAudioReady = true,
+            lifecycleHandlingReady = true,
+            physicalDeviceGameTestPassed = true
+        )
+        val incompleteStates = listOf(
+            complete.copy(compatibleJvmLoaded = false),
+            complete.copy(nativeDependenciesResolved = false),
+            complete.copy(graphicsSurfaceReady = false),
+            complete.copy(inputAndAudioReady = false),
+            complete.copy(lifecycleHandlingReady = false),
+            complete.copy(physicalDeviceGameTestPassed = false)
+        )
+
+        incompleteStates.forEach { readiness ->
+            assertFalse(readiness.canLaunch)
+            assertEquals(1, readiness.missingRequirements.size)
+        }
+    }
+
     @Test fun everyVerifiedGateIsRequired() {
         val complete = RuntimeLaunchReadiness(
             compatibleJvmLoaded = true,
