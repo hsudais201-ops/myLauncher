@@ -37,7 +37,7 @@ class MojangClientJarDownloader {
         require(expectedSize in 1..MAX_CLIENT_JAR_BYTES) { "Client JAR size is missing or exceeds the safety limit." }
 
         val fileName = "$versionId.jar"
-        val oldFile = storage.listChildren(versionDirectory).firstOrNull { !it.isDirectory && it.name == fileName }
+        val oldFile = storage.findFile(versionDirectory, fileName)
         val temporaryName = ".$fileName.download"
         val fileUri = storage.createTemporaryFile(versionDirectory, temporaryName, "application/java-archive")
         val connection = (downloadUrl.openConnection() as HttpURLConnection).apply {
