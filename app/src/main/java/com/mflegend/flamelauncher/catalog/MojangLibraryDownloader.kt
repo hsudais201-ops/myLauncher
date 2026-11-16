@@ -37,12 +37,6 @@ class MojangLibraryDownloader {
         var present = 0
         var skipped = 0
         var totalBytes = 0L
-        val eligibleCount = (0 until libraries.length()).count { i ->
-            val item = libraries.optJSONObject(i)
-            item != null && !item.has("rules") && item.optJSONObject("downloads")?.optJSONObject("artifact") != null
-        }
-        var completedCount = 0
-
         for (index in 0 until libraries.length()) {
             control.checkpoint()
             val library = libraries.optJSONObject(index) ?: continue
@@ -75,7 +69,6 @@ class MojangLibraryDownloader {
             val existing = storage.listChildren(parent).firstOrNull { !it.isDirectory && it.name == fileName }
             if (existing != null && isVerified(storage, existing.uri, expectedSize, sha1)) {
                 present++
-                completedCount++
                 continue
             }
             require(totalBytes <= MAX_TOTAL_BYTES - expectedSize) {
