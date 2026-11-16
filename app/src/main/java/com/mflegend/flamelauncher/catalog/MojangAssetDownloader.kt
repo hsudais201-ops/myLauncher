@@ -32,8 +32,7 @@ class MojangAssetDownloader {
         val indexId = assetIndex.optString("id")
         require(indexId.matches(Regex("[A-Za-z0-9._-]{1,100}"))) { "Asset index ID is invalid." }
         val indexUrl = URL(assetIndex.optString("url"))
-        require(indexUrl.protocol == "https" && indexUrl.userInfo == null &&
-            (indexUrl.port == -1 || indexUrl.port == 443) &&
+        require(MojangHttpsEndpointPolicy.isApproved(indexUrl) &&
             indexUrl.host.equals("piston-meta.mojang.com", ignoreCase = true)) {
             "Asset index URL is not an approved Mojang HTTPS endpoint."
         }
@@ -167,7 +166,8 @@ class MojangAssetDownloader {
         expectedSha1: String,
         control: DownloadControl
     ) {
-        require(url.protocol == "https" && url.host.equals("resources.download.minecraft.net", ignoreCase = true)) {
+        require(MojangHttpsEndpointPolicy.isApproved(url) &&
+            url.host.equals("resources.download.minecraft.net", ignoreCase = true)) {
             "Asset object URL is not an approved Mojang HTTPS endpoint."
         }
         val connection = (url.openConnection() as HttpURLConnection).apply {
