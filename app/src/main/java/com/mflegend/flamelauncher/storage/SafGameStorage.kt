@@ -89,16 +89,16 @@ class SafGameStorage(
             requireNotNull(resolver.openInputStream(uri)) { "The document provider returned no input stream." }
         }
         return object : FilterInputStream(stream) {
-            override fun read(): Int = providerCall("reading a file") { super.read() }
+            override fun read(): Int = providerCall("reading a file") { stream.read() }
 
             override fun read(buffer: ByteArray, offset: Int, length: Int): Int =
-                providerCall("reading a file") { super.read(buffer, offset, length) }
+                providerCall("reading a file") { stream.read(buffer, offset, length) }
 
             override fun skip(count: Long): Long =
-                providerCall("skipping within a file") { super.skip(count) }
+                providerCall("skipping within a file") { stream.skip(count) }
 
             override fun close() {
-                providerCall("closing a file after reading") { super.close() }
+                providerCall("closing a file after reading") { stream.close() }
             }
         }
     }
@@ -126,7 +126,7 @@ class SafGameStorage(
             }
 
             override fun close() {
-                providerCall("closing a file after writing") { super.close() }
+                providerCall("closing a file after writing") { stream.close() }
             }
         }
     }
