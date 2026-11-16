@@ -640,9 +640,9 @@ private fun SettingsScreen(folderUri: String?, error: String?, onChooseFolder: (
             Text("App process: ${if (runtime.is64BitProcess) "64-bit" else "32-bit"}", color = Muted, fontSize = 12.sp)
             Text("App heap limit: ${runtime.maxHeapMb} MB · Device memory class: ${runtime.memoryClassMb?.let { "$it MB" } ?: "Unknown"}", color = Muted, fontSize = 12.sp)
             Text("Available processor cores: ${runtime.processorCount}", color = Muted, fontSize = 12.sp)
-            if (runtimeScan.compatibleRuntimes.isNotEmpty()) {
+            if (runtimeScan.abiMatchedRuntimes.isNotEmpty()) {
                 Text(
-                    "ABI-matched runtime candidates found: ${runtimeScan.compatibleRuntimes.joinToString { "Java ${it.javaMajorVersion} (${it.id})" }}",
+                    "ABI-matched runtime candidates found: ${runtimeScan.abiMatchedRuntimes.joinToString { "Java ${it.javaMajorVersion} (${it.id})" }}",
                     color = Color(0xFF8DD9A8),
                     fontSize = 12.sp
                 )
