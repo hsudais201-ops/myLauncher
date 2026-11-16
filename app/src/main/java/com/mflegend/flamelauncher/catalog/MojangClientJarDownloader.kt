@@ -82,7 +82,7 @@ class MojangClientJarDownloader {
                 ?: error("The storage provider could not finalize the verified client JAR.")
             return ClientJarDownloadResult(finalUri, total)
         } catch (error: Exception) {
-            runCatching { storage.delete(fileUri) }
+            storage.deleteTemporaryAfterFailure(fileUri, error)
             throw error
         } finally {
             connection.disconnect()
