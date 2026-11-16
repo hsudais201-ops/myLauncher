@@ -56,6 +56,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.launch
 import com.mflegend.flamelauncher.storage.SafGameStorage
 import com.mflegend.flamelauncher.versions.MinecraftVersionScanner
 import com.mflegend.flamelauncher.versions.InstalledMinecraftVersion
@@ -205,6 +206,9 @@ private fun VersionsScreen(folderUri: String?) {
     var latestSnapshot by remember { mutableStateOf<String?>(null) }
     var catalogLoading by remember { mutableStateOf(false) }
     var catalogError by remember { mutableStateOf<String?>(null) }
+    var metadataDownloadId by remember { mutableStateOf<String?>(null) }
+    var metadataDownloadMessage by remember { mutableStateOf<String?>(null) }
+    val scope = rememberCoroutineScope()
 
     LaunchedEffect(folderUri) {
         if (folderUri == null) { versions = emptyList(); directoryFound = false; return@LaunchedEffect }
@@ -234,7 +238,7 @@ private fun VersionsScreen(folderUri: String?) {
 
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text("Minecraft versions", color = Color.White, fontSize = 23.sp, fontWeight = FontWeight.Bold)
-        Text("Browse official Mojang version metadata and inspect local installations. Downloads and installation are not connected yet.", color = Muted, fontSize = 13.sp)
+        Text("Browse official releases and snapshots. You can download and SHA-1 verify version metadata; game files and launch support are still pending.", color = Muted, fontSize = 13.sp)
         Card(colors = CardDefaults.cardColors(containerColor = Panel), shape = RoundedCornerShape(18.dp)) {
             Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
                 Text("OFFICIAL VERSION CATALOG", color = Flame, fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
@@ -247,9 +251,50 @@ private fun VersionsScreen(folderUri: String?) {
                     catalog.take(30).forEach { item ->
                         Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                             Column(Modifier.weight(1f)) { Text(item.id, color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.SemiBold); Text(item.releaseTime.take(10), color = Muted, fontSize = 10.sp) }
-                            Text(item.type, color = Flame, fontSize = 11.sp)
+                            Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                                Text(item.type, color = Flame, fontSize = 11.sp)
+                                Button(
+                                    onClick = {
+                                        if (folderUri == null) {
+                                            metadataDownloadMessage = "Choose your game folder in Settings before saving metadata."
+                                        } else {
+                                            scope.launch {
+                                                metadataDownloadId = item.id
+                                                metadataDownloadMessage = null
+                                                try {
+                                                    withContext(Dispatchers.IO) {
+                                                        require(item.id.matches(Regex("[A-Za-z0-9._-]{1,100}"))) { "Invalid version identifier." }
+                                                        val storage = SafGameStorage(context.contentResolver, Uri.parse(folderUri))
+                                                        val root = storage.root()
+                                                        val versionsDir = storage.listChildren(root).firstOrNull { it.isDirectory && it.name == "versions" }
+                                                            ?.uri ?: storage.createDirectory(root, "versions")
+                                                        val versionDir = storage.listChildren(versionsDir).firstOrNull { it.isDirectory && it.name == item.id }
+                                                            ?.uri ?: storage.createDirectory(versionsDir, item.id)
+                                                        val bytes = MojangVersionManifestClient().fetchVersionMetadata(item)
+                                                        val fileName = item.id + ".json"
+                                                        storage.listChildren(versionDir).firstOrNull { !it.isDirectory && it.name == fileName }?.let { storage.delete(it.uri) }
+                                                        val fileUri = storage.createFile(versionDir, fileName, "application/json")
+                                                        storage.openOutput(fileUri).use { it.write(bytes) }
+                                                    }
+                                                    metadataDownloadMessage = item.id + " metadata downloaded and SHA-1 checked."
+                                                } catch (error: Exception) {
+                                                    metadataDownloadMessage = item.id + ": " + (error.localizedMessage ?: "Metadata download failed.")
+                                                } finally {
+                                                    metadataDownloadId = null
+                                                }
+                                            }
+                                        }
+                                    },
+                                    enabled = metadataDownloadId == null,
+                                    contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 10.dp, vertical = 2.dp)
+                                ) {
+                                    if (metadataDownloadId == item.id) CircularProgressIndicator(modifier = Modifier.height(14.dp), strokeWidth = 2.dp)
+                                    else Text("Get JSON", fontSize = 10.sp)
+                                }
+                            }
                         }
                     }
+                    if (metadataDownloadMessage != null) Text(metadataDownloadMessage ?: "", color = if (metadataDownloadMessage!!.contains("downloaded")) Color(0xFF8DD9A8) else Color(0xFFFFB36B), fontSize = 11.sp)
                 }
             }
         }
@@ -393,7 +438,7 @@ private fun SettingsScreen(folderUri: String?, error: String?, onChooseFolder: (
         Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Text("Settings", color = Color.White, fontSize = 23.sp, fontWeight = FontWeight.Bold)
             Text("GAME STORAGE", color = Flame, fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.5.sp)
-            Text("Choose a folder for Flame Launcher to request persistent Android document-provider access. This saves permission only; game file management is not connected yet.", color = Muted, fontSize = 13.sp)
+            Text("Choose a game folder. Flame Launcher can browse it and save verified version metadata; full game-file installation is still in development.", color = Muted, fontSize = 13.sp)
             Button(onClick = onChooseFolder, modifier = Modifier.fillMaxWidth()) {
                 Text(if (folderUri == null) "Choose game folder" else "Change game folder")
             }
