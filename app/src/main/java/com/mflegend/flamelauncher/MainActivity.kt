@@ -68,6 +68,7 @@ import com.mflegend.flamelauncher.catalog.MojangLibraryDownloader
 import com.mflegend.flamelauncher.catalog.MojangAssetDownloader
 import com.mflegend.flamelauncher.catalog.MojangVersionInstaller
 import com.mflegend.flamelauncher.catalog.DownloadControl
+import java.util.concurrent.CancellationException
 
 private val Flame = Color(0xFFFF6A2A)
 private val Background = Color(0xFF101116)
@@ -422,6 +423,8 @@ private fun VersionsScreen(folderUri: String?) {
                                                     }
                                                     metadataDownloadMessage = "${result.versionId}: files downloaded. Client JAR ${result.clientJarBytes} bytes; ${result.libraries.downloaded} libraries; ${result.assets.downloaded} assets; ${result.libraries.skippedByRules} OS-rule entries skipped."
                                                     scanRevision += 1
+                                                } catch (error: CancellationException) {
+                                                    metadataDownloadMessage = item.id + ": cancelled. Verified completed files were kept; choose Install files again to continue."
                                                 } catch (error: Exception) {
                                                     metadataDownloadMessage = item.id + ": installation stopped — " + (error.localizedMessage ?: "Download failed.")
                                                 } finally {
