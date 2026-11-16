@@ -46,7 +46,7 @@ The repository root `LICENSE` is GNU LGPL version 3. The README's dependency sec
 | PojavLauncher | “GLGPL” label with linked license | Verify exact license text and inherited obligations |
 | Android Support Libraries | Apache-2.0 | Pin exact artifacts and collect notices |
 | GL4ES | MIT | Pin exact source/binary and preserve notice |
-| MobileGlues | LGPL-2.1 | Resolve exact submodule commit and applicable LGPL obligations |
+| MobileGlues | LGPL-2.1 | Trace the exact source/artifact revision and applicable LGPL obligations; it is not a gitlink in the pinned root tree |
 | Krypton Wrapper | MIT | Verify exact source revision and notice |
 | ANGLE | “All Rights Reserved” in README; local ANGLE license file exists | **Stop**: obtain and review the exact license text and redistribution permission |
 | OpenJDK | GPLv2 statement | Identify exact JDK build, exceptions, source offer and redistribution terms |
@@ -59,7 +59,7 @@ The repository root `LICENSE` is GNU LGPL version 3. The README's dependency sec
 | OpenAL-Soft | GPLv2 statement | Resolve exact build and obligations before packaging |
 | Oboe | Apache-2.0 | Pin exact revision and notices |
 | pffft | “ARR” in README | **Stop**: clarify rights and redistribution permission |
-| SDL3 / SDL2 compatibility | zlib statements | Resolve exact submodule commits and preserve notices |
+| SDL3 / SDL2 compatibility | zlib statements | Trace exact source/artifact revisions and preserve notices; the suspected paths are not gitlinks in the pinned root tree |
 
 This table records what the upstream README says; it is not an independent legal determination. The README itself marks several items as unknown or restrictive, and it points to a separate local ANGLE license file. Those are blockers, not assumptions to waive.
 
