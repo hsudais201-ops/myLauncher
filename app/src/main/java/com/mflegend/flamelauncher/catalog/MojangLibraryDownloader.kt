@@ -83,8 +83,6 @@ class MojangLibraryDownloader {
                 storage.replaceWithVerifiedFile(fileUri, existing?.uri, fileName)
                 totalBytes += expectedSize
                 downloaded++
-                completedCount++
-                control.progress("Libraries", completedCount.toLong(), eligibleCount.toLong())
             } catch (error: Exception) {
                 runCatching { storage.delete(fileUri) }
                 throw error
