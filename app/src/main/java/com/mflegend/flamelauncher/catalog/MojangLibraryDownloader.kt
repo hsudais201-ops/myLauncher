@@ -45,7 +45,6 @@ class MojangLibraryDownloader {
 
         for (index in 0 until libraries.length()) {
             control.checkpoint()
-            if (cancelled()) throw CancellationException("Download cancelled.")
             val library = libraries.optJSONObject(index) ?: continue
             // Do not guess how desktop OS rules should map to Android.
             if (library.has("rules")) {
@@ -77,7 +76,7 @@ class MojangLibraryDownloader {
             if (existing != null && isVerified(storage, existing.uri, expectedSize, sha1)) {
                 present++
                 completedCount++
-                onProgress(completedCount, eligibleCount, relativePath)
+                control.progress("Libraries", completedCount.toLong(), eligibleCount.toLong())
                 continue
             }
             require(totalBytes <= MAX_TOTAL_BYTES - expectedSize) {
@@ -93,6 +92,8 @@ class MojangLibraryDownloader {
                 storage.rename(fileUri, fileName)
                 totalBytes += expectedSize
                 downloaded++
+                completedCount++
+                control.progress("Libraries", completedCount.toLong(), eligibleCount.toLong())
             } catch (error: Exception) {
                 runCatching { storage.delete(fileUri) }
                 throw error
