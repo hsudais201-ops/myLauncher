@@ -67,6 +67,7 @@ import com.mflegend.flamelauncher.catalog.MojangClientJarDownloader
 import com.mflegend.flamelauncher.catalog.MojangLibraryDownloader
 import com.mflegend.flamelauncher.catalog.MojangAssetDownloader
 import com.mflegend.flamelauncher.catalog.MojangVersionInstaller
+import com.mflegend.flamelauncher.catalog.DownloadControl
 
 private val Flame = Color(0xFFFF6A2A)
 private val Background = Color(0xFF101116)
@@ -218,6 +219,8 @@ private fun VersionsScreen(folderUri: String?) {
     var libraryDownloadId by remember { mutableStateOf<String?>(null) }
     var assetDownloadId by remember { mutableStateOf<String?>(null) }
     var installId by remember { mutableStateOf<String?>(null) }
+    var installProgress by remember { mutableStateOf<String?>(null) }
+    var activeInstallControl by remember { mutableStateOf<DownloadControl?>(null) }
     val scope = rememberCoroutineScope()
 
     LaunchedEffect(folderUri, scanRevision) {
@@ -404,11 +407,18 @@ private fun VersionsScreen(folderUri: String?) {
                                         } else {
                                             scope.launch {
                                                 installId = item.id
+                                                installProgress = "Preparing download…"
+                                                val control = DownloadControl { stage, completed, total ->
+                                                    val amount = String.format(java.util.Locale.US, "%.1f MB", completed / 1048576.0)
+                                                    val target = total?.let { " / " + String.format(java.util.Locale.US, "%.1f MB", it / 1048576.0) } ?: ""
+                                                    installProgress = "$stage: $amount$target"
+                                                }
+                                                activeInstallControl = control
                                                 metadataDownloadMessage = "Preparing " + item.id + " files…"
                                                 try {
                                                     val result = withContext(Dispatchers.IO) {
                                                         val storage = SafGameStorage(context.contentResolver, Uri.parse(folderUri))
-                                                        MojangVersionInstaller().install(item, storage)
+                                                        MojangVersionInstaller().install(item, storage, control)
                                                     }
                                                     metadataDownloadMessage = "${result.versionId}: files downloaded. Client JAR ${result.clientJarBytes} bytes; ${result.libraries.downloaded} libraries; ${result.assets.downloaded} assets; ${result.libraries.skippedByRules} OS-rule entries skipped."
                                                     scanRevision += 1
@@ -416,6 +426,8 @@ private fun VersionsScreen(folderUri: String?) {
                                                     metadataDownloadMessage = item.id + ": installation stopped — " + (error.localizedMessage ?: "Download failed.")
                                                 } finally {
                                                     installId = null
+                                                    activeInstallControl = null
+                                                    installProgress = null
                                                 }
                                             }
                                         }
@@ -426,9 +438,20 @@ private fun VersionsScreen(folderUri: String?) {
                                     if (installId == item.id) CircularProgressIndicator(modifier = Modifier.height(14.dp), strokeWidth = 2.dp)
                                     else Text("Install files", fontSize = 10.sp)
                                 }
+                                if (installId == item.id) {
+                                    Button(
+                                        onClick = {
+                                            activeInstallControl?.cancel()
+                                            installProgress = "Cancellation requested…"
+                                        },
+                                        enabled = activeInstallControl != null,
+                                        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 10.dp, vertical = 2.dp)
+                                    ) { Text("Cancel", fontSize = 10.sp) }
+                                }
                             }
                         }
                     }
+                    if (installProgress != null) Text(installProgress ?: "", color = Flame, fontSize = 11.sp)
                     if (metadataDownloadMessage != null) Text(metadataDownloadMessage ?: "", color = if (metadataDownloadMessage!!.contains("downloaded")) Color(0xFF8DD9A8) else Color(0xFFFFB36B), fontSize = 11.sp)
                 }
             }
