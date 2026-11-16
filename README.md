@@ -28,7 +28,7 @@ These features were implemented in the previous desktop-oriented app. Each nativ
 
 The Android port is **not yet complete**. In particular, this repository does not yet provide:
 
-- A physical-device-verified Android APK. GitHub Actions now successfully builds and uploads a debug APK; it has not yet been installed or tested on physical hardware. [View the successful build](https://github.com/hsudais201-ops/myLauncher/actions/runs/43876638290).
+- A physical-device-verified Android APK. GitHub Actions now successfully builds and uploads a debug APK; it has not yet been installed or tested on physical hardware. [View the successful build](https://github.com/hsudais201-ops/myLauncher/actions/runs/43882518888).
 - Android-compatible JVM/runtime distribution and lifecycle management (device capability diagnostics exist, but the game JVM is not installed).
 - OpenGL/Vulkan renderer integration, native library ABI packaging, or touch-to-game input bridge.
 - Complete SAF-backed game installation, recursive scanning, and launcher-engine integration; the Versions tab now coordinates metadata, the vanilla client JAR, unconditional libraries, and asset objects, but still skips OS-specific native dependencies and does not launch the game.
