@@ -73,8 +73,54 @@ class MojangVersionManifestClient {
         }
     }
 
+    /** Fetches one official version JSON and verifies the manifest-provided SHA-1. */
+    fun fetchVersionMetadata(version: MojangVersion): ByteArray {
+        val metadataUrl = URL(version.url)
+        require(metadataUrl.protocol == "https" && metadataUrl.host == "piston-meta.mojang.com") {
+            "Version metadata URL is not an approved Mojang HTTPS endpoint."
+        }
+        val connection = (metadataUrl.openConnection() as HttpURLConnection).apply {
+            requestMethod = "GET"
+            connectTimeout = 15_000
+            readTimeout = 20_000
+            setRequestProperty("Accept", "application/json")
+            setRequestProperty("User-Agent", "FlameLauncher-Android/0.1.0")
+        }
+        try {
+            val status = connection.responseCode
+            require(status in 200..299) { "Version metadata request failed (HTTP $status)." }
+            val bytes = connection.inputStream.use { input ->
+                val output = java.io.ByteArrayOutputStream()
+                val buffer = ByteArray(8192)
+                var total = 0
+                while (true) {
+                    val count = input.read(buffer)
+                    if (count < 0) break
+                    total += count
+                    require(total <= MAX_VERSION_METADATA_BYTES) { "Version metadata is larger than expected." }
+                    output.write(buffer, 0, count)
+                }
+                output.toByteArray()
+            }
+            val json = JSONObject(bytes.toString(Charsets.UTF_8.name()))
+            require(json.optString("id") == version.id) { "Downloaded metadata version ID does not match the catalog." }
+            val expectedSha1 = version.sha1
+            if (!expectedSha1.isNullOrBlank()) {
+                val actualSha1 = java.security.MessageDigest.getInstance("SHA-1")
+                    .digest(bytes).joinToString("") { "%02x".format(it) }
+                require(actualSha1.equals(expectedSha1, ignoreCase = true)) {
+                    "Version metadata SHA-1 verification failed."
+                }
+            }
+            return bytes
+        } finally {
+            connection.disconnect()
+        }
+    }
+
     private companion object {
         const val MANIFEST_URL = "https://piston-meta.mojang.com/mc/game/version_manifest_v2.json"
         const val MAX_RESPONSE_BYTES = 8 * 1024 * 1024
+        const val MAX_VERSION_METADATA_BYTES = 2 * 1024 * 1024
     }
 }
