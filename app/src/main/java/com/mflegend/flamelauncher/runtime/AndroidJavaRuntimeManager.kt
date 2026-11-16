@@ -1,7 +1,9 @@
 package com.mflegend.flamelauncher.runtime
 
 import android.content.Context
+import java.io.ByteArrayOutputStream
 import java.io.File
+import java.io.IOException
 
 /**
  * Inspects Java runtimes provisioned in Flame Launcher's private app storage.
@@ -44,6 +46,13 @@ class AndroidJavaRuntimeManager(context: Context) {
 
         val warnings = mutableListOf<String>()
         val runtimes = mutableListOf<InstalledRuntime>()
+        val canonicalRoot = try {
+            runtimeRoot.canonicalFile
+        } catch (_: IOException) {
+            return ScanResult(emptyList(), listOf("The private Java runtime directory could not be resolved safely."))
+        } catch (_: SecurityException) {
+            return ScanResult(emptyList(), listOf("Access to the private Java runtime directory was denied."))
+        }
         val children = runtimeRoot.listFiles()
         if (children == null) {
             return ScanResult(emptyList(), listOf("The private Java runtime directory could not be read."))
@@ -51,8 +60,15 @@ class AndroidJavaRuntimeManager(context: Context) {
 
         for (directory in children) {
             if (!directory.isDirectory || !RUNTIME_ID.matches(directory.name)) continue
-            val canonicalRoot = runtimeRoot.canonicalFile
-            val canonicalHome = directory.canonicalFile
+            val canonicalHome = try {
+                directory.canonicalFile
+            } catch (_: IOException) {
+                warnings += "Ignored ${directory.name}: runtime path could not be resolved safely."
+                continue
+            } catch (_: SecurityException) {
+                warnings += "Ignored ${directory.name}: access to the runtime path was denied."
+                continue
+            }
             if (canonicalHome.parentFile != canonicalRoot) {
                 warnings += "Ignored runtime folder outside the managed directory: ${directory.name}"
                 continue
@@ -65,7 +81,7 @@ class AndroidJavaRuntimeManager(context: Context) {
             }
 
             val properties = try {
-                JavaRuntimeMetadata.parseReleaseFile(releaseFile.readText(Charsets.UTF_8))
+                JavaRuntimeMetadata.parseReleaseFile(readBoundedText(releaseFile, MAX_RELEASE_FILE_BYTES))
             } catch (_: Exception) {
                 warnings += "Ignored ${directory.name}: Java release metadata is invalid."
                 continue
@@ -109,13 +125,38 @@ class AndroidJavaRuntimeManager(context: Context) {
             .thenByDescending { it.javaMajorVersion }), warnings)
     }
 
+    /** Reads no more than the configured limit, even if the file grows during scanning. */
+    private fun readBoundedText(file: File, maxBytes: Long): String {
+        val output = ByteArrayOutputStream()
+        file.inputStream().use { input ->
+            val buffer = ByteArray(4096)
+            var total = 0L
+            while (true) {
+                val count = input.read(buffer)
+                if (count < 0) break
+                total += count
+                if (total > maxBytes) throw IOException("Runtime release file exceeds size limit")
+                output.write(buffer, 0, count)
+            }
+        }
+        return output.toString(Charsets.UTF_8.name())
+    }
+
     private fun findJvmLibrary(home: File): File? {
         val candidates = listOf(
             File(home, "lib/server/libjvm.so"),
             File(home, "lib/aarch64/server/libjvm.so"),
             File(home, "lib/arm64/server/libjvm.so")
         )
-        return candidates.firstOrNull { isSafeChild(home, it) && it.isFile && it.length() > 0L }
+        return candidates.firstOrNull {
+            try {
+                isSafeChild(home, it) && it.isFile && it.length() > 0L
+            } catch (_: IOException) {
+                false
+            } catch (_: SecurityException) {
+                false
+            }
+        }
     }
 
     private fun isSafeChild(home: File, candidate: File): Boolean {
