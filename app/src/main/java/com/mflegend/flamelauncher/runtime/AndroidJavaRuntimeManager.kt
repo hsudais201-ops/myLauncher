@@ -36,7 +36,15 @@ class AndroidJavaRuntimeManager(context: Context) {
             get() = runtimes.filter { it.matchesProcessAbi }
     }
 
-    fun scan(environment: AndroidRuntimeEnvironment): ScanResult {
+    fun scan(environment: AndroidRuntimeEnvironment): ScanResult = try {
+        scanInternal(environment)
+    } catch (_: SecurityException) {
+        ScanResult(emptyList(), listOf("Access to the private Java runtime directory was denied."))
+    } catch (_: IOException) {
+        ScanResult(emptyList(), listOf("The private Java runtime directory could not be inspected safely."))
+    }
+
+    private fun scanInternal(environment: AndroidRuntimeEnvironment): ScanResult {
         if (!runtimeRoot.exists()) {
             return ScanResult(emptyList(), listOf("No Android Java runtime has been installed."))
         }
