@@ -3,6 +3,8 @@ package com.mflegend.flamelauncher
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -409,10 +411,13 @@ private fun VersionsScreen(folderUri: String?) {
                                             scope.launch {
                                                 installId = item.id
                                                 installProgress = "Preparing download…"
+                                                val mainHandler = Handler(Looper.getMainLooper())
                                                 val control = DownloadControl { stage, completed, total ->
                                                     val amount = String.format(java.util.Locale.US, "%.1f MB", completed / 1048576.0)
                                                     val target = total?.let { " / " + String.format(java.util.Locale.US, "%.1f MB", it / 1048576.0) } ?: ""
-                                                    installProgress = "$stage: $amount$target"
+                                                    mainHandler.post {
+                                                        if (activeInstallControl === control) installProgress = "$stage: $amount$target"
+                                                    }
                                                 }
                                                 activeInstallControl = control
                                                 metadataDownloadMessage = "Preparing " + item.id + " files…"
