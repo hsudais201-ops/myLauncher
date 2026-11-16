@@ -134,6 +134,9 @@ class SafGameStorage(
     fun createDirectory(parentUri: Uri, displayName: String): Uri {
         requireInTree(parentUri)
         validateDisplayName(displayName)
+        require(listChildren(parentUri).none { it.name == displayName }) {
+            "A document already occupies the requested folder name '$displayName'."
+        }
         val created = providerCall("creating a folder") {
             requireNotNull(
                 DocumentsContract.createDocument(resolver, parentUri, Document.MIME_TYPE_DIR, displayName)
