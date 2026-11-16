@@ -92,6 +92,9 @@ class MojangAssetDownloader {
                 control.checkpoint()
                 existing?.let { storage.delete(it.uri) }
                 storage.rename(fileUri, hash)
+                control.checkpoint()
+                existing?.let { storage.delete(it.uri) }
+                storage.rename(fileUri, hash)
                 downloaded++
                 completedCount++
                 control.progress("Assets", completedCount.toLong(), objectCount.toLong())
@@ -121,6 +124,7 @@ class MojangAssetDownloader {
                 val buffer = ByteArray(16 * 1024)
                 var total = 0
                 while (true) {
+                    control.checkpoint()
                     val count = input.read(buffer)
                     if (count < 0) break
                     total += count
