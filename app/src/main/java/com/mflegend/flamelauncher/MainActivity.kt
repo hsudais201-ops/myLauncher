@@ -63,6 +63,7 @@ import com.mflegend.flamelauncher.versions.MinecraftVersionScanner
 import com.mflegend.flamelauncher.versions.InstalledMinecraftVersion
 import com.mflegend.flamelauncher.catalog.MojangVersion
 import com.mflegend.flamelauncher.catalog.MojangVersionManifestClient
+import com.mflegend.flamelauncher.catalog.MojangClientJarDownloader
 
 private val Flame = Color(0xFFFF6A2A)
 private val Background = Color(0xFF101116)
@@ -210,6 +211,7 @@ private fun VersionsScreen(folderUri: String?) {
     var catalogError by remember { mutableStateOf<String?>(null) }
     var metadataDownloadId by remember { mutableStateOf<String?>(null) }
     var metadataDownloadMessage by remember { mutableStateOf<String?>(null) }
+    var clientJarDownloadId by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
 
     LaunchedEffect(folderUri, scanRevision) {
@@ -293,6 +295,41 @@ private fun VersionsScreen(folderUri: String?) {
                                 ) {
                                     if (metadataDownloadId == item.id) CircularProgressIndicator(modifier = Modifier.height(14.dp), strokeWidth = 2.dp)
                                     else Text("Get JSON", fontSize = 10.sp)
+                                }
+                                Button(
+                                    onClick = {
+                                        if (folderUri == null) {
+                                            metadataDownloadMessage = "Choose your game folder in Settings before downloading the client JAR."
+                                        } else {
+                                            scope.launch {
+                                                clientJarDownloadId = item.id
+                                                metadataDownloadMessage = null
+                                                try {
+                                                    withContext(Dispatchers.IO) {
+                                                        val storage = SafGameStorage(context.contentResolver, Uri.parse(folderUri))
+                                                        val root = storage.root()
+                                                        val versionsDir = storage.listChildren(root).firstOrNull { it.isDirectory && it.name == "versions" }
+                                                            ?.uri ?: storage.createDirectory(root, "versions")
+                                                        val versionDir = storage.listChildren(versionsDir).firstOrNull { it.isDirectory && it.name == item.id }
+                                                            ?.uri ?: storage.createDirectory(versionsDir, item.id)
+                                                        val metadataBytes = MojangVersionManifestClient().fetchVersionMetadata(item)
+                                                        MojangClientJarDownloader().download(item.id, metadataBytes, storage, versionDir)
+                                                    }
+                                                    metadataDownloadMessage = item.id + " client JAR downloaded and SHA-1 verified."
+                                                    scanRevision += 1
+                                                } catch (error: Exception) {
+                                                    metadataDownloadMessage = item.id + ": " + (error.localizedMessage ?: "Client JAR download failed.")
+                                                } finally {
+                                                    clientJarDownloadId = null
+                                                }
+                                            }
+                                        }
+                                    },
+                                    enabled = clientJarDownloadId == null && metadataDownloadId == null,
+                                    contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 10.dp, vertical = 2.dp)
+                                ) {
+                                    if (clientJarDownloadId == item.id) CircularProgressIndicator(modifier = Modifier.height(14.dp), strokeWidth = 2.dp)
+                                    else Text("Get JAR", fontSize = 10.sp)
                                 }
                             }
                         }
