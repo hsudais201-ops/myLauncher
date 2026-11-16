@@ -3,6 +3,7 @@ package com.mflegend.flamelauncher.runtime
 import java.io.File
 import java.io.IOException
 import java.nio.file.Files
+import java.nio.file.Path
 
 /**
  * Canonical-path policy for app-private runtime bundles.
@@ -40,23 +41,23 @@ internal object RuntimePathPolicy {
     fun isSafeChild(parent: File, candidate: File): Boolean = try {
         val parentPath = parent.toPath().toAbsolutePath().normalize()
         val candidatePath = candidate.toPath().toAbsolutePath().normalize()
-        if (!candidatePath.startsWith(parentPath) || candidatePath == parentPath) {
-            return false
-        }
-
-        var current = parentPath
-        if (Files.isSymbolicLink(current)) return false
-        for (part in parentPath.relativize(candidatePath)) {
-            current = current.resolve(part)
-            if (Files.isSymbolicLink(current)) return false
-        }
-
-        val canonicalParent = parent.canonicalFile.toPath()
-        val canonicalCandidate = candidate.canonicalFile.toPath()
-        canonicalCandidate != canonicalParent && canonicalCandidate.startsWith(canonicalParent)
+        candidatePath != parentPath &&
+            candidatePath.startsWith(parentPath) &&
+            !containsSymbolicLink(parentPath, candidatePath) &&
+            candidate.canonicalFile.toPath().startsWith(parent.canonicalFile.toPath())
     } catch (_: IOException) {
         false
     } catch (_: SecurityException) {
         false
+    }
+
+    private fun containsSymbolicLink(parent: Path, candidate: Path): Boolean {
+        var current = parent
+        if (Files.isSymbolicLink(current)) return true
+        for (part in parent.relativize(candidate)) {
+            current = current.resolve(part)
+            if (Files.isSymbolicLink(current)) return true
+        }
+        return false
     }
 }
