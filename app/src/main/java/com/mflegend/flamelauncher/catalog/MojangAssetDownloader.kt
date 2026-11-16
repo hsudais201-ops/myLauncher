@@ -59,7 +59,6 @@ class MojangAssetDownloader {
         val seenHashes = HashSet<String>()
 
         val keys = objects.keys()
-        var completedCount = 0
         val objectCount = objects.length()
         while (keys.hasNext()) {
             control.checkpoint()
@@ -79,7 +78,6 @@ class MojangAssetDownloader {
             val existing = storage.listChildren(prefixDir).firstOrNull { !it.isDirectory && it.name == hash }
             if (existing != null && isVerified(storage, existing.uri, size, hash)) {
                 present++
-                completedCount++
                 continue
             }
             val temporaryName = ".$hash.download"
