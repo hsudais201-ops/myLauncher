@@ -67,8 +67,7 @@ class MojangVersionInstaller(
                 output.write(bytes)
                 output.flush()
             }
-            existing?.let { storage.delete(it.uri) }
-            storage.rename(uri, name)
+            storage.replaceWithVerifiedFile(uri, existing?.uri, name)
         } catch (error: Exception) {
             runCatching { storage.delete(uri) }
             throw error
