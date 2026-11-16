@@ -77,8 +77,7 @@ class MojangLibraryDownloader {
                 "Library set exceeds the total download safety limit."
             }
             val temporaryName = ".$fileName.download"
-            storage.listChildren(parent).firstOrNull { !it.isDirectory && it.name == temporaryName }?.let { storage.delete(it.uri) }
-            val fileUri = storage.createFile(parent, temporaryName, "application/java-archive")
+            val fileUri = storage.createTemporaryFile(parent, temporaryName, "application/java-archive")
             try {
                 downloadOne(url, storage, fileUri, expectedSize, sha1, control)
                 require(DownloadedFileVerifier.matches(storage.openInput(fileUri), expectedSize, sha1, control)) {
