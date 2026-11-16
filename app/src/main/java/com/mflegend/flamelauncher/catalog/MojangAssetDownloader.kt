@@ -84,9 +84,9 @@ class MojangAssetDownloader {
                 onProgress(completedCount, objectCount, hash)
                 continue
             }
-            if (existing != null) storage.delete(existing.uri)
-
-            val fileUri = storage.createFile(prefixDir, hash, "application/octet-stream")
+            val temporaryName = ".$hash.download"
+            storage.listChildren(prefixDir).firstOrNull { !it.isDirectory && it.name == temporaryName }?.let { storage.delete(it.uri) }
+            val fileUri = storage.createFile(prefixDir, temporaryName, "application/octet-stream")
             try {
                 val objectUrl = URL("https://resources.download.minecraft.net/$prefix/$hash")
                 downloadObject(objectUrl, storage, fileUri, size, hash, cancelled)
@@ -125,6 +125,7 @@ class MojangAssetDownloader {
                     total += count
                     require(total <= MAX_INDEX_BYTES) { "Asset index is larger than the safety limit." }
                     output.write(buffer, 0, count)
+                    control.progress("Asset index", total.toLong(), null)
                 }
                 output.toByteArray()
             }
@@ -189,6 +190,7 @@ class MojangAssetDownloader {
                         }
                         digest.update(buffer, 0, count)
                         output.write(buffer, 0, count)
+                        control.progress("Assets", total, expectedSize)
                     }
                     output.flush()
                 }
@@ -208,6 +210,7 @@ class MojangAssetDownloader {
             storage.openInput(uri).use { input ->
                 val buffer = ByteArray(64 * 1024)
                 while (true) {
+                    control.checkpoint()
                     val count = input.read(buffer)
                     if (count < 0) break
                     total += count
