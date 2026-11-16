@@ -63,6 +63,7 @@ This document is the source of truth for the Android migration. The existing Tau
 
 ### Phase C — Runtime feasibility and gameplay
 - [x] Assess Amethyst-Android as the current JVM/renderer integration reference and document its dependency/license gates (`docs/ANDROID_RUNTIME_INTEGRATION_ASSESSMENT.md`). This is research only; no third-party code or runtime binaries are integrated.
+- [x] Pin the reviewed Amethyst `v3_openjdk` source snapshot and record the dependency/license blockers (`docs/AMETHYST_DEPENDENCY_AUDIT.md`); no third-party code or runtime binaries are integrated.
 - [x] Add diagnostic-only device checks for the initial arm64-v8a target, Android API level, process bitness, and memory budget.
 - [ ] Complete exact-version source, native dependency, and redistribution license review; select and document the Android JVM/runtime distribution.
 - Integrate graphics translation, native libraries, surface lifecycle, and touch/keyboard input.
