@@ -174,10 +174,10 @@ class SafGameStorage(
         }
         val created = createFile(parentUri, displayName, mimeType)
         requireInTree(created)
-        require(staleEntries.none {
-            it.documentId == DocumentsContract.getDocumentId(created)
-        }) {
-            "The storage provider reused an interrupted temporary document."
+        val createdId = DocumentsContract.getDocumentId(created)
+        val visibleEntries = listChildren(parentUri).filter { it.name == displayName }
+        require(visibleEntries.size == 1 && visibleEntries.single().documentId == createdId) {
+            "The storage provider did not create one distinct temporary download file."
         }
         return created
     }
