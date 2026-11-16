@@ -15,7 +15,7 @@ This document is the source of truth for the Android migration. The existing Tau
 - At the selected folder root, the Library tab now checks for standard Minecraft directories (`versions`, `assets`, `libraries`, `mods`, `resourcepacks`, and `saves`) and reports which are present.
 - The Versions tab scans the selected game root's `versions` directory, reads matching `<version-id>.json` files through SAF, and displays parsed version ID, type, release time, main class, inheritance, and asset-index metadata.
 - The Versions tab fetches Mojang's public HTTPS version manifest and displays the latest release/snapshot plus a preview of available versions.
-- The official catalog is metadata-only: version JSON detail fetching, client/library/asset downloads, SHA-1 verification, installation, file import/export, and Rust-engine integration remain unimplemented.
+- The Versions catalog can download an individual version JSON into `versions/<id>/<id>.json` through SAF, enforce a response-size limit, check the returned JSON ID, and verify the manifest-provided SHA-1 when present. Client JAR, library, and asset downloads; full installation; file import/export; and Rust-engine integration remain unimplemented.
 - Gradle build, debug APK generation, and physical-device installation have not yet been verified.
 
 ## 1. Target architecture
@@ -51,7 +51,8 @@ This document is the source of truth for the Android migration. The existing Tau
 - [x] Connect the SAF adapter to a basic in-app folder browser with directory navigation.
 - [x] Add first-level detection of standard Minecraft game-directory folders.
 - [x] Scan installed version folders and display metadata from matching version JSON files.
-- [ ] Integrate SAF document operations into launcher-engine installation and game-file workflows; never pass a tree URI to desktop `PathBuf` logic as if it were a normal path.
+- [x] Save official version metadata into the selected SAF game directory after validating the version ID and manifest SHA-1 (when supplied).
+- [ ] Integrate SAF document operations into complete launcher-engine installation and game-file workflows; never pass a tree URI to desktop `PathBuf` logic as if it were a normal path.
 - Refactor Rust filesystem operations behind interfaces so Android document URIs are not treated as ordinary desktop paths.
 - Port metadata/version browsing and verified downloads.
 - Add cancellation, progress reporting, retry handling, and low-storage checks.
