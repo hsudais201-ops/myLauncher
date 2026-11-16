@@ -62,8 +62,9 @@ This document is the source of truth for the Android migration. The existing Tau
 - Add cancellation, progress reporting, retry handling, and low-storage checks.
 
 ### Phase C — Runtime feasibility and gameplay
+- [x] Assess Amethyst-Android as the current JVM/renderer integration reference and document its dependency/license gates (`docs/ANDROID_RUNTIME_INTEGRATION_ASSESSMENT.md`). This is research only; no third-party code or runtime binaries are integrated.
 - [x] Add diagnostic-only device checks for the initial arm64-v8a target, Android API level, process bitness, and memory budget.
-- [ ] Select and document the Android JVM/runtime distribution and its license.
+- [ ] Complete exact-version source, native dependency, and redistribution license review; select and document the Android JVM/runtime distribution.
 - Integrate graphics translation, native libraries, surface lifecycle, and touch/keyboard input.
 - Validate one known compatible Minecraft version on physical arm64 hardware before expanding version support.
 - Add memory budgeting, thermal awareness, crash logs, and process/session lifecycle handling.
