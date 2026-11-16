@@ -24,8 +24,7 @@ class MojangAssetDownloader {
         versionMetadataBytes: ByteArray,
         storage: SafGameStorage,
         gameRoot: Uri,
-        cancelled: () -> Boolean = { false },
-        onProgress: (Int, Int, String) -> Unit = { _, _, _ -> }
+        control: DownloadControl = DownloadControl()
     ): AssetDownloadResult {
         val version = JSONObject(versionMetadataBytes.toString(Charsets.UTF_8.name()))
         val assetIndex = version.optJSONObject("assetIndex")
@@ -43,7 +42,7 @@ class MojangAssetDownloader {
             "Asset index metadata has no valid SHA-1 checksum."
         }
 
-        val indexBytes = fetchIndex(indexUrl, expectedIndexSha1, cancelled)
+        val indexBytes = fetchIndex(indexUrl, expectedIndexSha1, control)
         val indexJson = JSONObject(indexBytes.toString(Charsets.UTF_8.name()))
         val objects = indexJson.optJSONObject("objects")
             ?: error("Asset index does not contain an objects map.")
@@ -63,7 +62,7 @@ class MojangAssetDownloader {
         var completedCount = 0
         val objectCount = objects.length()
         while (keys.hasNext()) {
-            if (cancelled()) throw CancellationException("Download cancelled.")
+            control.checkpoint()
             val logicalName = keys.next()
             val item = objects.optJSONObject(logicalName) ?: continue
             val hash = item.optString("hash").lowercase()
@@ -81,7 +80,7 @@ class MojangAssetDownloader {
             if (existing != null && isVerified(storage, existing.uri, size, hash)) {
                 present++
                 completedCount++
-                onProgress(completedCount, objectCount, hash)
+                control.progress("Assets", completedCount.toLong(), objectCount.toLong())
                 continue
             }
             val temporaryName = ".$hash.download"
@@ -92,7 +91,7 @@ class MojangAssetDownloader {
                 downloadObject(objectUrl, storage, fileUri, size, hash, cancelled)
                 downloaded++
                 completedCount++
-                onProgress(completedCount, objectCount, hash)
+                control.progress("Assets", completedCount.toLong(), objectCount.toLong())
                 totalBytes += size
             } catch (error: Exception) {
                 runCatching { storage.delete(fileUri) }
@@ -102,7 +101,7 @@ class MojangAssetDownloader {
         return AssetDownloadResult(indexId, downloaded, present, totalBytes)
     }
 
-    private fun fetchIndex(url: URL, expectedSha1: String, cancelled: () -> Boolean): ByteArray {
+    private fun fetchIndex(url: URL, expectedSha1: String, control: DownloadControl): ByteArray {
         val connection = (url.openConnection() as HttpURLConnection).apply {
             requestMethod = "GET"
             connectTimeout = 20_000
@@ -119,7 +118,6 @@ class MojangAssetDownloader {
                 val buffer = ByteArray(16 * 1024)
                 var total = 0
                 while (true) {
-                    if (cancelled()) throw CancellationException("Download cancelled.")
                     val count = input.read(buffer)
                     if (count < 0) break
                     total += count
@@ -139,15 +137,17 @@ class MojangAssetDownloader {
     }
 
     private fun saveIndex(storage: SafGameStorage, directory: Uri, name: String, bytes: ByteArray) {
-        storage.listChildren(directory).firstOrNull { !it.isDirectory && it.name == name }?.let {
-            storage.delete(it.uri)
-        }
-        val uri = storage.createFile(directory, name, "application/json")
+        val oldFile = storage.listChildren(directory).firstOrNull { !it.isDirectory && it.name == name }
+        val temporaryName = ".$name.download"
+        storage.listChildren(directory).firstOrNull { !it.isDirectory && it.name == temporaryName }?.let { storage.delete(it.uri) }
+        val uri = storage.createFile(directory, temporaryName, "application/json")
         try {
             storage.openOutput(uri).use { output ->
                 output.write(bytes)
                 output.flush()
             }
+            oldFile?.let { storage.delete(it.uri) }
+            storage.rename(uri, name)
         } catch (error: Exception) {
             runCatching { storage.delete(uri) }
             throw error
@@ -160,7 +160,7 @@ class MojangAssetDownloader {
         destination: Uri,
         expectedSize: Long,
         expectedSha1: String,
-        cancelled: () -> Boolean
+        control: DownloadControl
     ) {
         require(url.protocol == "https" && url.host.equals("resources.download.minecraft.net", ignoreCase = true)) {
             "Asset object URL is not an approved Mojang HTTPS endpoint."
@@ -181,7 +181,7 @@ class MojangAssetDownloader {
                 storage.openOutput(destination).use { output ->
                     val buffer = ByteArray(64 * 1024)
                     while (true) {
-                        if (cancelled()) throw CancellationException("Download cancelled.")
+                        control.checkpoint()
                         val count = input.read(buffer)
                         if (count < 0) break
                         total += count
