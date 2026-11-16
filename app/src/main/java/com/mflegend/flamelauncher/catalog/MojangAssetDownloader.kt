@@ -75,8 +75,7 @@ class MojangAssetDownloader {
                 continue
             }
             val temporaryName = ".$hash.download"
-            storage.listChildren(prefixDir).firstOrNull { !it.isDirectory && it.name == temporaryName }?.let { storage.delete(it.uri) }
-            val fileUri = storage.createFile(prefixDir, temporaryName, "application/octet-stream")
+            val fileUri = storage.createTemporaryFile(prefixDir, temporaryName, "application/octet-stream")
             try {
                 val objectUrl = URL("https://resources.download.minecraft.net/$prefix/$hash")
                 downloadObject(objectUrl, storage, fileUri, size, hash, control)
