@@ -6,6 +6,7 @@ import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
 import java.security.MessageDigest
+import java.util.concurrent.CancellationException
 
 data class ClientJarDownloadResult(val fileUri: Uri, val byteCount: Long)
 
