@@ -73,6 +73,7 @@ import com.mflegend.flamelauncher.catalog.MojangVersionInstaller
 import com.mflegend.flamelauncher.catalog.DownloadControl
 import com.mflegend.flamelauncher.runtime.AndroidRuntimeEnvironment
 import com.mflegend.flamelauncher.runtime.AndroidJavaRuntimeManager
+import com.mflegend.flamelauncher.runtime.RuntimeLaunchReadiness
 import java.util.concurrent.CancellationException
 
 private val Flame = Color(0xFFFF6A2A)
@@ -623,6 +624,7 @@ private fun SettingsScreen(folderUri: String?, error: String?, onChooseFolder: (
         }
     }
     val scanResult = runtimeScan
+    val launchReadiness = remember { RuntimeLaunchReadiness() }
 
     Card(colors = CardDefaults.cardColors(containerColor = Panel), shape = RoundedCornerShape(20.dp)) {
         Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -676,6 +678,15 @@ private fun SettingsScreen(folderUri: String?, error: String?, onChooseFolder: (
                 color = Muted,
                 fontSize = 12.sp
             )
+            Text(
+                if (launchReadiness.canLaunch) "Launch requirements verified." else "PLAY IS LOCKED — outstanding verification:",
+                color = Color(0xFFFFB36B),
+                fontSize = 12.sp,
+                fontWeight = FontWeight.SemiBold
+            )
+            launchReadiness.missingRequirements.forEach { requirement ->
+                Text("• $requirement", color = Muted, fontSize = 11.sp)
+            }
             scanResult?.warnings?.take(2)?.forEach { warning ->
                 Text(warning, color = Color(0xFFFFB36B), fontSize = 11.sp)
             }
