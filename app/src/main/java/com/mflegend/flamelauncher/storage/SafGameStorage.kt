@@ -106,6 +106,15 @@ class SafGameStorage(
         ) { "The document provider could not create the file." }
     }
 
+    /** Renames a verified temporary document within the selected tree. */
+    fun rename(uri: Uri, displayName: String): Uri {
+        requireInTree(uri)
+        validateDisplayName(displayName)
+        return requireNotNull(DocumentsContract.renameDocument(resolver, uri, displayName)) {
+            "The document provider could not rename the file."
+        }
+    }
+
     fun delete(uri: Uri): Boolean {
         requireInTree(uri)
         return DocumentsContract.deleteDocument(resolver, uri)
