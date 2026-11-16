@@ -57,6 +57,8 @@ import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import com.mflegend.flamelauncher.storage.SafGameStorage
+import com.mflegend.flamelauncher.versions.MinecraftVersionScanner
+import com.mflegend.flamelauncher.versions.InstalledMinecraftVersion
 
 private val Flame = Color(0xFFFF6A2A)
 private val Background = Color(0xFF101116)
@@ -131,7 +133,7 @@ private fun FlameLauncherApp() {
                 }
                 when (selectedTab) {
                     0 -> HomeScreen()
-                    1 -> InfoScreen("Game versions", "Browse and install supported Minecraft Java versions. Version downloads will be connected after the Android storage and engine layers are ready.")
+                    1 -> VersionsScreen(gameFolderUri)
                     2 -> LibraryScreen(gameFolderUri)
                     else -> SettingsScreen(gameFolderUri, folderPermissionError, onChooseFolder = { folderPicker.launch(null) })
                 }
@@ -150,8 +152,7 @@ private fun HomeScreen() {
     ) {
         Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Text("YOUR JAVA EDITION HUB", color = Flame, fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.5.sp)
-            Text("Your next world
-starts here.", color = Color.White, fontSize = 29.sp, lineHeight = 34.sp, fontWeight = FontWeight.Bold)
+            Text("Your next world\nstarts here.", color = Color.White, fontSize = 29.sp, lineHeight = 34.sp, fontWeight = FontWeight.Bold)
             Text("Flame Launcher is being built for Android phones and tablets.", color = Muted, fontSize = 14.sp)
             Spacer(Modifier.height(4.dp))
             Surface(color = Color(0xFF3A241D), shape = RoundedCornerShape(50)) {
@@ -188,6 +189,75 @@ private fun FeatureLine(title: String, detail: String) {
 }
 
 
+@Composable
+private fun VersionsScreen(folderUri: String?) {
+    val context = LocalContext.current
+    var versions by remember(folderUri) { mutableStateOf<List<InstalledMinecraftVersion>>(emptyList()) }
+    var missingMetadata by remember(folderUri) { mutableStateOf<List<String>>(emptyList()) }
+    var warnings by remember(folderUri) { mutableStateOf<List<String>>(emptyList()) }
+    var loading by remember(folderUri) { mutableStateOf(false) }
+    var directoryFound by remember(folderUri) { mutableStateOf(false) }
+    var scanError by remember(folderUri) { mutableStateOf<String?>(null) }
+
+    LaunchedEffect(folderUri) {
+        if (folderUri == null) {
+            versions = emptyList()
+            directoryFound = false
+            return@LaunchedEffect
+        }
+        loading = true
+        scanError = null
+        try {
+            val result = withContext(Dispatchers.IO) {
+                MinecraftVersionScanner(SafGameStorage(context.contentResolver, Uri.parse(folderUri))).scan()
+            }
+            directoryFound = result.versionsDirectoryFound
+            versions = result.versions
+            missingMetadata = result.foldersWithoutMetadata
+            warnings = result.warnings
+        } catch (error: Exception) {
+            scanError = error.localizedMessage ?: "Could not scan installed versions."
+        } finally {
+            loading = false
+        }
+    }
+
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Text("Installed versions", color = Color.White, fontSize = 23.sp, fontWeight = FontWeight.Bold)
+        Text("Reads local version JSON files from the selected game directory. This does not download or launch Minecraft.", color = Muted, fontSize = 13.sp)
+        when {
+            folderUri == null -> InfoScreen("Game folder required", "Choose your Minecraft game directory in Settings before scanning installed versions.")
+            loading -> Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                CircularProgressIndicator()
+                Text("Scanning versions…", color = Muted, fontSize = 13.sp)
+            }
+            scanError != null -> Text(scanError ?: "Scan failed.", color = Color(0xFFFF9A82), fontSize = 13.sp)
+            !directoryFound -> InfoScreen("Versions folder not found", "No versions directory was found at the selected folder root. Select your .minecraft directory, not its parent folder.")
+            versions.isEmpty() -> InfoScreen("No readable version metadata", "The versions folder exists, but no valid version JSON files were found.")
+            else -> {
+                Text(versions.size.toString() + " version(s) detected", color = Flame, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+                versions.forEach { version ->
+                    Card(colors = CardDefaults.cardColors(containerColor = Panel), shape = RoundedCornerShape(16.dp)) {
+                        Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                            Text(version.id, color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.Bold)
+                            Text((version.type ?: "Unknown type").replaceFirstChar { it.uppercase() } + (version.inheritsFrom?.let { " · inherits $it" } ?: ""), color = Flame, fontSize = 12.sp)
+                            Text("Main class: " + (version.mainClass ?: "Not specified"), color = Muted, fontSize = 11.sp)
+                            if (version.assetIndexId != null) Text("Asset index: " + version.assetIndexId, color = Muted, fontSize = 11.sp)
+                            if (version.releaseTime != null) Text("Released: " + version.releaseTime, color = Muted, fontSize = 10.sp)
+                        }
+                    }
+                }
+            }
+        }
+        if (missingMetadata.isNotEmpty()) {
+            Text("Folders without matching JSON: " + missingMetadata.joinToString(), color = Muted, fontSize = 11.sp)
+        }
+        if (warnings.isNotEmpty()) {
+            Text("Some metadata could not be read:", color = Color(0xFFFFB36B), fontSize = 12.sp)
+            warnings.forEach { Text(it, color = Muted, fontSize = 11.sp) }
+        }
+    }
+}
 @Composable
 private fun LibraryScreen(folderUri: String?) {
     val context = LocalContext.current
