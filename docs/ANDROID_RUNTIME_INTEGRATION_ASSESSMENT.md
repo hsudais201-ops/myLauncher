@@ -29,6 +29,10 @@ Before reusing any code or binary, Flame Launcher must:
 
 This is an engineering assessment, not legal advice or a completed license review.
 
+## Pinned upstream review baseline
+
+A reproducible review of the current `v3_openjdk` branch was performed at commit `166af615dbdca1a507b8c2d379822cca02795132` (2026-11-13). The pinned tree declares multiple submodules and the README identifies additional components with unknown or restrictive license statements. See [`AMETHYST_DEPENDENCY_AUDIT.md`](AMETHYST_DEPENDENCY_AUDIT.md) for the commit identity, observed gitlinks, dependency inventory, runtime artifact provenance requirements, and explicit stop conditions. This is a source-review baseline only; no integration or redistribution is approved.
+
 ## Proposed integration strategy
 
 1. Keep Flame Launcher's Kotlin/Compose UI and existing SAF-aware installation pipeline.
