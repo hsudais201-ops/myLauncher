@@ -74,7 +74,11 @@ class MojangVersionManifestClient {
     }
 
     /** Fetches one official version JSON and verifies the manifest-provided SHA-1. */
-    fun fetchVersionMetadata(version: MojangVersion): ByteArray {
+    fun fetchVersionMetadata(
+        version: MojangVersion,
+        control: DownloadControl? = null
+    ): ByteArray {
+        control?.checkpoint()
         val metadataUrl = URL(version.url)
         require(metadataUrl.protocol == "https" && metadataUrl.host == "piston-meta.mojang.com") {
             "Version metadata URL is not an approved Mojang HTTPS endpoint."
@@ -87,6 +91,7 @@ class MojangVersionManifestClient {
             setRequestProperty("User-Agent", "FlameLauncher-Android/0.1.0")
         }
         try {
+            control?.checkpoint()
             val status = connection.responseCode
             require(status in 200..299) { "Version metadata request failed (HTTP $status)." }
             val bytes = connection.inputStream.use { input ->
@@ -94,6 +99,7 @@ class MojangVersionManifestClient {
                 val buffer = ByteArray(8192)
                 var total = 0
                 while (true) {
+                    control?.checkpoint()
                     val count = input.read(buffer)
                     if (count < 0) break
                     total += count
@@ -102,6 +108,7 @@ class MojangVersionManifestClient {
                 }
                 output.toByteArray()
             }
+            control?.checkpoint()
             val json = JSONObject(bytes.toString(Charsets.UTF_8))
             require(json.optString("id") == version.id) { "Downloaded metadata version ID does not match the catalog." }
             val expectedSha1 = version.sha1
