@@ -254,7 +254,7 @@ private fun VersionsScreen(folderUri: String?) {
 
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text("Minecraft versions", color = Color.White, fontSize = 23.sp, fontWeight = FontWeight.Bold)
-        Text("Browse official releases and snapshots. You can download and SHA-1 verify version metadata; game files and launch support are still pending.", color = Muted, fontSize = 13.sp)
+        Text("Browse official releases and snapshots. Install files downloads the supported vanilla payload with transfer progress, cancellation, and checksum verification. Android runtime and game launching are not ready yet.", color = Muted, fontSize = 13.sp)
         Card(colors = CardDefaults.cardColors(containerColor = Panel), shape = RoundedCornerShape(18.dp)) {
             Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
                 Text("OFFICIAL VERSION CATALOG", color = Flame, fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
@@ -604,7 +604,7 @@ private fun SettingsScreen(folderUri: String?, error: String?, onChooseFolder: (
         Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Text("Settings", color = Color.White, fontSize = 23.sp, fontWeight = FontWeight.Bold)
             Text("GAME STORAGE", color = Flame, fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.5.sp)
-            Text("Choose a game folder. Flame Launcher can browse it and save verified version metadata; full game-file installation is still in development.", color = Muted, fontSize = 13.sp)
+            Text("Choose a game folder. Flame Launcher can browse it and install supported vanilla version files. Android-specific native dependencies, runtime integration, and game launching are still in development.", color = Muted, fontSize = 13.sp)
             Button(onClick = onChooseFolder, modifier = Modifier.fillMaxWidth()) {
                 Text(if (folderUri == null) "Choose game folder" else "Change game folder")
             }
