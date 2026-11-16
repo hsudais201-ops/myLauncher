@@ -225,8 +225,7 @@ class MojangAssetDownloader {
         }.getOrDefault(false)
 
     private fun findOrCreateDirectory(storage: SafGameStorage, parent: Uri, name: String): Uri =
-        storage.listChildren(parent).firstOrNull { it.isDirectory && it.name == name }?.uri
-            ?: storage.createDirectory(parent, name)
+        storage.findDirectory(parent, name)?.uri ?: storage.createDirectory(parent, name)
 
     private fun sha1(bytes: ByteArray): String =
         MessageDigest.getInstance("SHA-1").digest(bytes).joinToString("") { "%02x".format(it) }
