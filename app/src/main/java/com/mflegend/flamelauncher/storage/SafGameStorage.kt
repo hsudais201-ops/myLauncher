@@ -115,6 +115,27 @@ class SafGameStorage(
         }
     }
 
+    /** Replaces a destination only after its temporary replacement has been fully verified. */
+    fun replaceWithVerifiedFile(temporaryUri: Uri, existingUri: Uri?, finalName: String): Uri {
+        requireInTree(temporaryUri)
+        existingUri?.let { requireInTree(it) }
+        validateDisplayName(finalName)
+        val backupUri = existingUri?.let { rename(it, ".$finalName.backup") }
+        try {
+            val finalUri = rename(temporaryUri, finalName)
+            backupUri?.let { delete(it) }
+            return finalUri
+        } catch (error: Exception) {
+            if (backupUri != null) {
+                runCatching {
+                    val current = listChildren(rootDocumentUri).firstOrNull { !it.isDirectory && it.name == finalName }
+                    if (current == null) rename(backupUri, finalName)
+                }
+            }
+            throw error
+        }
+    }
+
     fun delete(uri: Uri): Boolean {
         requireInTree(uri)
         return DocumentsContract.deleteDocument(resolver, uri)
