@@ -3,7 +3,7 @@ package com.mflegend.flamelauncher.runtime
 /** Pure Java release metadata helpers, independent of Android APIs. */
 internal object JavaRuntimeMetadata {
     private val releaseKey = Regex("[A-Z][A-Z0-9_]*")
-    private val javaVersionPattern = Regex("^(?:1\\.)?([0-9]+)(?:[._+\\-][A-Za-z0-9._+\\-]+)?$")
+    private val javaVersionPattern = Regex("^(?:1\\.)?([0-9]+)(?:\\.[0-9]+)*(?:_[0-9]+)?(?:[-+][A-Za-z0-9]+(?:[._+-][A-Za-z0-9]+)*)?$")
 
     fun parseReleaseFile(content: String): Map<String, String> {
         val values = mutableMapOf<String, String>()
