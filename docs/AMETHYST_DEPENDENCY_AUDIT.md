@@ -13,15 +13,14 @@ The branch currently resolves to the commit above. Use that immutable commit URL
 
 https://github.com/AngelAuraMC/Amethyst-Android/tree/166af615dbdca1a507b8c2d379822cca02795132
 
-The pinned tree declares these Git submodules:
+The full recursive Git tree for the pinned commit was inspected (not truncated). It contains exactly these two mode-`160000` gitlinks:
 
 | Path | Upstream repository | Pinned gitlink |
 |---|---|---|
 | `MioLibPatcher` | https://github.com/AngelAuraMC/MioLibPatcher | `9a1f807f2b8e7abfd921a3ed5a69e23ed6540b0c` |
 | `androidnsbypass` | https://github.com/alexytomi/androidnsbypass | `9f57982abf007aacc45becfc9328ae06fa6bbe3b` |
-| `app_pojavlauncher/src/main/jni/SDL` | https://github.com/libsdl-org/SDL | Not recorded in the root recursive tree response; resolve from the pinned tree before reuse |
-| `app_pojavlauncher/src/main/jni/sdl2-compat` | https://github.com/libsdl-org/sdl2-compat | Not recorded in the root recursive tree response; resolve from the pinned tree before reuse |
-| `MobileGlues` | https://github.com/MobileGL-Dev/MobileGlues | Not recorded in the root recursive tree response; resolve from the pinned tree before reuse |
+
+The recursive tree did not contain gitlinks at the previously suspected SDL, SDL2-compat, or MobileGlues paths. Those names may appear in upstream dependency descriptions or source/build references, but this pinned tree inspection does not establish them as Git submodules. Their exact source provenance and revisions must be traced from the actual build/source references before reuse.
 
 Do not use a moving submodule branch or current upstream HEAD as a substitute for the exact gitlink recorded by the reviewed parent commit.
 
