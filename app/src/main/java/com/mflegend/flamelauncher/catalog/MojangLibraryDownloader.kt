@@ -179,14 +179,6 @@ class MojangLibraryDownloader {
     }
 
     private companion object {
-        val ALLOWED_HOSTS = setOf(
-            "libraries.minecraft.net",
-            "repo.maven.apache.org",
-            "maven.fabricmc.net",
-            "maven.minecraftforge.net",
-            "maven.neoforged.net",
-            "maven.quiltmc.org"
-        )
         const val MAX_LIBRARY_COUNT = 1000
         const val MAX_ARTIFACT_BYTES = 512L * 1024L * 1024L
         const val MAX_TOTAL_BYTES = 4L * 1024L * 1024L * 1024L
