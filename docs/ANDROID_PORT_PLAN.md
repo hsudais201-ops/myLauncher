@@ -55,11 +55,11 @@ This document is the source of truth for the Android migration. The existing Tau
 - [x] Scan installed version folders and display metadata from matching version JSON files.
 - [x] Save official version metadata into the selected SAF game directory after validating the version ID and manifest SHA-1 (when supplied).
 - [x] Stream and verify the vanilla client JAR into the selected version folder using its official metadata size and SHA-1.
-- [ ] Download and verify required libraries, assets, and platform-specific native dependencies.
-- [ ] Integrate SAF document operations into complete launcher-engine installation and game-file workflows; never pass a tree URI to desktop `PathBuf` logic as if it were a normal path.
+- [x] Download and verify unconditional Maven library artifacts and the official asset index/objects through SAF; OS-rule-dependent libraries and Android native classifiers remain unsupported.
+- [x] Integrate SAF document operations into the current vanilla metadata/client/library/asset installation coordinator; this is not yet the complete launcher-engine/game-file workflow, and tree URIs remain distinct from filesystem paths.
 - Refactor Rust filesystem operations behind interfaces so Android document URIs are not treated as ordinary desktop paths.
-- Port metadata/version browsing and verified downloads.
-- Add cancellation, progress reporting, retry handling, and low-storage checks.
+- [x] Port initial metadata/version browsing and verified download stages (metadata, vanilla client JAR, unconditional libraries, and assets); full rules/native resolution is still pending.
+- [x] Add cooperative cancellation, transfer progress, verified temporary-file promotion, and reuse of verified files on retry. Low-storage preflight checks remain pending.
 
 ### Phase C — Runtime feasibility and gameplay
 - [x] Assess Amethyst-Android as the current JVM/renderer integration reference and document its dependency/license gates (`docs/ANDROID_RUNTIME_INTEGRATION_ASSESSMENT.md`). This is research only; no third-party code or runtime binaries are integrated.
