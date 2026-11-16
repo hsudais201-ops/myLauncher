@@ -16,7 +16,9 @@ This document is the source of truth for the Android migration. The existing Tau
 - The Versions tab scans the selected game root's `versions` directory, reads matching `<version-id>.json` files through SAF, and displays parsed version ID, type, release time, main class, inheritance, and asset-index metadata.
 - The Versions tab fetches Mojang's public HTTPS version manifest and displays the latest release/snapshot plus a preview of available versions.
 - The Versions catalog can download an individual version JSON into `versions/<id>/<id>.json` through SAF, enforce a response-size limit, check the returned JSON ID, and verify the manifest-provided SHA-1 when present. It can also stream the vanilla client JAR directly into `versions/<id>/<id>.jar`, validating the metadata ID, approved HTTPS host, declared byte size, and SHA-1 while avoiding in-memory buffering. A separate library action streams unconditional Maven `downloads.artifact` entries into `libraries/<path>`, validates safe relative paths and approved HTTPS repository hosts, enforces per-file/aggregate limits, verifies declared size and SHA-1, and skips files already verified locally. Entries with OS-specific `rules` and native classifiers are not downloaded yet, because desktop Linux rules do not establish Android/ARM compatibility. The asset action downloads the official asset index into `assets/indexes/<id>.json`, verifies its SHA-1, and streams content-addressed objects into `assets/objects/<prefix>/<hash>` with per-object size/SHA-1 checks and reuse of verified local files. An **Install files** coordinator now sequences version metadata, vanilla client JAR, unconditional library artifacts, and asset index/objects, returning a per-stage summary. Transfer progress is surfaced in the UI and users can cooperatively cancel the operation between read chunks and stages. Downloaders stage files under temporary SAF names and promote them only after checksum/size verification; completed verified files remain reusable after cancellation or a later failure. This is still not a complete install: OS-rule-dependent libraries/native classifiers are skipped, Android native dependency resolution and complete rule evaluation remain unimplemented, and there is no launch integration. File import/export and Rust-engine integration also remain unimplemented.
-- Gradle build, debug APK generation, and physical-device installation have not yet been verified.
+- A diagnostic-only Android runtime capability inspector now reports Android API level, supported ABIs, 64-bit process state, app heap limit, and processor count in Settings. It identifies whether the current process is suitable for the initial arm64-v8a runtime target; it does not install, load, or start a Minecraft JVM.
+- The first Android CI build exposed four Kotlin UTF-8 decoding type errors; those have been corrected. The legacy desktop Rust check also exposed a native-library classifier scope error, which has been corrected. The next CI run must confirm both fixes.
+- Debug APK generation and physical-device installation have not yet been verified.
 
 ## 1. Target architecture
 
@@ -35,7 +37,7 @@ This document is the source of truth for the Android migration. The existing Tau
 - Bundle or provision a legally distributable Android-compatible OpenJDK runtime for the selected Minecraft versions and device ABI. Android ART is not a substitute for the desktop JVM required by many Minecraft Java builds.
 - Integrate a maintained Android Java-game runtime/rendering approach, including OpenGL ES/Vulkan translation as required by the selected runtime.
 - Provide native library loading, window/surface lifecycle, audio, touch mapping, keyboard/mouse input, and pause/resume handling.
-- Treat this as a critical feasibility gate: version installation alone does not make Minecraft playable on Android.
+- Treat this as a critical feasibility gate: version installation alone does not make Minecraft playable on Android. Device ABI diagnostics are not evidence that a compatible game JVM, renderer, or native dependency loader is installed.
 
 ## 2. Migration phases
 
@@ -60,7 +62,8 @@ This document is the source of truth for the Android migration. The existing Tau
 - Add cancellation, progress reporting, retry handling, and low-storage checks.
 
 ### Phase C — Runtime feasibility and gameplay
-- Select and document the Android JVM/runtime distribution and its license.
+- [x] Add diagnostic-only device checks for the initial arm64-v8a target, Android API level, process bitness, and memory budget.
+- [ ] Select and document the Android JVM/runtime distribution and its license.
 - Integrate graphics translation, native libraries, surface lifecycle, and touch/keyboard input.
 - Validate one known compatible Minecraft version on physical arm64 hardware before expanding version support.
 - Add memory budgeting, thermal awareness, crash logs, and process/session lifecycle handling.
