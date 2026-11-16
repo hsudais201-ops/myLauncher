@@ -223,7 +223,6 @@ async fn install_version(version_id: String, game_directory: String) -> Result<I
             let destination = safe_join(&root.join("libraries"), relative)?;
             let sha = artifact.get("sha1").and_then(Value::as_str);
             if download_verified(&client, url, &destination, sha).await? { downloaded += 1; } else { skipped += 1; }
-        }
         if let Some(classifiers) = library.get("downloads").and_then(|v| v.get("classifiers")) {
             let native_key = library.get("natives").and_then(|v| v.get(launch_os_name())).and_then(Value::as_str).unwrap_or("");
             if !native_key.is_empty() {
@@ -235,6 +234,7 @@ async fn install_version(version_id: String, game_directory: String) -> Result<I
                     }
                 }
             }
+        }
         }
     }
 
