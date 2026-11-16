@@ -5,6 +5,8 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.nio.file.Files
+import java.nio.file.Path
 
 class JavaRuntimeMetadataTest {
     @Test fun parsesLegacyAndModernJavaVersions() {
@@ -41,4 +43,59 @@ class JavaRuntimeMetadataTest {
         assertFalse(JavaRuntimeMetadata.matchesInitialArm64Process("arm64", true, listOf("armeabi-v7a")))
         assertFalse(JavaRuntimeMetadata.matchesInitialArm64Process("x86_64", true, listOf("arm64-v8a")))
     }
+    @Test fun runtimeIdsRejectTraversalAndUnexpectedCharacters() {
+        assertTrue(RuntimePathPolicy.isRuntimeId("java17-arm64"))
+        assertTrue(RuntimePathPolicy.isRuntimeId("runtime.v2_1"))
+        assertFalse(RuntimePathPolicy.isRuntimeId(""))
+        assertFalse(RuntimePathPolicy.isRuntimeId("../outside"))
+        assertFalse(RuntimePathPolicy.isRuntimeId("runtime/name"))
+        assertFalse(RuntimePathPolicy.isRuntimeId("runtime name"))
+        assertFalse(RuntimePathPolicy.isRuntimeId("x".repeat(81)))
+    }
+
+    @Test fun directChildRequiresExactlyOneDirectoryLevel() {
+        withTempDirectory { root ->
+            val child = Files.createDirectory(root.resolve("java17")).toFile()
+            val nested = Files.createDirectory(child.toPath().resolve("nested")).toFile()
+            val sibling = Files.createDirectory(root.resolveSibling(root.fileName.toString() + "-other")).toFile()
+            try {
+                assertTrue(RuntimePathPolicy.isDirectChild(root.toFile(), child))
+                assertFalse(RuntimePathPolicy.isDirectChild(root.toFile(), nested))
+                assertFalse(RuntimePathPolicy.isDirectChild(root.toFile(), sibling))
+            } finally {
+                sibling.deleteRecursively()
+            }
+        }
+    }
+
+    @Test fun safeChildAcceptsNestedFilesButRejectsSiblingPrefixTraversal() {
+        withTempDirectory { root ->
+            val nested = Files.createDirectories(root.resolve("runtime/lib/server"))
+            val file = Files.createFile(nested.resolve("libjvm.so")).toFile()
+            val sibling = root.resolveSibling(root.fileName.toString() + "-escape").resolve("secret")
+            assertTrue(RuntimePathPolicy.isSafeChild(root.toFile(), file))
+            assertFalse(RuntimePathPolicy.isSafeChild(root.toFile(), sibling.toFile()))
+        }
+    }
+
+    @Test fun rejectsSymlinkThatResolvesOutsideManagedDirectory() {
+        withTempDirectory { root ->
+            withTempDirectory { outside ->
+                val link = root.resolve("runtime-link")
+                Files.createSymbolicLink(link, outside)
+                assertFalse(RuntimePathPolicy.isDirectChild(root.toFile(), link.toFile()))
+                assertFalse(RuntimePathPolicy.isSafeChild(root.toFile(), link.resolve("release").toFile()))
+            }
+        }
+    }
+
+    private fun withTempDirectory(block: (Path) -> Unit) {
+        val directory = Files.createTempDirectory("flame-runtime-path-test")
+        try {
+            block(directory)
+        } finally {
+            directory.toFile().deleteRecursively()
+        }
+    }
 }
+
