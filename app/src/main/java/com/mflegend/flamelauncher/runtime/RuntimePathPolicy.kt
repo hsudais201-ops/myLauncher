@@ -33,9 +33,27 @@ internal object RuntimePathPolicy {
         false
     }
 
+    /**
+     * Accept only strict descendants whose path components contain no
+     * symbolic links, including links that resolve elsewhere inside the tree.
+     */
     fun isSafeChild(parent: File, candidate: File): Boolean = try {
-        val parentPath = parent.canonicalPath + File.separator
-        candidate.canonicalPath.startsWith(parentPath)
+        val parentPath = parent.toPath().toAbsolutePath().normalize()
+        val candidatePath = candidate.toPath().toAbsolutePath().normalize()
+        if (!candidatePath.startsWith(parentPath) || candidatePath == parentPath) {
+            return false
+        }
+
+        var current = parentPath
+        if (Files.isSymbolicLink(current)) return false
+        for (part in parentPath.relativize(candidatePath)) {
+            current = current.resolve(part)
+            if (Files.isSymbolicLink(current)) return false
+        }
+
+        val canonicalParent = parent.canonicalFile.toPath()
+        val canonicalCandidate = candidate.canonicalFile.toPath()
+        canonicalCandidate != canonicalParent && canonicalCandidate.startsWith(canonicalParent)
     } catch (_: IOException) {
         false
     } catch (_: SecurityException) {
