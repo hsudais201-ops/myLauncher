@@ -617,6 +617,16 @@ private fun LibraryScreen(folderUri: String?) {
 @Composable
 private fun SettingsScreen(folderUri: String?, error: String?, onChooseFolder: () -> Unit) {
     val context = LocalContext.current
+    val hasPersistedFolderAccess = remember(folderUri) {
+        folderUri?.let { selectedUri ->
+            val selectedTree = Uri.parse(selectedUri)
+            context.contentResolver.persistedUriPermissions.any { permission ->
+                permission.uri == selectedTree &&
+                    permission.isReadPermission &&
+                    permission.isWritePermission
+            }
+        } ?: false
+    }
     val runtime = remember { AndroidRuntimeEnvironment.inspect(context) }
     val runtimeScan by produceState<AndroidJavaRuntimeManager.ScanResult?>(initialValue = null, runtime) {
         value = withContext(Dispatchers.IO) {
@@ -634,8 +644,11 @@ private fun SettingsScreen(folderUri: String?, error: String?, onChooseFolder: (
             Button(onClick = onChooseFolder, modifier = Modifier.fillMaxWidth()) {
                 Text(if (folderUri == null) "Choose game folder" else "Change game folder")
             }
-            if (folderUri != null) {
-                Text("Selected folder permission saved", color = Color(0xFF8DD9A8), fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+            if (folderUri != null && hasPersistedFolderAccess) {
+                Text("Saved folder access is available", color = Color(0xFF8DD9A8), fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+                Text(folderUri, color = Muted, fontSize = 11.sp)
+            } else if (folderUri != null) {
+                Text("Saved folder access is missing or expired. Choose the game folder again.", color = Color(0xFFFFB36B), fontWeight = FontWeight.SemiBold, fontSize = 12.sp)
                 Text(folderUri, color = Muted, fontSize = 11.sp)
             } else {
                 Text("No game folder selected", color = Muted, fontSize = 12.sp)
