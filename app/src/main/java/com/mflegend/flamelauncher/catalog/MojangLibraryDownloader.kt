@@ -47,7 +47,7 @@ class MojangLibraryDownloader {
             val relativePath = artifact.optString("path")
             val segments = validateArtifactPath(relativePath)
             val url = URL(artifact.optString("url"))
-            require(url.protocol == "https" && url.host.lowercase() in ALLOWED_HOSTS) {
+            require(url.protocol == "https" && url.userInfo == null && (url.port == -1 || url.port == 443) && url.host.lowercase() in ALLOWED_HOSTS) {
                 "Library artifact uses an unsupported repository host: ${url.host}"
             }
             val sha1 = artifact.optString("sha1")
@@ -155,7 +155,7 @@ class MojangLibraryDownloader {
     }
 
     private fun validateArtifactPath(path: String): List<String> {
-        require(path.isNotBlank() && path.length <= 1024 && !path.startsWith("/") && '\\\\' !in path && '\u0000' !in path) {
+        require(path.isNotBlank() && path.length <= 1024 && !path.startsWith("/") && '\\' !in path && '\u0000' !in path) {
             "Library artifact contains an unsafe relative path."
         }
         val parts = path.split('/')
