@@ -12,13 +12,13 @@ class JavaRuntimeMetadataTest {
     @Test fun parsesLegacyAndModernJavaVersions() {
         assertEquals(8, JavaRuntimeMetadata.parseJavaMajor("1.8.0_402"))
         assertEquals(17, JavaRuntimeMetadata.parseJavaMajor("17.0.9"))
-        assertEquals(21, JavaRuntimeMetadata.parseJavaMajor("21-ea"))
+        assertEquals(21, JavaRuntimeMetadata.parseJavaMajor("21-ea"))\n        assertEquals(17, JavaRuntimeMetadata.parseJavaMajor("17.0.9+9-LTS"))
     }
 
     @Test fun rejectsMalformedJavaVersions() {
         assertNull(JavaRuntimeMetadata.parseJavaMajor(""))
         assertNull(JavaRuntimeMetadata.parseJavaMajor("not-a-version"))
-        assertNull(JavaRuntimeMetadata.parseJavaMajor("preview-17"))
+        assertNull(JavaRuntimeMetadata.parseJavaMajor("preview-17"))\n        assertNull(JavaRuntimeMetadata.parseJavaMajor("17garbage"))\n        assertNull(JavaRuntimeMetadata.parseJavaMajor("17-"))
     }
 
     @Test fun parsesQuotedReleaseMetadataAndIgnoresInvalidKeys() {
@@ -30,7 +30,7 @@ class JavaRuntimeMetadataTest {
         assertFalse(parsed.containsKey("invalid-key"))
     }
 
-    @Test fun normalizesCommonArchitectureAliases() {
+    @Test fun rejectsMismatchedQuotesAndDuplicateReleaseKeys() {\n        val parsed = JavaRuntimeMetadata.parseReleaseFile(\n            "JAVA_VERSION=\\\"17.0.9\\nOS_ARCH=\\\"aarch64\\\"\\nIMPLEMENTOR=\\\"OpenJDK\\\"\\nIMPLEMENTOR=\\\"Other\\\"\\n"\n        )\n        assertFalse(parsed.containsKey("JAVA_VERSION"))\n        assertFalse(parsed.containsKey("IMPLEMENTOR"))\n        assertEquals("aarch64", parsed["OS_ARCH"])\n    }\n\n    @Test fun normalizesCommonArchitectureAliases() {
         assertEquals("arm64", JavaRuntimeMetadata.normalizeArchitecture("AARCH64"))
         assertEquals("arm64", JavaRuntimeMetadata.normalizeArchitecture("arm64-v8a"))
         assertEquals("x86_64", JavaRuntimeMetadata.normalizeArchitecture("AMD64"))
