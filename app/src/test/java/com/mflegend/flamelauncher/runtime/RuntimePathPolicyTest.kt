@@ -1,0 +1,70 @@
+package com.mflegend.flamelauncher.runtime
+
+import java.io.File
+import java.nio.file.Files
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
+import org.junit.Test
+
+class RuntimePathPolicyTest {
+    @Test fun acceptsOnlyRuntimeIdsWithSafeCharactersAndLength() {
+        assertTrue(RuntimePathPolicy.isRuntimeId("java17-arm64"))
+        assertTrue(RuntimePathPolicy.isRuntimeId("runtime_21.0.2"))
+        assertFalse(RuntimePathPolicy.isRuntimeId("../outside"))
+        assertFalse(RuntimePathPolicy.isRuntimeId(""))
+        assertFalse(RuntimePathPolicy.isRuntimeId("x".repeat(81)))
+    }
+
+    @Test fun acceptsOnlyCanonicalDirectChildren() {
+        val parent = Files.createTempDirectory("flame-runtime-root").toFile()
+        try {
+            val child = File(parent, "java17").apply { mkdir() }
+            val nested = File(child, "nested").apply { mkdir() }
+            val sibling = Files.createTempDirectory("flame-runtime-sibling").toFile()
+            assertTrue(RuntimePathPolicy.isDirectChild(parent, child))
+            assertFalse(RuntimePathPolicy.isDirectChild(parent, nested))
+            assertFalse(RuntimePathPolicy.isDirectChild(parent, sibling))
+            sibling.deleteRecursively()
+        } finally {
+            parent.deleteRecursively()
+        }
+    }
+
+    @Test fun rejectsSymlinkedRuntimeHomeThatEscapesManagedRoot() {
+        val parent = Files.createTempDirectory("flame-runtime-root").toFile()
+        val outside = Files.createTempDirectory("flame-runtime-outside").toFile()
+        try {
+            val link = File(parent, "linked-runtime")
+            try {
+                Files.createSymbolicLink(link.toPath(), outside.toPath())
+            } catch (_: UnsupportedOperationException) {
+                return
+            } catch (_: SecurityException) {
+                return
+            }
+            assertFalse(RuntimePathPolicy.isDirectChild(parent, link))
+        } finally {
+            parent.deleteRecursively()
+            outside.deleteRecursively()
+        }
+    }
+
+    @Test fun rejectsSymlinkedReleaseFileOutsideRuntimeHome() {
+        val home = Files.createTempDirectory("flame-runtime-home").toFile()
+        val outside = Files.createTempFile("flame-release", ".txt").toFile()
+        try {
+            val releaseLink = File(home, "release")
+            try {
+                Files.createSymbolicLink(releaseLink.toPath(), outside.toPath())
+            } catch (_: UnsupportedOperationException) {
+                return
+            } catch (_: SecurityException) {
+                return
+            }
+            assertFalse(RuntimePathPolicy.isSafeChild(home, releaseLink))
+        } finally {
+            home.deleteRecursively()
+            outside.delete()
+        }
+    }
+}
