@@ -88,7 +88,10 @@ class MojangAssetDownloader {
             val fileUri = storage.createFile(prefixDir, temporaryName, "application/octet-stream")
             try {
                 val objectUrl = URL("https://resources.download.minecraft.net/$prefix/$hash")
-                downloadObject(objectUrl, storage, fileUri, size, hash, cancelled)
+                downloadObject(objectUrl, storage, fileUri, size, hash, control)
+                control.checkpoint()
+                existing?.let { storage.delete(it.uri) }
+                storage.rename(fileUri, hash)
                 downloaded++
                 completedCount++
                 control.progress("Assets", completedCount.toLong(), objectCount.toLong())
@@ -210,7 +213,6 @@ class MojangAssetDownloader {
             storage.openInput(uri).use { input ->
                 val buffer = ByteArray(64 * 1024)
                 while (true) {
-                    control.checkpoint()
                     val count = input.read(buffer)
                     if (count < 0) break
                     total += count
