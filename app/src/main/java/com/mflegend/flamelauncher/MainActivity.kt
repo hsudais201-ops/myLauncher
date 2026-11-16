@@ -610,6 +610,7 @@ private fun SettingsScreen(folderUri: String?, error: String?, onChooseFolder: (
             AndroidJavaRuntimeManager(context).scan(runtime)
         }
     }
+    val scanResult = runtimeScan
 
     Card(colors = CardDefaults.cardColors(containerColor = Panel), shape = RoundedCornerShape(20.dp)) {
         Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -645,15 +646,15 @@ private fun SettingsScreen(folderUri: String?, error: String?, onChooseFolder: (
             Text("App process: ${if (runtime.is64BitProcess) "64-bit" else "32-bit"}", color = Muted, fontSize = 12.sp)
             Text("App heap limit: ${runtime.maxHeapMb} MB · Device memory class: ${runtime.memoryClassMb?.let { "$it MB" } ?: "Unknown"}", color = Muted, fontSize = 12.sp)
             Text("Available processor cores: ${runtime.processorCount}", color = Muted, fontSize = 12.sp)
-            if (runtimeScan == null) {
+            if (scanResult == null) {
                 Text("Checking app-private Java runtime storage…", color = Muted, fontSize = 12.sp)
-            } else if (runtimeScan.abiMatchedRuntimes.isNotEmpty()) {
+            } else if (scanResult.abiMatchedRuntimes.isNotEmpty()) {
                 Text(
-                    "ABI-matched runtime candidates found: ${runtimeScan.abiMatchedRuntimes.joinToString { "Java ${it.javaMajorVersion} (${it.id})" }}",
+                    "ABI-matched runtime candidates found: ${scanResult.abiMatchedRuntimes.joinToString { "Java ${it.javaMajorVersion} (${it.id})" }}",
                     color = Color(0xFF8DD9A8),
                     fontSize = 12.sp
                 )
-            } else if (runtimeScan.runtimes.isNotEmpty()) {
+            } else if (scanResult.runtimes.isNotEmpty()) {
                 Text("Java runtime candidates were found, but none match this app process ABI.", color = Color(0xFFFFB36B), fontSize = 12.sp)
             } else {
                 Text("No ABI-matched Minecraft Java runtime candidate is installed in Flame Launcher's private runtime storage.", color = Muted, fontSize = 12.sp)
@@ -663,7 +664,7 @@ private fun SettingsScreen(folderUri: String?, error: String?, onChooseFolder: (
                 color = Muted,
                 fontSize = 12.sp
             )
-            runtimeScan?.warnings?.take(2)?.forEach { warning ->
+            scanResult?.warnings?.take(2)?.forEach { warning ->
                 Text(warning, color = Color(0xFFFFB36B), fontSize = 11.sp)
             }
         }
