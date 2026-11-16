@@ -149,8 +149,7 @@ class MojangAssetDownloader {
                 output.write(bytes)
                 output.flush()
             }
-            oldFile?.let { storage.delete(it.uri) }
-            storage.rename(uri, name)
+            storage.replaceWithVerifiedFile(uri, oldFile?.uri, name)
         } catch (error: Exception) {
             runCatching { storage.delete(uri) }
             throw error
