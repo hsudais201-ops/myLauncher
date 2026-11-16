@@ -7,6 +7,8 @@ import android.provider.DocumentsContract.Document
 import java.io.InputStream
 import java.io.OutputStream
 import java.io.IOException
+import java.io.FilterInputStream
+import java.io.FilterOutputStream
 
 /**
  * SAF-backed access to a user-selected game directory.
@@ -83,8 +85,21 @@ class SafGameStorage(
 
     fun openInput(uri: Uri): InputStream {
         requireInTree(uri)
-        return providerCall("opening a file for reading") {
+        val stream = providerCall("opening a file for reading") {
             requireNotNull(resolver.openInputStream(uri)) { "The document provider returned no input stream." }
+        }
+        return object : FilterInputStream(stream) {
+            override fun read(): Int = providerCall("reading a file") { super.read() }
+
+            override fun read(buffer: ByteArray, offset: Int, length: Int): Int =
+                providerCall("reading a file") { super.read(buffer, offset, length) }
+
+            override fun skip(count: Long): Long =
+                providerCall("skipping within a file") { super.skip(count) }
+
+            override fun close() {
+                providerCall("closing a file after reading") { super.close() }
+            }
         }
     }
 
@@ -94,8 +109,25 @@ class SafGameStorage(
         require(mode == "wt" || mode == "wa" || mode == "rw" || mode == "rwt") {
             "Unsupported document write mode."
         }
-        return providerCall("opening a file for writing") {
+        val stream = providerCall("opening a file for writing") {
             requireNotNull(resolver.openOutputStream(uri, mode)) { "The document provider returned no output stream." }
+        }
+        return object : FilterOutputStream(stream) {
+            override fun write(value: Int) {
+                providerCall("writing a file") { out.write(value) }
+            }
+
+            override fun write(buffer: ByteArray, offset: Int, length: Int) {
+                providerCall("writing a file") { out.write(buffer, offset, length) }
+            }
+
+            override fun flush() {
+                providerCall("flushing a file") { out.flush() }
+            }
+
+            override fun close() {
+                providerCall("closing a file after writing") { super.close() }
+            }
         }
     }
 
@@ -175,6 +207,8 @@ class SafGameStorage(
 
     private inline fun <T> providerCall(operation: String, block: () -> T): T = try {
         block()
+    } catch (error: StorageAccessException) {
+        throw error
     } catch (error: SecurityException) {
         throw StorageAccessException(
             "Android no longer grants access while $operation. Re-select the game folder in Settings.",
