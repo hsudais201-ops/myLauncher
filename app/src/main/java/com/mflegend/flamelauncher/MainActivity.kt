@@ -70,6 +70,7 @@ import com.mflegend.flamelauncher.catalog.MojangLibraryDownloader
 import com.mflegend.flamelauncher.catalog.MojangAssetDownloader
 import com.mflegend.flamelauncher.catalog.MojangVersionInstaller
 import com.mflegend.flamelauncher.catalog.DownloadControl
+import com.mflegend.flamelauncher.runtime.AndroidRuntimeEnvironment
 import java.util.concurrent.CancellationException
 
 private val Flame = Color(0xFFFF6A2A)
@@ -600,6 +601,9 @@ private fun LibraryScreen(folderUri: String?) {
 
 @Composable
 private fun SettingsScreen(folderUri: String?, error: String?, onChooseFolder: () -> Unit) {
+    val context = LocalContext.current
+    val runtime = remember { AndroidRuntimeEnvironment.inspect(context) }
+
     Card(colors = CardDefaults.cardColors(containerColor = Panel), shape = RoundedCornerShape(20.dp)) {
         Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Text("Settings", color = Color.White, fontSize = 23.sp, fontWeight = FontWeight.Bold)
@@ -619,7 +623,28 @@ private fun SettingsScreen(folderUri: String?, error: String?, onChooseFolder: (
             }
         }
     }
-    InfoScreen("Device settings", "Android Java runtime, memory limits, graphics and touch-control preferences will be added in later stages.")
+    Card(colors = CardDefaults.cardColors(containerColor = Panel), shape = RoundedCornerShape(20.dp)) {
+        Column(Modifier.fillMaxWidth().padding(20.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text("JAVA RUNTIME READINESS", color = Flame, fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.2.sp)
+            Text(
+                if (runtime.supportsInitialArm64Runtime) "ARM64 device capability detected" else "Initial ARM64 target not confirmed",
+                color = if (runtime.supportsInitialArm64Runtime) Color(0xFF8DD9A8) else Color(0xFFFFB36B),
+                fontSize = 15.sp,
+                fontWeight = FontWeight.SemiBold
+            )
+            Text("Android API: ${runtime.androidApiLevel}", color = Muted, fontSize = 12.sp)
+            Text("Primary ABI: ${runtime.primaryAbi ?: "Unknown"}", color = Muted, fontSize = 12.sp)
+            Text("Supported ABIs: ${runtime.supportedAbis.joinToString().ifBlank { "Unknown" }}", color = Muted, fontSize = 12.sp)
+            Text("App process: ${if (runtime.is64BitProcess) "64-bit" else "32-bit"}", color = Muted, fontSize = 12.sp)
+            Text("App heap limit: ${runtime.maxHeapMb} MB · Device memory class: ${runtime.memoryClassMb?.let { "$it MB" } ?: "Unknown"}", color = Muted, fontSize = 12.sp)
+            Text("Available processor cores: ${runtime.processorCount}", color = Muted, fontSize = 12.sp)
+            Text(
+                "Minecraft Java runtime: not installed. These checks only report device capability; they do not provide a JVM, graphics bridge, or game launch support.",
+                color = Muted,
+                fontSize = 12.sp
+            )
+        }
+    }
 }
 
 @Composable
