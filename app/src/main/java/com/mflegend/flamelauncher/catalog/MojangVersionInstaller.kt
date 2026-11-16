@@ -1,0 +1,69 @@
+package com.mflegend.flamelauncher.catalog
+
+import android.net.Uri
+import com.mflegend.flamelauncher.storage.SafGameStorage
+
+data class MojangVersionInstallResult(
+    val versionId: String,
+    val clientJarBytes: Long,
+    val libraries: LibraryDownloadResult,
+    val assets: AssetDownloadResult
+)
+
+/**
+ * Coordinates the currently supported vanilla payload stages.
+ * This is not a game launcher: native runtime files, rule evaluation and launch are separate work.
+ */
+class MojangVersionInstaller(
+    private val manifestClient: MojangVersionManifestClient = MojangVersionManifestClient(),
+    private val clientJarDownloader: MojangClientJarDownloader = MojangClientJarDownloader(),
+    private val libraryDownloader: MojangLibraryDownloader = MojangLibraryDownloader(),
+    private val assetDownloader: MojangAssetDownloader = MojangAssetDownloader()
+) {
+    fun install(version: MojangVersion, storage: SafGameStorage): MojangVersionInstallResult {
+        require(version.id.matches(Regex("[A-Za-z0-9._-]{1,100}"))) {
+            "Invalid version identifier."
+        }
+        val metadataBytes = manifestClient.fetchVersionMetadata(version)
+        val root = storage.root()
+        val versionsDirectory = findOrCreateDirectory(storage, root, "versions")
+        val versionDirectory = findOrCreateDirectory(storage, versionsDirectory, version.id)
+        saveMetadata(storage, versionDirectory, version.id + ".json", metadataBytes)
+
+        val clientJar = clientJarDownloader.download(
+            version.id,
+            metadataBytes,
+            storage,
+            versionDirectory
+        )
+        val libraries = libraryDownloader.download(metadataBytes, storage, root)
+        val assets = assetDownloader.download(metadataBytes, storage, root)
+
+        return MojangVersionInstallResult(
+            versionId = version.id,
+            clientJarBytes = clientJar.byteCount,
+            libraries = libraries,
+            assets = assets
+        )
+    }
+
+    private fun saveMetadata(storage: SafGameStorage, directory: Uri, name: String, bytes: ByteArray) {
+        storage.listChildren(directory).firstOrNull { !it.isDirectory && it.name == name }?.let {
+            storage.delete(it.uri)
+        }
+        val uri = storage.createFile(directory, name, "application/json")
+        try {
+            storage.openOutput(uri).use { output ->
+                output.write(bytes)
+                output.flush()
+            }
+        } catch (error: Exception) {
+            runCatching { storage.delete(uri) }
+            throw error
+        }
+    }
+
+    private fun findOrCreateDirectory(storage: SafGameStorage, parent: Uri, name: String): Uri =
+        storage.listChildren(parent).firstOrNull { it.isDirectory && it.name == name }?.uri
+            ?: storage.createDirectory(parent, name)
+}
