@@ -16,7 +16,7 @@ class JavaRuntimeMetadataTest {
     @Test fun rejectsMalformedJavaVersions() {
         assertNull(JavaRuntimeMetadata.parseJavaMajor(""))
         assertNull(JavaRuntimeMetadata.parseJavaMajor("not-a-version"))
-        assertNull(JavaRuntimeMetadata.parseJavaMajor("17-preview-build"))
+        assertNull(JavaRuntimeMetadata.parseJavaMajor("preview-17"))
     }
 
     @Test fun parsesQuotedReleaseMetadataAndIgnoresInvalidKeys() {
