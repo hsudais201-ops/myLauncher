@@ -42,7 +42,7 @@ class MojangVersionManifestClient {
                     require(total <= MAX_RESPONSE_BYTES) { "Mojang manifest is larger than expected." }
                     output.write(buffer, 0, count)
                 }
-                output.toString(Charsets.UTF_8.name())
+                output.toString(Charsets.UTF_8)
             }
             val root = JSONObject(body)
             val latest = root.optJSONObject("latest")
@@ -102,7 +102,7 @@ class MojangVersionManifestClient {
                 }
                 output.toByteArray()
             }
-            val json = JSONObject(bytes.toString(Charsets.UTF_8.name()))
+            val json = JSONObject(bytes.toString(Charsets.UTF_8))
             require(json.optString("id") == version.id) { "Downloaded metadata version ID does not match the catalog." }
             val expectedSha1 = version.sha1
             if (!expectedSha1.isNullOrBlank()) {
