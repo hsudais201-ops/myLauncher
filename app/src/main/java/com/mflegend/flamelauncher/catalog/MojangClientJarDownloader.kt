@@ -23,7 +23,7 @@ class MojangClientJarDownloader {
         control: DownloadControl = DownloadControl()
     ): ClientJarDownloadResult {
         require(versionId.matches(Regex("[A-Za-z0-9._-]{1,100}"))) { "Invalid version identifier." }
-        val metadata = JSONObject(metadataBytes.toString(Charsets.UTF_8.name()))
+        val metadata = JSONObject(metadataBytes.toString(Charsets.UTF_8))
         require(metadata.optString("id") == versionId) { "Version metadata ID does not match the selected version." }
         val client = metadata.optJSONObject("downloads")?.optJSONObject("client")
             ?: error("This version metadata does not provide a vanilla client JAR.")
