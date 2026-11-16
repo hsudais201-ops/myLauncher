@@ -23,7 +23,8 @@ class MojangLibraryDownloader {
     fun download(
         metadataBytes: ByteArray,
         storage: SafGameStorage,
-        gameRoot: Uri
+        gameRoot: Uri,
+        control: DownloadControl = DownloadControl()
     ): LibraryDownloadResult {
         val metadata = JSONObject(metadataBytes.toString(Charsets.UTF_8.name()))
         val libraries = metadata.optJSONArray("libraries")
@@ -37,6 +38,7 @@ class MojangLibraryDownloader {
         var totalBytes = 0L
 
         for (index in 0 until libraries.length()) {
+            control.checkpoint()
             val library = libraries.optJSONObject(index) ?: continue
             // Do not guess how desktop OS rules should map to Android.
             if (library.has("rules")) {
@@ -69,13 +71,17 @@ class MojangLibraryDownloader {
                 present++
                 continue
             }
-            if (existing != null) storage.delete(existing.uri)
             require(totalBytes <= MAX_TOTAL_BYTES - expectedSize) {
                 "Library set exceeds the total download safety limit."
             }
-            val fileUri = storage.createFile(parent, fileName, "application/java-archive")
+            val temporaryName = ".$fileName.download"
+            storage.listChildren(parent).firstOrNull { !it.isDirectory && it.name == temporaryName }?.let { storage.delete(it.uri) }
+            val fileUri = storage.createFile(parent, temporaryName, "application/java-archive")
             try {
-                downloadOne(url, storage, fileUri, expectedSize, sha1)
+                downloadOne(url, storage, fileUri, expectedSize, sha1, control)
+                control.checkpoint()
+                existing?.let { storage.delete(it.uri) }
+                storage.rename(fileUri, fileName)
                 totalBytes += expectedSize
                 downloaded++
             } catch (error: Exception) {
@@ -91,7 +97,8 @@ class MojangLibraryDownloader {
         storage: SafGameStorage,
         destination: Uri,
         expectedSize: Long,
-        expectedSha1: String
+        expectedSha1: String,
+        control: DownloadControl
     ) {
         val connection = (url.openConnection() as HttpURLConnection).apply {
             requestMethod = "GET"
@@ -109,12 +116,14 @@ class MojangLibraryDownloader {
                 storage.openOutput(destination).use { output ->
                     val buffer = ByteArray(64 * 1024)
                     while (true) {
+                        control.checkpoint()
                         val count = input.read(buffer)
                         if (count < 0) break
                         countTotal += count
                         require(countTotal <= expectedSize) { "Library artifact exceeded its declared size." }
                         digest.update(buffer, 0, count)
                         output.write(buffer, 0, count)
+                        control.progress("Libraries", countTotal, expectedSize)
                     }
                     output.flush()
                 }
