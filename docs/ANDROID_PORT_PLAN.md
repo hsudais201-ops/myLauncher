@@ -12,7 +12,8 @@ This document is the source of truth for the Android migration. The existing Tau
 - Settings can open the Android SAF tree picker, request persistable read/write URI access, and save the selected tree URI in app preferences.
 - A Kotlin SAF storage adapter now supports direct-child listing, stream-based reads/writes, directory/file creation, and document deletion while checking that document URIs remain inside the selected tree.
 - The Library tab now browses direct child folders and files from the selected SAF tree, loading provider queries off the main thread and allowing folder navigation.
-- The browser is read-only at the UI level; file import/export, recursive indexing, game installation, and Rust-engine integration remain unimplemented.
+- At the selected folder root, the Library tab now checks for standard Minecraft directories (`versions`, `assets`, `libraries`, `mods`, `resourcepacks`, and `saves`) and reports which are present.
+- The browser remains read-only at the UI level; per-version metadata inspection, file import/export, recursive indexing, game installation, and Rust-engine integration remain unimplemented.
 - Gradle build, debug APK generation, and physical-device installation have not yet been verified.
 
 ## 1. Target architecture
@@ -46,6 +47,7 @@ This document is the source of truth for the Android migration. The existing Tau
 - [x] Implement initial SAF game-directory selection and persist URI permissions in the Android UI.
 - [x] Add a SAF-aware Kotlin storage abstraction for listing, reading, writing, creating, and deleting documents.
 - [x] Connect the SAF adapter to a basic in-app folder browser with directory navigation.
+- [x] Add first-level detection of standard Minecraft game-directory folders.
 - [ ] Integrate SAF document operations into launcher-engine installation and game-file workflows; never pass a tree URI to desktop `PathBuf` logic as if it were a normal path.
 - Refactor Rust filesystem operations behind interfaces so Android document URIs are not treated as ordinary desktop paths.
 - Port metadata/version browsing and verified downloads.
