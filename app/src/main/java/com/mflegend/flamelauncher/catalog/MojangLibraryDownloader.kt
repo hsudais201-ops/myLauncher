@@ -76,7 +76,6 @@ class MojangLibraryDownloader {
             if (existing != null && isVerified(storage, existing.uri, expectedSize, sha1)) {
                 present++
                 completedCount++
-                control.progress("Libraries", completedCount.toLong(), eligibleCount.toLong())
                 continue
             }
             require(totalBytes <= MAX_TOTAL_BYTES - expectedSize) {
