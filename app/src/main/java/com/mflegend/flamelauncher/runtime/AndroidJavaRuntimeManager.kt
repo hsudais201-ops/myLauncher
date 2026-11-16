@@ -68,7 +68,7 @@ class AndroidJavaRuntimeManager(context: Context) {
         } catch (_: SecurityException) {
             return ScanResult(emptyList(), listOf("Access to the private Java runtime directory was denied."))
         }
-        if (canonicalAppRoot == null || canonicalRoot.parentFile != canonicalAppRoot) {
+        if (canonicalAppRoot == null || !RuntimePathPolicy.isDirectChild(canonicalAppRoot, canonicalRoot)) {
             return ScanResult(emptyList(), listOf("The Java runtime directory resolves outside its managed app-private location."))
         }
         val children = runtimeRoot.listFiles()
@@ -77,7 +77,7 @@ class AndroidJavaRuntimeManager(context: Context) {
         }
 
         for (directory in children) {
-            if (!directory.isDirectory || !RUNTIME_ID.matches(directory.name)) continue
+            if (!directory.isDirectory || !RuntimePathPolicy.isRuntimeId(directory.name)) continue
             val canonicalHome = try {
                 directory.canonicalFile
             } catch (_: IOException) {
@@ -87,13 +87,13 @@ class AndroidJavaRuntimeManager(context: Context) {
                 warnings += "Ignored ${directory.name}: access to the runtime path was denied."
                 continue
             }
-            if (canonicalHome.parentFile != canonicalRoot) {
+            if (!RuntimePathPolicy.isDirectChild(canonicalRoot, canonicalHome)) {
                 warnings += "Ignored runtime folder outside the managed directory: ${directory.name}"
                 continue
             }
 
             val releaseFile = File(canonicalHome, "release")
-            if (!isSafeChild(canonicalHome, releaseFile) || !releaseFile.isFile || releaseFile.length() > MAX_RELEASE_FILE_BYTES) {
+            if (!RuntimePathPolicy.isSafeChild(canonicalHome, releaseFile) || !releaseFile.isFile || releaseFile.length() > MAX_RELEASE_FILE_BYTES) {
                 warnings += "Ignored ${directory.name}: Java release metadata is missing or invalid."
                 continue
             }
@@ -168,7 +168,7 @@ class AndroidJavaRuntimeManager(context: Context) {
         )
         return candidates.firstOrNull {
             try {
-                isSafeChild(home, it) && it.isFile && it.length() > 0L
+                RuntimePathPolicy.isSafeChild(home, it) && it.isFile && it.length() > 0L
             } catch (_: IOException) {
                 false
             } catch (_: SecurityException) {
@@ -177,19 +177,9 @@ class AndroidJavaRuntimeManager(context: Context) {
         }
     }
 
-    private fun isSafeChild(home: File, candidate: File): Boolean = try {
-        val homePath = home.canonicalPath + File.separator
-        candidate.canonicalPath.startsWith(homePath)
-    } catch (_: IOException) {
-        false
-    } catch (_: SecurityException) {
-        false
-    }
-
     companion object {
         private const val RUNTIME_DIRECTORY = "java-runtimes"
         private const val MINIMUM_JAVA_MAJOR = 8
         private const val MAX_RELEASE_FILE_BYTES = 64L * 1024L
-        private val RUNTIME_ID = Regex("[A-Za-z0-9._-]{1,80}")
     }
 }
