@@ -31,7 +31,7 @@ The Android port is **not yet complete**. In particular, this repository does no
 - A verified successful Gradle build or installable APK (the Android Gradle module is present, but build verification has not yet been completed).
 - Android-compatible JVM/runtime distribution and lifecycle management.
 - OpenGL/Vulkan renderer integration, native library ABI packaging, or touch-to-game input bridge.
-- Complete SAF-backed game installation, recursive scanning, and launcher-engine integration; the current Library tab browses folders and files, and the Versions tab can save verified metadata and vanilla client JARs only.
+- Complete SAF-backed game installation, recursive scanning, and launcher-engine integration; the Versions tab now coordinates metadata, the vanilla client JAR, unconditional libraries, and asset objects, but still skips OS-specific native dependencies and does not launch the game.
 - Microsoft account, Xbox Live/XSTS, or Minecraft Services authentication.
 - Verified gameplay on physical Android devices.
 
