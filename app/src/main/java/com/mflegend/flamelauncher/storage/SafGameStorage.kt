@@ -6,6 +6,7 @@ import android.provider.DocumentsContract
 import android.provider.DocumentsContract.Document
 import java.io.InputStream
 import java.io.OutputStream
+import java.io.IOException
 
 /**
  * SAF-backed access to a user-selected game directory.
@@ -53,7 +54,9 @@ class SafGameStorage(
         )
 
         val entries = mutableListOf<Entry>()
-        resolver.query(childrenUri, projection, null, null, Document.COLUMN_DISPLAY_NAME)?.use { cursor ->
+        providerCall("reading the selected folder") {
+            resolver.query(childrenUri, projection, null, null, Document.COLUMN_DISPLAY_NAME)
+        }?.use { cursor ->
             val idColumn = cursor.getColumnIndexOrThrow(Document.COLUMN_DOCUMENT_ID)
             val nameColumn = cursor.getColumnIndexOrThrow(Document.COLUMN_DISPLAY_NAME)
             val mimeColumn = cursor.getColumnIndexOrThrow(Document.COLUMN_MIME_TYPE)
@@ -77,7 +80,9 @@ class SafGameStorage(
 
     fun openInput(uri: Uri): InputStream {
         requireInTree(uri)
-        return requireNotNull(resolver.openInputStream(uri)) { "The document provider could not open this file." }
+        return providerCall("opening a file for reading") {
+            requireNotNull(resolver.openInputStream(uri)) { "The document provider returned no input stream." }
+        }
     }
 
     /** Opens a document for writing. Use "wt" to replace contents or "wa" to append. */
@@ -86,32 +91,40 @@ class SafGameStorage(
         require(mode == "wt" || mode == "wa" || mode == "rw" || mode == "rwt") {
             "Unsupported document write mode."
         }
-        return requireNotNull(resolver.openOutputStream(uri, mode)) { "The document provider could not write this file." }
+        return providerCall("opening a file for writing") {
+            requireNotNull(resolver.openOutputStream(uri, mode)) { "The document provider returned no output stream." }
+        }
     }
 
     fun createDirectory(parentUri: Uri, displayName: String): Uri {
         requireInTree(parentUri)
         validateDisplayName(displayName)
-        return requireNotNull(
-            DocumentsContract.createDocument(resolver, parentUri, Document.MIME_TYPE_DIR, displayName)
-        ) { "The document provider could not create the directory." }
+        return providerCall("creating a folder") {
+            requireNotNull(
+                DocumentsContract.createDocument(resolver, parentUri, Document.MIME_TYPE_DIR, displayName)
+            ) { "The document provider returned no folder." }
+        }
     }
 
     fun createFile(parentUri: Uri, displayName: String, mimeType: String = "application/octet-stream"): Uri {
         requireInTree(parentUri)
         validateDisplayName(displayName)
         require(mimeType.isNotBlank()) { "A MIME type is required." }
-        return requireNotNull(
-            DocumentsContract.createDocument(resolver, parentUri, mimeType, displayName)
-        ) { "The document provider could not create the file." }
+        return providerCall("creating a file") {
+            requireNotNull(
+                DocumentsContract.createDocument(resolver, parentUri, mimeType, displayName)
+            ) { "The document provider returned no file." }
+        }
     }
 
     /** Renames a verified temporary document within the selected tree. */
     fun rename(uri: Uri, displayName: String): Uri {
         requireInTree(uri)
         validateDisplayName(displayName)
-        return requireNotNull(DocumentsContract.renameDocument(resolver, uri, displayName)) {
-            "The document provider could not rename the file."
+        return providerCall("renaming a file") {
+            requireNotNull(DocumentsContract.renameDocument(resolver, uri, displayName)) {
+                "The document provider returned no renamed file."
+            }
         }
     }
 
@@ -142,7 +155,7 @@ class SafGameStorage(
 
     fun delete(uri: Uri): Boolean {
         requireInTree(uri)
-        return DocumentsContract.deleteDocument(resolver, uri)
+        return providerCall("deleting a file") { DocumentsContract.deleteDocument(resolver, uri) }
     }
 
     private fun requireInTree(uri: Uri) {
@@ -151,8 +164,34 @@ class SafGameStorage(
         }
         require(
             uri == rootDocumentUri ||
-                DocumentsContract.isChildDocument(resolver, rootDocumentUri, uri)
+                providerCall("checking folder access") {
+                    DocumentsContract.isChildDocument(resolver, rootDocumentUri, uri)
+                }
         ) { "The document is outside the selected game folder." }
+    }
+
+    private inline fun <T> providerCall(operation: String, block: () -> T): T = try {
+        block()
+    } catch (error: SecurityException) {
+        throw StorageAccessException(
+            "Android no longer grants access while $operation. Re-select the game folder in Settings.",
+            error
+        )
+    } catch (error: IOException) {
+        throw StorageAccessException(
+            "The selected storage provider failed while $operation. Check that the folder is available, then try again.",
+            error
+        )
+    } catch (error: IllegalStateException) {
+        throw StorageAccessException(
+            "The selected storage provider became unavailable while $operation. Re-select the game folder or use another provider.",
+            error
+        )
+    } catch (error: UnsupportedOperationException) {
+        throw StorageAccessException(
+            "This storage provider does not support the operation: $operation. Choose a different game folder location.",
+            error
+        )
     }
 
     private fun validateDisplayName(name: String) {
