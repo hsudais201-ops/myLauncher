@@ -173,13 +173,23 @@ class SafGameStorage(
             "An interrupted temporary download could not be cleared. Choose another storage provider or folder."
         }
         val created = createFile(parentUri, displayName, mimeType)
-        requireInTree(created)
-        val createdId = DocumentsContract.getDocumentId(created)
-        val visibleEntries = listChildren(parentUri).filter { it.name == displayName }
-        require(visibleEntries.size == 1 && visibleEntries.single().documentId == createdId) {
-            "The storage provider did not create one distinct temporary download file."
+        try {
+            requireInTree(created)
+            val createdId = DocumentsContract.getDocumentId(created)
+            val visibleEntries = listChildren(parentUri).filter { it.name == displayName }
+            require(visibleEntries.size == 1 && visibleEntries.single().documentId == createdId) {
+                "The storage provider did not create one distinct temporary download file."
+            }
+            return created
+        } catch (error: Exception) {
+            runCatching {
+                requireInTree(created)
+                if (!delete(created)) {
+                    throw IOException("The unverified temporary download file could not be removed.")
+                }
+            }.onFailure(error::addSuppressed)
+            throw error
         }
-        return created
     }
 
     /** Renames a verified temporary document within the selected tree. */
