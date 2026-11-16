@@ -69,7 +69,7 @@ class MojangVersionInstaller(
             }
             storage.replaceWithVerifiedFile(uri, existing?.uri, name)
         } catch (error: Exception) {
-            runCatching { storage.delete(uri) }
+            storage.deleteTemporaryAfterFailure(uri, error)
             throw error
         }
     }
