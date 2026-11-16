@@ -202,6 +202,7 @@ private fun VersionsScreen(folderUri: String?) {
     var loading by remember { mutableStateOf(false) }
     var directoryFound by remember { mutableStateOf(false) }
     var scanError by remember { mutableStateOf<String?>(null) }
+    var scanRevision by remember { mutableIntStateOf(0) }
     var catalog by remember { mutableStateOf<List<MojangVersion>>(emptyList()) }
     var latestRelease by remember { mutableStateOf<String?>(null) }
     var latestSnapshot by remember { mutableStateOf<String?>(null) }
@@ -211,7 +212,7 @@ private fun VersionsScreen(folderUri: String?) {
     var metadataDownloadMessage by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
 
-    LaunchedEffect(folderUri) {
+    LaunchedEffect(folderUri, scanRevision) {
         if (folderUri == null) { versions = emptyList(); directoryFound = false; return@LaunchedEffect }
         loading = true
         scanError = null
@@ -278,6 +279,7 @@ private fun VersionsScreen(folderUri: String?) {
                                                         storage.openOutput(fileUri).use { it.write(bytes) }
                                                     }
                                                     metadataDownloadMessage = item.id + " metadata downloaded and SHA-1 checked."
+                                                    scanRevision += 1
                                                 } catch (error: Exception) {
                                                     metadataDownloadMessage = item.id + ": " + (error.localizedMessage ?: "Metadata download failed.")
                                                 } finally {
