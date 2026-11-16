@@ -71,6 +71,7 @@ import com.mflegend.flamelauncher.catalog.MojangAssetDownloader
 import com.mflegend.flamelauncher.catalog.MojangVersionInstaller
 import com.mflegend.flamelauncher.catalog.DownloadControl
 import com.mflegend.flamelauncher.runtime.AndroidRuntimeEnvironment
+import com.mflegend.flamelauncher.runtime.AndroidJavaRuntimeManager
 import java.util.concurrent.CancellationException
 
 private val Flame = Color(0xFFFF6A2A)
@@ -603,6 +604,7 @@ private fun LibraryScreen(folderUri: String?) {
 private fun SettingsScreen(folderUri: String?, error: String?, onChooseFolder: () -> Unit) {
     val context = LocalContext.current
     val runtime = remember { AndroidRuntimeEnvironment.inspect(context) }
+    val runtimeScan = remember(runtime) { AndroidJavaRuntimeManager(context).scan(runtime) }
 
     Card(colors = CardDefaults.cardColors(containerColor = Panel), shape = RoundedCornerShape(20.dp)) {
         Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -638,11 +640,25 @@ private fun SettingsScreen(folderUri: String?, error: String?, onChooseFolder: (
             Text("App process: ${if (runtime.is64BitProcess) "64-bit" else "32-bit"}", color = Muted, fontSize = 12.sp)
             Text("App heap limit: ${runtime.maxHeapMb} MB · Device memory class: ${runtime.memoryClassMb?.let { "$it MB" } ?: "Unknown"}", color = Muted, fontSize = 12.sp)
             Text("Available processor cores: ${runtime.processorCount}", color = Muted, fontSize = 12.sp)
+            if (runtimeScan.compatibleRuntimes.isNotEmpty()) {
+                Text(
+                    "Compatible runtime bundles found: ${runtimeScan.compatibleRuntimes.joinToString { "Java ${it.javaMajorVersion} (${it.id})" }}",
+                    color = Color(0xFF8DD9A8),
+                    fontSize = 12.sp
+                )
+            } else if (runtimeScan.runtimes.isNotEmpty()) {
+                Text("Java runtime files were found, but none match this app process ABI.", color = Color(0xFFFFB36B), fontSize = 12.sp)
+            } else {
+                Text("No compatible Minecraft Java runtime is installed in Flame Launcher's private runtime storage.", color = Muted, fontSize = 12.sp)
+            }
             Text(
-                "Minecraft Java runtime: not installed. These checks only report device capability; they do not provide a JVM, graphics bridge, or game launch support.",
+                "Runtime scan is diagnostic only. No JVM is loaded or started, and Minecraft launching remains unavailable until a supported runtime, native dependencies, and graphics bridge are integrated.",
                 color = Muted,
                 fontSize = 12.sp
             )
+            runtimeScan.warnings.take(2).forEach { warning ->
+                Text(warning, color = Color(0xFFFFB36B), fontSize = 11.sp)
+            }
         }
     }
 }
