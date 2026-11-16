@@ -59,6 +59,8 @@ import kotlinx.coroutines.withContext
 import com.mflegend.flamelauncher.storage.SafGameStorage
 import com.mflegend.flamelauncher.versions.MinecraftVersionScanner
 import com.mflegend.flamelauncher.versions.InstalledMinecraftVersion
+import com.mflegend.flamelauncher.catalog.MojangVersion
+import com.mflegend.flamelauncher.catalog.MojangVersionManifestClient
 
 private val Flame = Color(0xFFFF6A2A)
 private val Background = Color(0xFF101116)
@@ -192,50 +194,74 @@ private fun FeatureLine(title: String, detail: String) {
 @Composable
 private fun VersionsScreen(folderUri: String?) {
     val context = LocalContext.current
-    var versions by remember(folderUri) { mutableStateOf<List<InstalledMinecraftVersion>>(emptyList()) }
-    var missingMetadata by remember(folderUri) { mutableStateOf<List<String>>(emptyList()) }
-    var warnings by remember(folderUri) { mutableStateOf<List<String>>(emptyList()) }
-    var loading by remember(folderUri) { mutableStateOf(false) }
-    var directoryFound by remember(folderUri) { mutableStateOf(false) }
-    var scanError by remember(folderUri) { mutableStateOf<String?>(null) }
+    var versions by remember { mutableStateOf<List<InstalledMinecraftVersion>>(emptyList()) }
+    var missingMetadata by remember { mutableStateOf<List<String>>(emptyList()) }
+    var warnings by remember { mutableStateOf<List<String>>(emptyList()) }
+    var loading by remember { mutableStateOf(false) }
+    var directoryFound by remember { mutableStateOf(false) }
+    var scanError by remember { mutableStateOf<String?>(null) }
+    var catalog by remember { mutableStateOf<List<MojangVersion>>(emptyList()) }
+    var latestRelease by remember { mutableStateOf<String?>(null) }
+    var latestSnapshot by remember { mutableStateOf<String?>(null) }
+    var catalogLoading by remember { mutableStateOf(false) }
+    var catalogError by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(folderUri) {
-        if (folderUri == null) {
-            versions = emptyList()
-            directoryFound = false
-            return@LaunchedEffect
-        }
+        if (folderUri == null) { versions = emptyList(); directoryFound = false; return@LaunchedEffect }
         loading = true
         scanError = null
         try {
-            val result = withContext(Dispatchers.IO) {
-                MinecraftVersionScanner(SafGameStorage(context.contentResolver, Uri.parse(folderUri))).scan()
-            }
+            val result = withContext(Dispatchers.IO) { MinecraftVersionScanner(SafGameStorage(context.contentResolver, Uri.parse(folderUri))).scan() }
             directoryFound = result.versionsDirectoryFound
             versions = result.versions
             missingMetadata = result.foldersWithoutMetadata
             warnings = result.warnings
-        } catch (error: Exception) {
-            scanError = error.localizedMessage ?: "Could not scan installed versions."
-        } finally {
-            loading = false
-        }
+        } catch (error: Exception) { scanError = error.localizedMessage ?: "Could not scan installed versions." }
+        finally { loading = false }
+    }
+
+    LaunchedEffect(Unit) {
+        catalogLoading = true
+        catalogError = null
+        try {
+            val manifest = withContext(Dispatchers.IO) { MojangVersionManifestClient().fetch() }
+            catalog = manifest.versions
+            latestRelease = manifest.latestRelease
+            latestSnapshot = manifest.latestSnapshot
+        } catch (error: Exception) { catalogError = error.localizedMessage ?: "Could not load Mojang version manifest." }
+        finally { catalogLoading = false }
     }
 
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Text("Installed versions", color = Color.White, fontSize = 23.sp, fontWeight = FontWeight.Bold)
-        Text("Reads local version JSON files from the selected game directory. This does not download or launch Minecraft.", color = Muted, fontSize = 13.sp)
+        Text("Minecraft versions", color = Color.White, fontSize = 23.sp, fontWeight = FontWeight.Bold)
+        Text("Browse official Mojang version metadata and inspect local installations. Downloads and installation are not connected yet.", color = Muted, fontSize = 13.sp)
+        Card(colors = CardDefaults.cardColors(containerColor = Panel), shape = RoundedCornerShape(18.dp)) {
+            Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+                Text("OFFICIAL VERSION CATALOG", color = Flame, fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
+                if (catalogLoading) { Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) { CircularProgressIndicator(); Text("Loading Mojang manifest…", color = Muted, fontSize = 12.sp) } }
+                else if (catalogError != null) { Text(catalogError ?: "Manifest unavailable.", color = Color(0xFFFF9A82), fontSize = 12.sp) }
+                else {
+                    Text("Latest release: " + (latestRelease ?: "Unknown"), color = Color.White, fontSize = 13.sp)
+                    Text("Latest snapshot: " + (latestSnapshot ?: "Unknown"), color = Muted, fontSize = 12.sp)
+                    Text(catalog.size.toString() + " versions in Mojang manifest", color = Muted, fontSize = 11.sp)
+                    catalog.take(30).forEach { item ->
+                        Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                            Column(Modifier.weight(1f)) { Text(item.id, color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.SemiBold); Text(item.releaseTime.take(10), color = Muted, fontSize = 10.sp) }
+                            Text(item.type, color = Flame, fontSize = 11.sp)
+                        }
+                    }
+                }
+            }
+        }
+        Text("LOCAL INSTALLATIONS", color = Flame, fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
         when {
             folderUri == null -> InfoScreen("Game folder required", "Choose your Minecraft game directory in Settings before scanning installed versions.")
-            loading -> Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                CircularProgressIndicator()
-                Text("Scanning versions…", color = Muted, fontSize = 13.sp)
-            }
+            loading -> Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) { CircularProgressIndicator(); Text("Scanning local versions…", color = Muted, fontSize = 13.sp) }
             scanError != null -> Text(scanError ?: "Scan failed.", color = Color(0xFFFF9A82), fontSize = 13.sp)
             !directoryFound -> InfoScreen("Versions folder not found", "No versions directory was found at the selected folder root. Select your .minecraft directory, not its parent folder.")
             versions.isEmpty() -> InfoScreen("No readable version metadata", "The versions folder exists, but no valid version JSON files were found.")
             else -> {
-                Text(versions.size.toString() + " version(s) detected", color = Flame, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+                Text(versions.size.toString() + " local version(s) detected", color = Muted, fontSize = 12.sp)
                 versions.forEach { version ->
                     Card(colors = CardDefaults.cardColors(containerColor = Panel), shape = RoundedCornerShape(16.dp)) {
                         Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
@@ -243,21 +269,16 @@ private fun VersionsScreen(folderUri: String?) {
                             Text((version.type ?: "Unknown type").replaceFirstChar { it.uppercase() } + (version.inheritsFrom?.let { " · inherits $it" } ?: ""), color = Flame, fontSize = 12.sp)
                             Text("Main class: " + (version.mainClass ?: "Not specified"), color = Muted, fontSize = 11.sp)
                             if (version.assetIndexId != null) Text("Asset index: " + version.assetIndexId, color = Muted, fontSize = 11.sp)
-                            if (version.releaseTime != null) Text("Released: " + version.releaseTime, color = Muted, fontSize = 10.sp)
                         }
                     }
                 }
             }
         }
-        if (missingMetadata.isNotEmpty()) {
-            Text("Folders without matching JSON: " + missingMetadata.joinToString(), color = Muted, fontSize = 11.sp)
-        }
-        if (warnings.isNotEmpty()) {
-            Text("Some metadata could not be read:", color = Color(0xFFFFB36B), fontSize = 12.sp)
-            warnings.forEach { Text(it, color = Muted, fontSize = 11.sp) }
-        }
+        if (missingMetadata.isNotEmpty()) Text("Folders without matching JSON: " + missingMetadata.joinToString(), color = Muted, fontSize = 11.sp)
+        warnings.forEach { Text(it, color = Color(0xFFFFB36B), fontSize = 11.sp) }
     }
 }
+
 @Composable
 private fun LibraryScreen(folderUri: String?) {
     val context = LocalContext.current
