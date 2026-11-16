@@ -30,7 +30,7 @@ class MojangVersionInstaller(
         }
         control.checkpoint()
         control.progress("Version metadata", 0, null)
-        val metadataBytes = manifestClient.fetchVersionMetadata(version)
+        val metadataBytes = manifestClient.fetchVersionMetadata(version, control)
         control.checkpoint()
         control.progress("Version metadata", 1, 1)
         val root = storage.root()
