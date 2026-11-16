@@ -74,6 +74,9 @@ class MojangClientJarDownloader {
             require(total == expectedSize) { "Client JAR size verification failed: expected $expectedSize bytes, received $total." }
             val actualSha1 = digest.digest().joinToString("") { "%02x".format(it) }
             require(actualSha1.equals(expectedSha1, ignoreCase = true)) { "Client JAR SHA-1 verification failed." }
+            require(DownloadedFileVerifier.matches(storage.openInput(fileUri), expectedSize, expectedSha1, control)) {
+                "Stored client JAR verification failed."
+            }
             control.checkpoint()
             val finalUri = storage.replaceWithVerifiedFile(fileUri, oldFile?.uri, fileName)
                 ?: error("The storage provider could not finalize the verified client JAR.")
