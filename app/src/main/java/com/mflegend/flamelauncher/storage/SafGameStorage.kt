@@ -120,17 +120,24 @@ class SafGameStorage(
         requireInTree(temporaryUri)
         existingUri?.let { requireInTree(it) }
         validateDisplayName(finalName)
+        require(existingUri == null || existingUri != temporaryUri) {
+            "The temporary document and existing destination must be different files."
+        }
         val backupUri = existingUri?.let { rename(it, ".$finalName.backup") }
-        try {
-            val finalUri = rename(temporaryUri, finalName)
-            backupUri?.let { delete(it) }
-            return finalUri
+        val finalUri = try {
+            rename(temporaryUri, finalName)
         } catch (error: Exception) {
             if (backupUri != null) {
                 runCatching { rename(backupUri, finalName) }
+                    .onFailure(error::addSuppressed)
             }
             throw error
         }
+        // A cleanup failure must not turn a successful promotion into a reported
+        // install failure. The verified final file is already in place; a stale
+        // backup can be cleaned up separately.
+        backupUri?.let { runCatching { delete(it) } }
+        return finalUri
     }
 
     fun delete(uri: Uri): Boolean {
