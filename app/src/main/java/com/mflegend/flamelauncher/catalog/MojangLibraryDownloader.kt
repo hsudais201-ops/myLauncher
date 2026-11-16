@@ -87,7 +87,7 @@ class MojangLibraryDownloader {
                 totalBytes += expectedSize
                 downloaded++
             } catch (error: Exception) {
-                runCatching { storage.delete(fileUri) }
+                storage.deleteTemporaryAfterFailure(fileUri, error)
                 throw error
             }
         }
