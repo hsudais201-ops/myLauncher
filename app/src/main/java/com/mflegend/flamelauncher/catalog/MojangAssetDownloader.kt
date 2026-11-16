@@ -87,8 +87,7 @@ class MojangAssetDownloader {
                 val objectUrl = URL("https://resources.download.minecraft.net/$prefix/$hash")
                 downloadObject(objectUrl, storage, fileUri, size, hash, control)
                 control.checkpoint()
-                existing?.let { storage.delete(it.uri) }
-                storage.rename(fileUri, hash)
+                storage.replaceWithVerifiedFile(fileUri, existing?.uri, hash)
                 downloaded++
                 completedCount++
                 control.progress("Assets", completedCount.toLong(), objectCount.toLong())
