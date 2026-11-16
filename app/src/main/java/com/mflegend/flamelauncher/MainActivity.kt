@@ -289,10 +289,8 @@ private fun VersionsScreen(folderUri: String?) {
                                                         require(item.id.matches(Regex("[A-Za-z0-9._-]{1,100}"))) { "Invalid version identifier." }
                                                         val storage = SafGameStorage(context.contentResolver, Uri.parse(folderUri))
                                                         val root = storage.root()
-                                                        val versionsDir = storage.listChildren(root).firstOrNull { it.isDirectory && it.name == "versions" }
-                                                            ?.uri ?: storage.createDirectory(root, "versions")
-                                                        val versionDir = storage.listChildren(versionsDir).firstOrNull { it.isDirectory && it.name == item.id }
-                                                            ?.uri ?: storage.createDirectory(versionsDir, item.id)
+                                                        val versionsDir = storage.findDirectory(root, "versions")?.uri ?: storage.createDirectory(root, "versions")
+                                                        val versionDir = storage.findDirectory(versionsDir, item.id)?.uri ?: storage.createDirectory(versionsDir, item.id)
                                                         val bytes = MojangVersionManifestClient().fetchVersionMetadata(item)
                                                         val fileName = item.id + ".json"
                                                         val existingMetadata = storage.findFile(versionDir, fileName)
@@ -341,10 +339,8 @@ private fun VersionsScreen(folderUri: String?) {
                                                     withContext(Dispatchers.IO) {
                                                         val storage = SafGameStorage(context.contentResolver, Uri.parse(folderUri))
                                                         val root = storage.root()
-                                                        val versionsDir = storage.listChildren(root).firstOrNull { it.isDirectory && it.name == "versions" }
-                                                            ?.uri ?: storage.createDirectory(root, "versions")
-                                                        val versionDir = storage.listChildren(versionsDir).firstOrNull { it.isDirectory && it.name == item.id }
-                                                            ?.uri ?: storage.createDirectory(versionsDir, item.id)
+                                                        val versionsDir = storage.findDirectory(root, "versions")?.uri ?: storage.createDirectory(root, "versions")
+                                                        val versionDir = storage.findDirectory(versionsDir, item.id)?.uri ?: storage.createDirectory(versionsDir, item.id)
                                                         val metadataBytes = MojangVersionManifestClient().fetchVersionMetadata(item)
                                                         MojangClientJarDownloader().download(item.id, metadataBytes, storage, versionDir)
                                                     }
