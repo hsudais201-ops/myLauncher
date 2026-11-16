@@ -59,16 +59,17 @@ class AndroidJavaRuntimeManager(context: Context) {
             }
 
             val releaseFile = File(canonicalHome, "release")
-            if (!releaseFile.isFile) {
-                warnings += "Ignored ${directory.name}: Java release metadata is missing."
+            if (!isSafeChild(canonicalHome, releaseFile) || !releaseFile.isFile || releaseFile.length() > MAX_RELEASE_FILE_BYTES) {
+                warnings += "Ignored ${directory.name}: Java release metadata is missing or invalid."
                 continue
             }
 
-            val properties = runCatching { parseReleaseFile(releaseFile.readText(Charsets.UTF_8)) }
-                .getOrElse {
-                    warnings += "Ignored ${directory.name}: Java release metadata is invalid."
-                    continue
-                }
+            val properties = try {
+                parseReleaseFile(releaseFile.readText(Charsets.UTF_8))
+            } catch (_: Exception) {
+                warnings += "Ignored ${directory.name}: Java release metadata is invalid."
+                continue
+            }
             val version = properties["JAVA_VERSION"]
             val architecture = properties["OS_ARCH"]
             if (version.isNullOrBlank() || architecture.isNullOrBlank()) {
@@ -112,7 +113,12 @@ class AndroidJavaRuntimeManager(context: Context) {
             File(home, "lib/aarch64/server/libjvm.so"),
             File(home, "lib/arm64/server/libjvm.so")
         )
-        return candidates.firstOrNull { it.isFile && it.length() > 0L }
+        return candidates.firstOrNull { isSafeChild(home, it) && it.isFile && it.length() > 0L }
+    }
+
+    private fun isSafeChild(home: File, candidate: File): Boolean {
+        val homePath = home.canonicalPath + File.separator
+        return candidate.canonicalPath.startsWith(homePath)
     }
 
     private fun parseReleaseFile(content: String): Map<String, String> {
@@ -145,6 +151,7 @@ class AndroidJavaRuntimeManager(context: Context) {
     companion object {
         private const val RUNTIME_DIRECTORY = "java-runtimes"
         private const val MINIMUM_JAVA_MAJOR = 8
+        private const val MAX_RELEASE_FILE_BYTES = 64L * 1024L
         private val RUNTIME_ID = Regex("[A-Za-z0-9._-]{1,80}")
         private val RELEASE_KEY = Regex("[A-Z][A-Z0-9_]*")
     }
