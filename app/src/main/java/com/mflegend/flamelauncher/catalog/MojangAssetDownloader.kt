@@ -154,7 +154,7 @@ class MojangAssetDownloader {
             }
             storage.replaceWithVerifiedFile(uri, oldFile?.uri, name)
         } catch (error: Exception) {
-            runCatching { storage.delete(uri) }
+            storage.deleteTemporaryAfterFailure(uri, error)
             throw error
         }
     }
