@@ -50,7 +50,7 @@ class MojangAssetDownloader {
 
         val assetsRoot = findOrCreateDirectory(storage, gameRoot, "assets")
         val indexesDir = findOrCreateDirectory(storage, assetsRoot, "indexes")
-        saveIndex(storage, indexesDir, "$indexId.json", indexBytes)
+        saveIndex(storage, indexesDir, "$indexId.json", indexBytes, expectedIndexSha1)
 
         val objectsDir = findOrCreateDirectory(storage, assetsRoot, "objects")
         var downloaded = 0
@@ -129,7 +129,13 @@ class MojangAssetDownloader {
         }
     }
 
-    private fun saveIndex(storage: SafGameStorage, directory: Uri, name: String, bytes: ByteArray) {
+    private fun saveIndex(
+        storage: SafGameStorage,
+        directory: Uri,
+        name: String,
+        bytes: ByteArray,
+        expectedSha1: String
+    ) {
         val oldFile = storage.listChildren(directory).firstOrNull { !it.isDirectory && it.name == name }
         val temporaryName = ".$name.download"
         storage.listChildren(directory).firstOrNull { !it.isDirectory && it.name == temporaryName }?.let { storage.delete(it.uri) }
@@ -138,6 +144,10 @@ class MojangAssetDownloader {
             storage.openOutput(uri).use { output ->
                 output.write(bytes)
                 output.flush()
+            }
+            val storedSha1 = sha1(storage.openInput(uri).use { it.readBytes() })
+            require(storedSha1.equals(expectedSha1, ignoreCase = true)) {
+                "Stored asset index SHA-1 verification failed."
             }
             storage.replaceWithVerifiedFile(uri, oldFile?.uri, name)
         } catch (error: Exception) {
