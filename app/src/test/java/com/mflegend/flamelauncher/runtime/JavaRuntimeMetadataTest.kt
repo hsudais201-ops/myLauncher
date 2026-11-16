@@ -41,7 +41,7 @@ class JavaRuntimeMetadataTest {
 
     @Test fun rejectsMismatchedQuotesAndDuplicateReleaseKeys() {
         val parsed = JavaRuntimeMetadata.parseReleaseFile(
-            "JAVA_VERSION=\"17.0.9\nOS_ARCH=\"aarch64\"\nIMPLEMENTOR=\"OpenJDK\"\nIMPLEMENTOR=\"Other\"\n"
+            "JAVA_VERSION=\"17.0.9\nJAVA_VERSION=\"21\"\nOS_ARCH=\"aarch64\"\nIMPLEMENTOR=\"OpenJDK\"\nIMPLEMENTOR=\"Other\"\n"
         )
         assertFalse(parsed.containsKey("JAVA_VERSION"))
         assertFalse(parsed.containsKey("IMPLEMENTOR"))
