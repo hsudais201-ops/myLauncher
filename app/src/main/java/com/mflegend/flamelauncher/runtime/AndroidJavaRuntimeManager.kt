@@ -54,12 +54,22 @@ class AndroidJavaRuntimeManager(context: Context) {
 
         val warnings = mutableListOf<String>()
         val runtimes = mutableListOf<InstalledRuntime>()
+        val canonicalAppRoot = try {
+            runtimeRoot.parentFile?.canonicalFile
+        } catch (_: IOException) {
+            return ScanResult(emptyList(), listOf("The app-private storage directory could not be resolved safely."))
+        } catch (_: SecurityException) {
+            return ScanResult(emptyList(), listOf("Access to app-private storage was denied."))
+        }
         val canonicalRoot = try {
             runtimeRoot.canonicalFile
         } catch (_: IOException) {
             return ScanResult(emptyList(), listOf("The private Java runtime directory could not be resolved safely."))
         } catch (_: SecurityException) {
             return ScanResult(emptyList(), listOf("Access to the private Java runtime directory was denied."))
+        }
+        if (canonicalAppRoot == null || canonicalRoot.parentFile != canonicalAppRoot) {
+            return ScanResult(emptyList(), listOf("The Java runtime directory resolves outside its managed app-private location."))
         }
         val children = runtimeRoot.listFiles()
         if (children == null) {
@@ -167,9 +177,13 @@ class AndroidJavaRuntimeManager(context: Context) {
         }
     }
 
-    private fun isSafeChild(home: File, candidate: File): Boolean {
+    private fun isSafeChild(home: File, candidate: File): Boolean = try {
         val homePath = home.canonicalPath + File.separator
-        return candidate.canonicalPath.startsWith(homePath)
+        candidate.canonicalPath.startsWith(homePath)
+    } catch (_: IOException) {
+        false
+    } catch (_: SecurityException) {
+        false
     }
 
     companion object {
