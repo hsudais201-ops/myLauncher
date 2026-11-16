@@ -65,6 +65,7 @@ import com.mflegend.flamelauncher.catalog.MojangVersion
 import com.mflegend.flamelauncher.catalog.MojangVersionManifestClient
 import com.mflegend.flamelauncher.catalog.MojangClientJarDownloader
 import com.mflegend.flamelauncher.catalog.MojangLibraryDownloader
+import com.mflegend.flamelauncher.catalog.MojangAssetDownloader
 
 private val Flame = Color(0xFFFF6A2A)
 private val Background = Color(0xFF101116)
@@ -214,6 +215,7 @@ private fun VersionsScreen(folderUri: String?) {
     var metadataDownloadMessage by remember { mutableStateOf<String?>(null) }
     var clientJarDownloadId by remember { mutableStateOf<String?>(null) }
     var libraryDownloadId by remember { mutableStateOf<String?>(null) }
+    var assetDownloadId by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
 
     LaunchedEffect(folderUri, scanRevision) {
@@ -292,7 +294,7 @@ private fun VersionsScreen(folderUri: String?) {
                                             }
                                         }
                                     },
-                                    enabled = metadataDownloadId == null && clientJarDownloadId == null && libraryDownloadId == null,
+                                    enabled = metadataDownloadId == null && clientJarDownloadId == null && libraryDownloadId == null && assetDownloadId == null,
                                     contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 10.dp, vertical = 2.dp)
                                 ) {
                                     if (metadataDownloadId == item.id) CircularProgressIndicator(modifier = Modifier.height(14.dp), strokeWidth = 2.dp)
@@ -327,7 +329,7 @@ private fun VersionsScreen(folderUri: String?) {
                                             }
                                         }
                                     },
-                                    enabled = clientJarDownloadId == null && metadataDownloadId == null && libraryDownloadId == null,
+                                    enabled = clientJarDownloadId == null && metadataDownloadId == null && libraryDownloadId == null && assetDownloadId == null,
                                     contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 10.dp, vertical = 2.dp)
                                 ) {
                                     if (clientJarDownloadId == item.id) CircularProgressIndicator(modifier = Modifier.height(14.dp), strokeWidth = 2.dp)
@@ -357,11 +359,41 @@ private fun VersionsScreen(folderUri: String?) {
                                             }
                                         }
                                     },
-                                    enabled = libraryDownloadId == null && clientJarDownloadId == null && metadataDownloadId == null,
+                                    enabled = libraryDownloadId == null && clientJarDownloadId == null && metadataDownloadId == null && assetDownloadId == null,
                                     contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 10.dp, vertical = 2.dp)
                                 ) {
                                     if (libraryDownloadId == item.id) CircularProgressIndicator(modifier = Modifier.height(14.dp), strokeWidth = 2.dp)
                                     else Text("Get libs", fontSize = 10.sp)
+                                }
+                                Button(
+                                    onClick = {
+                                        if (folderUri == null) {
+                                            metadataDownloadMessage = "Choose your game folder in Settings before downloading assets."
+                                        } else {
+                                            scope.launch {
+                                                assetDownloadId = item.id
+                                                metadataDownloadMessage = null
+                                                try {
+                                                    val result = withContext(Dispatchers.IO) {
+                                                        val storage = SafGameStorage(context.contentResolver, Uri.parse(folderUri))
+                                                        val metadataBytes = MojangVersionManifestClient().fetchVersionMetadata(item)
+                                                        MojangAssetDownloader().download(metadataBytes, storage, storage.root())
+                                                    }
+                                                    metadataDownloadMessage = item.id + ": ${result.downloaded} assets downloaded, ${result.alreadyPresent} verified already present (index ${result.indexId})."
+                                                    scanRevision += 1
+                                                } catch (error: Exception) {
+                                                    metadataDownloadMessage = item.id + ": " + (error.localizedMessage ?: "Asset download failed.")
+                                                } finally {
+                                                    assetDownloadId = null
+                                                }
+                                            }
+                                        }
+                                    },
+                                    enabled = assetDownloadId == null && libraryDownloadId == null && clientJarDownloadId == null && metadataDownloadId == null,
+                                    contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 10.dp, vertical = 2.dp)
+                                ) {
+                                    if (assetDownloadId == item.id) CircularProgressIndicator(modifier = Modifier.height(14.dp), strokeWidth = 2.dp)
+                                    else Text("Get assets", fontSize = 10.sp)
                                 }
                             }
                         }
