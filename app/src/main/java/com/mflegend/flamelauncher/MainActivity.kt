@@ -416,7 +416,7 @@ private fun VersionsScreen(folderUri: String?) {
                                                     val amount = String.format(java.util.Locale.US, "%.1f MB", completed / 1048576.0)
                                                     val target = total?.let { " / " + String.format(java.util.Locale.US, "%.1f MB", it / 1048576.0) } ?: ""
                                                     mainHandler.post {
-                                                        if (activeInstallControl === control) installProgress = "$stage: $amount$target"
+                                                        if (installId == item.id && activeInstallControl != null) installProgress = "$stage: $amount$target"
                                                     }
                                                 }
                                                 activeInstallControl = control
