@@ -152,6 +152,36 @@ class SafGameStorage(
         }
     }
 
+    /**
+     * Creates a uniquely fresh temporary document. Stale entries with the reserved
+     * temporary name must be removed and confirmed absent before a new file is made.
+     */
+    fun createTemporaryFile(parentUri: Uri, displayName: String, mimeType: String): Uri {
+        requireInTree(parentUri)
+        validateDisplayName(displayName)
+        require(mimeType.isNotBlank()) { "A MIME type is required." }
+        val staleEntries = listChildren(parentUri).filter { it.name == displayName }
+        require(staleEntries.none { it.isDirectory }) {
+            "A folder is occupying the reserved temporary download name."
+        }
+        staleEntries.forEach { entry ->
+            require(delete(entry.uri)) {
+                "The storage provider could not remove an interrupted temporary download."
+            }
+        }
+        require(listChildren(parentUri).none { it.name == displayName }) {
+            "An interrupted temporary download could not be cleared. Choose another storage provider or folder."
+        }
+        val created = createFile(parentUri, displayName, mimeType)
+        requireInTree(created)
+        require(staleEntries.none {
+            it.documentId == DocumentsContract.getDocumentId(created)
+        }) {
+            "The storage provider reused an interrupted temporary document."
+        }
+        return created
+    }
+
     /** Renames a verified temporary document within the selected tree. */
     fun rename(uri: Uri, displayName: String): Uri {
         requireInTree(uri)
