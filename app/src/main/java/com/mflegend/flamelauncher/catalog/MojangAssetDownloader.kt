@@ -59,7 +59,6 @@ class MojangAssetDownloader {
         val seenHashes = HashSet<String>()
 
         val keys = objects.keys()
-        val objectCount = objects.length()
         while (keys.hasNext()) {
             control.checkpoint()
             val logicalName = keys.next()
@@ -89,8 +88,6 @@ class MojangAssetDownloader {
                 control.checkpoint()
                 storage.replaceWithVerifiedFile(fileUri, existing?.uri, hash)
                 downloaded++
-                completedCount++
-                control.progress("Assets", completedCount.toLong(), objectCount.toLong())
                 totalBytes += size
             } catch (error: Exception) {
                 runCatching { storage.delete(fileUri) }
