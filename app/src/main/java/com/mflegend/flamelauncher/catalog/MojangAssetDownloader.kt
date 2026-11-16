@@ -56,21 +56,17 @@ class MojangAssetDownloader {
         var downloaded = 0
         var present = 0
         var totalBytes = 0L
-        val seenHashes = HashSet<String>()
+        val tracker = AssetObjectTracker(MAX_ASSET_BYTES, MAX_TOTAL_BYTES)
 
         val keys = objects.keys()
         while (keys.hasNext()) {
             control.checkpoint()
             val logicalName = keys.next()
-            val item = objects.optJSONObject(logicalName) ?: continue
+            val item = objects.optJSONObject(logicalName)
+                ?: error("Asset index contains a malformed object entry.")
             val hash = item.optString("hash").lowercase()
-            require(hash.matches(Regex("[a-f0-9]{40}"))) { "Asset index contains an invalid object hash." }
-            if (!seenHashes.add(hash)) continue
             val size = item.optLong("size", -1L)
-            require(size in 0..MAX_ASSET_BYTES) { "Asset object size is missing or exceeds the safety limit." }
-            require(totalBytes <= MAX_TOTAL_BYTES - size) {
-                "Asset set exceeds the total download safety limit."
-            }
+            if (!tracker.register(hash, size)) continue
 
             val prefix = hash.substring(0, 2)
             val prefixDir = findOrCreateDirectory(storage, objectsDir, prefix)
