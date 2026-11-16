@@ -81,6 +81,9 @@ class MojangAssetDownloader {
             try {
                 val objectUrl = URL("https://resources.download.minecraft.net/$prefix/$hash")
                 downloadObject(objectUrl, storage, fileUri, size, hash, control)
+                require(DownloadedFileVerifier.matches(storage.openInput(fileUri), size, hash, control)) {
+                    "Stored asset object verification failed: $hash"
+                }
                 control.checkpoint()
                 storage.replaceWithVerifiedFile(fileUri, existing?.uri, hash)
                 downloaded++
