@@ -28,7 +28,7 @@ class MojangClientJarDownloader {
         val client = metadata.optJSONObject("downloads")?.optJSONObject("client")
             ?: error("This version metadata does not provide a vanilla client JAR.")
         val downloadUrl = URL(client.optString("url"))
-        require(downloadUrl.protocol == "https" && downloadUrl.host in ALLOWED_HOSTS) {
+        require(MojangHttpsEndpointPolicy.isApproved(downloadUrl) && downloadUrl.host.lowercase() in CLIENT_JAR_HOSTS) {
             "Client JAR URL is not an approved Mojang HTTPS endpoint."
         }
         val expectedSha1 = client.optString("sha1")
@@ -90,7 +90,7 @@ class MojangClientJarDownloader {
     }
 
     private companion object {
-        val ALLOWED_HOSTS = setOf("launcher.mojang.com", "piston-data.mojang.com")
+        val CLIENT_JAR_HOSTS = setOf("launcher.mojang.com", "piston-data.mojang.com")
         const val MAX_CLIENT_JAR_BYTES = 1_500_000_000L
     }
 }
