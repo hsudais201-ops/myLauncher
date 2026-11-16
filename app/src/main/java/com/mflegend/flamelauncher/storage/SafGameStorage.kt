@@ -53,29 +53,32 @@ class SafGameStorage(
             Document.COLUMN_LAST_MODIFIED
         )
 
-        val entries = mutableListOf<Entry>()
-        providerCall("reading the selected folder") {
-            resolver.query(childrenUri, projection, null, null, Document.COLUMN_DISPLAY_NAME)
-        }?.use { cursor ->
-            val idColumn = cursor.getColumnIndexOrThrow(Document.COLUMN_DOCUMENT_ID)
-            val nameColumn = cursor.getColumnIndexOrThrow(Document.COLUMN_DISPLAY_NAME)
-            val mimeColumn = cursor.getColumnIndexOrThrow(Document.COLUMN_MIME_TYPE)
-            val sizeColumn = cursor.getColumnIndexOrThrow(Document.COLUMN_SIZE)
-            val modifiedColumn = cursor.getColumnIndexOrThrow(Document.COLUMN_LAST_MODIFIED)
-
-            while (cursor.moveToNext()) {
-                val documentId = cursor.getString(idColumn)
-                entries += Entry(
-                    uri = DocumentsContract.buildDocumentUriUsingTree(treeUri, documentId),
-                    documentId = documentId,
-                    name = cursor.getString(nameColumn) ?: "",
-                    mimeType = cursor.getString(mimeColumn) ?: "application/octet-stream",
-                    sizeBytes = if (cursor.isNull(sizeColumn)) null else cursor.getLong(sizeColumn),
-                    lastModifiedMillis = if (cursor.isNull(modifiedColumn)) null else cursor.getLong(modifiedColumn)
-                )
+        return providerCall("reading the selected folder") {
+            val entries = mutableListOf<Entry>()
+            val cursor = requireNotNull(resolver.query(childrenUri, projection, null, null, Document.COLUMN_DISPLAY_NAME)) {
+                "The document provider returned no folder listing."
             }
+            cursor.use {
+                val idColumn = it.getColumnIndexOrThrow(Document.COLUMN_DOCUMENT_ID)
+                val nameColumn = it.getColumnIndexOrThrow(Document.COLUMN_DISPLAY_NAME)
+                val mimeColumn = it.getColumnIndexOrThrow(Document.COLUMN_MIME_TYPE)
+                val sizeColumn = it.getColumnIndexOrThrow(Document.COLUMN_SIZE)
+                val modifiedColumn = it.getColumnIndexOrThrow(Document.COLUMN_LAST_MODIFIED)
+
+                while (it.moveToNext()) {
+                    val documentId = it.getString(idColumn)
+                    entries += Entry(
+                        uri = DocumentsContract.buildDocumentUriUsingTree(treeUri, documentId),
+                        documentId = documentId,
+                        name = it.getString(nameColumn) ?: "",
+                        mimeType = it.getString(mimeColumn) ?: "application/octet-stream",
+                        sizeBytes = if (it.isNull(sizeColumn)) null else it.getLong(sizeColumn),
+                        lastModifiedMillis = if (it.isNull(modifiedColumn)) null else it.getLong(modifiedColumn)
+                    )
+                }
+            }
+            entries
         }
-        return entries
     }
 
     fun openInput(uri: Uri): InputStream {
