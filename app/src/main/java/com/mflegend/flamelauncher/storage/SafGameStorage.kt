@@ -188,6 +188,20 @@ class SafGameStorage(
         return finalUri
     }
 
+    /**
+     * Best-effort cleanup for an incomplete temporary file. A cleanup failure is
+     * attached to the original transfer error so it never hides the real failure.
+     */
+    fun deleteTemporaryAfterFailure(uri: Uri, failure: Exception) {
+        try {
+            if (!delete(uri)) {
+                failure.addSuppressed(IOException("The storage provider did not delete an incomplete temporary file."))
+            }
+        } catch (cleanupError: Exception) {
+            if (cleanupError !== failure) failure.addSuppressed(cleanupError)
+        }
+    }
+
     fun delete(uri: Uri): Boolean {
         requireInTree(uri)
         return providerCall("deleting a file") { DocumentsContract.deleteDocument(resolver, uri) }
