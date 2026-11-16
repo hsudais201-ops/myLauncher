@@ -642,17 +642,17 @@ private fun SettingsScreen(folderUri: String?, error: String?, onChooseFolder: (
             Text("Available processor cores: ${runtime.processorCount}", color = Muted, fontSize = 12.sp)
             if (runtimeScan.compatibleRuntimes.isNotEmpty()) {
                 Text(
-                    "Compatible runtime bundles found: ${runtimeScan.compatibleRuntimes.joinToString { "Java ${it.javaMajorVersion} (${it.id})" }}",
+                    "ABI-matched runtime candidates found: ${runtimeScan.compatibleRuntimes.joinToString { "Java ${it.javaMajorVersion} (${it.id})" }}",
                     color = Color(0xFF8DD9A8),
                     fontSize = 12.sp
                 )
             } else if (runtimeScan.runtimes.isNotEmpty()) {
-                Text("Java runtime files were found, but none match this app process ABI.", color = Color(0xFFFFB36B), fontSize = 12.sp)
+                Text("Java runtime candidates were found, but none match this app process ABI.", color = Color(0xFFFFB36B), fontSize = 12.sp)
             } else {
-                Text("No compatible Minecraft Java runtime is installed in Flame Launcher's private runtime storage.", color = Muted, fontSize = 12.sp)
+                Text("No ABI-matched Minecraft Java runtime candidate is installed in Flame Launcher's private runtime storage.", color = Muted, fontSize = 12.sp)
             }
             Text(
-                "Runtime scan is diagnostic only. No JVM is loaded or started, and Minecraft launching remains unavailable until a supported runtime, native dependencies, and graphics bridge are integrated.",
+                "ABI matching is not proof of Android linker or native-library compatibility. The scan does not load or start a JVM; Minecraft launching remains unavailable until a supported Android runtime, native dependencies, and graphics bridge are integrated.",
                 color = Muted,
                 fontSize = 12.sp
             )
