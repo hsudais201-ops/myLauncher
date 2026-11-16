@@ -110,6 +110,7 @@ class MojangAssetDownloader {
                 val buffer = ByteArray(16 * 1024)
                 var total = 0
                 while (true) {
+                    control.checkpoint()
                     val count = input.read(buffer)
                     if (count < 0) break
                     total += count
