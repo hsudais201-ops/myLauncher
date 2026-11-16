@@ -23,15 +23,15 @@ class AndroidJavaRuntimeManager(context: Context) {
         val architecture: String,
         val homeDirectory: File,
         val jvmLibrary: File,
-        val compatibleWithCurrentProcess: Boolean
+        val matchesProcessAbi: Boolean
     )
 
     data class ScanResult(
         val runtimes: List<InstalledRuntime>,
         val warnings: List<String>
     ) {
-        val compatibleRuntimes: List<InstalledRuntime>
-            get() = runtimes.filter { it.compatibleWithCurrentProcess }
+        val abiMatchedRuntimes: List<InstalledRuntime>
+            get() = runtimes.filter { it.matchesProcessAbi }
     }
 
     fun scan(environment: AndroidRuntimeEnvironment): ScanResult {
@@ -99,11 +99,11 @@ class AndroidJavaRuntimeManager(context: Context) {
                 architecture = normalizedArchitecture,
                 homeDirectory = canonicalHome,
                 jvmLibrary = jvm,
-                compatibleWithCurrentProcess = compatible
+                matchesProcessAbi = compatible
             )
         }
 
-        return ScanResult(runtimes.sortedWith(compareByDescending<InstalledRuntime> { it.compatibleWithCurrentProcess }
+        return ScanResult(runtimes.sortedWith(compareByDescending<InstalledRuntime> { it.matchesProcessAbi }
             .thenByDescending { it.javaMajorVersion }), warnings)
     }
 
