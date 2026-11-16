@@ -2,6 +2,7 @@ package com.mflegend.flamelauncher.runtime
 
 import java.io.File
 import java.io.IOException
+import java.nio.file.Files
 
 /**
  * Canonical-path policy for app-private runtime bundles.
@@ -15,6 +16,13 @@ internal object RuntimePathPolicy {
     private val runtimeIdPattern = Regex("[A-Za-z0-9._-]{1,80}")
 
     fun isRuntimeId(value: String): Boolean = runtimeIdPattern.matches(value)
+
+    /** Reject links even when they resolve back inside the managed tree. */
+    fun isSymbolicLink(candidate: File): Boolean = try {
+        Files.isSymbolicLink(candidate.toPath())
+    } catch (_: SecurityException) {
+        true
+    }
 
     fun isDirectChild(parent: File, candidate: File): Boolean = try {
         val canonicalParent = parent.canonicalFile
