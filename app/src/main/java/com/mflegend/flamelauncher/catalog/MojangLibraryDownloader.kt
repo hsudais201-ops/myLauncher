@@ -88,8 +88,7 @@ class MojangLibraryDownloader {
             try {
                 downloadOne(url, storage, fileUri, expectedSize, sha1, control)
                 control.checkpoint()
-                existing?.let { storage.delete(it.uri) }
-                storage.rename(fileUri, fileName)
+                storage.replaceWithVerifiedFile(fileUri, existing?.uri, fileName)
                 totalBytes += expectedSize
                 downloaded++
                 completedCount++
