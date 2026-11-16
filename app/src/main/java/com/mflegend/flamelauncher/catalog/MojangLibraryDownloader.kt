@@ -37,6 +37,7 @@ class MojangLibraryDownloader {
         var present = 0
         var skipped = 0
         var totalBytes = 0L
+        val artifactTracker = LibraryArtifactTracker(MAX_ARTIFACT_BYTES, MAX_TOTAL_BYTES)
         for (index in 0 until libraries.length()) {
             control.checkpoint()
             val library = libraries.optJSONObject(index) ?: continue
@@ -60,6 +61,7 @@ class MojangLibraryDownloader {
             require(expectedSize in 1..MAX_ARTIFACT_BYTES) {
                 "Library artifact size is missing or exceeds the safety limit: $relativePath"
             }
+            if (!artifactTracker.register(relativePath, expectedSize, sha1.lowercase())) continue
 
             var parent = libraryRoot
             for (segment in segments.dropLast(1)) {
