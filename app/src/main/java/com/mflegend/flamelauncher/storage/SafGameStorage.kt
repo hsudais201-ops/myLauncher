@@ -255,15 +255,42 @@ class SafGameStorage(
         return matches.singleOrNull()
     }
 
-    /** Renames a verified temporary document within the selected tree. */
+    /** Renames a document and verifies the provider's returned identity in its original parent. */
     fun rename(uri: Uri, displayName: String): Uri {
         requireInTree(uri)
         validateDisplayName(displayName)
-        return providerCall("renaming a file") {
+        val originalId = DocumentsContract.getDocumentId(uri)
+        val originalPath = providerCall("locating a file before renaming") {
+            requireNotNull(DocumentsContract.findDocumentPath(resolver, treeUri, uri)) {
+                "The storage provider could not locate the file before renaming."
+            }
+        }
+        val pathIds = originalPath.path
+        require(pathIds.size >= 2 && pathIds.last() == originalId) {
+            "The storage provider returned an invalid parent path for the file being renamed."
+        }
+        val parentUri = DocumentsContract.buildDocumentUriUsingTree(treeUri, pathIds[pathIds.lastIndex - 1])
+        requireInTree(parentUri)
+        require(listChildren(parentUri).none { it.name == displayName && it.documentId != originalId }) {
+            "Another document already occupies the requested name '$displayName'."
+        }
+
+        val renamed = providerCall("renaming a file") {
             requireNotNull(DocumentsContract.renameDocument(resolver, uri, displayName)) {
                 "The document provider returned no renamed file."
             }
         }
+        requireInTree(renamed)
+        val renamedId = DocumentsContract.getDocumentId(renamed)
+        val visibleEntries = listChildren(parentUri).filter { it.name == displayName }
+        require(
+            visibleEntries.size == 1 &&
+                visibleEntries.single().documentId == renamedId &&
+                !visibleEntries.single().isDirectory
+        ) {
+            "The storage provider did not expose one distinct renamed file with the requested name."
+        }
+        return renamed
     }
 
     /** Replaces a destination only after its temporary replacement has been fully verified. */
