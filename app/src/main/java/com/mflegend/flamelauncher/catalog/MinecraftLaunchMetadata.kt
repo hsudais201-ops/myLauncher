@@ -23,7 +23,7 @@ object MinecraftLaunchMetadataParser {
         require(expectedVersionId.matches(Regex("[A-Za-z0-9._-]{1,100}"))) {
             "Invalid version identifier."
         }
-        val root = JSONObject(metadataBytes.toString(Charsets.UTF_8))
+        val root = JSONObject(MojangMetadataText.decode(metadataBytes))
         val versionId = root.optString("id")
         require(versionId == expectedVersionId) {
             "Launch metadata version ID does not match the selected version."
