@@ -48,6 +48,17 @@ class MinecraftLaunchMetadataTest {
     }
 
     @Test
+    fun rejectsMalformedUtf8BeforeParsingMetadata() {
+        val malformed = byteArrayOf(0x7B, 0x22, 0xC3.toByte(), 0x28, 0x22, 0x3A, 0x31, 0x7D)
+
+        val error = runCatching {
+            MinecraftLaunchMetadataParser.parse(malformed, "test")
+        }.exceptionOrNull()
+
+        assertTrue(error is java.nio.charset.CharacterCodingException)
+    }
+
+    @Test
     fun rejectsMismatchedVersionId() {
         val json = """{"id":"1.20.1","mainClass":"net.minecraft.client.main.Main","minecraftArguments":"--demo"}"""
 
