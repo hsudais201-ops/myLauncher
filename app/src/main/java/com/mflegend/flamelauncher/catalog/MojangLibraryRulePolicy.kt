@@ -2,6 +2,7 @@ package com.mflegend.flamelauncher.catalog
 
 import org.json.JSONArray
 import org.json.JSONObject
+import java.util.regex.PatternSyntaxException
 
 /** Actual platform facts used for Mojang library metadata rules. */
 internal data class MojangLibraryRuleContext(
@@ -37,6 +38,18 @@ internal object MojangLibraryRulePolicy {
         return allowed
     }
 
+    private fun matchesPattern(pattern: String, value: String, description: String): Boolean {
+        require(pattern.length <= MAX_REGEX_LENGTH) {
+            "Minecraft library $description pattern is too long."
+        }
+        val compiled = try {
+            Regex(pattern)
+        } catch (error: PatternSyntaxException) {
+            throw IllegalArgumentException("Minecraft library has an invalid $description pattern.", error)
+        }
+        return compiled.containsMatchIn(value)
+    }
+
     private fun matches(rule: JSONObject, context: MojangLibraryRuleContext): Boolean {
         if (rule.has("os")) {
             val os = rule.optJSONObject("os")
@@ -48,12 +61,12 @@ internal object MojangLibraryRulePolicy {
             if (os.has("arch")) {
                 val pattern = os.optString("arch")
                 require(pattern.isNotEmpty()) { "Minecraft library architecture pattern is empty." }
-                if (!Regex(pattern).containsMatchIn(context.osArchitecture)) return false
+                if (!matchesPattern(pattern, context.osArchitecture, "architecture")) return false
             }
             if (os.has("version")) {
                 val pattern = os.optString("version")
                 require(pattern.isNotEmpty()) { "Minecraft library OS version pattern is empty." }
-                if (!Regex(pattern).containsMatchIn(context.osVersion)) return false
+                if (!matchesPattern(pattern, context.osVersion, "OS version")) return false
             }
         }
 
@@ -73,4 +86,6 @@ internal object MojangLibraryRulePolicy {
         }
         return true
     }
+
+    private const val MAX_REGEX_LENGTH = 256
 }
