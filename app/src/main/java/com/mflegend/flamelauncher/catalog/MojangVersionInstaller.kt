@@ -5,6 +5,7 @@ import com.mflegend.flamelauncher.storage.SafGameStorage
 
 data class MojangVersionInstallResult(
     val versionId: String,
+    val launchMetadata: MinecraftLaunchMetadata,
     val clientJarBytes: Long,
     val libraries: LibraryDownloadResult,
     val assets: AssetDownloadResult
@@ -31,6 +32,7 @@ class MojangVersionInstaller(
         control.checkpoint()
         control.progress("Version metadata", 0, null)
         val metadataBytes = manifestClient.fetchVersionMetadata(version, control)
+        val launchMetadata = MinecraftLaunchMetadataParser.parse(metadataBytes, version.id)
         control.checkpoint()
         control.progress("Version metadata", 1, 1)
         val root = storage.root()
@@ -51,6 +53,7 @@ class MojangVersionInstaller(
 
         return MojangVersionInstallResult(
             versionId = version.id,
+            launchMetadata = launchMetadata,
             clientJarBytes = clientJar.byteCount,
             libraries = libraries,
             assets = assets
