@@ -52,7 +52,7 @@ class MinecraftLaunchClasspathPlannerTest {
     }
 
     @Test
-    fun doesNotTreatDesktopNativeClassifierAsAndroidNativeRequirement() {
+    fun keepsDesktopNativeMappingAsBlockerInsteadOfAssumingAndroidCompatibility() {
         val metadata = json(
             libraries = """
                 [
@@ -64,7 +64,7 @@ class MinecraftLaunchClasspathPlannerTest {
         val plan = MinecraftLaunchClasspathPlanner.plan(metadata, "1.20.1", android)
 
         assertEquals(1, plan.libraryJarPaths.size)
-        assertTrue(plan.nativeLibrariesPending.isEmpty())
+        assertEquals(listOf("org.lwjgl:lwjgl:3.3.3"), plan.nativeLibrariesPending)
     }
 
     @Test
