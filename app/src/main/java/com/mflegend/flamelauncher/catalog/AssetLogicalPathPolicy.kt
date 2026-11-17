@@ -9,7 +9,7 @@ internal object AssetLogicalPathPolicy {
             path.isNotBlank() &&
                 path.length <= 1024 &&
                 !path.startsWith("/") &&
-                '\\\\' !in path &&
+                '\\' !in path &&
                 path.indexOf(0.toChar()) < 0
         ) { "Asset index contains an unsafe logical path." }
         val parts = path.split('/')
@@ -18,7 +18,7 @@ internal object AssetLogicalPathPolicy {
                 it != "." &&
                 it != ".." &&
                 it.length <= 255 &&
-                it.matches(Regex("[A-Za-z0-9._+\\\\-]+"))
+                it.matches(Regex("[A-Za-z0-9._+\\-]+"))
         }) { "Asset index contains an unsafe logical path." }
         return parts
     }
