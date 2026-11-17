@@ -169,6 +169,7 @@ private fun FlameLauncherApp() {
 private fun GamesScreen(onOpenVersions: () -> Unit) {
     val context = LocalContext.current
     var rustInfoError by remember { mutableStateOf<String?>(null) }
+    var javaLauncherError by remember { mutableStateOf<String?>(null) }
 
     Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
         Text("Games", color = Color.White, fontSize = 23.sp, fontWeight = FontWeight.Bold)
@@ -183,12 +184,38 @@ private fun GamesScreen(onOpenVersions: () -> Unit) {
                 Text("MINECRAFT: JAVA EDITION", color = Flame, fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.2.sp)
                 Text("Install and manage Java game files", color = Color.White, fontSize = 19.sp, fontWeight = FontWeight.Bold)
                 Text(
-                    "Flame Launcher can download verified vanilla version metadata, the client JAR, supported libraries, and assets. The Android Java runtime, native graphics/input bridge, and real-device gameplay verification are still required before Play can be enabled.",
+                    "Flame Launcher can download verified vanilla version metadata, the client JAR, supported libraries, and assets. Its built-in Android runtime and graphics/input bridge are still under development.",
                     color = Muted,
                     fontSize = 13.sp
                 )
+                Text(
+                    "For actual Minecraft Java gameplay today, you can open the separate Amethyst Android launcher. It has its own game files and sign-in; it is not bundled into Flame Launcher.",
+                    color = Muted,
+                    fontSize = 12.sp
+                )
+                Button(
+                    onClick = {
+                        javaLauncherError = null
+                        try {
+                            val launchIntent = context.packageManager.getLaunchIntentForPackage(AMETHYST_PACKAGE)
+                            if (launchIntent != null) {
+                                context.startActivity(launchIntent)
+                            } else {
+                                context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(AMETHYST_DOWNLOAD_URL)))
+                            }
+                        } catch (_: Exception) {
+                            javaLauncherError = "Could not open Amethyst or its official download page."
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("Open Amethyst / official download")
+                }
+                if (javaLauncherError != null) {
+                    Text(javaLauncherError ?: "", color = Color(0xFFFF9A82), fontSize = 12.sp)
+                }
                 Button(onClick = onOpenVersions, modifier = Modifier.fillMaxWidth()) {
-                    Text("Browse Java versions")
+                    Text("Manage Java files in Flame Launcher")
                 }
             }
         }
@@ -233,6 +260,8 @@ private fun GamesScreen(onOpenVersions: () -> Unit) {
     }
 }
 
+private const val AMETHYST_PACKAGE = "org.angelauramc.amethyst"
+private const val AMETHYST_DOWNLOAD_URL = "https://nightly.link/AngelAuraMC/Amethyst-Android/workflows/android/v3_openjdk/app-debug%20%28recommended%29.zip"
 private const val RUST_MOBILE_INFO_URL = "https://www.rustmobile.com/en/m/"
 private const val RUST_MOBILE_PACKAGE = "com.tencent.rmos"
 
