@@ -57,6 +57,21 @@ object MinecraftArgumentResolver {
         substitutions
     )
 
+    fun resolveLegacyGameArguments(
+        metadataBytes: ByteArray,
+        expectedVersionId: String,
+        substitutions: Map<String, String>
+    ): List<String> {
+        MinecraftLaunchMetadataParser.parse(metadataBytes, expectedVersionId)
+        val root = JSONObject(metadataBytes.toString(Charsets.UTF_8))
+        require(root.optJSONObject("arguments") == null) {
+            "Legacy argument resolution cannot be used with modern argument metadata."
+        }
+        val commandLine = root.optString("minecraftArguments").takeIf { it.isNotBlank() }
+            ?: error("Version metadata does not contain legacy game arguments.")
+        return tokenizeLegacyArguments(commandLine).map { expandPlaceholders(it, substitutions) }
+    }
+
     private fun resolveArguments(
         metadataBytes: ByteArray,
         expectedVersionId: String,
@@ -154,8 +169,65 @@ object MinecraftArgumentResolver {
     private fun expandPlaceholders(value: String, substitutions: Map<String, String>): String =
         PLACEHOLDER.replace(value) { match ->
             val key = match.groupValues[1]
-            substitutions[key] ?: error("No value was supplied for Minecraft launch placeholder '${'$'}{$key}'.")
+            substitutions[key] ?: error("No value was supplied for Minecraft launch placeholder '${'    private val PLACEHOLDER = Regex("""\$\{([A-Za-z0-9_.-]+)}""")
+}
+}{$key}'.")
         }
+
+    private fun tokenizeLegacyArguments(commandLine: String): List<String> {
+        val tokens = mutableListOf<String>()
+        val current = StringBuilder()
+        var quote: Char? = null
+        var tokenStarted = false
+        var index = 0
+
+        while (index < commandLine.length) {
+            val character = commandLine[index]
+            if (character == '\\' && index + 1 < commandLine.length) {
+                val next = commandLine[index + 1]
+                if (next == '\\' || next == '"' || next == '\'') {
+                    current.append(next)
+                    tokenStarted = true
+                    index += 2
+                    continue
+                }
+            }
+
+            if (quote != null) {
+                if (character == quote) {
+                    quote = null
+                } else {
+                    current.append(character)
+                }
+                tokenStarted = true
+                index++
+                continue
+            }
+
+            when {
+                character == '"' || character == '\'' -> {
+                    quote = character
+                    tokenStarted = true
+                }
+                character.isWhitespace() -> {
+                    if (tokenStarted) {
+                        tokens += current.toString()
+                        current.setLength(0)
+                        tokenStarted = false
+                    }
+                }
+                else -> {
+                    current.append(character)
+                    tokenStarted = true
+                }
+            }
+            index++
+        }
+
+        require(quote == null) { "Legacy Minecraft arguments contain an unmatched quote." }
+        if (tokenStarted) tokens += current.toString()
+        return tokens
+    }
 
     private val PLACEHOLDER = Regex("""\$\{([A-Za-z0-9_.-]+)}""")
 }
