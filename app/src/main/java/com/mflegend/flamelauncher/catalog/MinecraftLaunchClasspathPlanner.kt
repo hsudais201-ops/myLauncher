@@ -77,15 +77,22 @@ internal object MinecraftLaunchClasspathPlanner {
                 if (library.has("natives")) {
                     val nativeMappings = library.optJSONObject("natives")
                         ?: error("Minecraft library '$name' has an invalid natives object.")
-                    // Mojang native keys are desktop OS names. Never infer that a
-                    // Linux classifier is compatible with Android just because the
-                    // device uses a Linux kernel.
-                    val nativeClassifier = nativeMappings.optString(ruleContext.platformName)
-                    if (nativeClassifier.isNotBlank()) {
-                        nativeLibraries += name
-                        val classifiers = downloads?.optJSONObject("classifiers")
-                        require(classifiers?.has(nativeClassifier) == true) {
-                            "Minecraft library '$name' is missing its declared native classifier."
+                    // Any declared native mapping remains a launch blocker until
+                    // Flame can select and extract a verified Android-compatible
+                    // payload. A Linux mapping is never treated as Android.
+                    nativeLibraries += name
+                    val keys = nativeMappings.keys()
+                    while (keys.hasNext()) {
+                        val osName = keys.next()
+                        val classifierName = nativeMappings.optString(osName)
+                        require(classifierName.isNotBlank()) {
+                            "Minecraft library '$name' has an empty native classifier mapping."
+                        }
+                        if (osName == ruleContext.platformName) {
+                            val classifiers = downloads?.optJSONObject("classifiers")
+                            require(classifiers?.has(classifierName) == true) {
+                                "Minecraft library '$name' is missing its declared native classifier."
+                            }
                         }
                     }
                 }
