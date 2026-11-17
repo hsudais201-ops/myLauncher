@@ -52,7 +52,7 @@ class MinecraftLaunchClasspathPlannerTest {
     }
 
     @Test
-    fun reportsNativeClassifiersAsPendingInsteadOfPuttingThemOnClasspath() {
+    fun doesNotTreatDesktopNativeClassifierAsAndroidNativeRequirement() {
         val metadata = json(
             libraries = """
                 [
@@ -64,7 +64,52 @@ class MinecraftLaunchClasspathPlannerTest {
         val plan = MinecraftLaunchClasspathPlanner.plan(metadata, "1.20.1", android)
 
         assertEquals(1, plan.libraryJarPaths.size)
-        assertEquals(listOf("org.lwjgl:lwjgl:3.3.3"), plan.nativeLibrariesPending)
+        assertTrue(plan.nativeLibrariesPending.isEmpty())
+    }
+
+    @Test
+    fun ignoresClassifierDataWhenNoNativeMappingIsDeclared() {
+        val metadata = json(
+            libraries = """
+                [
+                  {"name":"org.example:classifier-only:1","downloads":{"artifact":{"path":"org/example/classifier-only/1/library.jar","sha1":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","size":120},"classifiers":{"optional":{"path":"optional.jar","sha1":"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb","size":120}}}}
+                ]
+            """
+        )
+
+        val plan = MinecraftLaunchClasspathPlanner.plan(metadata, "1.20.1", android)
+
+        assertTrue(plan.nativeLibrariesPending.isEmpty())
+    }
+
+    @Test
+    fun reportsAndroidNativeMappingAsPendingInsteadOfPuttingItOnClasspath() {
+        val metadata = json(
+            libraries = """
+                [
+                  {"name":"org.example:android-native:1","downloads":{"artifact":{"path":"org/example/android-native/1/library.jar","sha1":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","size":120},"classifiers":{"natives-android":{"path":"native.jar","sha1":"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb","size":120}}},"natives":{"android":"natives-android"}}
+                ]
+            """
+        )
+
+        val plan = MinecraftLaunchClasspathPlanner.plan(metadata, "1.20.1", android)
+
+        assertEquals(1, plan.libraryJarPaths.size)
+        assertEquals(listOf("org.example:android-native:1"), plan.nativeLibrariesPending)
+    }
+
+    @Test
+    fun rejectsNativeMappingWithoutItsDeclaredClassifier() {
+        val metadata = json(
+            libraries = """
+                [
+                  {"name":"org.example:broken-native:1","downloads":{"artifact":{"path":"library.jar","sha1":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","size":120}},"natives":{"android":"missing"}}
+                ]
+            """
+        )
+        assertTrue(runCatching {
+            MinecraftLaunchClasspathPlanner.plan(metadata, "1.20.1", android)
+        }.isFailure)
     }
 
     @Test
