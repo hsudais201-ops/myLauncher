@@ -47,6 +47,53 @@ class MinecraftLaunchPreparationTest {
     }
 
     @Test
+    fun includesClasspathAndExplicitAndroidNativeBlocker() {
+        val metadata = """
+            {
+              "id": "1.21.4",
+              "mainClass": "net.minecraft.client.main.Main",
+              "javaVersion": {"component": "java-runtime-gamma", "majorVersion": 21},
+              "arguments": {"game": ["--demo"], "jvm": []},
+              "libraries": [
+                {
+                  "name": "org.lwjgl:lwjgl:3.3.3",
+                  "downloads": {
+                    "artifact": {
+                      "path": "org/lwjgl/lwjgl/3.3.3/lwjgl-3.3.3.jar",
+                      "sha1": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                      "size": 120
+                    },
+                    "classifiers": {
+                      "natives-linux": {
+                        "path": "org/lwjgl/lwjgl/3.3.3/lwjgl-3.3.3-natives-linux.jar",
+                        "sha1": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+                        "size": 120
+                      }
+                    }
+                  },
+                  "natives": {"linux": "natives-linux"}
+                }
+              ]
+            }
+        """.trimIndent().toByteArray()
+
+        val plan = MinecraftLaunchPreparationBuilder.prepare(
+            metadata,
+            "1.21.4",
+            android,
+            emptyMap(),
+            emptyList()
+        )
+
+        assertEquals(
+            listOf("versions/1.21.4/1.21.4.jar", "libraries/org/lwjgl/lwjgl/3.3.3/lwjgl-3.3.3.jar"),
+            plan.classpathPlan.orderedClasspathPaths
+        )
+        assertEquals(listOf("org.lwjgl:lwjgl:3.3.3"), plan.classpathPlan.nativeLibrariesPending)
+        assertTrue(plan.blockers.any { it.contains("Android native libraries still need compatible classifiers") })
+    }
+
+    @Test
     fun refusesWrongJavaMajorOrWrongAbiCandidates() {
         val metadata = """
             {
