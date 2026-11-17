@@ -140,7 +140,7 @@ class MinecraftLaunchClasspathPlannerTest {
             libraries = """
                 [
                   {"name":"org.example:legacy:1.0"},
-                  {"name":"org.example:native-only:1.0","downloads":{"classifiers":{"natives-linux":{"path":"native.jar","sha1":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","size":10}}},"natives":{"linux":"natives-linux"}}
+                  {"name":"org.example:native-only:1.0","downloads":{"classifiers":{"natives-android":{"path":"native.jar","sha1":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","size":10}}},"natives":{"android":"natives-android"}}
                 ]
             """
         )
