@@ -77,6 +77,7 @@ import com.mflegend.flamelauncher.catalog.MojangAssetDownloader
 import com.mflegend.flamelauncher.catalog.MojangVersionInstaller
 import com.mflegend.flamelauncher.catalog.DownloadControl
 import com.mflegend.flamelauncher.runtime.AndroidRuntimeEnvironment
+import com.mflegend.flamelauncher.runtime.AndroidJavaRuntimeImporter
 import com.mflegend.flamelauncher.runtime.AndroidJavaRuntimeManager
 import com.mflegend.flamelauncher.runtime.RuntimeLaunchReadiness
 import java.util.concurrent.CancellationException
