@@ -114,15 +114,27 @@ class AndroidJavaRuntimeImporter(context: Context) {
                 runtimeDirectory = destination
             )
         } catch (error: Exception) {
-            staging.deleteRecursively()
+            runCatching {
+                if (staging.exists() && !staging.deleteRecursively()) {
+                    throw IOException("Could not remove the temporary Java runtime import folder.")
+                }
+            }.exceptionOrNull()?.let(error::addSuppressed)
+
             installedDestination?.let { installed ->
                 runCatching {
-                    if (RuntimePathPolicy.isSymbolicLink(installed)) {
-                        Files.deleteIfExists(installed.toPath())
-                    } else if (RuntimeImportPolicy.isContained(runtimeRoot, installed)) {
-                        installed.deleteRecursively()
+                    when {
+                        RuntimePathPolicy.isSymbolicLink(installed) ->
+                            Files.deleteIfExists(installed.toPath())
+                        RuntimeImportPolicy.isContained(runtimeRoot, installed) -> {
+                            if (installed.exists() && !installed.deleteRecursively()) {
+                                throw IOException("Could not roll back the installed Java runtime folder.")
+                            }
+                        }
+                        else -> throw IOException(
+                            "Refusing to remove an installed runtime outside private runtime storage."
+                        )
                     }
-                }
+                }.exceptionOrNull()?.let(error::addSuppressed)
             }
             throw error
         }
