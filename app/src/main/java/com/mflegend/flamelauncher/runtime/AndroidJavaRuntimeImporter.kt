@@ -47,6 +47,7 @@ class AndroidJavaRuntimeImporter(context: Context) {
 
         val staging = File(runtimeRoot, STAGING_PREFIX + UUID.randomUUID().toString())
         check(staging.mkdir()) { "Could not create a private temporary runtime folder." }
+        var installedDestination: File? = null
 
         try {
             currentCoroutineContext().ensureActive()
@@ -97,6 +98,8 @@ class AndroidJavaRuntimeImporter(context: Context) {
             val destination = File(runtimeRoot, runtimeId)
             check(!destination.exists()) { "A runtime with the generated identifier already exists." }
             moveDirectory(staging, destination)
+            installedDestination = destination
+            currentCoroutineContext().ensureActive()
             require(RuntimeImportPolicy.isContained(runtimeRoot, destination)) {
                 "The imported runtime resolved outside Flame Launcher's private runtime directory."
             }
@@ -112,6 +115,15 @@ class AndroidJavaRuntimeImporter(context: Context) {
             )
         } catch (error: Exception) {
             staging.deleteRecursively()
+            installedDestination?.let { installed ->
+                runCatching {
+                    if (RuntimePathPolicy.isSymbolicLink(installed)) {
+                        Files.deleteIfExists(installed.toPath())
+                    } else if (RuntimeImportPolicy.isContained(runtimeRoot, installed)) {
+                        installed.deleteRecursively()
+                    }
+                }
+            }
             throw error
         }
     }
