@@ -8,7 +8,7 @@ import org.junit.Test
 class MojangLibraryRulePolicyTest {
     private val android = MojangLibraryRuleContext(
         platformName = "android",
-        osVersion = "14",
+        osVersion = "14.2",
         osArchitecture = "aarch64"
     )
 
