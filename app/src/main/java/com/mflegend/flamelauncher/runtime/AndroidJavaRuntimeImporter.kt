@@ -43,7 +43,7 @@ class AndroidJavaRuntimeImporter(context: Context) {
         check(staging.mkdir()) { "Could not create a private temporary runtime folder." }
 
         try {
-            val budget = CopyBudget()
+            val budget = RuntimeImportBudget()
             copyDirectoryContents(storage, storage.root(), staging, emptyList(), budget)
 
             val releaseFile = File(staging, "release")
@@ -97,7 +97,7 @@ class AndroidJavaRuntimeImporter(context: Context) {
                 javaVersion = javaVersion,
                 javaMajorVersion = javaMajor,
                 architecture = architecture,
-                filesCopied = budget.entries,
+                filesCopied = budget.files,
                 bytesCopied = budget.bytes,
                 runtimeDirectory = destination
             )
@@ -125,7 +125,7 @@ class AndroidJavaRuntimeImporter(context: Context) {
         sourceDirectory: Uri,
         destinationDirectory: File,
         parentSegments: List<String>,
-        budget: CopyBudget
+        budget: RuntimeImportBudget
     ) {
         val entries = storage.listChildren(sourceDirectory)
         val seenNames = HashSet<String>()
@@ -136,7 +136,7 @@ class AndroidJavaRuntimeImporter(context: Context) {
             }
             val segments = parentSegments + entry.name
             RuntimeImportPolicy.validateRelativePath(segments)
-            budget.registerEntry()
+            budget.registerEntry(entry.isDirectory)
 
             val target = File(destinationDirectory, entry.name)
             require(RuntimeImportPolicy.isContained(destinationDirectory, target)) {
@@ -165,7 +165,7 @@ class AndroidJavaRuntimeImporter(context: Context) {
         source: Uri,
         destination: File,
         declaredSize: Long?,
-        budget: CopyBudget
+        budget: RuntimeImportBudget
     ) {
         var copied = 0L
         storage.openInput(source).use { input ->
@@ -214,27 +214,6 @@ class AndroidJavaRuntimeImporter(context: Context) {
             if (!source.renameTo(destination)) {
                 throw IOException("Could not finish installing the verified Java runtime.")
             }
-        }
-    }
-
-    private class CopyBudget {
-        var entries: Int = 0
-            private set
-        var bytes: Long = 0
-            private set
-
-        fun registerEntry() {
-            entries++
-            require(entries <= RuntimeImportPolicy.MAX_ENTRIES) {
-                "The selected runtime contains too many files and folders."
-            }
-        }
-
-        fun addBytes(count: Long) {
-            require(count >= 0 && bytes <= RuntimeImportPolicy.MAX_TOTAL_BYTES - count) {
-                "The selected runtime exceeds the total import size limit."
-            }
-            bytes += count
         }
     }
 
