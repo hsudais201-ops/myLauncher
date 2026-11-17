@@ -48,6 +48,46 @@ class RuntimeImportPolicyTest {
     }
 
     @Test
+    fun safeChildAcceptsOrdinaryDescendants() {
+        val root = Files.createTempDirectory("flame-safe-child").toFile()
+        try {
+            val nested = File(root, "lib/server").apply { mkdirs() }
+            val library = File(nested, "libjvm.so").apply { writeBytes(byteArrayOf(1, 2, 3)) }
+            assertTrue(RuntimePathPolicy.isSafeChild(root, library))
+        } finally {
+            root.deleteRecursively()
+        }
+    }
+
+    @Test
+    fun safeChildRejectsSymbolicLinksEvenWhenTheyPointInsideRoot() {
+        val root = Files.createTempDirectory("flame-safe-link").toFile()
+        try {
+            val actual = File(root, "actual").apply { mkdir() }
+            val target = File(actual, "release").apply { writeText("JAVA_VERSION=21") }
+            val link = File(root, "linked-release")
+            Files.createSymbolicLink(link.toPath(), target.toPath())
+            assertFalse(RuntimePathPolicy.isSafeChild(root, link))
+        } finally {
+            root.deleteRecursively()
+        }
+    }
+
+    @Test
+    fun safeChildRejectsSymbolicLinkInAnIntermediateDirectory() {
+        val root = Files.createTempDirectory("flame-safe-parent-link").toFile()
+        try {
+            val actual = File(root, "actual").apply { mkdir() }
+            val target = File(actual, "release").apply { writeText("JAVA_VERSION=21") }
+            val linkDirectory = File(root, "linked")
+            Files.createSymbolicLink(linkDirectory.toPath(), actual.toPath())
+            assertFalse(RuntimePathPolicy.isSafeChild(root, File(linkDirectory, target.name)))
+        } finally {
+            root.deleteRecursively()
+        }
+    }
+
+    @Test
     fun readsMetadataAtTheConfiguredByteLimit() {
         val directory = Files.createTempDirectory("flame-release-limit").toFile()
         val metadata = File(directory, "release").apply { writeBytes(byteArrayOf(0x41, 0x42, 0x43)) }
