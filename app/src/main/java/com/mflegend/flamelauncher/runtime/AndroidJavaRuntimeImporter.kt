@@ -8,6 +8,9 @@ import java.io.FileOutputStream
 import java.io.IOException
 import java.nio.file.AtomicMoveNotSupportedException
 import java.nio.file.Files
+import java.nio.file.FileVisitResult
+import java.nio.file.SimpleFileVisitor
+import java.nio.file.attribute.BasicFileAttributes
 import java.nio.file.StandardCopyOption
 import java.util.UUID
 
@@ -38,6 +41,7 @@ class AndroidJavaRuntimeImporter(context: Context) {
         val storage = SafGameStorage(resolver, treeUri)
         val runtimeRoot = File(privateRoot, RUNTIME_DIRECTORY)
         ensureRuntimeRoot(runtimeRoot)
+        cleanupStaleStaging(runtimeRoot)
 
         val staging = File(runtimeRoot, STAGING_PREFIX + UUID.randomUUID().toString())
         check(staging.mkdir()) { "Could not create a private temporary runtime folder." }
@@ -105,6 +109,50 @@ class AndroidJavaRuntimeImporter(context: Context) {
             staging.deleteRecursively()
             throw error
         }
+    }
+
+    /**
+     * Removes only folders created by interrupted imports. The file walker does
+     * not follow symbolic links, so a stale link cannot redirect cleanup.
+     */
+    private fun cleanupStaleStaging(runtimeRoot: File) {
+        val children = runtimeRoot.listFiles()
+            ?: throw IOException("Could not inspect private Java runtime storage.")
+        for (child in children) {
+            if (!child.name.startsWith(STAGING_PREFIX)) continue
+            if (RuntimePathPolicy.isSymbolicLink(child)) {
+                Files.deleteIfExists(child.toPath())
+            } else if (child.isDirectory && RuntimeImportPolicy.isContained(runtimeRoot, child)) {
+                deleteTreeWithoutFollowingLinks(child)
+            } else if (child.isFile && RuntimeImportPolicy.isContained(runtimeRoot, child)) {
+                Files.deleteIfExists(child.toPath())
+            }
+        }
+    }
+
+    private fun deleteTreeWithoutFollowingLinks(root: File) {
+        val canonicalRoot = root.canonicalFile.toPath()
+        Files.walkFileTree(root.toPath(), object : SimpleFileVisitor<java.nio.file.Path>() {
+            override fun visitFile(file: java.nio.file.Path, attrs: BasicFileAttributes): FileVisitResult {
+                require(file.toAbsolutePath().normalize().startsWith(canonicalRoot)) {
+                    "A stale runtime path resolved outside its staging folder."
+                }
+                Files.deleteIfExists(file)
+                return FileVisitResult.CONTINUE
+            }
+
+            override fun postVisitDirectory(
+                directory: java.nio.file.Path,
+                error: IOException?
+            ): FileVisitResult {
+                if (error != null) throw error
+                require(directory.toAbsolutePath().normalize().startsWith(canonicalRoot)) {
+                    "A stale runtime folder resolved outside its staging root."
+                }
+                Files.deleteIfExists(directory)
+                return FileVisitResult.CONTINUE
+            }
+        })
     }
 
     private fun ensureRuntimeRoot(runtimeRoot: File) {
