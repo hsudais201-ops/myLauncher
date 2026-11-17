@@ -545,7 +545,7 @@ private fun VersionsScreen(folderUri: String?) {
                                                         MojangVersionInstaller().install(item, storage, control)
                                                     }
                                                     val javaRequirement = result.launchMetadata.requiredJavaMajorVersion?.let { "Java $it" } ?: "Java requirement not declared in metadata"
-                                                    metadataDownloadMessage = "${result.versionId}: files downloaded. $javaRequirement; main class ${result.launchMetadata.mainClass}; client JAR ${result.clientJarBytes} bytes; ${result.libraries.downloaded} libraries; ${result.assets.downloaded} assets; ${result.libraries.skippedByRules} OS-rule entries skipped."
+                                                    metadataDownloadMessage = "${result.versionId}: files downloaded. $javaRequirement; main class ${result.launchMetadata.mainClass}; client JAR ${result.clientJarBytes} bytes; ${result.libraries.downloaded} libraries; ${result.assets.downloaded} assets; ${result.assets.virtualAssetsMapped} virtual mappings; ${result.assets.resourceAssetsMapped} resource mappings; ${result.libraries.skippedByRules} OS-rule entries skipped."
                                                     scanRevision += 1
                                                 } catch (error: CancellationException) {
                                                     metadataDownloadMessage = item.id + ": cancelled. Verified completed files were kept; choose Install files again to continue."
