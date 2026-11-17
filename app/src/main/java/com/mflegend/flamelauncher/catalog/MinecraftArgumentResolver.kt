@@ -13,8 +13,7 @@ enum class MinecraftLaunchPlatform(val metadataName: String?) {
 
 /**
  * Facts used to evaluate Mojang's conditional launch arguments.
- *
- * Android is a distinct platform here; it must not inherit desktop Linux rules.
+ * Android is intentionally not treated as desktop Linux.
  */
 data class MinecraftLaunchRuleContext(
     val platform: MinecraftLaunchPlatform,
@@ -25,10 +24,8 @@ data class MinecraftLaunchRuleContext(
 
 /**
  * Resolves modern Mojang game/JVM argument arrays without invoking a shell.
- *
- * The caller supplies already-vetted placeholder values. Each value remains a
- * separate process argument, including values containing spaces. This class
- * does not build a classpath, authenticate an account, or start a JVM.
+ * Placeholder values remain individual tokens even when they contain spaces.
+ * This does not authenticate, build a classpath, or start a JVM.
  */
 object MinecraftArgumentResolver {
     fun resolveGameArguments(
@@ -37,11 +34,7 @@ object MinecraftArgumentResolver {
         context: MinecraftLaunchRuleContext,
         substitutions: Map<String, String>
     ): List<String> = resolveArguments(
-        metadataBytes,
-        expectedVersionId,
-        "game",
-        context,
-        substitutions
+        metadataBytes, expectedVersionId, "game", context, substitutions
     )
 
     fun resolveJvmArguments(
@@ -50,11 +43,7 @@ object MinecraftArgumentResolver {
         context: MinecraftLaunchRuleContext,
         substitutions: Map<String, String>
     ): List<String> = resolveArguments(
-        metadataBytes,
-        expectedVersionId,
-        "jvm",
-        context,
-        substitutions
+        metadataBytes, expectedVersionId, "jvm", context, substitutions
     )
 
     fun resolveLegacyGameArguments(
@@ -64,7 +53,7 @@ object MinecraftArgumentResolver {
     ): List<String> {
         MinecraftLaunchMetadataParser.parse(metadataBytes, expectedVersionId)
         val root = JSONObject(metadataBytes.toString(Charsets.UTF_8))
-        require(root.optJSONObject("arguments") == null) {
+        require(!root.has("arguments")) {
             "Legacy argument resolution cannot be used with modern argument metadata."
         }
         val commandLine = root.optString("minecraftArguments").takeIf { it.isNotBlank() }
@@ -92,8 +81,7 @@ object MinecraftArgumentResolver {
                         val rules = entry.optJSONArray("rules")
                             ?: error("Conditional '$key' argument is missing its rules array.")
                         if (rulesAllow(rules, context)) {
-                            val value = entry.opt("value")
-                            when (value) {
+                            when (val value = entry.opt("value")) {
                                 is String -> add(expandPlaceholders(value, substitutions))
                                 is JSONArray -> {
                                     for (valueIndex in 0 until value.length()) {
@@ -115,7 +103,6 @@ object MinecraftArgumentResolver {
     }
 
     private fun rulesAllow(rules: JSONArray, context: MinecraftLaunchRuleContext): Boolean {
-        // An empty rule list means the argument is unconditional.
         var allowed = rules.length() == 0
         for (index in 0 until rules.length()) {
             val rule = rules.get(index) as? JSONObject
@@ -125,7 +112,7 @@ object MinecraftArgumentResolver {
                 "Version metadata contains an unknown launch rule action."
             }
             if (ruleMatches(rule, context)) {
-                // Mojang rules are ordered; the last matching rule wins.
+                // The last matching Mojang rule determines whether this entry is included.
                 allowed = action == "allow"
             }
         }
@@ -136,10 +123,7 @@ object MinecraftArgumentResolver {
         if (rule.has("os")) {
             val os = rule.optJSONObject("os")
                 ?: error("Version metadata contains an invalid operating-system rule.")
-            if (os.has("name")) {
-                val expectedName = os.optString("name")
-                if (expectedName != context.platform.metadataName) return false
-            }
+            if (os.has("name") && os.optString("name") != context.platform.metadataName) return false
             if (os.has("arch")) {
                 val pattern = os.optString("arch")
                 require(pattern.isNotEmpty()) { "Operating-system architecture pattern is empty." }
@@ -169,9 +153,9 @@ object MinecraftArgumentResolver {
     private fun expandPlaceholders(value: String, substitutions: Map<String, String>): String =
         PLACEHOLDER.replace(value) { match ->
             val key = match.groupValues[1]
-            substitutions[key] ?: error("No value was supplied for Minecraft launch placeholder '${'    private val PLACEHOLDER = Regex("""\$\{([A-Za-z0-9_.-]+)}""")
-}
-}{$key}'.")
+            substitutions[key] ?: error(
+                "No value was supplied for Minecraft launch placeholder '" + key + "'."
+            )
         }
 
     private fun tokenizeLegacyArguments(commandLine: String): List<String> {
@@ -194,11 +178,7 @@ object MinecraftArgumentResolver {
             }
 
             if (quote != null) {
-                if (character == quote) {
-                    quote = null
-                } else {
-                    current.append(character)
-                }
+                if (character == quote) quote = null else current.append(character)
                 tokenStarted = true
                 index++
                 continue
