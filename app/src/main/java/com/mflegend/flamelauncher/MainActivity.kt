@@ -198,12 +198,12 @@ private fun GamesScreen(onOpenVersions: () -> Unit) {
                 Text("RUST MOBILE", color = Flame, fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.2.sp)
                 Text("A separate survival game", color = Color.White, fontSize = 19.sp, fontWeight = FontWeight.Bold)
                 Text(
-                    "Rust Mobile is an official mobile adaptation of Rust, not a Minecraft edition. Facepunch's published testing FAQ describes a limited Android test in Canada and lists Snapdragon 8 Gen 1, 6 GB RAM, and 4 GB free storage as minimum test requirements. Availability and eligibility can change.",
+                    "Rust Mobile is the official mobile adaptation of Rust, not a Minecraft edition. The publisher's current website advertises its second beta and an APK download. Beta access, device support, and regional availability are controlled by the publisher and may change.",
                     color = Muted,
                     fontSize = 13.sp
                 )
                 Text(
-                    "Flame Launcher does not bundle, install, or launch Rust Mobile. This entry opens the publisher's official information page.",
+                    "When Rust Mobile is installed, this button opens it. Otherwise, it opens the publisher's official website. Flame Launcher does not download or redistribute the game APK.",
                     color = Muted,
                     fontSize = 12.sp
                 )
@@ -211,14 +211,19 @@ private fun GamesScreen(onOpenVersions: () -> Unit) {
                     onClick = {
                         rustInfoError = null
                         try {
-                            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(RUST_MOBILE_INFO_URL)))
+                            val launchIntent = context.packageManager.getLaunchIntentForPackage(RUST_MOBILE_PACKAGE)
+                            if (launchIntent != null) {
+                                context.startActivity(launchIntent)
+                            } else {
+                                context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(RUST_MOBILE_INFO_URL)))
+                            }
                         } catch (_: Exception) {
-                            rustInfoError = "No browser is available to open the official Rust Mobile page."
+                            rustInfoError = "Could not open Rust Mobile or its official website."
                         }
                     },
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text("Open official Rust Mobile info")
+                    Text("Open Rust Mobile / official download")
                 }
                 if (rustInfoError != null) {
                     Text(rustInfoError ?: "", color = Color(0xFFFF9A82), fontSize = 12.sp)
@@ -228,7 +233,8 @@ private fun GamesScreen(onOpenVersions: () -> Unit) {
     }
 }
 
-private const val RUST_MOBILE_INFO_URL = "https://facepunch.com/rustmobile"
+private const val RUST_MOBILE_INFO_URL = "https://www.rustmobile.com/en/m/"
+private const val RUST_MOBILE_PACKAGE = "com.tencent.rmos"
 
 @Composable
 private fun HomeScreen() {
