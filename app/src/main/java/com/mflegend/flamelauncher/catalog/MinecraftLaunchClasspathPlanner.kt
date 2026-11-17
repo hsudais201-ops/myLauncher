@@ -74,8 +74,20 @@ internal object MinecraftLaunchClasspathPlanner {
                     }
                 }
 
-                if (library.has("natives") || downloads?.has("classifiers") == true) {
-                    nativeLibraries += name
+                if (library.has("natives")) {
+                    val nativeMappings = library.optJSONObject("natives")
+                        ?: error("Minecraft library '$name' has an invalid natives object.")
+                    // Mojang native keys are desktop OS names. Never infer that a
+                    // Linux classifier is compatible with Android just because the
+                    // device uses a Linux kernel.
+                    val nativeClassifier = nativeMappings.optString(ruleContext.platformName)
+                    if (nativeClassifier.isNotBlank()) {
+                        nativeLibraries += name
+                        val classifiers = downloads?.optJSONObject("classifiers")
+                        require(classifiers?.has(nativeClassifier) == true) {
+                            "Minecraft library '$name' is missing its declared native classifier."
+                        }
+                    }
                 }
                 if (artifact == null) {
                     unresolvedLibraries += name
