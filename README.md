@@ -17,7 +17,7 @@ The intended product is an Android phone/tablet app with a touch-friendly interf
 The Android **Games** tab separates the two experiences:
 
 - **Minecraft: Java Edition** is the main Flame Launcher integration. The app can install the currently supported vanilla files, but it still cannot start Minecraft until the Android JVM, native graphics/input/audio stack, lifecycle handling, and physical-device gameplay tests are complete.
-- **Rust Mobile** is a separate game published with Facepunch's endorsement, not a Minecraft edition. The Games tab links to [Facepunch's official Rust Mobile information](https://facepunch.com/rustmobile). It does not download, install, authenticate, or launch Rust Mobile. Facepunch's published testing FAQ describes a limited Android test in Canada and lists Snapdragon 8 Gen 1, 6 GB RAM, and 4 GB free storage as minimum test requirements; verify current availability and eligibility on the official page before trying to join.
+- **Rust Mobile** is a separate mobile game, not a Minecraft edition. The Games tab opens the installed Rust Mobile Android app when available, or sends the user to the [publisher's official Rust Mobile site](https://www.rustmobile.com/en/m/) when it is not installed. The publisher's current site advertises its second beta and an APK download. Flame Launcher does not host or redistribute the proprietary APK; beta access, account, device, and region eligibility remain controlled by the publisher.
 
 Flame Launcher does not include either game's paid content or bypass publisher account, purchase, region, or device requirements.
 
