@@ -1,7 +1,6 @@
 package com.mflegend.flamelauncher.runtime
 
 import android.content.Context
-import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.IOException
 
@@ -110,7 +109,7 @@ class AndroidJavaRuntimeManager(context: Context) {
             }
 
             val properties = try {
-                JavaRuntimeMetadata.parseReleaseFile(readBoundedText(releaseFile, MAX_RELEASE_FILE_BYTES))
+                JavaRuntimeMetadata.parseReleaseFile(RuntimeImportPolicy.readBoundedText(releaseFile, MAX_RELEASE_FILE_BYTES))
             } catch (_: Exception) {
                 warnings += "Ignored ${directory.name}: Java release metadata is invalid."
                 continue
@@ -159,23 +158,6 @@ class AndroidJavaRuntimeManager(context: Context) {
             .thenByDescending { it.javaMajorVersion }), warnings)
     }
 
-    /** Reads no more than the configured limit, even if the file grows during scanning. */
-    private fun readBoundedText(file: File, maxBytes: Long): String {
-        val output = ByteArrayOutputStream()
-        file.inputStream().use { input ->
-            val buffer = ByteArray(4096)
-            var total = 0L
-            while (true) {
-                val count = input.read(buffer)
-                if (count < 0) break
-                total += count
-                if (total > maxBytes) throw IOException("Runtime release file exceeds size limit")
-                output.write(buffer, 0, count)
-            }
-        }
-        return output.toString(Charsets.UTF_8.name())
-    }
-
     private fun findJvmLibrary(home: File, normalizedArchitecture: String): File? {
         val candidates = listOf(
             File(home, "lib/server/libjvm.so"),
@@ -200,6 +182,5 @@ class AndroidJavaRuntimeManager(context: Context) {
     companion object {
         private const val RUNTIME_DIRECTORY = "java-runtimes"
         private const val MINIMUM_JAVA_MAJOR = 8
-        private const val MAX_RELEASE_FILE_BYTES = 64L * 1024L
     }
 }
