@@ -57,6 +57,18 @@ class MojangAssetDownloader {
         val isVirtual = readOptionalBoolean(indexJson, "virtual")
         val mapToResources = readOptionalBoolean(indexJson, "map_to_resources")
 
+        val logicalPaths = mutableListOf<List<String>>()
+        val validationKeys = objects.keys()
+        while (validationKeys.hasNext()) {
+            control.checkpoint()
+            val logicalName = validationKeys.next()
+            require(objects.optJSONObject(logicalName) != null) {
+                "Asset index contains a malformed object entry."
+            }
+            logicalPaths += AssetLogicalPathPolicy.segments(logicalName)
+        }
+        AssetLogicalPathPolicy.validateUnique(logicalPaths)
+
         val assetsRoot = findOrCreateDirectory(storage, gameRoot, "assets")
         val indexesDir = findOrCreateDirectory(storage, assetsRoot, "indexes")
         saveIndex(storage, indexesDir, "$indexId.json", indexBytes, expectedIndexSha1)
