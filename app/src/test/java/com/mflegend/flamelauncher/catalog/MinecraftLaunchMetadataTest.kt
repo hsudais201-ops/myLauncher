@@ -35,76 +35,7 @@ class MinecraftLaunchMetadataTest {
             {
               "id": "1.12.2",
               "mainClass": "net.minecraft.client.main.Main",
-              "minecraftArguments": "--username ${' --version ${version_name}"
-            }
-        """.trimIndent()
-
-        val result = MinecraftLaunchMetadataParser.parse(json.toByteArray(), "1.12.2")
-
-        assertEquals(null, result.requiredJavaMajorVersion)
-        assertEquals(null, result.javaRuntimeComponent)
-        assertFalse(result.hasModernGameArguments)
-        assertTrue(result.hasLegacyGameArguments)
-    }
-
-    @Test
-    fun rejectsMismatchedVersionId() {
-        val json = """{"id":"1.20.1","mainClass":"net.minecraft.client.main.Main","minecraftArguments":"--demo"}"""
-
-        val error = runCatching {
-            MinecraftLaunchMetadataParser.parse(json.toByteArray(), "1.20.2")
-        }.exceptionOrNull()
-
-        assertTrue(error is IllegalArgumentException)
-    }
-
-    @Test
-    fun rejectsInvalidJavaMajorVersion() {
-        val json = """
-            {
-              "id": "test",
-              "mainClass": "net.minecraft.client.main.Main",
-              "javaVersion": {"component": "java-runtime", "majorVersion": 0},
-              "minecraftArguments": "--demo"
-            }
-        """.trimIndent()
-
-        val error = runCatching {
-            MinecraftLaunchMetadataParser.parse(json.toByteArray(), "test")
-        }.exceptionOrNull()
-
-        assertTrue(error is IllegalArgumentException)
-    }
-
-    @Test
-    fun rejectsMalformedConditionalArgumentValues() {
-        val json = """
-            {
-              "id": "test",
-              "mainClass": "net.minecraft.client.main.Main",
-              "arguments": {"game": [{"value": 42}]}
-            }
-        """.trimIndent()
-
-        val error = runCatching {
-            MinecraftLaunchMetadataParser.parse(json.toByteArray(), "test")
-        }.exceptionOrNull()
-
-        assertTrue(error is IllegalArgumentException)
-    }
-
-    @Test
-    fun rejectsMissingMainClass() {
-        val json = """{"id":"test","minecraftArguments":"--demo"}"""
-
-        val error = runCatching {
-            MinecraftLaunchMetadataParser.parse(json.toByteArray(), "test")
-        }.exceptionOrNull()
-
-        assertTrue(error is IllegalArgumentException)
-    }
-}
-}{auth_player_name} --version ${version_name}"
+              "minecraftArguments": "--username Offline --version 1.12.2"
             }
         """.trimIndent()
 
