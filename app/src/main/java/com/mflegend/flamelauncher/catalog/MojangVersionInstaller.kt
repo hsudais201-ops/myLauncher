@@ -40,7 +40,6 @@ class MojangVersionInstaller(
         val root = storage.root()
         val versionsDirectory = findOrCreateDirectory(storage, root, "versions")
         val versionDirectory = findOrCreateDirectory(storage, versionsDirectory, version.id)
-        saveMetadata(storage, versionDirectory, version.id + ".json", metadataBytes, control)
         control.progress("Version metadata", 1, 1)
 
         val clientJar = clientJarDownloader.download(
@@ -62,6 +61,11 @@ class MojangVersionInstaller(
                     ?: Build.SUPPORTED_ABIS.firstOrNull().orEmpty()
             )
         )
+
+        // Publish the version JSON only after all currently supported payload stages
+        // have completed. A failed/cancelled install must not advertise a partial version.
+        control.checkpoint()
+        saveMetadata(storage, versionDirectory, version.id + ".json", metadataBytes, control)
 
         return MojangVersionInstallResult(
             versionId = version.id,
