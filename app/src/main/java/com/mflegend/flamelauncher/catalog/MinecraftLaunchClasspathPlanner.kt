@@ -14,7 +14,8 @@ data class MinecraftLaunchClasspathPlan(
     val requiredJavaMajorVersion: Int?,
     val clientJarPath: String,
     val libraryJarPaths: List<String>,
-    val nativeLibrariesPending: List<String>
+    val nativeLibrariesPending: List<String>,
+    val unresolvedLibraries: List<String>
 ) {
     val orderedClasspathPaths: List<String>
         get() = listOf(clientJarPath) + libraryJarPaths
@@ -31,6 +32,7 @@ internal object MinecraftLaunchClasspathPlanner {
         val libraries = root.optJSONArray("libraries")
         val paths = linkedMapOf<String, Pair<Long, String>>()
         val nativeLibraries = linkedSetOf<String>()
+        val unresolvedLibraries = linkedSetOf<String>()
 
         if (libraries != null) {
             require(libraries.length() <= MAX_LIBRARY_COUNT) {
@@ -41,8 +43,20 @@ internal object MinecraftLaunchClasspathPlanner {
                     ?: error("Version metadata contains a malformed library entry.")
                 if (!MojangLibraryRulePolicy.isAllowed(library, ruleContext)) continue
 
-                val downloads = library.optJSONObject("downloads")
-                val artifact = downloads?.optJSONObject("artifact")
+                val name = library.optString("name").takeIf { it.isNotBlank() }
+                    ?: "library-$index"
+                val downloads = if (library.has("downloads")) {
+                    library.optJSONObject("downloads")
+                        ?: error("Minecraft library '$name' has an invalid downloads object.")
+                } else {
+                    null
+                }
+                val artifact = if (downloads?.has("artifact") == true) {
+                    downloads.optJSONObject("artifact")
+                        ?: error("Minecraft library '$name' has an invalid artifact object.")
+                } else {
+                    null
+                }
                 if (artifact != null) {
                     val relativePath = artifact.optString("path")
                     LibraryArtifactPathPolicy.segments(relativePath)
@@ -61,9 +75,10 @@ internal object MinecraftLaunchClasspathPlanner {
                 }
 
                 if (library.has("natives") || downloads?.has("classifiers") == true) {
-                    val name = library.optString("name").takeIf { it.isNotBlank() }
-                        ?: "library-$index"
                     nativeLibraries += name
+                }
+                if (artifact == null) {
+                    unresolvedLibraries += name
                 }
             }
         }
@@ -79,7 +94,8 @@ internal object MinecraftLaunchClasspathPlanner {
             requiredJavaMajorVersion = launchMetadata.requiredJavaMajorVersion,
             clientJarPath = "versions/$expectedVersionId/$expectedVersionId.jar",
             libraryJarPaths = libraryPaths.map { "libraries/$it" },
-            nativeLibrariesPending = nativeLibraries.toList()
+            nativeLibrariesPending = nativeLibraries.toList(),
+            unresolvedLibraries = unresolvedLibraries.toList()
         )
     }
 
