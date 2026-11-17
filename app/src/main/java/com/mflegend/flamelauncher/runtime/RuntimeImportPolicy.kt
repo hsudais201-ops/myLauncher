@@ -56,19 +56,28 @@ internal object RuntimeBinaryPolicy {
         return machine == EM_AARCH64
     }
 
-    fun isArm64Elf64(file: File): Boolean = try {
-        if (!file.isFile || file.length() < ELF_HEADER_BYTES) return false
-        val header = ByteArray(ELF_HEADER_BYTES)
-        file.inputStream().use { input ->
-            var offset = 0
-            while (offset < header.size) {
-                val count = input.read(header, offset, header.size - offset)
-                if (count < 0) return false
-                offset += count
+    fun isArm64Elf64(file: File): Boolean {
+        return try {
+            if (!file.isFile || file.length() < ELF_HEADER_BYTES) {
+                false
+            } else {
+                val header = ByteArray(ELF_HEADER_BYTES)
+                var complete = true
+                file.inputStream().use { input ->
+                    var offset = 0
+                    while (offset < header.size) {
+                        val count = input.read(header, offset, header.size - offset)
+                        if (count < 0) {
+                            complete = false
+                            break
+                        }
+                        offset += count
+                    }
+                }
+                complete && isArm64Elf64(header)
             }
+        } catch (_: Exception) {
+            false
         }
-        isArm64Elf64(header)
-    } catch (_: Exception) {
-        false
     }
 }
