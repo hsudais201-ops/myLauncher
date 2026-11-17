@@ -40,7 +40,7 @@ class MojangVersionInstaller(
         val root = storage.root()
         val versionsDirectory = findOrCreateDirectory(storage, root, "versions")
         val versionDirectory = findOrCreateDirectory(storage, versionsDirectory, version.id)
-        saveMetadata(storage, versionDirectory, version.id + ".json", metadataBytes)
+        saveMetadata(storage, versionDirectory, version.id + ".json", metadataBytes, control)
         control.progress("Version metadata", 1, 1)
 
         val clientJar = clientJarDownloader.download(
@@ -73,7 +73,8 @@ class MojangVersionInstaller(
         )
     }
 
-    private fun saveMetadata(storage: SafGameStorage, directory: Uri, name: String, bytes: ByteArray) {
+    private fun saveMetadata(storage: SafGameStorage, directory: Uri, name: String, bytes: ByteArray, control: DownloadControl) {
+        control.checkpoint()
         val existing = storage.findFile(directory, name)
         val temporaryName = ".$name.download"
         val uri = storage.createTemporaryFile(directory, temporaryName, "application/json")
@@ -82,6 +83,11 @@ class MojangVersionInstaller(
                 output.write(bytes)
                 output.flush()
             }
+            val expectedSha1 = java.security.MessageDigest.getInstance("SHA-1").digest(bytes).joinToString("") { "%02x".format(it) }
+            require(DownloadedFileVerifier.matches(storage.openInput(uri), bytes.size.toLong(), expectedSha1, control)) {
+                "Stored version metadata verification failed."
+            }
+            control.checkpoint()
             storage.replaceWithVerifiedFile(uri, existing?.uri, name)
         } catch (error: Exception) {
             storage.deleteTemporaryAfterFailure(uri, error)
