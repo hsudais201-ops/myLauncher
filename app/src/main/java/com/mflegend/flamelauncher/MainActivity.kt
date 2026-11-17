@@ -30,6 +30,7 @@ import androidx.compose.material.icons.filled.InsertDriveFile
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.SportsEsports
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -126,8 +127,8 @@ private fun FlameLauncherApp() {
             containerColor = Background,
             bottomBar = {
                 NavigationBar(containerColor = Panel) {
-                    val tabs = listOf("Home", "Versions", "Library", "Settings")
-                    val icons = listOf(Icons.Default.Home, Icons.Default.Download, Icons.Default.Extension, Icons.Default.Settings)
+                    val tabs = listOf("Home", "Games", "Versions", "Library", "Settings")
+                    val icons = listOf(Icons.Default.Home, Icons.Default.SportsEsports, Icons.Default.Download, Icons.Default.Extension, Icons.Default.Settings)
                     tabs.forEachIndexed { index, label ->
                         NavigationBarItem(
                             selected = selectedTab == index,
@@ -153,8 +154,9 @@ private fun FlameLauncherApp() {
                 }
                 when (selectedTab) {
                     0 -> HomeScreen()
-                    1 -> VersionsScreen(gameFolderUri)
-                    2 -> LibraryScreen(gameFolderUri)
+                    1 -> GamesScreen(onOpenVersions = { selectedTab = 2 })
+                    2 -> VersionsScreen(gameFolderUri)
+                    3 -> LibraryScreen(gameFolderUri)
                     else -> SettingsScreen(gameFolderUri, folderPermissionError, onChooseFolder = { folderPicker.launch(null) })
                 }
                 Text("Created and maintained by MFLegend", color = Muted, fontSize = 12.sp, modifier = Modifier.padding(top = 8.dp))
@@ -162,6 +164,71 @@ private fun FlameLauncherApp() {
         }
     }
 }
+
+@Composable
+private fun GamesScreen(onOpenVersions: () -> Unit) {
+    val context = LocalContext.current
+    var rustInfoError by remember { mutableStateOf<String?>(null) }
+
+    Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+        Text("Games", color = Color.White, fontSize = 23.sp, fontWeight = FontWeight.Bold)
+        Text(
+            "Choose a game experience. Minecraft Java is managed here; other games remain separate apps with their own publishers and accounts.",
+            color = Muted,
+            fontSize = 13.sp
+        )
+
+        Card(colors = CardDefaults.cardColors(containerColor = Panel), shape = RoundedCornerShape(20.dp)) {
+            Column(Modifier.fillMaxWidth().padding(18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text("MINECRAFT: JAVA EDITION", color = Flame, fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.2.sp)
+                Text("Install and manage Java game files", color = Color.White, fontSize = 19.sp, fontWeight = FontWeight.Bold)
+                Text(
+                    "Flame Launcher can download verified vanilla version metadata, the client JAR, supported libraries, and assets. The Android Java runtime, native graphics/input bridge, and real-device gameplay verification are still required before Play can be enabled.",
+                    color = Muted,
+                    fontSize = 13.sp
+                )
+                Button(onClick = onOpenVersions, modifier = Modifier.fillMaxWidth()) {
+                    Text("Browse Java versions")
+                }
+            }
+        }
+
+        Card(colors = CardDefaults.cardColors(containerColor = Panel), shape = RoundedCornerShape(20.dp)) {
+            Column(Modifier.fillMaxWidth().padding(18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text("RUST MOBILE", color = Flame, fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.2.sp)
+                Text("A separate survival game", color = Color.White, fontSize = 19.sp, fontWeight = FontWeight.Bold)
+                Text(
+                    "Rust Mobile is an official mobile adaptation of Rust, not a Minecraft edition. Facepunch's published testing FAQ describes a limited Android test in Canada and lists Snapdragon 8 Gen 1, 6 GB RAM, and 4 GB free storage as minimum test requirements. Availability and eligibility can change.",
+                    color = Muted,
+                    fontSize = 13.sp
+                )
+                Text(
+                    "Flame Launcher does not bundle, install, or launch Rust Mobile. This entry opens the publisher's official information page.",
+                    color = Muted,
+                    fontSize = 12.sp
+                )
+                Button(
+                    onClick = {
+                        rustInfoError = null
+                        try {
+                            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(RUST_MOBILE_INFO_URL)))
+                        } catch (_: Exception) {
+                            rustInfoError = "No browser is available to open the official Rust Mobile page."
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("Open official Rust Mobile info")
+                }
+                if (rustInfoError != null) {
+                    Text(rustInfoError ?: "", color = Color(0xFFFF9A82), fontSize = 12.sp)
+                }
+            }
+        }
+    }
+}
+
+private const val RUST_MOBILE_INFO_URL = "https://facepunch.com/rustmobile"
 
 @Composable
 private fun HomeScreen() {
