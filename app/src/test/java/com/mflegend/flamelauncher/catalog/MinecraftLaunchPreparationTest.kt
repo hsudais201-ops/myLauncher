@@ -64,14 +64,14 @@ class MinecraftLaunchPreparationTest {
                       "size": 120
                     },
                     "classifiers": {
-                      "natives-linux": {
+                      "natives-android": {
                         "path": "org/lwjgl/lwjgl/3.3.3/lwjgl-3.3.3-natives-linux.jar",
                         "sha1": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
                         "size": 120
                       }
                     }
                   },
-                  "natives": {"linux": "natives-linux"}
+                  "natives": {"android": "natives-android"}
                 }
               ]
             }
