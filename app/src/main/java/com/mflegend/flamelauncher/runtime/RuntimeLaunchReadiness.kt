@@ -12,6 +12,8 @@ data class RuntimeLaunchReadiness(
     val graphicsSurfaceReady: Boolean = false,
     val inputAndAudioReady: Boolean = false,
     val lifecycleHandlingReady: Boolean = false,
+    val microsoftAccountAuthenticated: Boolean = false,
+    val minecraftEntitlementVerified: Boolean = false,
     val physicalDeviceGameTestPassed: Boolean = false
 ) {
     val canLaunch: Boolean
@@ -20,6 +22,8 @@ data class RuntimeLaunchReadiness(
             graphicsSurfaceReady &&
             inputAndAudioReady &&
             lifecycleHandlingReady &&
+            microsoftAccountAuthenticated &&
+            minecraftEntitlementVerified &&
             physicalDeviceGameTestPassed
 
     val missingRequirements: List<String>
@@ -29,6 +33,8 @@ data class RuntimeLaunchReadiness(
             if (!graphicsSurfaceReady) add("Graphics renderer and Android surface are not ready")
             if (!inputAndAudioReady) add("Touch, keyboard, and audio integration are not verified")
             if (!lifecycleHandlingReady) add("Pause, resume, and shutdown handling are not verified")
+            if (!microsoftAccountAuthenticated) add("Microsoft/Xbox account authentication has not been completed")
+            if (!minecraftEntitlementVerified) add("Minecraft Java ownership entitlement has not been verified")
             if (!physicalDeviceGameTestPassed) add("A real Minecraft session has not passed on a physical Android device")
         }
 }
