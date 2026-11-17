@@ -78,6 +78,7 @@ import com.mflegend.flamelauncher.catalog.MojangVersionInstaller
 import com.mflegend.flamelauncher.catalog.DownloadControl
 import com.mflegend.flamelauncher.runtime.AndroidRuntimeEnvironment
 import com.mflegend.flamelauncher.runtime.AndroidJavaRuntimeImporter
+import com.mflegend.flamelauncher.runtime.JavaRuntimeSelectionPolicy
 import com.mflegend.flamelauncher.runtime.AndroidJavaRuntimeManager
 import com.mflegend.flamelauncher.runtime.RuntimeLaunchReadiness
 import java.util.concurrent.CancellationException
@@ -546,7 +547,18 @@ private fun VersionsScreen(folderUri: String?) {
                                                         MojangVersionInstaller().install(item, storage, control)
                                                     }
                                                     val javaRequirement = result.launchMetadata.requiredJavaMajorVersion?.let { "Java $it" } ?: "Java requirement not declared in metadata"
-                                                    metadataDownloadMessage = "${result.versionId}: files downloaded. $javaRequirement; main class ${result.launchMetadata.mainClass}; client JAR ${result.clientJarBytes} bytes; ${result.libraries.downloaded} libraries; ${result.assets.downloaded} assets; ${result.assets.virtualAssetsMapped} virtual mappings; ${result.assets.resourceAssetsMapped} resource mappings; ${result.libraries.skippedByRules} OS-rule entries skipped."
+                                                    val runtimeCandidateMessage = withContext(Dispatchers.IO) {
+                                                        val environment = AndroidRuntimeEnvironment.inspect(context)
+                                                        val candidates = AndroidJavaRuntimeManager(context).scan(environment).abiMatchedRuntimes
+                                                        val requiredMajor = result.launchMetadata.requiredJavaMajorVersion
+                                                        val candidate = JavaRuntimeSelectionPolicy.findExactMajor(requiredMajor, candidates)
+                                                        when {
+                                                            requiredMajor == null -> "No exact Java runtime can be selected because the metadata has no Java major requirement."
+                                                            candidate != null -> "Java $requiredMajor ARM64 runtime candidate ${candidate.id} found; it has not been loaded or tested."
+                                                            else -> "No Java $requiredMajor ARM64 runtime candidate is imported; use Settings to import one."
+                                                        }
+                                                    }
+                                                    metadataDownloadMessage = "${result.versionId}: files downloaded. $javaRequirement; $runtimeCandidateMessage; main class ${result.launchMetadata.mainClass}; client JAR ${result.clientJarBytes} bytes; ${result.libraries.downloaded} libraries; ${result.assets.downloaded} assets; ${result.assets.virtualAssetsMapped} virtual mappings; ${result.assets.resourceAssetsMapped} resource mappings; ${result.libraries.skippedByRules} OS-rule entries skipped."
                                                     scanRevision += 1
                                                 } catch (error: CancellationException) {
                                                     metadataDownloadMessage = item.id + ": cancelled. Verified completed files were kept; choose Install files again to continue."
