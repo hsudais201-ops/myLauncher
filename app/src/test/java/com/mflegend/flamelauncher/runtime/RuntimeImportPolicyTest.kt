@@ -48,6 +48,44 @@ class RuntimeImportPolicyTest {
     }
 
     @Test
+    fun readsMetadataAtTheConfiguredByteLimit() {
+        val directory = Files.createTempDirectory("flame-release-limit").toFile()
+        val metadata = File(directory, "release").apply { writeBytes(byteArrayOf(0x41, 0x42, 0x43)) }
+        try {
+            assertTrue(RuntimeImportPolicy.readBoundedText(metadata, 3L) == "ABC")
+        } finally {
+            directory.deleteRecursively()
+        }
+    }
+
+    @Test
+    fun rejectsMetadataLargerThanTheConfiguredByteLimit() {
+        val directory = Files.createTempDirectory("flame-release-oversize").toFile()
+        val metadata = File(directory, "release").apply { writeBytes(byteArrayOf(0x41, 0x42, 0x43, 0x44)) }
+        try {
+            val error = runCatching {
+                RuntimeImportPolicy.readBoundedText(metadata, 3L)
+            }.exceptionOrNull()
+            assertTrue(error is IOException)
+        } finally {
+            directory.deleteRecursively()
+        }
+    }
+
+    @Test
+    fun rejectsNegativeMetadataReadLimit() {
+        val directory = Files.createTempDirectory("flame-release-negative").toFile()
+        val metadata = File(directory, "release").apply { writeText("JAVA_VERSION=21") }
+        try {
+            assertFalse(runCatching {
+                RuntimeImportPolicy.readBoundedText(metadata, -1L)
+            }.isSuccess)
+        } finally {
+            directory.deleteRecursively()
+        }
+    }
+
+    @Test
     fun recognizesArm64Elf64HeaderOnly() {
         val header = ByteArray(20)
         header[0] = 0x7f
