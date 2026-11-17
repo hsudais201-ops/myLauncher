@@ -10,7 +10,7 @@ class RuntimeLaunchReadinessTest {
         val readiness = RuntimeLaunchReadiness()
 
         assertFalse(readiness.canLaunch)
-        assertEquals(6, readiness.missingRequirements.size)
+        assertEquals(8, readiness.missingRequirements.size)
     }
 
     @Test fun abiOrRuntimeMetadataAloneCannotEnableLaunch() {
@@ -32,6 +32,8 @@ class RuntimeLaunchReadinessTest {
             graphicsSurfaceReady = true,
             inputAndAudioReady = true,
             lifecycleHandlingReady = true,
+            microsoftAccountAuthenticated = true,
+            minecraftEntitlementVerified = true,
             physicalDeviceGameTestPassed = true
         )
         val incompleteStates = listOf(
@@ -40,6 +42,8 @@ class RuntimeLaunchReadinessTest {
             complete.copy(graphicsSurfaceReady = false),
             complete.copy(inputAndAudioReady = false),
             complete.copy(lifecycleHandlingReady = false),
+            complete.copy(microsoftAccountAuthenticated = false),
+            complete.copy(minecraftEntitlementVerified = false),
             complete.copy(physicalDeviceGameTestPassed = false)
         )
 
