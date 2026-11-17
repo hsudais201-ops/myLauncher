@@ -24,6 +24,7 @@ Flame Launcher does not include either game's paid content or bypass publisher a
 ## Reusable work already present in the repository
 
 - Mojang version manifest browsing and version selection.
+- Native Android install-time validation of Minecraft launch metadata, including the selected main class, declared Java major/runtime component, and modern versus legacy game-argument structure. This is preparation only: argument substitution/rule evaluation, JVM startup, renderer setup, and game launch are not implemented.
 - Vanilla metadata, client/library/asset download pipeline with SHA-1 verification.
 - Fabric installer integration and an initial Forge installer workflow.
 - Version inheritance and launch-argument resolution.
