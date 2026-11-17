@@ -120,5 +120,81 @@ class MinecraftArgumentResolverTest {
         assertTrue(error != null)
     }
 
+    @Test
+    fun resolvesLegacyQuotedArgumentsWithoutSplittingExpandedValues() {
+        val playerPlaceholder = "$" + "{auth_player_name}"
+        val gameDirPlaceholder = "$" + "{game_directory}"
+        val metadata = org.json.JSONObject()
+            .put("id", "1.12.2")
+            .put("mainClass", "net.minecraft.client.main.Main")
+            .put(
+                "minecraftArguments",
+                "--username " + playerPlaceholder +
+                    " --gameDir \"" + gameDirPlaceholder + "\" --label \"two words\""
+            )
+            .toString()
+            .toByteArray(Charsets.UTF_8)
+
+        val result = MinecraftArgumentResolver.resolveLegacyGameArguments(
+            metadata,
+            "1.12.2",
+            mapOf(
+                "auth_player_name" to "Player One",
+                "game_directory" to "/storage/emulated/0/My Game"
+            )
+        )
+
+        assertEquals(
+            listOf("--username", "Player One", "--gameDir", "/storage/emulated/0/My Game", "--label", "two words"),
+            result
+        )
+    }
+
+    @Test
+    fun rejectsUnmatchedLegacyQuotes() {
+        val metadata = org.json.JSONObject()
+            .put("id", "1.12.2")
+            .put("mainClass", "net.minecraft.client.main.Main")
+            .put("minecraftArguments", "--username \"missing")
+            .toString()
+            .toByteArray(Charsets.UTF_8)
+
+        val error = runCatching {
+            MinecraftArgumentResolver.resolveLegacyGameArguments(metadata, "1.12.2", emptyMap())
+        }.exceptionOrNull()
+
+        assertTrue(error != null)
+    }
+
+    @Test
+    fun rejectsMissingLegacyPlaceholderValues() {
+        val placeholder = "$" + "{missing_value}"
+        val metadata = org.json.JSONObject()
+            .put("id", "1.12.2")
+            .put("mainClass", "net.minecraft.client.main.Main")
+            .put("minecraftArguments", "--username " + placeholder)
+            .toString()
+            .toByteArray(Charsets.UTF_8)
+
+        val error = runCatching {
+            MinecraftArgumentResolver.resolveLegacyGameArguments(metadata, "1.12.2", emptyMap())
+        }.exceptionOrNull()
+
+        assertTrue(error != null)
+    }
+
+    @Test
+    fun rejectsLegacyResolverForModernMetadata() {
+        val metadata = modernMetadata(
+            """{"id":"test","mainClass":"net.minecraft.client.main.Main","arguments":{"game":["--demo"]}}"""
+        )
+
+        val error = runCatching {
+            MinecraftArgumentResolver.resolveLegacyGameArguments(metadata, "test", emptyMap())
+        }.exceptionOrNull()
+
+        assertTrue(error != null)
+    }
+
     private fun modernMetadata(json: String): ByteArray = json.toByteArray(Charsets.UTF_8)
 }
