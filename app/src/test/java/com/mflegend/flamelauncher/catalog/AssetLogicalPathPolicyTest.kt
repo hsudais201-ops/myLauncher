@@ -68,6 +68,17 @@ class AssetLogicalPathPolicyTest {
     }
 
     @Test
+    fun detectsPrefixConflictsEvenWhenAnotherNameSortsBetweenThem() {
+        val paths = listOf(
+            AssetLogicalPathPolicy.segments("asset"),
+            AssetLogicalPathPolicy.segments("asset-file"),
+            AssetLogicalPathPolicy.segments("asset/file")
+        )
+        assertTrue(runCatching { AssetLogicalPathPolicy.validateUnique(paths) }
+            .exceptionOrNull() is IllegalArgumentException)
+    }
+
+    @Test
     fun acceptsDistinctSiblingPaths() {
         AssetLogicalPathPolicy.validateUnique(listOf(
             AssetLogicalPathPolicy.segments("minecraft/sounds/cave.ogg"),
