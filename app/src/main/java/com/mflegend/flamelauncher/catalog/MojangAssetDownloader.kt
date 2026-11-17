@@ -71,7 +71,7 @@ class MojangAssetDownloader {
 
         val assetsRoot = findOrCreateDirectory(storage, gameRoot, "assets")
         val indexesDir = findOrCreateDirectory(storage, assetsRoot, "indexes")
-        saveIndex(storage, indexesDir, "$indexId.json", indexBytes, expectedIndexSha1)
+        saveIndex(storage, indexesDir, "$indexId.json", indexBytes, expectedIndexSha1, control)
 
         val objectsDir = findOrCreateDirectory(storage, assetsRoot, "objects")
         var downloaded = 0
@@ -99,7 +99,7 @@ class MojangAssetDownloader {
             val prefix = hash.substring(0, 2)
             val prefixDir = findOrCreateDirectory(storage, objectsDir, prefix)
             val existing = storage.findFile(prefixDir, hash)
-            if (existing != null && isVerified(storage, existing.uri, size, hash)) {
+            if (existing != null && isVerified(storage, existing.uri, size, hash, control)) {
                 present++
                 objectUris[hash] = existing.uri
                 continue
@@ -215,7 +215,8 @@ class MojangAssetDownloader {
         directory: Uri,
         name: String,
         bytes: ByteArray,
-        expectedSha1: String
+        expectedSha1: String,
+        control: DownloadControl
     ) {
         val oldFile = storage.findFile(directory, name)
         val temporaryName = ".$name.download"
@@ -225,10 +226,12 @@ class MojangAssetDownloader {
                 output.write(bytes)
                 output.flush()
             }
-            val storedSha1 = sha1(storage.openInput(uri).use { it.readBytes() })
-            require(storedSha1.equals(expectedSha1, ignoreCase = true)) {
-                "Stored asset index SHA-1 verification failed."
+            require(DownloadedFileVerifier.matches(
+                storage.openInput(uri), bytes.size.toLong(), expectedSha1, control
+            )) {
+                "Stored asset index verification failed."
             }
+            control.checkpoint()
             storage.replaceWithVerifiedFile(uri, oldFile?.uri, name)
         } catch (error: Exception) {
             storage.deleteTemporaryAfterFailure(uri, error)
@@ -286,23 +289,36 @@ class MojangAssetDownloader {
         }
     }
 
-    private fun isVerified(storage: SafGameStorage, uri: Uri, expectedSize: Long, expectedSha1: String): Boolean =
-        runCatching {
+    private fun isVerified(
+        storage: SafGameStorage,
+        uri: Uri,
+        expectedSize: Long,
+        expectedSha1: String,
+        control: DownloadControl
+    ): Boolean {
+        return try {
+            control.checkpoint()
             val digest = MessageDigest.getInstance("SHA-1")
             var total = 0L
             storage.openInput(uri).use { input ->
                 val buffer = ByteArray(64 * 1024)
                 while (true) {
+                    control.checkpoint()
                     val count = input.read(buffer)
                     if (count < 0) break
                     total += count
-                    if (total > expectedSize) return@runCatching false
+                    if (total > expectedSize) return false
                     digest.update(buffer, 0, count)
                 }
             }
             total == expectedSize &&
                 digest.digest().joinToString("") { "%02x".format(it) }.equals(expectedSha1, ignoreCase = true)
-        }.getOrDefault(false)
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (_: Exception) {
+            false
+        }
+    }
 
     private fun materializeAsset(
         storage: SafGameStorage,
@@ -317,7 +333,7 @@ class MojangAssetDownloader {
         val parent = findOrCreateDirectoryPath(storage, targetRoot, parentSegments, directoryCache)
         val fileName = asset.pathSegments.last()
         val existing = storage.findFile(parent, fileName)
-        if (existing != null && isVerified(storage, existing.uri, asset.sizeBytes, asset.hash)) return
+        if (existing != null && isVerified(storage, existing.uri, asset.sizeBytes, asset.hash, control)) return
 
         val tempKey = asset.pathSegments.joinToString("/") + ":" + asset.hash
         val temporaryName = "." + sha1(tempKey.toByteArray()).take(20) + ".download"
