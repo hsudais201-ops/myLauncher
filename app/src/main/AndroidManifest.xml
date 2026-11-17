@@ -2,6 +2,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <queries>
         <package android:name="com.tencent.rmos" />
+        <package android:name="org.angelauramc.amethyst" />
     </queries>
     <uses-permission android:name="android.permission.INTERNET" />
     <application
