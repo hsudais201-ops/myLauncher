@@ -1,6 +1,7 @@
 package com.mflegend.flamelauncher.catalog
 
 import android.net.Uri
+import android.os.Build
 import com.mflegend.flamelauncher.storage.SafGameStorage
 import org.json.JSONObject
 import java.net.HttpURLConnection
@@ -38,11 +39,16 @@ class MojangLibraryDownloader {
         var skipped = 0
         var totalBytes = 0L
         val artifactTracker = LibraryArtifactTracker(MAX_ARTIFACT_BYTES, MAX_TOTAL_BYTES)
+        val ruleContext = MojangLibraryRuleContext(
+            platformName = "android",
+            osVersion = Build.VERSION.RELEASE.orEmpty(),
+            osArchitecture = System.getProperty("os.arch")
+                ?: Build.SUPPORTED_ABIS.firstOrNull().orEmpty()
+        )
         for (index in 0 until libraries.length()) {
             control.checkpoint()
             val library = libraries.optJSONObject(index) ?: continue
-            // Do not guess how desktop OS rules should map to Android.
-            if (library.has("rules")) {
+            if (!MojangLibraryRulePolicy.isAllowed(library, ruleContext)) {
                 skipped++
                 continue
             }
