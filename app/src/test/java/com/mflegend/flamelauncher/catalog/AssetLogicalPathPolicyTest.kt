@@ -46,6 +46,35 @@ class AssetLogicalPathPolicyTest {
         assertRejected((1..33).joinToString("/") { "segment" })
     }
 
+
+    @Test
+    fun rejectsDuplicatePathsThatDifferOnlyByCase() {
+        val paths = listOf(
+            AssetLogicalPathPolicy.segments("minecraft/sounds/cave.ogg"),
+            AssetLogicalPathPolicy.segments("Minecraft/Sounds/CAVE.ogg")
+        )
+        assertTrue(runCatching { AssetLogicalPathPolicy.validateUnique(paths) }
+            .exceptionOrNull() is IllegalArgumentException)
+    }
+
+    @Test
+    fun rejectsFileAndDirectoryPrefixConflicts() {
+        val paths = listOf(
+            AssetLogicalPathPolicy.segments("minecraft/sounds"),
+            AssetLogicalPathPolicy.segments("minecraft/sounds/cave.ogg")
+        )
+        assertTrue(runCatching { AssetLogicalPathPolicy.validateUnique(paths) }
+            .exceptionOrNull() is IllegalArgumentException)
+    }
+
+    @Test
+    fun acceptsDistinctSiblingPaths() {
+        AssetLogicalPathPolicy.validateUnique(listOf(
+            AssetLogicalPathPolicy.segments("minecraft/sounds/cave.ogg"),
+            AssetLogicalPathPolicy.segments("minecraft/sounds/rain.ogg")
+        ))
+    }
+
     private fun assertRejected(path: String) {
         assertTrue(
             "Expected unsafe asset path to be rejected",
