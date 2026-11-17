@@ -1,6 +1,8 @@
 package com.mflegend.flamelauncher.runtime
 
+import java.io.ByteArrayOutputStream
 import java.io.File
+import java.io.IOException
 
 /** Path and capacity limits for copying a user-selected runtime into private storage. */
 internal object RuntimeImportPolicy {
@@ -27,6 +29,24 @@ internal object RuntimeImportPolicy {
             "Java runtime path exceeds the allowed directory depth."
         }
         segments.forEach(::validateEntryName)
+    }
+
+    /** Reads a bounded UTF-8 metadata file without trusting a prior length() check. */
+    fun readBoundedText(file: File, maxBytes: Long): String {
+        require(maxBytes >= 0L) { "Maximum metadata size must not be negative." }
+        val output = ByteArrayOutputStream()
+        file.inputStream().use { input ->
+            val buffer = ByteArray(4096)
+            var total = 0L
+            while (true) {
+                val count = input.read(buffer)
+                if (count < 0) break
+                total += count.toLong()
+                if (total > maxBytes) throw IOException("Runtime metadata exceeds the size limit.")
+                output.write(buffer, 0, count)
+            }
+        }
+        return output.toString(Charsets.UTF_8.name())
     }
 
     fun isContained(parent: File, child: File): Boolean = try {
