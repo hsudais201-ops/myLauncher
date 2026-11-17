@@ -13,6 +13,8 @@ import java.nio.file.SimpleFileVisitor
 import java.nio.file.attribute.BasicFileAttributes
 import java.nio.file.StandardCopyOption
 import java.util.UUID
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 
 /**
  * Copies a user-selected, already-extracted Java runtime into app-private storage.
@@ -34,7 +36,7 @@ class AndroidJavaRuntimeImporter(context: Context) {
         val runtimeDirectory: File
     )
 
-    fun importFromTree(treeUri: Uri, environment: AndroidRuntimeEnvironment): ImportResult {
+    suspend fun importFromTree(treeUri: Uri, environment: AndroidRuntimeEnvironment): ImportResult {
         require(environment.supportsInitialArm64Runtime) {
             "Runtime import currently supports only a 64-bit ARM64 Android app process."
         }
@@ -47,9 +49,11 @@ class AndroidJavaRuntimeImporter(context: Context) {
         check(staging.mkdir()) { "Could not create a private temporary runtime folder." }
 
         try {
+            currentCoroutineContext().ensureActive()
             val budget = RuntimeImportBudget()
             copyDirectoryContents(storage, storage.root(), staging, emptyList(), budget)
 
+            currentCoroutineContext().ensureActive()
             val releaseFile = File(staging, "release")
             require(
                 RuntimeImportPolicy.isContained(staging, releaseFile) &&
@@ -88,6 +92,7 @@ class AndroidJavaRuntimeImporter(context: Context) {
                 "The runtime's libjvm.so is not a valid AArch64 ELF64 binary."
             }
 
+            currentCoroutineContext().ensureActive()
             val runtimeId = "java-$javaMajor-arm64-" + UUID.randomUUID().toString().take(8)
             val destination = File(runtimeRoot, runtimeId)
             check(!destination.exists()) { "A runtime with the generated identifier already exists." }
@@ -168,16 +173,18 @@ class AndroidJavaRuntimeImporter(context: Context) {
         }
     }
 
-    private fun copyDirectoryContents(
+    private suspend fun copyDirectoryContents(
         storage: SafGameStorage,
         sourceDirectory: Uri,
         destinationDirectory: File,
         parentSegments: List<String>,
         budget: RuntimeImportBudget
     ) {
+        currentCoroutineContext().ensureActive()
         val entries = storage.listChildren(sourceDirectory)
         val seenNames = HashSet<String>()
         for (entry in entries) {
+            currentCoroutineContext().ensureActive()
             RuntimeImportPolicy.validateEntryName(entry.name)
             require(seenNames.add(entry.name)) {
                 "The selected runtime folder contains duplicate document names."
@@ -208,7 +215,7 @@ class AndroidJavaRuntimeImporter(context: Context) {
         }
     }
 
-    private fun copyFile(
+    private suspend fun copyFile(
         storage: SafGameStorage,
         source: Uri,
         destination: File,
@@ -220,6 +227,7 @@ class AndroidJavaRuntimeImporter(context: Context) {
             FileOutputStream(destination, false).use { output ->
                 val buffer = ByteArray(COPY_BUFFER_BYTES)
                 while (true) {
+                    currentCoroutineContext().ensureActive()
                     val count = input.read(buffer)
                     if (count < 0) break
                     copied += count
