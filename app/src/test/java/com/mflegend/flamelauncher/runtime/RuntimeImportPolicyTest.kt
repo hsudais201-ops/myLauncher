@@ -113,6 +113,20 @@ class RuntimeImportPolicyTest {
     }
 
     @Test
+    fun rejectsMalformedUtf8Metadata() {
+        val directory = Files.createTempDirectory("flame-release-invalid-utf8").toFile()
+        val metadata = File(directory, "release").apply { writeBytes(byteArrayOf(0xC3.toByte(), 0x28)) }
+        try {
+            val error = runCatching {
+                RuntimeImportPolicy.readBoundedText(metadata, 16L)
+            }.exceptionOrNull()
+            assertTrue(error is java.nio.charset.CharacterCodingException)
+        } finally {
+            directory.deleteRecursively()
+        }
+    }
+
+    @Test
     fun rejectsNegativeMetadataReadLimit() {
         val directory = Files.createTempDirectory("flame-release-negative").toFile()
         val metadata = File(directory, "release").apply { writeText("JAVA_VERSION=21") }
