@@ -182,5 +182,6 @@ class AndroidJavaRuntimeManager(context: Context) {
     companion object {
         private const val RUNTIME_DIRECTORY = "java-runtimes"
         private const val MINIMUM_JAVA_MAJOR = 8
+        private const val MAX_RELEASE_FILE_BYTES = 64L * 1024L
     }
 }
