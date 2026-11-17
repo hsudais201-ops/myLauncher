@@ -127,7 +127,7 @@ class AndroidJavaRuntimeManager(context: Context) {
                 continue
             }
 
-            val jvm = findJvmLibrary(canonicalHome)
+            val jvm = findJvmLibrary(canonicalHome, normalizedArchitecture = JavaRuntimeMetadata.normalizeArchitecture(architecture))
             if (jvm == null) {
                 warnings += "Ignored ${directory.name}: libjvm.so is missing."
                 continue
@@ -171,7 +171,7 @@ class AndroidJavaRuntimeManager(context: Context) {
         return output.toString(Charsets.UTF_8.name())
     }
 
-    private fun findJvmLibrary(home: File): File? {
+    private fun findJvmLibrary(home: File, normalizedArchitecture: String): File? {
         val candidates = listOf(
             File(home, "lib/server/libjvm.so"),
             File(home, "lib/aarch64/server/libjvm.so"),
@@ -182,7 +182,8 @@ class AndroidJavaRuntimeManager(context: Context) {
                 !RuntimePathPolicy.isSymbolicLink(it) &&
                     RuntimePathPolicy.isSafeChild(home, it) &&
                     it.isFile &&
-                    it.length() > 0L
+                    it.length() > 0L &&
+                    (normalizedArchitecture != "arm64" || RuntimeBinaryPolicy.isArm64Elf64(it))
             } catch (_: IOException) {
                 false
             } catch (_: SecurityException) {
