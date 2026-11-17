@@ -20,7 +20,7 @@ data class MinecraftLaunchClasspathPlan(
         get() = listOf(clientJarPath) + libraryJarPaths
 }
 
-object MinecraftLaunchClasspathPlanner {
+internal object MinecraftLaunchClasspathPlanner {
     fun plan(
         metadataBytes: ByteArray,
         expectedVersionId: String,
