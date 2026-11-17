@@ -64,6 +64,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.launch
 import com.mflegend.flamelauncher.storage.SafGameStorage
@@ -781,11 +782,13 @@ private fun SettingsScreen(folderUri: String?, error: String?, onChooseFolder: (
                     runtimeImportMessage =
                         "Imported Java ${imported.javaMajorVersion} ARM64 runtime (${imported.filesCopied} files, ${imported.bytesCopied / (1024L * 1024L)} MB). It has not been executed."
                     runtimeRefreshEpoch++
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
                 } catch (error: Exception) {
                     runtimeImportMessage = error.localizedMessage ?: "Could not import this Java runtime folder."
                 } finally {
-                    if (persistedReadPermission) {
-                        withContext(Dispatchers.IO) {
+                    withContext(NonCancellable + Dispatchers.IO) {
+                        if (persistedReadPermission) {
                             runCatching {
                                 context.contentResolver.releasePersistableUriPermission(
                                     selectedRuntimeTree,
