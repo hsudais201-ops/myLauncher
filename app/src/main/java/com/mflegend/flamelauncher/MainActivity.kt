@@ -509,7 +509,8 @@ private fun VersionsScreen(folderUri: String?) {
                                                         val storage = SafGameStorage(context.contentResolver, Uri.parse(folderUri))
                                                         MojangVersionInstaller().install(item, storage, control)
                                                     }
-                                                    metadataDownloadMessage = "${result.versionId}: files downloaded. Client JAR ${result.clientJarBytes} bytes; ${result.libraries.downloaded} libraries; ${result.assets.downloaded} assets; ${result.libraries.skippedByRules} OS-rule entries skipped."
+                                                    val javaRequirement = result.launchMetadata.requiredJavaMajorVersion?.let { "Java $it" } ?: "Java requirement not declared in metadata"
+                                                    metadataDownloadMessage = "${result.versionId}: files downloaded. $javaRequirement; main class ${result.launchMetadata.mainClass}; client JAR ${result.clientJarBytes} bytes; ${result.libraries.downloaded} libraries; ${result.assets.downloaded} assets; ${result.libraries.skippedByRules} OS-rule entries skipped."
                                                     scanRevision += 1
                                                 } catch (error: CancellationException) {
                                                     metadataDownloadMessage = item.id + ": cancelled. Verified completed files were kept; choose Install files again to continue."
