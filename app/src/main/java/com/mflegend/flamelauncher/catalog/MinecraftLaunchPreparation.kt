@@ -98,6 +98,10 @@ object MinecraftLaunchPreparationBuilder {
                 add("Android native libraries still need compatible classifiers/extraction: " +
                     classpathPlan.nativeLibrariesPending.joinToString())
             }
+            if (classpathPlan.unresolvedLibraries.isNotEmpty()) {
+                add("Some approved libraries have no verified classpath artifact: " +
+                    classpathPlan.unresolvedLibraries.joinToString())
+            }
             add("Flame Launcher has not loaded an Android-compatible JVM.")
             add("Android native dependencies and the graphics/input/audio bridge are not integrated.")
             add("Microsoft sign-in and Minecraft Java entitlement verification are not implemented.")
