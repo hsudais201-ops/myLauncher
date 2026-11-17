@@ -3,6 +3,8 @@ package com.mflegend.flamelauncher.runtime
 import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.IOException
+import java.nio.ByteBuffer
+import java.nio.charset.CodingErrorAction
 
 /** Path and capacity limits for copying a user-selected runtime into private storage. */
 internal object RuntimeImportPolicy {
@@ -46,7 +48,11 @@ internal object RuntimeImportPolicy {
                 output.write(buffer, 0, count)
             }
         }
-        return output.toString(Charsets.UTF_8.name())
+        return Charsets.UTF_8.newDecoder()
+            .onMalformedInput(CodingErrorAction.REPORT)
+            .onUnmappableCharacter(CodingErrorAction.REPORT)
+            .decode(ByteBuffer.wrap(output.toByteArray()))
+            .toString()
     }
 
     fun isContained(parent: File, child: File): Boolean = try {
