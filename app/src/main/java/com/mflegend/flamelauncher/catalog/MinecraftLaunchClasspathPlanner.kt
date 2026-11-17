@@ -28,7 +28,7 @@ internal object MinecraftLaunchClasspathPlanner {
         ruleContext: MojangLibraryRuleContext
     ): MinecraftLaunchClasspathPlan {
         val launchMetadata = MinecraftLaunchMetadataParser.parse(metadataBytes, expectedVersionId)
-        val root = JSONObject(metadataBytes.toString(Charsets.UTF_8))
+        val root = JSONObject(MojangMetadataText.decode(metadataBytes))
         val libraries = root.optJSONArray("libraries")
         val paths = linkedMapOf<String, Pair<Long, String>>()
         val nativeLibraries = linkedSetOf<String>()
