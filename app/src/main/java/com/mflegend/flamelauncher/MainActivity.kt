@@ -787,17 +787,19 @@ private fun SettingsScreen(folderUri: String?, error: String?, onChooseFolder: (
                 } catch (error: Exception) {
                     runtimeImportMessage = error.localizedMessage ?: "Could not import this Java runtime folder."
                 } finally {
-                    withContext(NonCancellable + Dispatchers.IO) {
+                    withContext(NonCancellable) {
                         if (persistedReadPermission) {
-                            runCatching {
-                                context.contentResolver.releasePersistableUriPermission(
-                                    selectedRuntimeTree,
-                                    Intent.FLAG_GRANT_READ_URI_PERMISSION
-                                )
+                            withContext(Dispatchers.IO) {
+                                runCatching {
+                                    context.contentResolver.releasePersistableUriPermission(
+                                        selectedRuntimeTree,
+                                        Intent.FLAG_GRANT_READ_URI_PERMISSION
+                                    )
+                                }
                             }
                         }
+                        runtimeImporting = false
                     }
-                    runtimeImporting = false
                 }
             }
         }
