@@ -75,9 +75,13 @@ class MojangLibraryRulePolicyTest {
         val malformed = JSONObject().put("rules", "not-an-array")
         val unknownAction = library("""[{"action":"maybe"}]""")
         val invalidRegex = library("""[{"action":"allow","os":{"arch":"["}}]""")
+        val oversizedRegex = library(
+            """[{"action":"allow","os":{"arch":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}}]"""
+        )
         assertFalse(runCatching { MojangLibraryRulePolicy.isAllowed(malformed, android) }.isSuccess)
         assertFalse(runCatching { MojangLibraryRulePolicy.isAllowed(unknownAction, android) }.isSuccess)
         assertFalse(runCatching { MojangLibraryRulePolicy.isAllowed(invalidRegex, android) }.isSuccess)
+        assertFalse(runCatching { MojangLibraryRulePolicy.isAllowed(oversizedRegex, android) }.isSuccess)
     }
 
     private fun library(rules: String): JSONObject =
