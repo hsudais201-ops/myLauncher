@@ -127,13 +127,18 @@ class AndroidJavaRuntimeManager(context: Context) {
                 continue
             }
 
-            val jvm = findJvmLibrary(canonicalHome, normalizedArchitecture = JavaRuntimeMetadata.normalizeArchitecture(architecture))
-            if (jvm == null) {
-                warnings += "Ignored ${directory.name}: libjvm.so is missing."
+            val normalizedArchitecture = JavaRuntimeMetadata.normalizeArchitecture(architecture)
+            if (normalizedArchitecture != "arm64") {
+                warnings += "Ignored ${directory.name}: only ARM64 Java runtimes are supported by the current integration target."
                 continue
             }
 
-            val normalizedArchitecture = JavaRuntimeMetadata.normalizeArchitecture(architecture)
+            val jvm = findJvmLibrary(canonicalHome, normalizedArchitecture)
+            if (jvm == null) {
+                warnings += "Ignored ${directory.name}: a valid AArch64 ELF64 libjvm.so was not found."
+                continue
+            }
+
             val compatible = JavaRuntimeMetadata.matchesInitialArm64Process(
                 normalizedArchitecture,
                 environment.is64BitProcess,
