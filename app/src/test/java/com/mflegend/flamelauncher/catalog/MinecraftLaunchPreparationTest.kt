@@ -91,6 +91,7 @@ class MinecraftLaunchPreparationTest {
         )
         assertEquals(listOf("org.lwjgl:lwjgl:3.3.3"), plan.classpathPlan.nativeLibrariesPending)
         assertTrue(plan.blockers.any { it.contains("Android native libraries still need compatible classifiers") })
+        assertTrue(plan.blockers.any { it.contains("Some approved libraries have no verified classpath artifact") })
     }
 
     @Test
