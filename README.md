@@ -12,6 +12,15 @@ The intended product is an Android phone/tablet app with a touch-friendly interf
 - A supported Android Java runtime and native graphics/input integration are required to run Minecraft: Java Edition. Android's built-in ART runtime alone is not a drop-in replacement for a desktop Java runtime. Settings now reports Android API level, ABI support, process bitness, and an app-heap estimate as diagnostics only; this does not mean the Minecraft JVM is installed or launchable. A diagnostic scanner also checks Flame Launcher's private `noBackupFilesDir/java-runtimes/<id>` directory for Java release metadata, ARM64 ABI matching, and `libjvm.so`; this is only a candidate scan, not proof of Android linker compatibility, and it does not install or start the JVM.
 - Account authentication must use a secure, supported Microsoft/Xbox/Minecraft sign-in flow before online play is enabled.
 
+## Games catalog
+
+The Android **Games** tab separates the two experiences:
+
+- **Minecraft: Java Edition** is the main Flame Launcher integration. The app can install the currently supported vanilla files, but it still cannot start Minecraft until the Android JVM, native graphics/input/audio stack, lifecycle handling, and physical-device gameplay tests are complete.
+- **Rust Mobile** is a separate game published with Facepunch's endorsement, not a Minecraft edition. The Games tab links to [Facepunch's official Rust Mobile information](https://facepunch.com/rustmobile). It does not download, install, authenticate, or launch Rust Mobile. Facepunch's published testing FAQ describes a limited Android test in Canada and lists Snapdragon 8 Gen 1, 6 GB RAM, and 4 GB free storage as minimum test requirements; verify current availability and eligibility on the official page before trying to join.
+
+Flame Launcher does not include either game's paid content or bypass publisher account, purchase, region, or device requirements.
+
 ## Reusable work already present in the repository
 
 - Mojang version manifest browsing and version selection.
