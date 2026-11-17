@@ -34,7 +34,7 @@ class LibraryArtifactPathPolicyTest {
             "org/example/name with spaces.jar",
             "org/example/name?query.jar",
             "org/example/name#fragment.jar",
-            "org/example/\\u0000name.jar"
+            "org/example/" + 0.toChar() + "name.jar"
         ).forEach { path ->
             assertRejected(path)
         }
