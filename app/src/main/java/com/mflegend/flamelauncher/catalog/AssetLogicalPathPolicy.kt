@@ -30,14 +30,15 @@ internal object AssetLogicalPathPolicy {
      */
     fun validateUnique(paths: Collection<List<String>>) {
         val normalized = paths.map { it.joinToString("/") { part -> part.lowercase(Locale.ROOT) } }.sorted()
-        for (index in normalized.indices) {
-            val current = normalized[index]
-            if (index > 0) {
-                val previous = normalized[index - 1]
-                require(previous != current) {
-                    "Asset index contains duplicate logical paths that differ only by case."
-                }
-                require(!current.startsWith("$previous/")) {
+        val seen = hashSetOf<String>()
+        for (current in normalized) {
+            require(seen.add(current)) {
+                "Asset index contains duplicate logical paths that differ only by case."
+            }
+            val segments = current.split('/')
+            for (end in 1 until segments.size) {
+                val parent = segments.take(end).joinToString("/")
+                require(parent !in seen) {
                     "Asset index contains a file/directory path conflict."
                 }
             }
