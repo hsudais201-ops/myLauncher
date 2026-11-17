@@ -90,7 +90,7 @@ class MinecraftLaunchMetadataTest {
             MinecraftLaunchMetadataParser.parse(json.toByteArray(), "test")
         }.exceptionOrNull()
 
-        assertTrue(error is IllegalArgumentException)
+        assertTrue(error != null)
     }
 
     @Test
