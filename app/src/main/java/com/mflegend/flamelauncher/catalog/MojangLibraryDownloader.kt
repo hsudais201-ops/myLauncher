@@ -48,7 +48,7 @@ class MojangLibraryDownloader {
             }
             val artifact = library.optJSONObject("downloads")?.optJSONObject("artifact") ?: continue
             val relativePath = artifact.optString("path")
-            val segments = validateArtifactPath(relativePath)
+            val segments = LibraryArtifactPathPolicy.segments(relativePath)
             val url = URL(artifact.optString("url"))
             require(MojangLibraryEndpointPolicy.isApproved(url)) {
                 "Library artifact uses an unsupported repository host: ${url.host}"
@@ -163,17 +163,6 @@ class MojangLibraryDownloader {
 
     private fun findOrCreateDirectory(storage: SafGameStorage, parent: Uri, name: String): Uri {
         return storage.findDirectory(parent, name)?.uri ?: storage.createDirectory(parent, name)
-    }
-
-    private fun validateArtifactPath(path: String): List<String> {
-        require(path.isNotBlank() && path.length <= 1024 && !path.startsWith("/") && '\\' !in path && '\u0000' !in path) {
-            "Library artifact contains an unsafe relative path."
-        }
-        val parts = path.split('/')
-        require(parts.size in 1..32 && parts.all {
-            it.isNotBlank() && it != "." && it != ".." && it.matches(Regex("[A-Za-z0-9._+\\-]+"))
-        }) { "Library artifact contains an unsafe relative path." }
-        return parts
     }
 
     private companion object {
