@@ -60,7 +60,7 @@ class AndroidJavaRuntimeImporter(context: Context) {
                 "Select the Java runtime root folder; its release file must be directly inside it."
             }
             val releaseProperties = JavaRuntimeMetadata.parseReleaseFile(
-                releaseFile.readText(Charsets.UTF_8)
+                RuntimeImportPolicy.readBoundedText(releaseFile, MAX_RELEASE_FILE_BYTES)
             )
             val javaVersion = releaseProperties["JAVA_VERSION"]
                 ?: error("The Java runtime release file does not declare JAVA_VERSION.")
