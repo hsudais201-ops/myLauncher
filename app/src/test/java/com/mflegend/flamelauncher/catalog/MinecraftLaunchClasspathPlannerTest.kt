@@ -89,6 +89,44 @@ class MinecraftLaunchClasspathPlannerTest {
         }.isFailure)
     }
 
+    @Test
+    fun reportsApprovedLibrariesWithoutVerifiedArtifactInsteadOfDroppingThem() {
+        val metadata = json(
+            libraries = """
+                [
+                  {"name":"org.example:legacy:1.0"},
+                  {"name":"org.example:native-only:1.0","downloads":{"classifiers":{"natives-linux":{"path":"native.jar","sha1":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","size":10}}},"natives":{"linux":"natives-linux"}}
+                ]
+            """
+        )
+
+        val plan = MinecraftLaunchClasspathPlanner.plan(metadata, "1.20.1", android)
+
+        assertTrue(plan.libraryJarPaths.isEmpty())
+        assertEquals(
+            listOf("org.example:legacy:1.0", "org.example:native-only:1.0"),
+            plan.unresolvedLibraries
+        )
+        assertEquals(listOf("org.example:native-only:1.0"), plan.nativeLibrariesPending)
+    }
+
+    @Test
+    fun rejectsMalformedDownloadsAndArtifactObjects() {
+        val malformedDownloads = json(
+            libraries = """[{"name":"bad:downloads:1","downloads":42}]"""
+        )
+        val malformedArtifact = json(
+            libraries = """[{"name":"bad:artifact:1","downloads":{"artifact":"not-an-object"}}]"""
+        )
+
+        assertTrue(runCatching {
+            MinecraftLaunchClasspathPlanner.plan(malformedDownloads, "1.20.1", android)
+        }.isFailure)
+        assertTrue(runCatching {
+            MinecraftLaunchClasspathPlanner.plan(malformedArtifact, "1.20.1", android)
+        }.isFailure)
+    }
+
     private fun json(libraries: String): ByteArray = """
         {
           "id":"1.20.1",
