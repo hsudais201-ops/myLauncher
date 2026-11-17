@@ -744,7 +744,53 @@ private fun SettingsScreen(folderUri: String?, error: String?, onChooseFolder: (
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
     val runtime = remember { AndroidRuntimeEnvironment.inspect(context) }
-    val runtimeScan by produceState<AndroidJavaRuntimeManager.ScanResult?>(initialValue = null, runtime) {
+    val scope = rememberCoroutineScope()
+    var runtimeRefreshEpoch by remember { mutableIntStateOf(0) }
+    var runtimeImporting by remember { mutableStateOf(false) }
+    var runtimeImportMessage by remember { mutableStateOf<String?>(null) }
+    val runtimeFolderPicker = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocumentTree()
+    ) { selectedRuntimeTree: Uri? ->
+        if (selectedRuntimeTree != null) {
+            runtimeImportMessage = null
+            runtimeImporting = true
+            scope.launch {
+                var persistedReadPermission = false
+                try {
+                    val imported = withContext(Dispatchers.IO) {
+                        context.contentResolver.takePersistableUriPermission(
+                            selectedRuntimeTree,
+                            Intent.FLAG_GRANT_READ_URI_PERMISSION
+                        )
+                        persistedReadPermission = true
+                        AndroidJavaRuntimeImporter(context).importFromTree(selectedRuntimeTree, runtime)
+                    }
+                    runtimeImportMessage =
+                        "Imported Java ${imported.javaMajorVersion} ARM64 runtime (${imported.filesCopied} files, ${imported.bytesCopied / (1024L * 1024L)} MB). It has not been executed."
+                    runtimeRefreshEpoch++
+                } catch (error: Exception) {
+                    runtimeImportMessage = error.localizedMessage ?: "Could not import this Java runtime folder."
+                } finally {
+                    if (persistedReadPermission) {
+                        withContext(Dispatchers.IO) {
+                            runCatching {
+                                context.contentResolver.releasePersistableUriPermission(
+                                    selectedRuntimeTree,
+                                    Intent.FLAG_GRANT_READ_URI_PERMISSION
+                                )
+                            }
+                        }
+                    }
+                    runtimeImporting = false
+                }
+            }
+        }
+    }
+    val runtimeScan by produceState<AndroidJavaRuntimeManager.ScanResult?>(
+        initialValue = null,
+        runtime,
+        runtimeRefreshEpoch
+    ) {
         value = withContext(Dispatchers.IO) {
             AndroidJavaRuntimeManager(context).scan(runtime)
         }
@@ -807,6 +853,31 @@ private fun SettingsScreen(folderUri: String?, error: String?, onChooseFolder: (
                 color = Muted,
                 fontSize = 12.sp
             )
+            Text(
+                "Import an already-extracted ARM64 Java runtime. Select its root folder, containing the release file and lib/server/libjvm.so. Flame copies it into private app storage and checks its Java version and ARM64 ELF header. Import only runtime files from a source you trust; importing does not execute them.",
+                color = Muted,
+                fontSize = 12.sp
+            )
+            Button(
+                onClick = { runtimeFolderPicker.launch(null) },
+                enabled = runtime.supportsInitialArm64Runtime && !runtimeImporting,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(if (runtimeImporting) "Importing Java runtime…" else "Import Java runtime folder")
+            }
+            if (runtimeImporting) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    CircularProgressIndicator()
+                    Text("Copying and validating runtime files in private storage…", color = Muted, fontSize = 12.sp)
+                }
+            }
+            if (runtimeImportMessage != null) {
+                Text(
+                    runtimeImportMessage ?: "",
+                    color = if (runtimeImportMessage?.startsWith("Imported") == true) Color(0xFF8DD9A8) else Color(0xFFFF9A82),
+                    fontSize = 12.sp
+                )
+            }
             Text(
                 if (launchReadiness.canLaunch) "Launch requirements verified." else "PLAY IS LOCKED — outstanding verification:",
                 color = Color(0xFFFFB36B),
