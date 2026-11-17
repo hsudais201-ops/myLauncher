@@ -21,7 +21,7 @@ data class MinecraftLaunchClasspathPlan(
 }
 
 internal object MinecraftLaunchClasspathPlanner {
-    fun plan(
+    internal fun plan(
         metadataBytes: ByteArray,
         expectedVersionId: String,
         ruleContext: MojangLibraryRuleContext
