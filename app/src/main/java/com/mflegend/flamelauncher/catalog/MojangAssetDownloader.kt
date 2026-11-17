@@ -34,7 +34,7 @@ class MojangAssetDownloader {
         gameRoot: Uri,
         control: DownloadControl = DownloadControl()
     ): AssetDownloadResult {
-        val version = JSONObject(versionMetadataBytes.toString(Charsets.UTF_8))
+        val version = JSONObject(MojangMetadataText.decode(versionMetadataBytes))
         val assetIndex = version.optJSONObject("assetIndex")
             ?: error("This version does not define an asset index.")
         val indexId = assetIndex.optString("id")
@@ -50,7 +50,7 @@ class MojangAssetDownloader {
         }
 
         val indexBytes = fetchIndex(indexUrl, expectedIndexSha1, control)
-        val indexJson = JSONObject(indexBytes.toString(Charsets.UTF_8))
+        val indexJson = JSONObject(MojangMetadataText.decode(indexBytes))
         val objects = indexJson.optJSONObject("objects")
             ?: error("Asset index does not contain an objects map.")
         require(objects.length() <= MAX_ASSET_COUNT) { "Asset index contains too many objects." }
