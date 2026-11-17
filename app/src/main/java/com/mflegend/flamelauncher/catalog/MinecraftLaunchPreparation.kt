@@ -15,6 +15,7 @@ data class MinecraftLaunchPreparation(
     val mainClass: String,
     val requiredJavaMajorVersion: Int?,
     val selectedRuntimeId: String?,
+    val classpathPlan: MinecraftLaunchClasspathPlan,
     val jvmArguments: List<String>,
     val gameArguments: List<String>,
     val blockers: List<String>
@@ -44,6 +45,16 @@ object MinecraftLaunchPreparationBuilder {
         val selectedRuntime = JavaRuntimeSelectionPolicy.findExactMajor(
             requiredJavaMajor,
             installedRuntimes
+        )
+        val classpathPlan = MinecraftLaunchClasspathPlanner.plan(
+            metadataBytes,
+            expectedVersionId,
+            MojangLibraryRuleContext(
+                platformName = ruleContext.platform.metadataName ?: "android",
+                osVersion = ruleContext.osVersion,
+                osArchitecture = ruleContext.osArchitecture,
+                features = ruleContext.features.mapValues { it.value }
+            )
         )
 
         val jvmArguments = if (metadata.hasModernGameArguments) {
@@ -83,6 +94,10 @@ object MinecraftLaunchPreparationBuilder {
             } else if (selectedRuntime == null) {
                 add("No imported runtime exactly matches Java $requiredJavaMajor and the app process ABI.")
             }
+            if (classpathPlan.nativeLibrariesPending.isNotEmpty()) {
+                add("Android native libraries still need compatible classifiers/extraction: " +
+                    classpathPlan.nativeLibrariesPending.joinToString())
+            }
             add("Flame Launcher has not loaded an Android-compatible JVM.")
             add("Android native dependencies and the graphics/input/audio bridge are not integrated.")
             add("Microsoft sign-in and Minecraft Java entitlement verification are not implemented.")
@@ -94,6 +109,7 @@ object MinecraftLaunchPreparationBuilder {
             mainClass = metadata.mainClass,
             requiredJavaMajorVersion = requiredJavaMajor,
             selectedRuntimeId = selectedRuntime?.id,
+            classpathPlan = classpathPlan,
             jvmArguments = jvmArguments,
             gameArguments = gameArguments,
             blockers = blockers
