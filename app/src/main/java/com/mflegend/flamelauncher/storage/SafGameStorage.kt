@@ -261,7 +261,7 @@ class SafGameStorage(
         validateDisplayName(displayName)
         val originalId = DocumentsContract.getDocumentId(uri)
         val originalPath = providerCall("locating a file before renaming") {
-            requireNotNull(DocumentsContract.findDocumentPath(resolver, treeUri, uri)) {
+            requireNotNull(DocumentsContract.findDocumentPath(resolver, uri)) {
                 "The storage provider could not locate the file before renaming."
             }
         }
