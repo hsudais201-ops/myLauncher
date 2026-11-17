@@ -60,6 +60,8 @@ class RuntimeLaunchReadinessTest {
             graphicsSurfaceReady = true,
             inputAndAudioReady = true,
             lifecycleHandlingReady = true,
+            microsoftAccountAuthenticated = true,
+            minecraftEntitlementVerified = true,
             physicalDeviceGameTestPassed = true
         )
         assertTrue(complete.canLaunch)
