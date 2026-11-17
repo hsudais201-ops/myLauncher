@@ -1,11 +1,13 @@
 package com.mflegend.flamelauncher.catalog
 
 import android.net.Uri
+import android.os.Build
 import com.mflegend.flamelauncher.storage.SafGameStorage
 
 data class MojangVersionInstallResult(
     val versionId: String,
     val launchMetadata: MinecraftLaunchMetadata,
+    val classpathPlan: MinecraftLaunchClasspathPlan,
     val clientJarBytes: Long,
     val libraries: LibraryDownloadResult,
     val assets: AssetDownloadResult
@@ -50,10 +52,21 @@ class MojangVersionInstaller(
         )
         val libraries = libraryDownloader.download(metadataBytes, storage, root, control)
         val assets = assetDownloader.download(metadataBytes, storage, root, control)
+        val classpathPlan = MinecraftLaunchClasspathPlanner.plan(
+            metadataBytes,
+            version.id,
+            MojangLibraryRuleContext(
+                platformName = "android",
+                osVersion = Build.VERSION.RELEASE.orEmpty(),
+                osArchitecture = System.getProperty("os.arch")
+                    ?: Build.SUPPORTED_ABIS.firstOrNull().orEmpty()
+            )
+        )
 
         return MojangVersionInstallResult(
             versionId = version.id,
             launchMetadata = launchMetadata,
+            classpathPlan = classpathPlan,
             clientJarBytes = clientJar.byteCount,
             libraries = libraries,
             assets = assets
