@@ -2,6 +2,9 @@
   "name": "flame-launcher-cloud-agent",
   "private": true,
   "type": "module",
+  "engines": {
+    "node": "26.x"
+  },
   "scripts": {
     "dev": "eve dev",
     "build": "eve build",
@@ -9,7 +12,7 @@
     "deploy": "eve deploy"
   },
   "dependencies": {
-    "@github-tools/eve-extension": "latest",
-    "eve": "latest"
+    "@vercel/connect": "^2.9.3",
+    "eve": "^1.0.0"
   }
 }
