@@ -6,10 +6,10 @@ This folder contains the separate eve-based cloud agent for maintaining the Flam
 
 - `agent/agent.ts` defines the Eve agent and selects a model through Vercel AI Gateway.
 - `agent/instructions.md` defines its Android-first Flame Launcher mission and strict human-approval boundaries.
-- `agent/schedules/heartbeat.md` is a maintenance-workflow design note only; it is **not an active schedule**.
+- `agent/schedules/heartbeat.md` defines a 15-minute maintenance heartbeat. The schedule is in source control but has not yet passed a successful deployment or runtime test.
 - The Git repository is connected to a Vercel project whose root directory is `agent/`.
 
-This is an initial agent definition, not yet a complete autonomous coding service. No recurring heartbeat, GitHub agent tools, sandbox test execution, notification channel, or production deployment has been verified.
+This is an initial agent definition, not yet a verified autonomous coding service. GitHub agent tools, sandbox test execution, persistent checkpoint behavior, notification delivery, and production deployment still need implementation and verification.
 
 ## Project
 
@@ -50,8 +50,8 @@ npm run deploy
 3. Configure a scoped GitHub integration for this exact repository and add typed, least-privilege inspection and pull-request tools.
 4. Configure an isolated sandbox for tests and builds.
 5. Configure durable checkpoint storage and a notification channel.
-6. Implement a real Eve schedule using the supported TypeScript schedule API; keep it disabled until manually tested.
-7. Verify a health route and manually dispatch a test heartbeat before enabling recurring work.
+6. Verify the scheduled heartbeat and its manual test run before enabling recurring work.
+7. Verify the health route and confirm runtime logs before treating the service as operational.
 
 Do not put tokens or API keys in this repository. Use Vercel-managed connections or encrypted environment secrets. Do not enable broad GitHub organization access when repository-scoped access is sufficient.
 
