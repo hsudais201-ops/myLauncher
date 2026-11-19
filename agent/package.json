@@ -9,6 +9,7 @@
     "deploy": "eve deploy"
   },
   "dependencies": {
+    "@github-tools/eve-extension": "latest",
     "eve": "latest"
   }
 }
