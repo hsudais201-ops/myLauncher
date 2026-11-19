@@ -15,11 +15,33 @@ This folder contains the Eve-based cloud agent for maintaining the Flame Launche
 - Vercel project root directory: `agent/`
 - Runtime: Eve on Vercel
 
+## AI provider routing
+
+The agent is configured to use two different providers through Vercel AI Gateway:
+
+1. **Primary:** `openai/gpt-5.6-terra`
+2. **Fallback:** `google/gemini-3.1-pro-preview`
+
+The routing is configured in `agent/agent.ts` with `modelOptions.providerOptions.gateway.models`. Gateway tries the OpenAI model first and advances to Gemini when the primary request fails or is unavailable under Gateway's fallback behavior. The allowed providers are restricted to OpenAI and Google, and session affinity is disabled so it does not reorder the intended route.
+
+### Required provider credentials
+
+Add your own keys in the Vercel team's AI Gateway dashboard, not in this repository:
+
+1. Open Vercel Dashboard → AI Gateway → Bring Your Own Key (BYOK).
+2. Add an **OpenAI** credential, enable it, and use **Test Key**.
+3. Add a **Google** credential (Gemini API key), enable it, and use **Test Key**.
+4. Keep both keys private. Never paste them into chat, GitHub files, or client-side code.
+
+Important: BYOK does not remove the AI Gateway account requirement. Vercel's documentation says the team must have AI Gateway credits available even when BYOK is used; if BYOK fails, Gateway may fall back to system credentials and charge Gateway credits. The previously observed `customer_verification_required` error may therefore still require the Vercel billing/payment-method step. Provider quota and Gateway account credit are separate limits.
+
+Automatic fallback is not a guarantee that every failure can be recovered. Invalid credentials, unsupported requests, model incompatibility, account-level Gateway blocks, or errors not eligible for fallback can still fail the run. Verify with a real Preview run and inspect the routing metadata/logs to confirm which provider served it.
+
 ## Eve layout
 
 Because Vercel's project root is the repository's `agent/` directory, Eve's own agent files live under the nested `agent/` directory in this repository:
 
-- `agent.ts` — main Eve agent definition (repository path `agent/agent.ts`)
+- `agent.ts` — main Eve agent definition and model routing (repository path `agent/agent.ts`)
 - `agent/instructions.md` — agent mission and permissions
 - `agent/extensions/code.ts` — Eve coding extension
 - `agent/extensions/git.ts` — GitHub integration with a server-side read-only allowlist
@@ -35,14 +57,14 @@ The coding extension can analyze and edit files inside its isolated sandbox. Tho
 
 ## Current validation and known blocker
 
-- The latest Preview deployment for the feature branch builds successfully and reaches READY.
+- The latest Preview deployment before the provider-routing change built successfully and reached READY; the new commit must complete its own build.
 - The Vercel Connect GitHub connector is attached to Preview.
-- There are currently no recorded Agent Runs in Preview, so runtime tool loading and authenticated GitHub calls have not yet been verified.
+- There are currently no confirmed successful Preview Agent Runs, so runtime tool loading, provider failover, authenticated GitHub calls, and sandbox commands remain unverified.
 - An older Production deployment from commit `cb75d2411688d8b5ed2bb023b7fa917e51b62bcd` is still active. Its older 15-minute scheduled runs fail before the model responds.
 - Vercel runtime logs show AI Gateway returning HTTP 403 with `customer_verification_required`: a valid payment method is required to unlock the included AI Gateway credits. No successful model response was recorded for those failed runs.
 - The current branch does not replace that old Production deployment. Do not claim the old Production schedule has been fixed.
 
-This is not yet a verified autonomous coding service. Actual Preview Eve session execution, authenticated tool calls, sandbox command execution, checkpoint persistence, notifications, and successful model responses still require verification.
+This is not yet a verified autonomous coding service. Actual Preview Eve session execution, provider fallback, authenticated tool calls, sandbox command execution, checkpoint persistence, notifications, and successful model responses still require verification.
 
 ## Schedule choice
 
@@ -74,12 +96,13 @@ npm run deploy
 
 ## Required verification before enabling code publishing
 
-1. Confirm a running Eve Preview session loads both extensions.
-2. Verify the GitHub extension can read only the named repository and cannot perform write commands.
-3. Verify the sandbox can clone the repository and run harmless inspection commands.
-4. Resolve the AI Gateway 403 by enabling an approved model-access/payment method or configuring an approved provider key without committing the secret.
-5. Configure and test durable checkpoint storage and a notification channel.
-6. Design and review a separate branch-only publish flow with explicit approval for any GitHub writes.
-7. Keep merge, release, production deployment, destructive actions, permission changes, and spending behind explicit human approval.
+1. Add and test OpenAI and Google/Gemini BYOK credentials in Vercel AI Gateway.
+2. Resolve the AI Gateway 403 if it still blocks requests.
+3. Confirm a running Eve Preview session loads both extensions and successfully calls the OpenAI primary model.
+4. Verify a controlled failure or exhausted OpenAI quota causes a Gemini fallback, and inspect routing metadata.
+5. Verify the GitHub extension can read only the named repository and cannot perform write commands.
+6. Verify sandbox inspection commands, durable checkpoints, and notification delivery.
+7. Design and review a separate branch-only publishing flow with explicit approval for any GitHub writes.
+8. Keep merge, release, production deployment, destructive actions, permission changes, and spending behind explicit human approval.
 
-Never put tokens, API keys, or private keys in this repository. Use Vercel-managed connections and short-lived credentials.
+Never put tokens, API keys, or private keys in this repository. Use Vercel-managed BYOK connections and short-lived credentials.
