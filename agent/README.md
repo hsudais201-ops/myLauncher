@@ -6,11 +6,11 @@ This folder contains the separate eve-based cloud agent for maintaining the Flam
 
 - `agent/agent.ts` defines the Eve agent and selects a model through Vercel AI Gateway.
 - `agent/instructions.md` defines its Android-first Flame Launcher mission and strict human-approval boundaries.
-- `agent/tools/github.ts` adds the GitHub Tools read-only `code-review` preset. It requires a separate Vercel Connect GitHub connector named `flame-launcher`.
+- `agent/extensions/github.ts` mounts the GitHub Tools Eve extension using the Vercel Connect connector UID `github/flame-launcher` and the read-only `code-review` preset.
 - `agent/schedules/heartbeat.md` defines a daily maintenance heartbeat at 03:00 UTC (08:00 Pakistan time), appropriate for the current Vercel Hobby plan.
 - The Git repository is connected to a Vercel project whose root directory is `agent/`.
 
-This is an initial agent deployment, not yet a verified autonomous coding service. GitHub Connect authorization, sandbox command execution, persistent checkpoint behavior, notification delivery, live session API, and production deployment still need verification.
+The GitHub Connect connector is attached to this project's Preview environment. This is still an initial agent deployment, not yet a verified autonomous coding service. The live session API, authenticated tool calls from a running Eve session, sandbox command execution, persistent checkpoint behavior, notification delivery, and scheduled invocation still need verification.
 
 ## Plan limits
 
@@ -20,9 +20,11 @@ A scheduled agent wakes on its configured schedule, performs bounded work, and p
 
 ## Project
 
+- AI agent name: `flame-launcher`
 - Product: Flame Launcher
 - Owner: MFLegend
 - Source repository: https://github.com/hsudais201-ops/myLauncher
+- GitHub App: `flamelauncher1`
 - Runtime/framework: eve
 - Intended hosting: Vercel
 
@@ -48,14 +50,13 @@ Deploy only after reviewing authentication, tool permissions, secrets, schedule 
 npm run deploy
 ```
 
-## Required setup before autonomous repository work
+## Remaining verification before autonomous repository work
 
-1. Create the Vercel Connect GitHub connector named `flame-launcher` and attach it to the Preview environment of this project.
-2. Verify the Eve HTTP session API and authenticated GitHub code-review tools.
-3. Configure sandbox command execution and test it against a harmless read-only command.
-4. Configure durable checkpoint storage and a notification channel.
-5. Run a manual read-only heartbeat and verify its report and schedule registration.
-6. Only then consider enabling bounded feature-branch changes. Keep merge, release, production deployment, destructive actions, permission changes, and spending behind human approval.
+1. Verify that a running Eve session loads the GitHub extension and can perform read-only repository and pull-request operations through the attached Preview connector.
+2. Verify sandbox command execution against a harmless read-only command.
+3. Configure and test durable checkpoint storage and a notification channel.
+4. Run a manual read-only heartbeat and verify its report and schedule registration.
+5. Only then consider bounded feature-branch changes. Keep merge, release, production deployment, destructive actions, permission changes, and spending behind human approval.
 
 Do not put tokens or API keys in this repository. Use Vercel-managed connections or encrypted environment secrets. Do not enable broad GitHub organization access when repository-scoped access is sufficient.
 
