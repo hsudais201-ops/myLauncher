@@ -1,17 +1,18 @@
----
-cron: "*/15 * * * *"
----
+# Planned Flame Launcher maintenance heartbeat
 
-Run a bounded Flame Launcher maintenance heartbeat.
+**Status: design note only. This file does not register an active Eve schedule.**
 
-If the repository integration and required permissions are not configured, do not guess or attempt unauthenticated writes. Report that setup is incomplete.
+Before enabling an autonomous heartbeat, implement it with Eve's supported TypeScript schedule API and connect a real authenticated channel. The intended cadence is every 15 minutes, subject to Vercel plan limits and schedule support.
 
-When tools are available:
+When implemented, the heartbeat should:
+
 1. Inspect repository health, recent commits, open pull requests, open issues, and latest CI results.
 2. Identify at most one actionable, low-risk maintenance task.
-3. Do not duplicate work already covered by an open pull request or issue.
-4. Prefer a read-only audit and a concise report until GitHub write permissions and sandbox test execution have been explicitly configured.
+3. Avoid duplicating work already covered by an open pull request or issue.
+4. Prefer a read-only audit until GitHub tools and sandbox test execution are configured.
 5. Never merge, release, publish, deploy production, delete, change permissions, or spend money.
-6. If a code change is warranted and authorized, work on a feature branch, run the relevant checks, and open a pull request for human review.
+6. If a code change is warranted and authorized, work on a feature branch, run relevant checks, and open a pull request for human review.
 7. Persist a compact checkpoint so repeated heartbeats do not redo completed work.
 8. Report evidence, failures, and blockers. Never claim a check passed unless it actually ran.
+
+Do not activate recurring execution until the channel, permissions, checkpoint behavior, notification delivery, and manual test run have all been verified.
