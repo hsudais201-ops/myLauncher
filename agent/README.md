@@ -2,14 +2,14 @@
 
 This folder contains the separate eve-based cloud agent for maintaining the Flame Launcher repository.
 
-## What it is
+## Current implementation
 
-- A durable cloud agent, independent of the owner's phone or Chromebook.
-- A scheduled maintenance heartbeat (15-minute cadence on Vercel Hobby, subject to platform limits).
-- A bounded engineering workflow: inspect, plan, implement on a feature branch, test, and open a pull request.
-- Human approval remains required for merging, releases, production deployments, destructive actions, permission changes, and spending.
+- `agent/agent.ts` defines the Eve agent and selects a model through Vercel AI Gateway.
+- `agent/instructions.md` defines its Android-first Flame Launcher mission and strict human-approval boundaries.
+- `agent/schedules/heartbeat.md` is a maintenance-workflow design note only; it is **not an active schedule**.
+- The Git repository is connected to a Vercel project whose root directory is `agent/`.
 
-A scheduled agent is not a process continuously generating code every second. It wakes on its schedule, performs bounded work, and parks until the next run. The hosted service and durable state are managed by the platform.
+This is an initial agent definition, not yet a complete autonomous coding service. No recurring heartbeat, GitHub agent tools, sandbox test execution, notification channel, or production deployment has been verified.
 
 ## Project
 
@@ -19,9 +19,11 @@ A scheduled agent is not a process continuously generating code every second. It
 - Runtime/framework: eve
 - Intended hosting: Vercel
 
+A scheduled agent wakes on its configured schedule, performs bounded work, and parks until the next run. It does not continuously generate code every second.
+
 ## Local development
 
-Requires a supported Node.js version and an authenticated Vercel/eve setup.
+Requires Node.js 24 or newer and an authenticated Vercel/eve setup.
 
 ```bash
 cd agent
@@ -43,16 +45,16 @@ npm run deploy
 
 ## Required setup before autonomous repository work
 
-1. Link the Vercel project to this folder as its root directory.
+1. Verify the Eve agent build and HTTP session API.
 2. Configure an authenticated model through Vercel AI Gateway.
-3. Configure a scoped GitHub integration for the exact repository.
-4. Add typed GitHub inspection and pull-request tools; keep default-branch writes and merge/release actions disabled.
-5. Configure an isolated sandbox for tests and builds.
-6. Configure persistent checkpoint storage and a notification destination.
-7. Verify the health route and manually dispatch a test heartbeat before enabling the recurring schedule.
+3. Configure a scoped GitHub integration for this exact repository and add typed, least-privilege inspection and pull-request tools.
+4. Configure an isolated sandbox for tests and builds.
+5. Configure durable checkpoint storage and a notification channel.
+6. Implement a real Eve schedule using the supported TypeScript schedule API; keep it disabled until manually tested.
+7. Verify a health route and manually dispatch a test heartbeat before enabling recurring work.
 
 Do not put tokens or API keys in this repository. Use Vercel-managed connections or encrypted environment secrets. Do not enable broad GitHub organization access when repository-scoped access is sufficient.
 
-## Current scaffold status
+## Safety policy
 
-The instructions and schedule are present. The GitHub tool connection, sandbox test runner, persistent checkpoint provider, notifications, Vercel project, and production deployment still require configuration and verification. This scaffold is not yet a running 24/7 agent.
+The agent may inspect repository content and prepare changes on feature branches. It must never merge pull requests, push to the default branch, publish releases, deploy production app releases, delete resources, change account permissions, or spend money without explicit human approval.
