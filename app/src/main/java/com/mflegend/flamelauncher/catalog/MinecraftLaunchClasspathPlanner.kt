@@ -102,6 +102,7 @@ internal object MinecraftLaunchClasspathPlanner {
             }
         }
 
+        validateDestinationPaths(paths.keys)
         val libraryPaths = paths.keys.toList()
         require(libraryPaths.size <= MAX_LIBRARY_COUNT) {
             "Version metadata contains too many classpath libraries."
@@ -118,6 +119,33 @@ internal object MinecraftLaunchClasspathPlanner {
         )
     }
 
+    /**
+     * SAF providers may be case-insensitive and cannot represent a file as a
+     * parent directory. Reject ambiguous destinations before any downloader writes.
+     */
+    private fun validateDestinationPaths(paths: Set<String>) {
+        val canonicalFiles = linkedMapOf<String, String>()
+        val canonicalDirectories = mutableSetOf<String>()
+        for (path in paths) {
+            val segments = LibraryArtifactPathPolicy.segments(path)
+            val canonical = segments.map { it.lowercase(java.util.Locale.ROOT) }
+            val canonicalPath = canonical.joinToString("/")
+            val previous = canonicalFiles.putIfAbsent(canonicalPath, path)
+            require(previous == null || previous == path) {
+                "Version metadata declares case-conflicting library paths '$previous' and '$path'."
+            }
+            for (index in 1 until canonical.size) {
+                val parent = canonical.take(index).joinToString("/")
+                require(parent !in canonicalFiles) {
+                    "Library artifact '$path' conflicts with file destination '${canonicalFiles[parent]}'."
+                }
+                canonicalDirectories += parent
+            }
+            require(canonicalPath !in canonicalDirectories) {
+                "Library artifact '$path' conflicts with a directory destination."
+            }
+        }
+    }
     private val SHA1_PATTERN = Regex("[a-f0-9]{40}")
     private const val MAX_LIBRARY_COUNT = 1000
     private const val MAX_ARTIFACT_BYTES = 512L * 1024L * 1024L
