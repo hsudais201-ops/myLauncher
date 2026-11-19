@@ -2,18 +2,19 @@
 cron: "0 3 * * *"
 ---
 
-Run a bounded Flame Launcher maintenance heartbeat once per day (03:00 UTC / 08:00 Pakistan time).
+Run one bounded Flame Launcher maintenance check per day (03:00 UTC / 08:00 Pakistan time).
 
-The Vercel team is currently on the Hobby plan. Hobby cron schedules run once per day with approximate timing, so do not configure a 15-minute heartbeat on this plan. A 15-minute cadence requires a plan that supports minute-level cron precision.
+The current Vercel team is on the Hobby plan, so use a daily schedule rather than a 15-minute heartbeat. A 15-minute cadence requires a plan that supports minute-level cron precision.
 
-The GitHub agent tools, isolated build sandbox, persistent checkpoint store, and notification channel are not yet configured. Until they are verified, perform no repository writes and do not claim to have inspected repository health. Report the missing capabilities and stop.
+For now, perform a read-only repository audit using the attached GitHub connector. The connector is restricted to hsudais201-ops/myLauncher and the authenticated GitHub command allows only repository/PR/issue/workflow reads plus cloning this repository into the isolated sandbox. Do not attempt remote writes, commits, pushes, PR creation, merging, releases, or production deployment.
 
-When the required integrations are available:
-1. Inspect repository health, recent commits, open pull requests, open issues, and latest CI results.
-2. Identify at most one actionable, low-risk maintenance task.
-3. Avoid duplicating work already covered by an open pull request or issue.
-4. Prefer a read-only audit until GitHub tools and sandbox test execution are configured.
-5. Never merge, release, publish, deploy production, delete, change permissions, or spend money.
-6. If a code change is warranted and authorized, work on a feature branch, run relevant checks, and open a pull request for human review.
-7. Persist a compact checkpoint so repeated heartbeats do not redo completed work.
-8. Report evidence, failures, and blockers. Never claim a check passed unless it actually ran.
+At each run:
+1. Inspect the repository's recent changes, open pull requests, open issues, and latest CI runs.
+2. Identify at most one actionable, low-risk maintenance concern.
+3. Avoid duplicating work already covered by an open PR or issue.
+4. Run only checks available in the isolated sandbox; report unavailable Android emulator/device checks honestly.
+5. Do not save or publish code changes. Provide a proposed patch summary only.
+6. Never merge, release, publish, deploy production, delete, change permissions, or spend money.
+7. Report evidence, failures, and blockers. Never claim a check passed unless it actually ran.
+
+Persistent checkpoints and notifications are not configured yet, so do not claim durable progress between separate scheduled runs or successful notifications.
