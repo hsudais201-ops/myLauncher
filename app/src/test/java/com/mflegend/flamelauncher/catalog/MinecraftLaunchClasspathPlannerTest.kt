@@ -156,6 +156,52 @@ class MinecraftLaunchClasspathPlannerTest {
     }
 
     @Test
+    fun rejectsCaseInsensitiveArtifactPathCollisions() {
+        val metadata = json(
+            libraries = """
+                [
+                  {"name":"first","downloads":{"artifact":{"path":"org/example/Library.jar","sha1":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","size":10}}},
+                  {"name":"second","downloads":{"artifact":{"path":"org/example/library.jar","sha1":"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb","size":10}}}
+                ]
+            """
+        )
+        assertTrue(runCatching {
+            MinecraftLaunchClasspathPlanner.plan(metadata, "1.20.1", android)
+        }.isFailure)
+    }
+
+    @Test
+    fun rejectsLibraryFileDirectoryPrefixCollisions() {
+        val metadata = json(
+            libraries = """
+                [
+                  {"name":"file","downloads":{"artifact":{"path":"org/example","sha1":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","size":10}}},
+                  {"name":"child","downloads":{"artifact":{"path":"org/example/library.jar","sha1":"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb","size":10}}}
+                ]
+            """
+        )
+        assertTrue(runCatching {
+            MinecraftLaunchClasspathPlanner.plan(metadata, "1.20.1", android)
+        }.isFailure)
+    }
+
+    @Test
+    fun rejectsNonAdjacentLibraryFileDirectoryPrefixCollisions() {
+        val metadata = json(
+            libraries = """
+                [
+                  {"name":"first","downloads":{"artifact":{"path":"org/example","sha1":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","size":10}}},
+                  {"name":"middle","downloads":{"artifact":{"path":"com/example/middle.jar","sha1":"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb","size":10}}},
+                  {"name":"child","downloads":{"artifact":{"path":"org/example/child.jar","sha1":"cccccccccccccccccccccccccccccccccccccccc","size":10}}}
+                ]
+            """
+        )
+        assertTrue(runCatching {
+            MinecraftLaunchClasspathPlanner.plan(metadata, "1.20.1", android)
+        }.isFailure)
+    }
+
+    @Test
     fun rejectsMalformedDownloadsAndArtifactObjects() {
         val malformedDownloads = json(
             libraries = """[{"name":"bad:downloads:1","downloads":42}]"""
