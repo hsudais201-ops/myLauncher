@@ -1,8 +1,10 @@
 ---
-cron: "*/15 * * * *"
+cron: "0 3 * * *"
 ---
 
-Run a bounded Flame Launcher maintenance heartbeat.
+Run a bounded Flame Launcher maintenance heartbeat once per day (03:00 UTC / 08:00 Pakistan time).
+
+The Vercel team is currently on the Hobby plan. Hobby cron schedules run once per day with approximate timing, so do not configure a 15-minute heartbeat on this plan. A 15-minute cadence requires a plan that supports minute-level cron precision.
 
 The GitHub agent tools, isolated build sandbox, persistent checkpoint store, and notification channel are not yet configured. Until they are verified, perform no repository writes and do not claim to have inspected repository health. Report the missing capabilities and stop.
 
