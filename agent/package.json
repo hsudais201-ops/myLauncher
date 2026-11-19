@@ -1,0 +1,14 @@
+{
+  "name": "flame-launcher-cloud-agent",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "eve dev",
+    "build": "eve build",
+    "start": "eve start",
+    "deploy": "eve deploy"
+  },
+  "dependencies": {
+    "eve": "latest"
+  }
+}
