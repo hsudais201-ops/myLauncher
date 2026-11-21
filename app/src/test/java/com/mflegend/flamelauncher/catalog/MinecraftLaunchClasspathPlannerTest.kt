@@ -99,6 +99,44 @@ class MinecraftLaunchClasspathPlannerTest {
     }
 
     @Test
+    fun rejectsMissingDesktopNativeClassifierEvenOnAndroid() {
+        val metadata = json(
+            libraries = """
+                [
+                  {"name":"org.example:broken-linux-native:1","downloads":{"artifact":{"path":"library.jar","sha1":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","size":120}},"natives":{"linux":"missing-linux-classifier"}}
+                ]
+            """
+        )
+        assertTrue(runCatching {
+            MinecraftLaunchClasspathPlanner.plan(metadata, "1.20.1", android)
+        }.isFailure)
+    }
+
+    @Test
+    fun rejectsUnsafeOrUnverifiedNativeClassifierMetadata() {
+        val unsafePath = json(
+            libraries = """
+                [
+                  {"name":"org.example:unsafe-native:1","downloads":{"artifact":{"path":"library.jar","sha1":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","size":120},"classifiers":{"natives-linux":{"path":"../native.jar","sha1":"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb","size":120}}},"natives":{"linux":"natives-linux"}}
+                ]
+            """
+        )
+        val invalidChecksum = json(
+            libraries = """
+                [
+                  {"name":"org.example:invalid-native:1","downloads":{"artifact":{"path":"library.jar","sha1":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","size":120},"classifiers":{"natives-linux":{"path":"native.jar","sha1":"not-a-checksum","size":120}}},"natives":{"linux":"natives-linux"}}
+                ]
+            """
+        )
+        assertTrue(runCatching {
+            MinecraftLaunchClasspathPlanner.plan(unsafePath, "1.20.1", android)
+        }.isFailure)
+        assertTrue(runCatching {
+            MinecraftLaunchClasspathPlanner.plan(invalidChecksum, "1.20.1", android)
+        }.isFailure)
+    }
+
+    @Test
     fun rejectsNativeMappingWithoutItsDeclaredClassifier() {
         val metadata = json(
             libraries = """
