@@ -333,7 +333,6 @@ class MojangAssetDownloader {
         val existing = storage.findFile(parent, fileName)
         if (existing != null && isVerified(storage, existing.uri, asset.sizeBytes, asset.hash, control)) return
 
-        val tempKey = asset.pathSegments.joinToString("/") + ":" + asset.hash
         val temporaryUri = storage.createUniqueTemporaryFile(parent, "application/octet-stream")
         try {
             val digest = MessageDigest.getInstance("SHA-1")
