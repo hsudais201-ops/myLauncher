@@ -80,8 +80,7 @@ class MojangVersionInstaller(
     private fun saveMetadata(storage: SafGameStorage, directory: Uri, name: String, bytes: ByteArray, control: DownloadControl) {
         control.checkpoint()
         val existing = storage.findFile(directory, name)
-        val temporaryName = ".$name.download"
-        val uri = storage.createTemporaryFile(directory, temporaryName, "application/json")
+        val uri = storage.createUniqueTemporaryFile(directory, "application/json")
         try {
             storage.openOutput(uri).use { output ->
                 output.write(bytes)
