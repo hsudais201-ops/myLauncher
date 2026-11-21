@@ -1,9 +1,12 @@
 package com.mflegend.flamelauncher.catalog
 
+import java.util.Locale
+
 /**
  * Validates library artifact declarations before storage access or download.
  *
- * A version may not declare conflicting bytes at the same destination path.
+ * SAF providers may be case-insensitive, so destinations are compared using
+ * Locale.ROOT. File/directory prefix conflicts are rejected in either order.
  * The aggregate limit counts unique declared artifacts, including cached files.
  */
 internal class LibraryArtifactTracker(
@@ -27,8 +30,9 @@ internal class LibraryArtifactTracker(
             "Library artifact SHA-1 is invalid."
         }
 
+        val normalizedPath = path.lowercase(Locale.ROOT)
         val declaration = Declaration(size, sha1)
-        val previous = declarations[path]
+        val previous = declarations[normalizedPath]
         if (previous != null) {
             require(previous == declaration) {
                 "Library metadata declares conflicting artifacts for the same path: $path"
@@ -36,10 +40,15 @@ internal class LibraryArtifactTracker(
             return false
         }
 
+        require(declarations.keys.none { existing ->
+            normalizedPath.startsWith("$existing/") || existing.startsWith("$normalizedPath/")
+        }) {
+            "Library metadata declares colliding file and directory destinations: $path"
+        }
         require(totalDeclaredBytes <= maxTotalBytes - size) {
             "Library set exceeds the total download safety limit."
         }
-        declarations[path] = declaration
+        declarations[normalizedPath] = declaration
         totalDeclaredBytes += size
         return true
     }
