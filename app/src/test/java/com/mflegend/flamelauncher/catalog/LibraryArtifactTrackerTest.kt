@@ -18,6 +18,31 @@ class LibraryArtifactTrackerTest {
         assertEquals(150L, tracker.totalDeclaredBytes)
     }
 
+    @Test fun rejectsCaseInsensitiveDestinationCollisions() {
+        val tracker = LibraryArtifactTracker(maxArtifactBytes = 100, maxTotalBytes = 200)
+        assertTrue(tracker.register("org/example/A.jar", 80, shaA))
+
+        assertFalse(tracker.register("ORG/EXAMPLE/a.JAR", 80, shaA))
+        assertTrue(runCatching {
+            tracker.register("org/example/a.jar", 80, shaB)
+        }.exceptionOrNull() is IllegalArgumentException)
+        assertEquals(80L, tracker.totalDeclaredBytes)
+    }
+
+    @Test fun rejectsFileDirectoryPrefixCollisionInEitherOrder() {
+        val fileFirst = LibraryArtifactTracker(maxArtifactBytes = 100, maxTotalBytes = 200)
+        assertTrue(fileFirst.register("org/example", 80, shaA))
+        assertTrue(runCatching {
+            fileFirst.register("org/example/library.jar", 20, shaB)
+        }.exceptionOrNull() is IllegalArgumentException)
+
+        val directoryFirst = LibraryArtifactTracker(maxArtifactBytes = 100, maxTotalBytes = 200)
+        assertTrue(directoryFirst.register("org/example/library.jar", 20, shaB))
+        assertTrue(runCatching {
+            directoryFirst.register("org/example", 80, shaA)
+        }.exceptionOrNull() is IllegalArgumentException)
+    }
+
     @Test fun rejectsConflictingHashOrSizeAtSameDestination() {
         val tracker = LibraryArtifactTracker(maxArtifactBytes = 100, maxTotalBytes = 200)
         assertTrue(tracker.register("org/example/a.jar", 80, shaA))
