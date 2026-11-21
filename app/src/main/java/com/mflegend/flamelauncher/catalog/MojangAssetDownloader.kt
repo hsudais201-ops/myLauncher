@@ -104,8 +104,7 @@ class MojangAssetDownloader {
                 objectUris[hash] = existing.uri
                 continue
             }
-            val temporaryName = "." + hash + ".download"
-            val fileUri = storage.createTemporaryFile(prefixDir, temporaryName, "application/octet-stream")
+            val fileUri = storage.createUniqueTemporaryFile(prefixDir, "application/octet-stream")
             try {
                 val objectUrl = URL("https://resources.download.minecraft.net/" + prefix + "/" + hash)
                 downloadObject(objectUrl, storage, fileUri, size, hash, control)
@@ -219,8 +218,7 @@ class MojangAssetDownloader {
         control: DownloadControl
     ) {
         val oldFile = storage.findFile(directory, name)
-        val temporaryName = ".$name.download"
-        val uri = storage.createTemporaryFile(directory, temporaryName, "application/json")
+        val uri = storage.createUniqueTemporaryFile(directory, "application/json")
         try {
             storage.openOutput(uri).use { output ->
                 output.write(bytes)
@@ -336,8 +334,7 @@ class MojangAssetDownloader {
         if (existing != null && isVerified(storage, existing.uri, asset.sizeBytes, asset.hash, control)) return
 
         val tempKey = asset.pathSegments.joinToString("/") + ":" + asset.hash
-        val temporaryName = "." + sha1(tempKey.toByteArray()).take(20) + ".download"
-        val temporaryUri = storage.createTemporaryFile(parent, temporaryName, "application/octet-stream")
+        val temporaryUri = storage.createUniqueTemporaryFile(parent, "application/octet-stream")
         try {
             val digest = MessageDigest.getInstance("SHA-1")
             var copiedBytes = 0L
