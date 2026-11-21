@@ -81,18 +81,29 @@ internal object MinecraftLaunchClasspathPlanner {
                     // Flame can select and extract a verified Android-compatible
                     // payload. A Linux mapping is never treated as Android.
                     nativeLibraries += name
+                    val classifiers = downloads?.optJSONObject("classifiers")
+                        ?: error("Minecraft library '$name' declares native mappings without classifiers.")
                     val keys = nativeMappings.keys()
                     while (keys.hasNext()) {
                         val osName = keys.next()
-                        val classifierName = nativeMappings.optString(osName)
-                        require(classifierName.isNotBlank()) {
-                            "Minecraft library '$name' has an empty native classifier mapping."
+                        val rawClassifierName = nativeMappings.opt(osName)
+                        require(rawClassifierName is String && rawClassifierName.isNotBlank()) {
+                            "Minecraft library '$name' has an invalid native classifier mapping."
                         }
-                        if (osName == ruleContext.platformName) {
-                            val classifiers = downloads?.optJSONObject("classifiers")
-                            require(classifiers?.has(classifierName) == true) {
-                                "Minecraft library '$name' is missing its declared native classifier."
-                            }
+                        val classifier = classifiers.optJSONObject(rawClassifierName)
+                            ?: error("Minecraft library '$name' is missing native classifier '$rawClassifierName'.")
+                        // Validate every declared mapping, not only the current OS:
+                        // malformed desktop metadata must not be silently accepted
+                        // just because Android cannot select that classifier yet.
+                        val classifierPath = classifier.optString("path")
+                        LibraryArtifactPathPolicy.segments(classifierPath)
+                        val classifierSha1 = classifier.optString("sha1").lowercase()
+                        require(classifierSha1.matches(SHA1_PATTERN)) {
+                            "Native classifier has no valid SHA-1 checksum: $classifierPath"
+                        }
+                        val classifierSize = classifier.optLong("size", -1L)
+                        require(classifierSize in 1..MAX_ARTIFACT_BYTES) {
+                            "Native classifier has an invalid declared size: $classifierPath"
                         }
                     }
                 }
