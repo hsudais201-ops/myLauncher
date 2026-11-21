@@ -9,6 +9,7 @@ import java.io.OutputStream
 import java.io.IOException
 import java.io.FilterInputStream
 import java.io.FilterOutputStream
+import java.util.UUID
 
 /**
  * SAF-backed access to a user-selected game directory.
@@ -182,6 +183,17 @@ class SafGameStorage(
             "The storage provider did not create one distinct file with the requested name."
         }
         return created
+    }
+
+    /** Creates a collision-resistant temporary document name for downloads and replacements. */
+    fun createUniqueTemporaryFile(parentUri: Uri, mimeType: String): Uri {
+        repeat(8) {
+            val name = ".flame-tmp-${UUID.randomUUID()}.download"
+            if (listChildren(parentUri).none { it.name == name }) {
+                return createTemporaryFile(parentUri, name, mimeType)
+            }
+        }
+        throw IOException("Could not allocate a unique temporary download name.")
     }
 
     /**
