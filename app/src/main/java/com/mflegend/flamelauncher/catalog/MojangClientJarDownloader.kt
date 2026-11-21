@@ -38,8 +38,7 @@ class MojangClientJarDownloader {
 
         val fileName = "$versionId.jar"
         val oldFile = storage.findFile(versionDirectory, fileName)
-        val temporaryName = ".$fileName.download"
-        val fileUri = storage.createTemporaryFile(versionDirectory, temporaryName, "application/java-archive")
+        val fileUri = storage.createUniqueTemporaryFile(versionDirectory, "application/java-archive")
         val connection = (downloadUrl.openConnection() as HttpURLConnection).apply {
             requestMethod = "GET"
             connectTimeout = 20_000
