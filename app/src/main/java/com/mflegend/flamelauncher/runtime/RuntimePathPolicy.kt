@@ -15,8 +15,28 @@ import java.nio.file.Path
  */
 internal object RuntimePathPolicy {
     private val runtimeIdPattern = Regex("[A-Za-z0-9._-]{1,80}")
+    private const val MAX_RUNTIME_DIRECTORIES_TO_SCAN = 32
+
+    data class RuntimeDirectoryBatch(
+        val directories: List<File>,
+        val omittedCount: Int
+    )
 
     fun isRuntimeId(value: String): Boolean = runtimeIdPattern.matches(value)
+
+    /**
+     * Bound metadata inspection when many runtime folders have accumulated.
+     * Sorting makes the selected subset deterministic across filesystem order.
+     */
+    fun selectRuntimeDirectories(children: Array<File>): RuntimeDirectoryBatch {
+        val candidates = children
+            .filter { isRuntimeId(it.name) }
+            .sortedBy { it.name }
+        return RuntimeDirectoryBatch(
+            directories = candidates.take(MAX_RUNTIME_DIRECTORIES_TO_SCAN),
+            omittedCount = (candidates.size - MAX_RUNTIME_DIRECTORIES_TO_SCAN).coerceAtLeast(0)
+        )
+    }
 
     /** Reject links even when they resolve back inside the managed tree. */
     fun isSymbolicLink(candidate: File): Boolean = try {

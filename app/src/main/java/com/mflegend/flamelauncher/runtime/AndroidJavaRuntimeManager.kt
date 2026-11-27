@@ -78,7 +78,12 @@ class AndroidJavaRuntimeManager(context: Context) {
             return ScanResult(emptyList(), listOf("The private Java runtime directory could not be read."))
         }
 
-        for (directory in children) {
+        val runtimeBatch = RuntimePathPolicy.selectRuntimeDirectories(children)
+        if (runtimeBatch.omittedCount > 0) {
+            warnings += "Ignored ${runtimeBatch.omittedCount} additional runtime folders; the scan limit is 32."
+        }
+
+        for (directory in runtimeBatch.directories) {
             if (RuntimePathPolicy.isSymbolicLink(directory)) {
                 warnings += "Ignored ${directory.name}: symbolic-link runtime folders are not allowed."
                 continue
