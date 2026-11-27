@@ -31,6 +31,9 @@ internal object MinecraftLaunchClasspathPlanner {
         val root = JSONObject(MojangMetadataText.decode(metadataBytes))
         val libraries = root.optJSONArray("libraries")
         val paths = linkedMapOf<String, Pair<Long, String>>()
+        // Classifier payloads share the libraries/ destination namespace with ordinary JARs.
+        // Track both so case-insensitive SAF providers cannot overwrite a different payload.
+        val allArtifactPaths = linkedMapOf<String, Pair<Long, String>>()
         val nativeLibraries = linkedSetOf<String>()
         val unresolvedLibraries = linkedSetOf<String>()
 
@@ -72,6 +75,7 @@ internal object MinecraftLaunchClasspathPlanner {
                     require(previous == null || previous == (size to sha1)) {
                         "Version metadata declares conflicting artifacts at '$relativePath'."
                     }
+                    recordDeclaredArtifactPath(allArtifactPaths, relativePath, size, sha1)
                 }
 
                 if (library.has("natives")) {
@@ -105,6 +109,12 @@ internal object MinecraftLaunchClasspathPlanner {
                         require(classifierSize in 1..MAX_ARTIFACT_BYTES) {
                             "Native classifier has an invalid declared size: $classifierPath"
                         }
+                        recordDeclaredArtifactPath(
+                            allArtifactPaths,
+                            classifierPath,
+                            classifierSize,
+                            classifierSha1
+                        )
                     }
                 }
                 if (artifact == null) {
@@ -113,7 +123,7 @@ internal object MinecraftLaunchClasspathPlanner {
             }
         }
 
-        validateDestinationPaths(paths.keys)
+        validateDestinationPaths(allArtifactPaths.keys)
         val libraryPaths = paths.keys.toList()
         require(libraryPaths.size <= MAX_LIBRARY_COUNT) {
             "Version metadata contains too many classpath libraries."
@@ -128,6 +138,18 @@ internal object MinecraftLaunchClasspathPlanner {
             nativeLibrariesPending = nativeLibraries.toList(),
             unresolvedLibraries = unresolvedLibraries.toList()
         )
+    }
+
+    private fun recordDeclaredArtifactPath(
+        paths: MutableMap<String, Pair<Long, String>>,
+        path: String,
+        size: Long,
+        sha1: String
+    ) {
+        val previous = paths.putIfAbsent(path, size to sha1)
+        require(previous == null || previous == (size to sha1)) {
+            "Version metadata declares conflicting artifact payloads at '$path'."
+        }
     }
 
     /**
