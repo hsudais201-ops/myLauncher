@@ -151,6 +151,40 @@ class MinecraftLaunchClasspathPlannerTest {
     }
 
     @Test
+    fun rejectsNativeClassifierDestinationCollisionsWithOtherPayloads() {
+        val caseInsensitiveCollision = json(
+            libraries = """
+                [
+                  {"name":"ordinary","downloads":{"artifact":{"path":"org/example/Native.jar","sha1":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","size":120}}},
+                  {"name":"native","downloads":{"artifact":{"path":"native-wrapper.jar","sha1":"cccccccccccccccccccccccccccccccccccccccc","size":120},"classifiers":{"natives-android":{"path":"org/example/native.jar","sha1":"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb","size":120}}},"natives":{"android":"natives-android"}}
+                ]
+            """
+        )
+        val conflictingExactPath = json(
+            libraries = """
+                [
+                  {"name":"ordinary","downloads":{"artifact":{"path":"org/example/shared.jar","sha1":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","size":120}}},
+                  {"name":"native","downloads":{"artifact":{"path":"native-wrapper.jar","sha1":"cccccccccccccccccccccccccccccccccccccccc","size":120},"classifiers":{"natives-android":{"path":"org/example/shared.jar","sha1":"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb","size":120}}},"natives":{"android":"natives-android"}}
+                ]
+            """
+        )
+        val fileDirectoryCollision = json(
+            libraries = """
+                [
+                  {"name":"ordinary","downloads":{"artifact":{"path":"org/example","sha1":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","size":120}}},
+                  {"name":"native","downloads":{"artifact":{"path":"native-wrapper.jar","sha1":"cccccccccccccccccccccccccccccccccccccccc","size":120},"classifiers":{"natives-android":{"path":"org/example/native.jar","sha1":"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb","size":120}}},"natives":{"android":"natives-android"}}
+                ]
+            """
+        )
+
+        listOf(caseInsensitiveCollision, conflictingExactPath, fileDirectoryCollision).forEach { metadata ->
+            assertTrue(runCatching {
+                MinecraftLaunchClasspathPlanner.plan(metadata, "1.20.1", android)
+            }.isFailure)
+        }
+    }
+
+    @Test
     fun rejectsTraversalAndConflictingDuplicateArtifacts() {
         val traversal = json(
             libraries = """[{"name":"bad","downloads":{"artifact":{"path":"../evil.jar","sha1":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","size":10}}}]"""
