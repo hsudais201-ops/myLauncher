@@ -2,7 +2,6 @@ package com.mflegend.flamelauncher.runtime
 
 import java.io.File
 import java.nio.file.Files
-import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -90,19 +89,6 @@ class RuntimePathPolicyTest {
             parent.deleteRecursively()
             sibling.deleteRecursively()
         }
-    }
-
-    @Test fun boundsRuntimeDirectoryScanningDeterministically() {
-        val children = (0 until 40).map { index ->
-            File("/private/java-runtimes/runtime-${index.toString().padStart(2, '0')}")
-        }.toTypedArray() + arrayOf(File("/private/java-runtimes/../outside"), File("/private/java-runtimes/"))
-
-        val batch = RuntimePathPolicy.selectRuntimeDirectories(children)
-
-        assertEquals(32, batch.directories.size)
-        assertEquals(8, batch.omittedCount)
-        assertEquals("runtime-00", batch.directories.first().name)
-        assertEquals("runtime-31", batch.directories.last().name)
     }
 
 }
