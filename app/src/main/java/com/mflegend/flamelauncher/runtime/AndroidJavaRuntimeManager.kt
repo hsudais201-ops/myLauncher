@@ -3,6 +3,8 @@ package com.mflegend.flamelauncher.runtime
 import android.content.Context
 import java.io.File
 import java.io.IOException
+import java.nio.file.DirectoryIteratorException
+import java.nio.file.Files
 
 /**
  * Inspects Java runtimes provisioned in Flame Launcher's private app storage.
@@ -39,6 +41,8 @@ class AndroidJavaRuntimeManager(context: Context) {
         scanInternal(environment)
     } catch (_: SecurityException) {
         ScanResult(emptyList(), listOf("Access to the private Java runtime directory was denied."))
+    } catch (_: DirectoryIteratorException) {
+        ScanResult(emptyList(), listOf("The private Java runtime directory could not be read safely."))
     } catch (_: IOException) {
         ScanResult(emptyList(), listOf("The private Java runtime directory could not be inspected safely."))
     }
@@ -73,12 +77,12 @@ class AndroidJavaRuntimeManager(context: Context) {
         if (canonicalAppRoot == null || !RuntimePathPolicy.isDirectChild(canonicalAppRoot, canonicalRoot)) {
             return ScanResult(emptyList(), listOf("The Java runtime directory resolves outside its managed app-private location."))
         }
-        val children = runtimeRoot.listFiles()
-        if (children == null) {
-            return ScanResult(emptyList(), listOf("The private Java runtime directory could not be read."))
+        val runtimeBatch = Files.newDirectoryStream(runtimeRoot.toPath()).use { children ->
+            RuntimePathPolicy.selectRuntimeDirectories(children.asSequence().map { it.toFile() })
         }
-
-        val runtimeBatch = RuntimePathPolicy.selectRuntimeDirectories(children)
+        if (runtimeBatch.ignoredEntryCount > 0) {
+            warnings += "Ignored ${runtimeBatch.ignoredEntryCount} runtime entries that were not regular directories or were symbolic links."
+        }
         if (runtimeBatch.omittedCount > 0) {
             warnings += "Ignored ${runtimeBatch.omittedCount} additional runtime folders; the scan limit is 32."
         }

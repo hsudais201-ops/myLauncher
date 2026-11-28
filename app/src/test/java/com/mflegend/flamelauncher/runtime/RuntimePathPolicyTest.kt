@@ -92,17 +92,29 @@ class RuntimePathPolicyTest {
         }
     }
 
-    @Test fun boundsRuntimeDirectoryScanningDeterministically() {
-        val children = (0 until 40).map { index ->
-            File("/private/java-runtimes/runtime-${index.toString().padStart(2, '0')}")
-        }.toTypedArray() + arrayOf(File("/private/java-runtimes/invalid id"))
+    @Test fun boundsRuntimeDirectoryScanningDeterministicallyAndIgnoresNonDirectories() {
+        val root = Files.createTempDirectory("flame-runtime-batch")
+        try {
+            (0 until 40).forEach { index ->
+                Files.createDirectory(root.resolve("runtime-${index.toString().padStart(2, '0')}"))
+            }
+            Files.createFile(root.resolve("runtime-file"))
+            val symlinkTarget = Files.createDirectory(root.resolve("not a runtime"))
+            Files.createSymbolicLink(root.resolve("runtime-link"), symlinkTarget)
+            Files.createDirectory(root.resolve("invalid id"))
 
-        val batch = RuntimePathPolicy.selectRuntimeDirectories(children)
+            val batch = Files.newDirectoryStream(root).use { children ->
+                RuntimePathPolicy.selectRuntimeDirectories(children.asSequence().map { it.toFile() })
+            }
 
-        assertEquals(32, batch.directories.size)
-        assertEquals(8, batch.omittedCount)
-        assertEquals("runtime-00", batch.directories.first().name)
-        assertEquals("runtime-31", batch.directories.last().name)
+            assertEquals(32, batch.directories.size)
+            assertEquals(8, batch.omittedCount)
+            assertEquals(2, batch.ignoredEntryCount)
+            assertEquals("runtime-00", batch.directories.first().name)
+            assertEquals("runtime-31", batch.directories.last().name)
+        } finally {
+            root.toFile().deleteRecursively()
+        }
     }
 
 }

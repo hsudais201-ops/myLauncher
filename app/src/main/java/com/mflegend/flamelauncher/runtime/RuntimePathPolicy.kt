@@ -4,6 +4,7 @@ import java.io.File
 import java.io.IOException
 import java.nio.file.Files
 import java.nio.file.Path
+import java.util.PriorityQueue
 
 /**
  * Canonical-path policy for app-private runtime bundles.
@@ -19,22 +20,47 @@ internal object RuntimePathPolicy {
 
     data class RuntimeDirectoryBatch(
         val directories: List<File>,
-        val omittedCount: Int
+        val omittedCount: Int,
+        val ignoredEntryCount: Int
     )
 
     fun isRuntimeId(value: String): Boolean = runtimeIdPattern.matches(value)
 
     /**
-     * Bound metadata inspection when many runtime folders have accumulated.
-     * Sorting makes the selected subset deterministic across filesystem order.
+     * Select at most 32 real runtime directories in deterministic name order.
+     *
+     * A bounded max-heap avoids retaining every candidate when storage has
+     * accumulated many entries. Files and symbolic links with runtime-like
+     * names do not consume the directory scan quota.
      */
-    fun selectRuntimeDirectories(children: Array<File>): RuntimeDirectoryBatch {
-        val candidates = children
-            .filter { isRuntimeId(it.name) }
-            .sortedBy { it.name }
+    fun selectRuntimeDirectories(children: Sequence<File>): RuntimeDirectoryBatch {
+        val selected = PriorityQueue<File>(
+            MAX_RUNTIME_DIRECTORIES_TO_SCAN,
+            compareByDescending<File> { it.name }
+        )
+        var eligibleCount = 0
+        var ignoredEntryCount = 0
+
+        children.forEach { child ->
+            if (!isRuntimeId(child.name)) return@forEach
+            if (isSymbolicLink(child) || !child.isDirectory) {
+                ignoredEntryCount += 1
+                return@forEach
+            }
+
+            eligibleCount += 1
+            if (selected.size < MAX_RUNTIME_DIRECTORIES_TO_SCAN) {
+                selected.add(child)
+            } else if (child.name < selected.peek().name) {
+                selected.poll()
+                selected.add(child)
+            }
+        }
+
         return RuntimeDirectoryBatch(
-            directories = candidates.take(MAX_RUNTIME_DIRECTORIES_TO_SCAN),
-            omittedCount = (candidates.size - MAX_RUNTIME_DIRECTORIES_TO_SCAN).coerceAtLeast(0)
+            directories = selected.sortedBy { it.name },
+            omittedCount = (eligibleCount - selected.size).coerceAtLeast(0),
+            ignoredEntryCount = ignoredEntryCount
         )
     }
 
