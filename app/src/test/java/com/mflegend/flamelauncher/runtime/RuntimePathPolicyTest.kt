@@ -98,9 +98,9 @@ class RuntimePathPolicyTest {
             (0 until 40).forEach { index ->
                 Files.createDirectory(root.resolve("runtime-${index.toString().padStart(2, '0')}"))
             }
-            Files.createFile(root.resolve("runtime-file"))
+            Files.createFile(root.resolve("aaa-file"))
             val symlinkTarget = Files.createDirectory(root.resolve("not a runtime"))
-            Files.createSymbolicLink(root.resolve("runtime-link"), symlinkTarget)
+            Files.createSymbolicLink(root.resolve("aaa-link"), symlinkTarget)
             Files.createDirectory(root.resolve("invalid id"))
 
             val batch = Files.newDirectoryStream(root).use { children ->
@@ -112,6 +112,15 @@ class RuntimePathPolicyTest {
             assertEquals(2, batch.ignoredEntryCount)
             assertEquals("runtime-00", batch.directories.first().name)
             assertEquals("runtime-31", batch.directories.last().name)
+            assertTrue(batch.directories.none { it.name == "aaa-file" || it.name == "aaa-link" })
+
+            val reversedBatch = RuntimePathPolicy.selectRuntimeDirectories(
+                root.toFile().listFiles()!!.reversed().asSequence()
+            )
+            assertEquals(
+                batch.directories.map { it.name },
+                reversedBatch.directories.map { it.name }
+            )
         } finally {
             root.toFile().deleteRecursively()
         }
